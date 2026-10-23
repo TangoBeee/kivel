@@ -1,0 +1,28 @@
+node_modules/
+dist/
+.next/
+out/
+.pnpm-store/
+.data/
+coverage/
+backups/
+*.dump
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+
+# Private notes
+*.private.md
+
+# Generated at build time
+frontend/lib/generated/
+
+# Local tooling and personal files, never published
+.github/hooks/
+.claude/
+brag-output/
+docs/deploy-open-beta.md
+__pycache__/
+*.pyc
+.DS_Store

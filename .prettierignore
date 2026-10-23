@@ -1,0 +1,12 @@
+node_modules
+.pnpm-store
+.data
+dist
+out
+.next
+pnpm-lock.yaml
+backend/pnpm-lock.yaml
+PROJECT.md
+frontend/next-env.d.ts
+frontend/AGENTS.md
+backups

@@ -1,0 +1,29 @@
+{
+  "name": "socket-help",
+  "private": true,
+  "packageManager": "pnpm@10.30.3",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "pnpm build:packages && pnpm --filter frontend build && pnpm --filter frontend test:pages && pnpm --filter backend build",
+    "start": "pnpm --filter backend start",
+    "typecheck": "pnpm build:packages && pnpm -r typecheck",
+    "test": "pnpm build:packages && pnpm -r test",
+    "test:integration": "node scripts/test-postgres.mjs",
+    "test:smoke": "node scripts/smoke.mjs",
+    "test:https": "node scripts/test-https.mjs",
+    "scan:images": "node scripts/scan-images.mjs",
+    "check": "pnpm typecheck && pnpm test && pnpm test:integration && pnpm build",
+    "build:packages": "pnpm --filter @socket-help/tools build && pnpm --filter @socket-help/sdk build && pnpm --filter @socket-help/cli build",
+    "cli": "node packages/cli/dist/cli.js",
+    "backup": "node scripts/backup.mjs",
+    "test:backup": "node scripts/verify-backup.mjs",
+    "check:production": "node scripts/production-check.mjs"
+  },
+  "devDependencies": {
+    "embedded-postgres": "18.4.0-beta.17",
+    "prettier": "3.9.10"
+  }
+}

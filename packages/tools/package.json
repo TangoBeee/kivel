@@ -1,0 +1,62 @@
+{
+  "name": "@socket-help/tools",
+  "version": "0.3.0",
+  "type": "module",
+  "private": true,
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": "./dist/index.js",
+    "./catalog": "./dist/catalog.js",
+    "./definitions": "./dist/definitions.js",
+    "./engine": "./dist/engine.js",
+    "./plans": "./dist/plans.js",
+    "./node": "./dist/node-runner.js",
+    "./payment-cards": "./dist/payment-cards.js",
+    "./extra-definitions": "./dist/extra-definitions.js",
+    "./artifacts": "./dist/artifacts.js",
+    "./mock-config": "./dist/mock-config.js",
+    "./network-definitions": "./dist/network-definitions.js",
+    "./media-definitions": "./dist/media-definitions.js",
+    "./media-engine": "./dist/media-engine.js",
+    "./sse": "./dist/sse.js",
+    "./resource-definitions": "./dist/resource-definitions.js",
+    "./csv-preview": "./dist/csv-preview.js",
+    "./av": "./dist/av-engine.js",
+    "./av-definitions": "./dist/av-definitions.js",
+    "./mock-behavior": "./dist/mock-behavior.js",
+    "./mock-presets": "./dist/mock-presets.js",
+    "./audio": "./dist/audio.js",
+    "./audio-definitions": "./dist/audio-definitions.js",
+    "./image-design": "./dist/image-design.js",
+    "./api-scenarios": "./dist/api-scenarios.js",
+    "./mock-crud": "./dist/mock-crud.js",
+    "./billing-plans": "./dist/billing-plans.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@napi-rs/canvas": "1.0.13",
+    "bwip-js": "4.11.4",
+    "cron-parser": "5.10.2",
+    "diff": "9.0.0",
+    "fast-xml-parser": "5.11.2",
+    "marked": "18.1.1",
+    "papaparse": "5.7.0",
+    "pdf-lib": "1.17.1",
+    "pdfjs-dist": "6.4.299",
+    "postal-mime": "4.1.4",
+    "qrcode-generator": "2.0.4",
+    "re2js": "2.9.0",
+    "sharp": "0.35.5",
+    "yaml": "2.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/papaparse": "5.5.2",
+    "typescript": "^7.0.2"
+  }
+}

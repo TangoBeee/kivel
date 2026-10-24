@@ -1,0 +1,112 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { readConfig } from './config.js';
+
+const production = {
+    SMTP_HOST: 'smtp.example.test',
+    SMTP_FROM: 'support@socket.help',
+    NODE_ENV: 'production',
+    AUTH_SECRET: 'test-secret-at-least-32-characters-long',
+    PUBLIC_BASE_URL: 'https://socket.help',
+    DATABASE_URL: 'postgres://socket:password@database/socket',
+};
+
+test('production requires persistent storage, a public origin, and HTTPS', () => {
+    assert.throws(() => readConfig({ NODE_ENV: 'production' }), /PUBLIC_BASE_URL/);
+    assert.throws(
+        () => readConfig({ NODE_ENV: 'production', PUBLIC_BASE_URL: 'https://socket.help' }),
+        /DATABASE_URL/,
+    );
+    assert.throws(
+        () => readConfig({ ...production, PUBLIC_BASE_URL: 'http://socket.help' }),
+        /HTTPS/,
+    );
+    assert.equal(readConfig(production).host, '0.0.0.0');
+    assert.equal(readConfig({}).host, '127.0.0.1');
+});
+
+test('invalid ports, database URLs, log levels, and trust-all proxies fail startup', () => {
+    for (const PORT of ['0', '65536', 'abc', '2.5'])
+        assert.throws(() => readConfig({ PORT }), /PORT/);
+    for (const DATABASE_URL of ['bad', 'https://example.com/db', 'postgres://localhost'])
+        assert.throws(() => readConfig({ DATABASE_URL }), /DATABASE_URL/);
+    for (const TRUSTED_PROXIES of [
+        'true',
+        '0.0.0.0/0',
+        '::/0',
+        '127.0.0.1/33',
+        'unknown',
+        '127.0.0.1/8/2',
+    ]) {
+        assert.throws(() => readConfig({ TRUSTED_PROXIES }), /TRUSTED_PROXIES/);
+    }
+    assert.throws(() => readConfig({ LOG_LEVEL: 'everything' }), /LOG_LEVEL/);
+    assert.deepEqual(readConfig({ TRUSTED_PROXIES: '127.0.0.1,172.30.0.0/24' }).trustProxy, [
+        '127.0.0.1',
+        '172.30.0.0/24',
+    ]);
+});
+
+test('billing stays disabled without complete configuration and production requires a stable auth secret', () => {
+    assert.throws(() => readConfig({ ...production, AUTH_SECRET: undefined }), /AUTH_SECRET/);
+    assert.equal(readConfig(production).billingConfig, undefined);
+    assert.throws(
+        () => readConfig({ ...production, DODO_PAYMENTS_API_KEY: 'dodo_test_example' }),
+        /four Dodo/,
+    );
+    assert.throws(() => readConfig({ SSH_PORT: '3000' }), /SSH_PORT/);
+});
+
+test('SMTP is explicit, validates settings, and is required before enabling subscriptions', () => {
+    const mail = {
+        SMTP_HOST: 'smtp.example.test',
+        SMTP_FROM: 'accounts@example.test',
+        SMTP_USER: 'provider-user',
+        SMTP_PASSWORD: 'provider-password',
+    };
+    const result = readConfig({ ...production, ...mail });
+    assert.equal(result.mailConfig?.port, 587);
+    assert.equal(result.mailConfig?.local, false);
+    assert.throws(
+        () => readConfig({ ...production, SMTP_HOST: 'smtp.example.test', SMTP_FROM: undefined }),
+        /SMTP/,
+    );
+    assert.throws(() => readConfig({ ...production, ...mail, SMTP_PORT: 'invalid' }), /SMTP/);
+    assert.throws(
+        () => readConfig({ ...production, ...mail, SMTP_FROM: 'injected\r\naddress@example.test' }),
+        /email/,
+    );
+    const billing = {
+        BILLING_ENABLED: 'true',
+        DODO_PAYMENTS_API_KEY: 'dodo_test_example',
+        DODO_PAYMENTS_WEBHOOK_KEY: 'whsec_ZXhhbXBsZQ==',
+        DODO_PRO_PRODUCT_ID: 'pdt_pro',
+        DODO_TEAM_PRODUCT_ID: 'pdt_team',
+    };
+    assert.throws(
+        () => readConfig({ ...production, ...billing, SMTP_HOST: undefined, SMTP_FROM: undefined }),
+        /recovery email/,
+    );
+    assert.ok(readConfig({ ...production, ...billing, ...mail }).billingConfig);
+});
+
+test('public production requires recovery delivery and beta billing is explicitly opt-in', () => {
+    assert.throws(
+        () => readConfig({ ...production, SMTP_HOST: undefined, SMTP_FROM: undefined }),
+        /recovery email/,
+    );
+    const dodo = {
+        DODO_PAYMENTS_API_KEY: 'test-provider-key',
+        DODO_PAYMENTS_WEBHOOK_KEY: 'whsec_dGVzdA==',
+        DODO_PRO_PRODUCT_ID: 'pdt_pro',
+        DODO_TEAM_PRODUCT_ID: 'pdt_team',
+    };
+    assert.equal(readConfig({ ...production, ...dodo }).billingConfig, undefined);
+    assert.equal(
+        readConfig({ ...production, ...dodo, BILLING_ENABLED: 'false' }).billingConfig,
+        undefined,
+    );
+    assert.ok(readConfig({ ...production, ...dodo, BILLING_ENABLED: 'true' }).billingConfig);
+    assert.throws(() => readConfig({ ...production, BILLING_ENABLED: 'true' }), /all four/);
+    assert.throws(() => readConfig({ ...production, BILLING_ENABLED: 'yes' }), /true or false/);
+});

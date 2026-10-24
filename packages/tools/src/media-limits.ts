@@ -1,0 +1,3 @@
+export const MEDIA_INPUT_BYTES = 10 * 1048576;
+export const GENERATED_FILE_BYTES = 5 * 1048576;
+export const IMAGE_PIXELS = 16000000;

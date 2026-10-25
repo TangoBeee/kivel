@@ -1,0 +1,37 @@
+{
+  "name": "frontend",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --webpack --hostname 127.0.0.1 --port 3001",
+    "build": "node --import tsx scripts/generate-openapi.mts && next build --webpack",
+    "typecheck": "node --import tsx scripts/generate-openapi.mts && tsc --noEmit",
+    "test": "node --import tsx --test lib/catalog.test.ts lib/browser-operations.test.ts lib/request-filter.test.ts",
+    "test:pages": "node --import tsx scripts/verify-pages.mts"
+  },
+  "dependencies": {
+    "@phosphor-icons/react": "2.1.10",
+    "@radix-ui/react-slider": "1.6.1",
+    "@radix-ui/themes": "3.3.0",
+    "@scalar/api-reference-react": "0.9.83",
+    "@socket-help/tools": "workspace:*",
+    "cmdk": "1.1.1",
+    "geist": "1.8.2",
+    "motion": "14.6.0",
+    "next": "16.4.3",
+    "papaparse": "5.7.0",
+    "pdfjs-dist": "6.4.299",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "yaml": "2.9.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "^26.6.5",
+    "@types/papaparse": "5.5.2",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "tailwindcss": "4.3.3",
+    "tsx": "4.23.15",
+    "typescript": "^7.0.2"
+  }
+}

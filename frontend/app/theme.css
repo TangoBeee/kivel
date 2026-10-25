@@ -1,0 +1,279 @@
+/*
+  Theme: live current. A socket is where power flows,
+so the site carries a soft charge:
+  an emerald and teal aurora with a fading grid at the top of every page,
+signal traces in the
+  home hero,
+cards that light up under the pointer,
+and gentle entrances. Loaded last.
+  Everything decorative stays behind content and switches off for reduced motion.
+*/
+:root {
+  --glow: #22c55e;
+  --glow-teal: #14b8a6;
+  --glow-soft: rgb(34 197 94 / 0.12);
+}
+@property --spin {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+/* Ambient light and grid at the top of every page */
+main {
+  position: relative;
+  isolation: isolate;
+  overflow-x: clip;
+}
+main::before,
+main::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: -1;
+  height: 760px;
+  pointer-events: none;
+}
+main::before {
+  background:
+    radial-gradient(38% 55% at 16% 0%, rgb(34 197 94 / 0.2), transparent 70%),
+    radial-gradient(34% 50% at 84% 6%, rgb(20 184 166 / 0.17), transparent 70%),
+    radial-gradient(28% 36% at 50% 22%, rgb(132 204 22 / 0.07), transparent 70%);
+  filter: blur(12px);
+  animation: theme-aurora 22s ease-in-out infinite alternate;
+}
+main::after {
+  background-image:
+    linear-gradient(to right, rgb(11 13 12 / 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(11 13 12 / 0.045) 1px, transparent 1px);
+  background-size: 56px 56px;
+  background-position: center top;
+  -webkit-mask-image: radial-gradient(ellipse 75% 70% at 50% 0%, #000 25%, transparent 72%);
+  mask-image: radial-gradient(ellipse 75% 70% at 50% 0%, #000 25%, transparent 72%);
+}
+.island {
+  background: rgb(255 255 255 / 0.68);
+}
+
+/* Home hero: traces carrying pulses into a powered search card */
+.lp-traces {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, #000 70%, transparent);
+  mask-image: linear-gradient(to bottom, #000 70%, transparent);
+}
+.lp-trace {
+  fill: none;
+  stroke: rgb(11 13 12 / 0.09);
+  stroke-width: 1.5;
+}
+.lp-trace-pulse {
+  fill: none;
+  stroke: var(--glow);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 70 1000;
+  stroke-dashoffset: 1070;
+  filter: drop-shadow(0 0 6px rgb(34 197 94 / 0.7));
+  animation: theme-pulse 4.5s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+}
+.lp .lp-hero-inner {
+  z-index: 1;
+}
+.lp .lp-command {
+  position: relative;
+  box-shadow:
+    0 1px 2px rgb(11 13 12 / 0.06),
+    0 24px 80px rgb(34 197 94 / 0.14);
+}
+.lp .lp-command::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  padding: 1.5px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--spin),
+    transparent 0 62%,
+    rgb(34 197 94 / 0.9) 76%,
+    rgb(20 184 166 / 0.9) 86%,
+    transparent 96%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  animation: theme-spin 6s linear infinite;
+}
+.lp .lp-pill {
+  background: rgb(255 255 255 / 0.8);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.lp .lp-pill-dot {
+  box-shadow: 0 0 0 4px rgb(34 197 94 / 0.18);
+}
+
+/* Cards light up under the pointer (positions set by PointerGlow) */
+.lp .lp-card,
+.article-card,
+.featured-article,
+.pricing-card,
+.not-found-tools a,
+.catalog-tool-row,
+.comparison-directory > a {
+  background-image: radial-gradient(
+    420px circle at var(--glow-x, -999px) var(--glow-y, -999px),
+    rgb(34 197 94 / 0.09),
+    transparent 60%
+  );
+}
+.lp .lp-card:hover,
+.article-card:hover,
+.featured-article:hover,
+.pricing-card:hover,
+.not-found-tools a:hover,
+.comparison-directory > a:hover {
+  border-color: var(--accent-line);
+}
+
+/* Primary actions carry a little current on hover */
+.button-primary:hover,
+.lp .lp-button:hover,
+.radix-themes .rt-Button.rt-variant-solid[data-accent-color='green']:hover {
+  box-shadow:
+    0 0 0 4px rgb(34 197 94 / 0.14),
+    0 8px 24px rgb(34 197 94 / 0.22);
+}
+
+/* Charged sections on the home page */
+.lp .lp-board-frame {
+  background:
+    radial-gradient(70% 60% at 50% 0%, rgb(34 197 94 / 0.08), transparent 70%), var(--subtle);
+}
+.lp .lp-interface-section {
+  background:
+    radial-gradient(40% 60% at 10% 0%, rgb(34 197 94 / 0.1), transparent 70%),
+    radial-gradient(40% 60% at 90% 100%, rgb(20 184 166 / 0.09), transparent 70%),
+    linear-gradient(to right, rgb(11 13 12 / 0.035) 1px, transparent 1px) center / 48px 48px,
+    linear-gradient(to bottom, rgb(11 13 12 / 0.035) 1px, transparent 1px) center / 48px 48px,
+    var(--subtle);
+}
+.lp .lp-final {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(60% 70% at 50% 0%, rgb(34 197 94 / 0.28), transparent 70%),
+    radial-gradient(40% 60% at 100% 100%, rgb(20 184 166 / 0.18), transparent 70%),
+    linear-gradient(to right, rgb(255 255 255 / 0.05) 1px, transparent 1px) center / 40px 40px,
+    linear-gradient(to bottom, rgb(255 255 255 / 0.05) 1px, transparent 1px) center / 40px 40px,
+    var(--ink);
+}
+.lp .lp-final .lp-button:hover {
+  box-shadow: 0 0 0 4px rgb(255 255 255 / 0.16);
+}
+
+/* Footer: a faint grid so the page ends on the same texture it starts with */
+.site-footer {
+  background:
+    linear-gradient(to right, rgb(11 13 12 / 0.03) 1px, transparent 1px) center top / 56px 56px,
+    linear-gradient(to bottom, rgb(11 13 12 / 0.03) 1px, transparent 1px) center top / 56px 56px,
+    var(--subtle);
+}
+
+/* Entrances: page headers and card grids rise in on load */
+@media (prefers-reduced-motion: no-preference) {
+  .content-intro > *,
+  .tool-header,
+  .catalog-title,
+  .account-heading,
+  .dashboard-heading,
+  .not-found > *,
+  .article-grid > *,
+  .pricing-grid > *,
+  .not-found-tools > *,
+  .comparison-directory > *,
+  .featured-article {
+    animation: theme-rise 700ms var(--ease) backwards;
+  }
+  .content-intro > :nth-child(2),
+  .not-found > :nth-child(2),
+  .article-grid > :nth-child(2),
+  .pricing-grid > :nth-child(2),
+  .not-found-tools > :nth-child(2),
+  .comparison-directory > :nth-child(2) {
+    animation-delay: 70ms;
+  }
+  .content-intro > :nth-child(3),
+  .not-found > :nth-child(3),
+  .article-grid > :nth-child(3),
+  .pricing-grid > :nth-child(3),
+  .not-found-tools > :nth-child(3),
+  .comparison-directory > :nth-child(3),
+  .featured-article {
+    animation-delay: 140ms;
+  }
+  .content-intro > :nth-child(4),
+  .not-found > :nth-child(4),
+  .article-grid > :nth-child(4),
+  .pricing-grid > :nth-child(4),
+  .not-found-tools > :nth-child(4),
+  .comparison-directory > :nth-child(4) {
+    animation-delay: 210ms;
+  }
+  .article-grid > :nth-child(n + 5),
+  .pricing-grid > :nth-child(n + 5),
+  .comparison-directory > :nth-child(n + 5) {
+    animation-delay: 280ms;
+  }
+}
+
+@keyframes theme-aurora {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(3%, 2%, 0) scale(1.06);
+  }
+  100% {
+    transform: translate3d(-3%, 1%, 0) scale(1.03);
+  }
+}
+@keyframes theme-pulse {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes theme-spin {
+  to {
+    --spin: 360deg;
+  }
+}
+@keyframes theme-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+
+@media (max-width: 860px) {
+  .lp-traces {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  main::before,
+  .lp-trace-pulse,
+  .lp .lp-command::before {
+    animation: none;
+  }
+  .lp-trace-pulse {
+    display: none;
+  }
+}

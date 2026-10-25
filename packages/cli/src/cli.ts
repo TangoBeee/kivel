@@ -1,0 +1,37 @@
+#!/usr/bin/env node
+import process from 'node:process';
+import { Buffer } from 'node:buffer';
+import { SocketHelp, SocketError } from '@socket-help/sdk';
+import { command } from './commands.js';
+try {
+    const args = process.argv.slice(2);
+    const needsInput =
+        args[0] === 'run' ||
+        args[0] === 'upload' ||
+        (args[0] === 'api' && !['GET', 'DELETE'].includes(args[1] ?? ''));
+    const chunks: Buffer[] = [];
+    let size = 0;
+    if (needsInput && !process.stdin.isTTY)
+        for await (const chunk of process.stdin) {
+            size += chunk.length;
+            if (size > 10 * 1024 * 1024) throw new Error('Input exceeds 10 MiB.');
+            chunks.push(Buffer.from(chunk));
+        }
+    const client = new SocketHelp({
+        ...(process.env.SOCKET_HELP_URL ? { baseUrl: process.env.SOCKET_HELP_URL } : {}),
+        ...(process.env.SOCKET_HELP_API_KEY ? { apiKey: process.env.SOCKET_HELP_API_KEY } : {}),
+        timeoutMs: 90000,
+    });
+    if (args[0] === 'download' && args.length === 2 && process.env.SOCKET_HELP_ACCESS_TOKEN)
+        args.push('--access-token', process.env.SOCKET_HELP_ACCESS_TOKEN);
+    const result = await command(client, args, Buffer.concat(chunks));
+    if (!args.length || ['--help', 'help'].includes(args[0]!))
+        process.stdout.write(`${(result as { help: string }).help}\n`);
+    else if (result instanceof Uint8Array) process.stdout.write(result);
+    else if (result !== undefined) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+} catch (error) {
+    process.stderr.write(
+        `${JSON.stringify({ error: error instanceof Error ? error.message : 'Command failed.', ...(error instanceof SocketError ? { status: error.status, requestId: error.requestId, retryAfter: error.retryAfter } : {}) })}\n`,
+    );
+    process.exitCode = 1;
+}

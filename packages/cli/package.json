@@ -1,0 +1,27 @@
+{
+  "name": "@socket-help/cli",
+  "version": "0.3.0",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "socket-help": "./bin/socket-help.mjs"
+  },
+  "exports": {
+    ".": "./dist/commands.js"
+  },
+  "files": [
+    "dist",
+    "bin"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@socket-help/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "@types/node": "^26.6.5"
+  }
+}

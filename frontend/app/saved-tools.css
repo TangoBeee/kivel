@@ -1,0 +1,121 @@
+.save-tool-control {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+.save-tool-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.8rem;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    background-color 0.15s;
+}
+.save-tool-button:hover,
+.save-tool-button[aria-pressed='true'] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.save-tool-button.is-compact {
+  width: 40px;
+  padding: 8px;
+  border-color: transparent;
+  background: transparent;
+}
+.save-tool-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.save-tool-error {
+  position: absolute;
+  z-index: 20;
+  top: 100%;
+  right: 0;
+  width: min(260px, 70vw);
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 6px 18px #0001;
+  font-size: 0.8rem;
+}
+.catalog-save-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.catalog-save-row > .catalog-tool-row {
+  flex: 1;
+  min-width: 0;
+}
+.saved-tool-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.saved-tool-chip .recent-tool {
+  border: 0;
+  min-width: 0;
+}
+.request-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 12px 12px;
+}
+.request-filters .app-select {
+  flex: 1;
+  min-width: 100px;
+}
+.request-filters .text-link {
+  flex-basis: 100%;
+  text-align: left;
+}
+@media (max-width: 480px) {
+  .catalog-save-row .catalog-tool-end {
+    display: none;
+  }
+  .audio-studio .melody-steps label {
+    padding: 6px;
+  }
+  .audio-studio .melody-steps .app-select {
+    padding-inline: 5px;
+    gap: 2px;
+    font-size: 12px;
+  }
+  .catalog-controls {
+    flex-wrap: wrap;
+  }
+  .catalog-controls > .rt-SegmentedControlRoot {
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+  }
+  .catalog-controls .rt-SegmentedControlItemLabel {
+    padding-inline: 5px;
+    font-size: 12px;
+  }
+  .saved-tool-chip {
+    max-width: 100%;
+  }
+  .saved-tool-chip .recent-tool {
+    white-space: normal;
+  }
+}
+@media (max-width: 380px) {
+  .audio-studio .melody-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

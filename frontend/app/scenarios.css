@@ -1,0 +1,512 @@
+.scenario-workbench {
+  max-width: 1180px;
+}
+.scenario-intro {
+  max-width: 68ch;
+  color: var(--muted);
+  line-height: 1.8;
+  margin: 0 0 28px;
+}
+.scenario-library,
+.scenario-new-variable {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.scenario-library > .app-select {
+  width: 340px;
+  flex: 0 1 340px;
+  min-width: 220px;
+  max-width: 100%;
+}
+.scenario-report-anchor {
+  scroll-margin-top: 88px;
+}
+.scenario-notice {
+  padding: 12px 16px;
+  background: var(--accent-soft);
+  border-radius: 9px;
+  color: var(--accent);
+  font-size: 14px;
+}
+.scenario-config,
+.scenario-editor,
+.scenario-requests,
+.scenario-environment {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 22px;
+}
+.scenario-config {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 18px;
+  margin: 24px 0 18px;
+}
+.scenario-workbench label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink);
+  min-width: 0;
+}
+.scenario-workbench label > .tool-notice {
+  margin: 0;
+  font-size: 12px;
+}
+.scenario-workbench .scenario-check {
+  flex-direction: row;
+  align-items: center;
+  grid-column: 1 / -1;
+  gap: 9px;
+}
+.scenario-layout {
+  display: grid;
+  grid-template-columns: 270px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+.scenario-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.scenario-section-head h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.scenario-section-head > span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.scenario-requests {
+  padding: 18px 12px;
+}
+.scenario-requests .scenario-section-head {
+  padding: 0 8px;
+}
+.scenario-request-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.scenario-request {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 10px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+}
+.scenario-request:hover {
+  background: var(--subtle);
+}
+.scenario-request.is-selected {
+  border-color: color-mix(in srgb, var(--accent) 20%, var(--line));
+  background: var(--accent-soft);
+}
+.scenario-request > span:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.scenario-request strong {
+  font-size: 13px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.scenario-request small {
+  color: var(--muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.scenario-request b {
+  font-size: 10px;
+  font-weight: 600;
+  margin-right: 4px;
+  color: var(--accent);
+}
+.scenario-order {
+  font-family: var(--font-mono), monospace;
+  color: var(--muted);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.scenario-requests > .rt-Button {
+  margin-left: 8px;
+}
+.scenario-editor {
+  min-width: 0;
+}
+.scenario-editor > label {
+  margin-bottom: 16px;
+}
+.scenario-address {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.scenario-address .rt-TextFieldInput {
+  font-family: var(--font-mono), monospace;
+  font-size: 13px;
+}
+.scenario-editor .rt-TabsContent {
+  padding: 20px 0 0;
+}
+.scenario-editor .rt-TabsContent > label {
+  margin-bottom: 18px;
+}
+.scenario-editor .rt-TextAreaInput,
+.scenario-portability .rt-TextAreaInput {
+  font-family: var(--font-mono), monospace;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.scenario-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.scenario-environment {
+  margin: 20px 0;
+}
+.scenario-variable {
+  display: grid;
+  grid-template-columns: minmax(110px, 180px) minmax(0, 1fr) 36px;
+  gap: 12px;
+  align-items: center;
+  margin: 12px 0;
+}
+.scenario-variable > code {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.scenario-variable small {
+  color: var(--muted);
+  margin-left: 6px;
+  font:
+    11px var(--font-sans),
+    sans-serif;
+}
+.scenario-new-variable {
+  margin-top: 20px;
+}
+.scenario-new-variable > .rt-TextFieldRoot {
+  flex: 1;
+  min-width: 160px;
+}
+.scenario-run-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 20px 22px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--subtle);
+}
+.scenario-run-bar > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.scenario-run-bar strong {
+  font-size: 14px;
+  font-weight: 500;
+}
+.scenario-run-bar span {
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.scenario-running {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.scenario-report {
+  margin: 32px 0;
+  border-top: 1px solid var(--line);
+  padding-top: 28px;
+}
+.scenario-report-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: center;
+  margin-bottom: 22px;
+}
+.scenario-report-head h2 {
+  margin: 12px 0 6px;
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+}
+.scenario-report-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.scenario-report-head dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+  margin: 0;
+}
+.scenario-report-head dt {
+  color: var(--muted);
+  font-size: 11px;
+  margin-bottom: 7px;
+}
+.scenario-report-head dd {
+  font-size: 20px;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.scenario-result {
+  margin-bottom: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.scenario-result > summary {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto auto;
+  gap: 14px;
+  padding: 18px;
+  align-items: center;
+  cursor: pointer;
+}
+.scenario-result > summary:focus-visible,
+.scenario-request:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -3px;
+}
+.scenario-result > summary > span:nth-child(2) {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.scenario-result strong {
+  font-size: 14px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.scenario-result small {
+  color: var(--muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.scenario-result > summary > span:last-child {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.scenario-outcome {
+  font-size: 11px;
+  text-transform: capitalize;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--subtle);
+  color: var(--muted);
+}
+.is-passed .scenario-outcome {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.is-failed .scenario-outcome {
+  background: #fff2e5;
+  color: #8c4d16;
+}
+.scenario-result-body {
+  padding: 0 18px 20px;
+  border-top: 1px solid var(--line);
+}
+.scenario-check-table {
+  overflow: auto;
+  margin: 18px 0;
+}
+.scenario-check-table table {
+  width: 100%;
+  text-align: left;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.scenario-check-table th,
+.scenario-check-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--line);
+  max-width: 320px;
+  overflow-wrap: anywhere;
+}
+.scenario-check-table th {
+  font-weight: 500;
+}
+.scenario-check-table .result-chip {
+  white-space: nowrap;
+}
+.scenario-check-table thead {
+  color: var(--muted);
+  background: var(--subtle);
+}
+.scenario-response-headers {
+  margin-top: 16px;
+  font-size: 12px;
+}
+.scenario-response-headers summary {
+  cursor: pointer;
+  color: var(--muted);
+  padding: 8px 0;
+}
+.scenario-response-headers dl > div {
+  display: grid;
+  grid-template-columns: minmax(90px, 180px) minmax(0, 1fr);
+  gap: 16px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+}
+.scenario-response-headers dt,
+.scenario-response-headers dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.scenario-response-headers dd {
+  color: var(--muted);
+}
+.scenario-portability {
+  margin: 26px 0;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.scenario-portability > summary {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+}
+.scenario-portability[open] > summary {
+  margin-bottom: 20px;
+}
+.scenario-portability > label {
+  margin: 20px 0 14px;
+}
+.scenario-report > .rt-Button {
+  margin-top: 10px;
+}
+@media (max-width: 820px) {
+  .scenario-layout {
+    grid-template-columns: 1fr;
+  }
+  .scenario-request-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 540px) {
+  .scenario-check-table table,
+  .scenario-check-table tbody {
+    display: block;
+  }
+  .scenario-check-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .scenario-check-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .scenario-check-table td,
+  .scenario-check-table th {
+    border: 0;
+    padding: 4px 6px;
+  }
+  .scenario-check-table td:nth-child(2) {
+    justify-self: end;
+  }
+  .scenario-check-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--muted);
+    font-size: 10px;
+    margin-bottom: 6px;
+  }
+  .scenario-config,
+  .scenario-fields {
+    grid-template-columns: 1fr;
+  }
+  .scenario-config,
+  .scenario-editor,
+  .scenario-environment {
+    padding: 16px;
+  }
+  .scenario-request-list {
+    grid-template-columns: 1fr;
+  }
+  .scenario-library > .app-select {
+    width: 100%;
+  }
+  .scenario-variable {
+    grid-template-columns: minmax(0, 1fr) 36px;
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+  .scenario-variable > code {
+    grid-column: 1 / -1;
+  }
+  .scenario-result > summary {
+    grid-template-columns: 18px minmax(0, 1fr) auto;
+    gap: 9px;
+    padding: 14px;
+  }
+  .scenario-result > summary > span:last-child {
+    grid-column: 2 / -1;
+  }
+  .scenario-report-head dl {
+    gap: 24px;
+  }
+  .scenario-report-head dd {
+    font-size: 18px;
+  }
+  .scenario-run-bar {
+    padding: 16px;
+  }
+  .scenario-run-bar .button-row,
+  .scenario-run-bar .rt-Button {
+    width: 100%;
+  }
+  .scenario-result-body {
+    padding-inline: 12px;
+  }
+}

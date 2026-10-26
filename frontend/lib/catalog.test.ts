@@ -1,0 +1,54 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import {
+    catalog,
+    categories,
+    categoryRoadmap,
+    categoryTools,
+    featuredIds,
+    searchTools,
+    toolSlug,
+    toolPageHref,
+    backendToolIds,
+} from './catalog';
+import { tools } from './tools';
+import { browserOperations } from './browser-tool-definitions';
+
+test('catalog has stable unique identifiers and covers every roadmap category', () => {
+    assert.equal(new Set(catalog.map((tool) => tool.id)).size, catalog.length);
+    assert.equal(categories.length, 12);
+    assert.equal(new Set(catalog.map(toolSlug)).size, catalog.length);
+    for (const category of categories) {
+        assert.ok(categoryTools(category.id).length, category.id);
+        assert.ok(categoryRoadmap(category.id).length, category.id);
+    }
+    assert.ok(
+        catalog.every((tool) => categories.some((category) => category.id === tool.categoryId)),
+    );
+    assert.ok(featuredIds.every((id) => catalog.some((tool) => tool.id === id)));
+});
+
+test('only implemented tools are advertised as available or given live destinations', () => {
+    const available = catalog.filter((tool) => tool.status === 'available');
+    assert.deepEqual(
+        available.map((tool) => tool.id).sort(),
+        [
+            ...new Set([
+                ...tools.map((tool) => tool.id),
+                ...Object.keys(browserOperations),
+                ...backendToolIds,
+            ]),
+        ].sort(),
+    );
+    for (const tool of available) assert.equal(tool.href, toolPageHref(tool));
+    for (const tool of catalog.filter((tool) => tool.status === 'coming-soon'))
+        assert.equal(tool.href, undefined);
+});
+
+test('search finds implemented and planned tools across categories', () => {
+    assert.ok(searchTools('  JSON  ').some((tool) => tool.id === 'json'));
+    assert.ok(searchTools('mcp mock').some((tool) => tool.id === 'agents-mock-mcp-server'));
+    assert.ok(searchTools('PDF').length > 1);
+    assert.equal(searchTools('not-a-tool-92817').length, 0);
+    assert.equal(searchTools('', categoryTools('network')).length, categoryTools('network').length);
+});

@@ -1,0 +1,306 @@
+/* Site header: a full width sticky bar. Mobile: the toggle morphs into an X and opens a full screen menu. */
+.island {
+  --island-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 64px;
+  padding: 0 max(24px, calc((100% - 1180px) / 2 + 32px));
+  border-bottom: 1px solid var(--line);
+  background: rgb(255 255 255 / 0.82);
+  -webkit-backdrop-filter: blur(16px) saturate(1.8);
+  backdrop-filter: blur(16px) saturate(1.8);
+}
+.island-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 24px;
+  border-radius: var(--radius-sm);
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+.island-brand svg,
+.island-dot {
+  color: var(--accent);
+}
+.island-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: auto;
+}
+.island-nav a {
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+  color: var(--muted);
+  transition:
+    background-color 300ms var(--island-ease),
+    color 300ms var(--island-ease);
+}
+.island-nav a:hover {
+  background: var(--subtle);
+  color: var(--ink);
+}
+.island-nav a[aria-current='page'] {
+  color: var(--ink);
+  background: var(--subtle);
+}
+.island-nav a:active,
+.island-brand:active,
+.header-search:active,
+.island-toggle:active {
+  transform: scale(0.98);
+}
+.header-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  min-width: 200px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--subtle);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--muted);
+  transition:
+    border-color 400ms var(--island-ease),
+    color 400ms var(--island-ease),
+    transform 400ms var(--island-ease);
+}
+.header-search kbd {
+  margin-left: auto;
+  font-size: 0.75rem;
+}
+.header-search:hover {
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+/* Two lines that rotate into an X; they never disappear */
+.island-toggle {
+  position: relative;
+  display: none;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--subtle);
+  transition: transform 400ms var(--island-ease);
+}
+.island-toggle-line {
+  position: absolute;
+  top: 19px;
+  left: 12px;
+  width: 16px;
+  height: 2px;
+  border-radius: 8px;
+  background: var(--ink);
+  transition: transform 700ms var(--island-ease);
+}
+.island-toggle-line:first-child {
+  transform: translateY(-4px);
+}
+.island-toggle-line:last-child {
+  transform: translateY(4px);
+}
+.island.is-open .island-toggle-line:first-child {
+  transform: translateY(0) rotate(45deg);
+}
+.island.is-open .island-toggle-line:last-child {
+  transform: translateY(0) rotate(-45deg);
+}
+
+.island-menu {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(255 255 255 / 0.8);
+  -webkit-backdrop-filter: blur(64px);
+  backdrop-filter: blur(64px);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 700ms cubic-bezier(0.32, 0.72, 0, 1),
+    visibility 0ms linear 700ms;
+}
+.island-menu.is-open {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 700ms cubic-bezier(0.32, 0.72, 0, 1),
+    visibility 0ms;
+}
+.island-menu ul {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.island-menu li {
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(48px);
+  transition:
+    opacity 700ms cubic-bezier(0.32, 0.72, 0, 1),
+    transform 700ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.island-menu:not(.is-open) li {
+  transition-delay: 0ms !important;
+}
+.island-menu.is-open li {
+  overflow: visible;
+  opacity: 1;
+  transform: translateY(0);
+}
+.island-menu a {
+  display: block;
+  padding: 8px 16px;
+  border-radius: 9999px;
+  font-size: 1.875rem;
+  line-height: 2.25rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+}
+.island-menu a[aria-current='page'] {
+  color: var(--accent);
+}
+.island-menu a:active {
+  transform: translateY(1px);
+}
+html.menu-open {
+  overflow: hidden;
+}
+
+@media (max-width: 720px) {
+  .island-nav,
+  .header-search > span,
+  .header-search kbd {
+    display: none;
+  }
+  .island {
+    padding: 0 16px;
+  }
+  .island-brand {
+    margin-right: auto;
+  }
+  .header-search {
+    min-width: 0;
+    padding: 8px 12px;
+  }
+  .island-toggle {
+    display: block;
+  }
+}
+@media (min-width: 721px) {
+  .island-menu {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .island-menu,
+  .island-menu li,
+  .island-toggle-line {
+    transition-duration: 0ms !important;
+  }
+}
+@media (max-width: 720px) {
+  .island-menu {
+    padding: 112px 24px 32px;
+    overflow-y: auto;
+    align-items: flex-start;
+  }
+  .island-menu a {
+    font-size: 1.5rem;
+    line-height: 32px;
+  }
+}
+
+/* Account actions in the header */
+.island-account {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+}
+.island-account.is-loading {
+  width: 176px;
+  height: 36px;
+}
+.island-signin {
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+  color: var(--muted);
+  transition:
+    background-color 300ms var(--island-ease),
+    color 300ms var(--island-ease);
+}
+.island-signin:hover {
+  background: var(--subtle);
+  color: var(--ink);
+}
+.island-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: var(--radius-control);
+  background: var(--ink);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+  color: #ffffff;
+  transition:
+    background-color 300ms var(--island-ease),
+    transform 300ms var(--island-ease);
+}
+.island-cta:hover {
+  background: #2b2f2d;
+}
+.island-cta:active {
+  transform: scale(0.98);
+}
+.island-avatar {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin-left: -4px;
+  border-radius: 9999px;
+  background: #22c55e;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.lp-pill-link {
+  transition: border-color 300ms var(--island-ease);
+}
+.lp-pill-link:hover {
+  border-color: var(--accent-line);
+}
+@media (max-width: 720px) {
+  .island-account {
+    display: none;
+  }
+}

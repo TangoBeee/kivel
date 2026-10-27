@@ -1,0 +1,276 @@
+import Link from 'next/link';
+import { plans, type PlanId } from '@socket-help/tools/plans';
+import { PageIntro } from '../../components/content-layout';
+import { pageMetadata } from '../../lib/seo';
+import { Icon } from '../../components/icons';
+import { StructuredData } from '../../components/content-layout';
+import { FaqSection, absolute, faqSchema } from '../../components/content-blocks';
+import { money, paidPlansEnabled, pricing } from '../../lib/pricing';
+export const metadata = pageMetadata(
+    'Pricing, plans & API limits',
+    'Free open beta with clear account, API, storage and retention limits. Preview planned monthly Pro and Team subscriptions; no payment is required during beta.',
+    '/plans/',
+);
+const ids = Object.keys(plans) as PlanId[];
+const retention = (seconds: number) =>
+    seconds < 86400 ? '1 hour' : `${seconds / 86400} ${seconds === 86400 ? 'day' : 'days'}`;
+const number = (value: number) => value.toLocaleString('en-US');
+const descriptions = {
+    anonymous: 'A quick task. No sign-up.',
+    free: 'Your tools, in one workspace.',
+    pro: 'More room for regular use.',
+    team: 'Shared tools and allowances.',
+};
+const rows: { name: string; value: (id: PlanId) => string }[] = [
+    { name: 'Active resources', value: (id) => number(plans[id].maxResources) },
+    {
+        name: 'Total storage',
+        value: (id) =>
+            plans[id].storageBytes >= 1073741824
+                ? `${plans[id].storageBytes / 1073741824} GiB`
+                : `${plans[id].storageBytes / 1048576} MiB`,
+    },
+    { name: 'Maximum retention', value: (id) => retention(plans[id].maxRetentionSeconds) },
+    { name: 'Hosted utility runs / day', value: (id) => number(plans[id].runsPerDay) },
+    { name: 'Utility input / request', value: (id) => `${plans[id].inputBytes / 1024} KiB` },
+    { name: 'API requests / minute', value: (id) => number(plans[id].requestsPerMinute) },
+    { name: 'Resource creations / minute', value: (id) => String(plans[id].creationsPerMinute) },
+    { name: 'File size / upload', value: (id) => `${plans[id].fileBytes / 1048576} MiB` },
+    {
+        name: 'Persistent resource leases',
+        value: (id) => (plans[id].persistent ? 'Included' : 'Not included'),
+    },
+];
+const faqs = [
+    {
+        question: 'Is socket.help free?',
+        answer: paidPlansEnabled
+            ? 'Browser tools and the Free workspace are free within published allowances. Pro and Team are optional monthly subscriptions.'
+            : 'Yes. The open beta is free. Browser tools work without an account, and a free account adds a workspace with 20 active resources. Paid plans are a preview and are not required to use the beta.',
+    },
+    {
+        question: 'Is Team priced per seat?',
+        answer: `No. Team is ${money(pricing.team.monthly)} a month for the whole workspace, with up to 20 members sharing its allowances.`,
+    },
+    {
+        question: paidPlansEnabled
+            ? 'Will my free account be charged automatically?'
+            : 'Will the open beta charge me?',
+        answer: paidPlansEnabled
+            ? 'No. Anonymous and Free access require no payment method. Buying a subscription is an explicit action; a free account is not automatically converted or charged.'
+            : 'No. Anonymous and Free access require no payment method. Pro and Team are planned monthly subscriptions; checkout is disabled during the free beta. There is no automatic conversion to a paid plan.',
+    },
+    {
+        question: 'How do I cancel or change plans?',
+        answer: 'Workspace owners manage subscriptions from Plan and billing in the workspace, which opens the Dodo Payments billing portal to change plans, update the card, or cancel.',
+    },
+    {
+        question: 'What happens to failed or invalid runs?',
+        answer: 'Invalid input and failed processing do not use the allowance. A completed API scenario report counts as one run even when its checks fail.',
+    },
+];
+
+export default function Plans() {
+    return (
+        <div className="content-page plans-page">
+            <StructuredData value={faqSchema(faqs)} />
+            <StructuredData
+                value={{
+                    '@context': 'https://schema.org',
+                    '@type': 'Product',
+                    name: 'socket.help',
+                    description: 'An online toolbox for developers, everyday users, and AI agents.',
+                    url: absolute('/plans/'),
+                    offers: [
+                        { name: 'Free', price: 0 },
+                        ...(paidPlansEnabled
+                            ? [
+                                  { name: 'Pro (monthly)', price: pricing.pro.monthly },
+                                  { name: 'Team (monthly)', price: pricing.team.monthly },
+                              ]
+                            : []),
+                    ].map((offer) => ({
+                        '@type': 'Offer',
+                        name: offer.name,
+                        price: offer.price,
+                        priceCurrency: pricing.currency,
+                        url: absolute('/plans/'),
+                    })),
+                }}
+            />
+            <PageIntro
+                label={paidPlansEnabled ? 'Plans & allowances' : 'Free open beta'}
+                title="Start free. Add room when you need it."
+                description="Use the available tools for free, with clear storage, retention and usage limits. Planned monthly subscriptions are shown separately."
+            />
+            {!paidPlansEnabled && (
+                <aside className="content-note beta-launch-note">
+                    <Icon name="info" size={20} />
+                    <p>
+                        <strong>Free open beta.</strong> No card required. Pro and Team prices are a
+                        preview; paid checkout is closed and beta accounts will never be upgraded or
+                        charged automatically. <Link href="/beta/">What to expect →</Link>
+                    </p>
+                </aside>
+            )}
+            <div className="pricing-grid">
+                {ids.map((id) => (
+                    <section
+                        key={id}
+                        className={`pricing-card ${id === 'free' ? 'is-featured' : ''}`}
+                    >
+                        <div className="pricing-card-top">
+                            <h2>{plans[id].name}</h2>
+                            {id === 'free' && <span className="content-tag">Start here</span>}
+                            {!paidPlansEnabled && (id === 'pro' || id === 'team') && (
+                                <span className="content-tag">Planned</span>
+                            )}
+                        </div>
+                        <p>{descriptions[id]}</p>
+                        <div className="pricing-price">
+                            {id === 'anonymous' || id === 'free' ? (
+                                <>
+                                    <strong>$0</strong>
+                                    <span>No payment required</span>
+                                </>
+                            ) : (
+                                <>
+                                    <span className="price-figure price-monthly">
+                                        <strong>{money(pricing[id].monthly)}</strong>
+                                        <em>/ month</em>
+                                    </span>
+                                    <span className="price-monthly">
+                                        {id === 'team'
+                                            ? 'Per workspace, billed monthly'
+                                            : 'Billed monthly'}
+                                    </span>
+                                </>
+                            )}
+                        </div>
+                        {!paidPlansEnabled && (id === 'pro' || id === 'team') ? (
+                            <button className="button button-secondary" disabled>
+                                Not available during beta
+                            </button>
+                        ) : (
+                            <Link
+                                className={`button ${id === 'free' ? 'button-primary' : 'button-secondary'}`}
+                                href={id === 'anonymous' ? '/catalog/' : '/account/'}
+                            >
+                                {id === 'anonymous'
+                                    ? 'Use the tools'
+                                    : id === 'free'
+                                      ? 'Create free account'
+                                      : `Upgrade to ${plans[id].name}`}
+                            </Link>
+                        )}
+                        <ul>
+                            {[
+                                `${number(plans[id].maxResources)} active resources`,
+                                rows[1]!.value(id) + ' storage',
+                                `Up to ${retention(plans[id].maxRetentionSeconds)} retention`,
+                                `${number(plans[id].runsPerDay)} hosted runs / day`,
+                                id === 'team'
+                                    ? 'Up to 20 workspace members'
+                                    : plans[id].persistent
+                                      ? 'Persistent resource leases'
+                                      : 'Automatic resource cleanup',
+                            ].map((feature) => (
+                                <li key={feature}>
+                                    <Icon name="check" size={15} />
+                                    {feature}
+                                </li>
+                            ))}
+                        </ul>
+                    </section>
+                ))}
+            </div>
+            <aside className="content-note">
+                <Icon name="info" size={20} />
+                <p>
+                    <strong>Monthly subscriptions, when available.</strong> Paid plans are billed
+                    through Dodo Payments in US dollars after checkout is enabled. Your workspace
+                    shows the exact price and billing period before you confirm. Read the{' '}
+                    <Link href="/refunds/">refund and cancellation policy</Link> or contact{' '}
+                    <a href="mailto:support@socket.help">support@socket.help</a>.
+                </p>
+            </aside>
+            <section className="content-section">
+                <h2>The details, side by side.</h2>
+                <p>Allowances apply across the API, SDK, CLI, SSH, and MCP.</p>
+                <div className="content-table-wrap">
+                    <table className="content-table plan-comparison">
+                        <caption>Hosted plan allowances</caption>
+                        <thead>
+                            <tr>
+                                <th scope="col">Allowance</th>
+                                {ids.map((id) => (
+                                    <th key={id} scope="col">
+                                        {plans[id].name}
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {rows.map((row) => (
+                                <tr key={row.name}>
+                                    <th scope="row">{row.name}</th>
+                                    {ids.map((id) => (
+                                        <td key={id}>{row.value(id)}</td>
+                                    ))}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            <section className="content-section">
+                <h2>A few things to know.</h2>
+                <div className="explanation-grid">
+                    <div>
+                        <h3>Usage is shared</h3>
+                        <p>
+                            Account keys and workspace members share the workspace’s allowances.
+                            Anonymous limits use a protected IP identifier, so people on the same
+                            connection share limits. Hosted runs reset at 00:00 UTC. Only successful
+                            utility processing counts; failed validation and processing do not use
+                            your allowance. A completed API scenario report counts once, including
+                            failed checks.
+                        </p>
+                    </div>
+                    <div>
+                        <h3>One hour to start</h3>
+                        <p>
+                            Resources start with a one-hour lifetime. Set a longer TTL through the
+                            API or renew from your workspace, within your plan’s maximum lifetime
+                            from creation. Expired resources cannot be recovered.
+                        </p>
+                    </div>
+                    <div>
+                        <h3>Tool limits still apply</h3>
+                        <p>
+                            Files are limited to 10 MiB each. Inboxes hold 100 requests or 1 MiB
+                            anonymously, and 1,000 requests or 10 MiB with an account. Public
+                            endpoints have their own rate limits. Installation capacity can also
+                            limit new allocations.
+                        </p>
+                    </div>
+                    <div>
+                        <h3>Persistent is a lease</h3>
+                        <p>
+                            Paid persistent resources last through the current subscription period
+                            plus a 24-hour cleanup grace period. Successful renewals extend live
+                            leases. Cancellation stops those extensions.
+                        </p>
+                    </div>
+                </div>
+            </section>
+            <FaqSection faqs={faqs} title="Pricing questions" />
+            <div className="content-end">
+                <h2>Just need to get something done?</h2>
+                <Link className="button button-primary" href="/catalog/">
+                    Find a tool →
+                </Link>
+            </div>
+        </div>
+    );
+}

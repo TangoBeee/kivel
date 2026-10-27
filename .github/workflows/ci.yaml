@@ -14,6 +14,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm test
@@ -28,7 +29,7 @@ jobs:
       - run: pnpm test:backup
       - run: pnpm test:https
       - run: pnpm scan:images
-      - if: failure()
+      - if: failure() && hashFiles('.env') != ''
         run: docker compose logs --tail=50 app
-      - if: always()
+      - if: always() && hashFiles('.env') != ''
         run: docker compose down --volumes

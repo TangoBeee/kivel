@@ -1,0 +1,49 @@
+services:
+  app:
+    build:
+      args:
+        SITE_URL: https://${DOMAIN:?Set DOMAIN in .env}
+    environment:
+      PUBLIC_BASE_URL: https://${DOMAIN:?Set DOMAIN in .env}
+      TRUSTED_PROXIES: ${PROXY_NETWORK_PREFIX:-10.203.0}.2
+    networks:
+      default:
+      edge:
+        ipv4_address: ${PROXY_NETWORK_PREFIX:-10.203.0}.3
+
+  proxy:
+    build:
+      context: .
+      dockerfile: deploy/caddy.Dockerfile
+    image: socket-help-proxy:local
+    restart: unless-stopped
+    mem_limit: 128m
+    cpus: 1
+    ports: ['80:80', '443:443', '443:443/udp']
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env}
+      TRUSTED_PROXY_RANGES: ${TRUSTED_PROXY_RANGES:-127.0.0.1/32}
+      CLIENT_IP_HEADER: ${CLIENT_IP_HEADER:-X-Forwarded-For}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      edge:
+        ipv4_address: ${PROXY_NETWORK_PREFIX:-10.203.0}.2
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
+
+networks:
+  edge:
+    ipam:
+      config:
+        - subnet: ${PROXY_NETWORK_PREFIX:-10.203.0}.0/24
+
+volumes:
+  caddy_data:
+  caddy_config:

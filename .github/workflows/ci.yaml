@@ -22,8 +22,8 @@ jobs:
       - run: pnpm build
       - run: pnpm audit --prod --audit-level=high
       - run: docker build --tag socket-help:local .
-      - run: docker compose -f compose.yaml -f compose.production.yaml build database proxy
       - run: node scripts/setup-env.mjs
+      - run: docker compose -f compose.yaml -f compose.production.yaml build database proxy
       - run: docker compose up -d --wait --wait-timeout 90
       - run: pnpm test:smoke
       - run: pnpm test:backup

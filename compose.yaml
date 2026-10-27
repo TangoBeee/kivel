@@ -1,0 +1,83 @@
+name: socket-help
+
+services:
+  app:
+    build:
+      context: .
+      args:
+        BILLING_ENABLED: ${BILLING_ENABLED:-false}
+        SITE_URL: ${SITE_URL:-https://socket.help}
+    image: socket-help:local
+    init: true
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:${APP_PORT:-8080}:3000'
+      - '${SSH_BIND_ADDRESS:-127.0.0.1}:${SSH_PUBLIC_PORT:-2222}:2222'
+    environment:
+      NODE_ENV: production
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
+      DATABASE_URL: postgres://socket:${APP_DATABASE_PASSWORD:?Run node scripts/setup-env.mjs}@database:5432/socket
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      AUTH_SECRET: ${AUTH_SECRET:?Run node scripts/setup-env.mjs}
+      SSH_PORT: ${SSH_PORT:-2222}
+      SSH_HOST_KEY_PATH: /app/state/ssh_host_ed25519
+      MAX_RESOURCE_BYTES: ${MAX_RESOURCE_BYTES:-4294967296}
+      MAX_RESOURCES: ${MAX_RESOURCES:-10000}
+      MAX_TOTAL_INBOX_BYTES: ${MAX_TOTAL_INBOX_BYTES:-1073741824}
+      MAX_INBOXES: ${MAX_INBOXES:-10000}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      BILLING_ENABLED: ${BILLING_ENABLED:-false}
+      DODO_PAYMENTS_ENVIRONMENT: ${DODO_PAYMENTS_ENVIRONMENT:-test_mode}
+      DODO_PAYMENTS_API_KEY: ${DODO_PAYMENTS_API_KEY:-}
+      DODO_PAYMENTS_WEBHOOK_KEY: ${DODO_PAYMENTS_WEBHOOK_KEY:-}
+      DODO_PRO_PRODUCT_ID: ${DODO_PRO_PRODUCT_ID:-}
+      DODO_TEAM_PRODUCT_ID: ${DODO_TEAM_PRODUCT_ID:-}
+    depends_on:
+      database:
+        condition: service_healthy
+    volumes:
+      - ssh_host_keys:/app/state
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    mem_limit: 1g
+    cpus: 1
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
+
+  database:
+    build:
+      context: .
+      dockerfile: deploy/postgres.Dockerfile
+    image: socket-help-postgres:local
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: socket
+      POSTGRES_USER: socket_admin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run node scripts/setup-env.mjs}
+      APP_DATABASE_PASSWORD: ${APP_DATABASE_PASSWORD:?Run node scripts/setup-env.mjs}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./deploy/init-app.sql:/docker-entrypoint-initdb.d/10-app.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U socket_admin -d socket']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
+
+volumes:
+  postgres_data:
+  ssh_host_keys:

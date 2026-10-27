@@ -203,7 +203,8 @@ const invalidScenario = await request('/api/tools/mock-apis-api-test-scenarios/r
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ input: '{}' }),
 });
-if (!(await quotaExhausted(invalidScenario))) assert.equal(invalidScenario.status, 400);
+// Scenarios send requests to third-party servers, so anonymous runs need an account first.
+if (!(await quotaExhausted(invalidScenario))) assert.equal(invalidScenario.status, 401);
 const music = await request('/api/music');
 assert.equal(music.status, 200);
 const library = await music.json();

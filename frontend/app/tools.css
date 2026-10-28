@@ -401,47 +401,27 @@ and calmer editors. Loaded last. */
   scroll-margin-top: 110px;
 }
 .sharing-control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
   border: 0;
   padding: 0;
-  margin: 24px 0;
+  margin: 16px 0;
   min-width: 0;
 }
-.sharing-control legend {
-  font-size: 0.875rem;
+.sharing-label {
+  font-size: 0.8125rem;
   font-weight: 550;
-  margin-bottom: 10px;
-}
-.sharing-control > div {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
 }
 .sharing-control .sharing-option {
-  display: flex;
-  align-items: start;
-  gap: 12px;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface);
-  cursor: pointer;
-}
-.sharing-control .sharing-option[data-state='checked'] {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-}
-
-.sharing-control strong {
-  font-size: 0.875rem;
-  font-weight: 550;
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 .sharing-control small {
-  display: block;
   font-size: 0.75rem;
   color: var(--muted);
-  margin-top: 4px;
-  line-height: 1.7;
 }
 .file-dropzone {
   padding: 34px 22px;
@@ -602,9 +582,6 @@ and calmer editors. Loaded last. */
   background: var(--surface);
 }
 @media (max-width: 600px) {
-  .sharing-control > div {
-    grid-template-columns: 1fr;
-  }
   .result-preview-heading {
     align-items: start;
   }
@@ -2372,4 +2349,30 @@ and calmer editors. Loaded last. */
 .tool-header {
   display: flex;
   flex-direction: column;
+}
+
+/* Quick start: the default example is valid, so offer to create it before the long form */
+.quick-start {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  margin: 16px 0 24px;
+  padding: 14px 18px;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius-card);
+  background: var(--accent-soft);
+}
+.quick-start .sharing-control {
+  margin: 0;
+}
+.quick-start-copy {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 260px;
+  font-size: 0.875rem;
+}
+.quick-start-copy span {
+  font-size: 0.8125rem;
+  color: var(--muted);
 }

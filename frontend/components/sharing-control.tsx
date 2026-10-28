@@ -1,8 +1,8 @@
 'use client';
-import { useId } from 'react';
-import { RadioCards } from '@radix-ui/themes';
+import { SegmentedControl } from '@radix-ui/themes';
 import { ShieldCheck, Globe } from '@phosphor-icons/react';
 export type Visibility = 'public' | 'private';
+// One compact line: privacy matters, but it shouldn't be the first big decision on a tool page.
 export function SharingControl({
     value,
     onChange,
@@ -12,32 +12,35 @@ export function SharingControl({
     onChange(value: Visibility): void;
     disabled?: boolean;
 }) {
-    const id = useId();
     return (
         <fieldset className="sharing-control" disabled={disabled}>
-            <legend>Sharing</legend>
-            <RadioCards.Root
+            <legend className="sr-only">Sharing</legend>
+            <span className="sharing-label" aria-hidden="true">
+                Access
+            </span>
+            <SegmentedControl.Root
                 aria-label="Sharing"
-                name={id}
+                size="1"
                 value={value}
                 onValueChange={(next) => onChange(next as Visibility)}
                 disabled={disabled}
-                columns="2"
             >
-                {(['private', 'public'] as const).map((mode) => (
-                    <RadioCards.Item className="sharing-option" key={mode} value={mode}>
-                        {mode === 'private' ? <ShieldCheck size={19} /> : <Globe size={19} />}
-                        <span>
-                            <strong>{mode === 'private' ? 'Private' : 'Public'}</strong>
-                            <small>
-                                {mode === 'private'
-                                    ? 'Requires an access token or workspace access.'
-                                    : 'Anyone with the endpoint or link can use it.'}
-                            </small>
-                        </span>
-                    </RadioCards.Item>
-                ))}
-            </RadioCards.Root>
+                <SegmentedControl.Item value="private">
+                    <span className="sharing-option">
+                        <ShieldCheck size={14} /> Private
+                    </span>
+                </SegmentedControl.Item>
+                <SegmentedControl.Item value="public">
+                    <span className="sharing-option">
+                        <Globe size={14} /> Public
+                    </span>
+                </SegmentedControl.Item>
+            </SegmentedControl.Root>
+            <small>
+                {value === 'private'
+                    ? 'Callers need the access token, or your workspace.'
+                    : 'Anyone with the URL can use it.'}
+            </small>
         </fieldset>
     );
 }

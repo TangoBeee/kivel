@@ -676,7 +676,30 @@ export function ResourceWorkbench({
                 </section>
             )}
             {(!resource || expired) && (
-                <SharingControl value={visibility} disabled={busy} onChange={setVisibility} />
+                <div className="quick-start">
+                    {(kind === 'mock' || kind === 'mcp') && (
+                        <div className="quick-start-copy">
+                            <strong>The example below already works.</strong>
+                            <span>Create it now and edit it later, or change it first.</span>
+                        </div>
+                    )}
+                    <SharingControl value={visibility} disabled={busy} onChange={setVisibility} />
+                    {(kind === 'mock' || kind === 'mcp') && (
+                        <Button
+                            size="2"
+                            color="green"
+                            disabled={busy}
+                            onClick={() => void submit()}
+                        >
+                            {busy
+                                ? 'Creating…'
+                                : kind === 'mcp'
+                                  ? 'Create MCP server'
+                                  : 'Create mock API'}
+                            <Icon name="arrow" size={14} />
+                        </Button>
+                    )}
+                </div>
             )}
             {kind === 'mock' && echoMode ? (
                 <EchoWorkbench

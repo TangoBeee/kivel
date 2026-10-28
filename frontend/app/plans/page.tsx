@@ -42,6 +42,16 @@ const rows: { name: string; value: (id: PlanId) => string }[] = [
         value: (id) => (plans[id].persistent ? 'Included' : 'Not included'),
     },
     {
+        name: 'Monitors',
+        value: (id) =>
+            ({
+                anonymous: 'Not included',
+                free: '20, every 5 min',
+                pro: '100, every minute',
+                team: '500, every minute',
+            })[id],
+    },
+    {
         name: 'Agent memory',
         value: (id) =>
             plans[id].memoryBytes

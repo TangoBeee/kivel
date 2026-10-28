@@ -27,6 +27,7 @@ import {
     House,
     List,
     Robot,
+    Pulse,
     X,
 } from '@phosphor-icons/react';
 
@@ -58,6 +59,13 @@ export const dashboardPanels = [
         label: 'API keys',
         description: 'Connect your scripts, CLI, SDK, and agents.',
         icon: Key,
+    },
+    {
+        id: 'monitors',
+        group: 'Build',
+        label: 'Monitors',
+        description: 'Uptime, SSL and cron job heartbeats with alerts.',
+        icon: Pulse,
     },
     {
         id: 'agents',

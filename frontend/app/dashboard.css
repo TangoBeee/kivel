@@ -1207,3 +1207,58 @@ body:has(.dashboard-layout) main::after {
   font: inherit;
   font-weight: 400;
 }
+
+/* Monitors */
+.monitor-list {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.monitor-list li {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-row);
+}
+.monitor-list strong {
+  display: block;
+  font-size: 0.9375rem;
+}
+.monitor-list small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.monitor-status {
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: var(--subtle);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: center;
+  color: var(--muted);
+}
+.monitor-status.is-up {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.monitor-status.is-down {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+@media (max-width: 600px) {
+  .monitor-list li {
+    grid-template-columns: 64px minmax(0, 1fr);
+  }
+  .monitor-list .button-row {
+    grid-column: 1 / -1;
+  }
+}

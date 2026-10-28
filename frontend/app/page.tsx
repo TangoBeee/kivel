@@ -86,8 +86,9 @@ const capabilities: Capability[] = [
     },
     {
         icon: 'pulse',
-        title: 'Monitors and schedules',
-        body: 'Heartbeats, uptime and SSL checks, and scheduled calls that wake your agent.',
+        title: 'Monitors',
+        body: 'Uptime, SSL expiry and cron job heartbeats, with email and webhook alerts.',
+        href: '/account/#monitors',
     },
     {
         icon: 'database',

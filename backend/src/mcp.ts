@@ -166,6 +166,49 @@ export const platformTools = [
         annotations: readonly,
     },
     {
+        name: 'memory_set',
+        description:
+            'Remember a JSON value for later sessions, under a namespace and key (for example namespace "project-x", key "last-deploy"). Values up to 256 KiB; optional ttlSeconds. Needs an API key; space depends on the plan (5 MiB on Free).',
+        inputSchema: schema(
+            {
+                namespace: stringProperty('1-64 characters: letters, digits, . : - _'),
+                key: stringProperty('1-200 characters: letters, digits, . : / - _'),
+                value: { description: 'Any JSON value.' },
+                ttlSeconds: { type: 'number' },
+            },
+            ['namespace', 'key', 'value'],
+        ),
+        annotations: { ...creates, idempotentHint: true },
+    },
+    {
+        name: 'memory_get',
+        description: 'Read a remembered value by namespace and key.',
+        inputSchema: schema({
+            namespace: stringProperty('Namespace.'),
+            key: stringProperty('Key.'),
+        }),
+        annotations: readonly,
+    },
+    {
+        name: 'memory_list',
+        description:
+            'List keys (without values) in a namespace, optionally by prefix, and the space used.',
+        inputSchema: schema(
+            { namespace: stringProperty('Namespace.'), prefix: stringProperty('Key prefix.') },
+            ['namespace'],
+        ),
+        annotations: readonly,
+    },
+    {
+        name: 'memory_delete',
+        description: 'Forget a remembered value.',
+        inputSchema: schema({
+            namespace: stringProperty('Namespace.'),
+            key: stringProperty('Key.'),
+        }),
+        annotations: deletes,
+    },
+    {
         name: 'create_mock_api',
         description:
             'Create an expiring mock API with static or request-value response templates and optional request-field conditions. Up to 20 routes and 80 KiB total.',
@@ -838,6 +881,45 @@ export function registerMcp({
         });
         return result(response.json(), response.statusCode >= 400);
     }
+    // Memory tools reuse the HTTP routes so plan limits and errors stay identical.
+    async function memoryRequest(
+        name: string,
+        value: Record<string, unknown>,
+        request: FastifyRequest,
+    ) {
+        const headers: Record<string, string> =
+            name === 'memory_set' ? { 'content-type': 'application/json' } : {};
+        for (const key of ['authorization', 'cookie', 'origin'])
+            if (typeof request.headers[key] === 'string') headers[key] = request.headers[key];
+        const namespace = encodeURIComponent(String(value.namespace ?? ''));
+        const key = String(value.key ?? '')
+            .split('/')
+            .map(encodeURIComponent)
+            .join('/');
+        const response = await app.inject({
+            method: name === 'memory_set' ? 'PUT' : name === 'memory_delete' ? 'DELETE' : 'GET',
+            url:
+                name === 'memory_list'
+                    ? `/api/memory/${namespace}?prefix=${encodeURIComponent(String(value.prefix ?? ''))}`
+                    : `/api/memory/${namespace}/${key}`,
+            headers,
+            remoteAddress: request.ip,
+            ...(name === 'memory_set'
+                ? {
+                      payload: {
+                          value: value.value,
+                          ...(value.ttlSeconds !== undefined
+                              ? { ttlSeconds: value.ttlSeconds }
+                              : {}),
+                      },
+                  }
+                : {}),
+        });
+        return result(
+            response.statusCode === 204 ? { deleted: true } : response.json(),
+            response.statusCode >= 400,
+        );
+    }
     async function resourceRequest(value: Record<string, unknown>, request: FastifyRequest) {
         const kind = String(value.kind ?? ''),
             action = String(value.action ?? '');
@@ -872,7 +954,7 @@ export function registerMcp({
             action === 'list'
                 ? '/api/account/resources'
                 : `/api/${kind}${action === 'create' ? '' : `/${value.id}`}${action === 'sharing' ? '/sharing' : action === 'renew' ? '/renew' : action === 'reset' ? '/reset' : action === 'inspect' && kind === 'inboxes' ? '/requests' : ''}${query.size ? `?${query}` : ''}`;
-        const headers: Record<string, string> = { 'content-type': 'application/json' };
+        const headers: Record<string, string> = {};
         for (const key of ['authorization', 'cookie', 'origin'])
             if (typeof request.headers[key] === 'string') headers[key] = request.headers[key];
         if (typeof value.token === 'string') headers['x-resource-token'] = value.token;
@@ -884,6 +966,8 @@ export function registerMcp({
                   : ['create', 'renew', 'sharing', 'reset'].includes(action)
                     ? 'POST'
                     : 'GET';
+        // A JSON content type without a body is rejected, so only writes declare one.
+        if (['POST', 'PUT'].includes(method)) headers['content-type'] = 'application/json';
         const response = await app.inject({
             method,
             url: path,
@@ -1037,7 +1121,7 @@ export function registerMcp({
                         if (!definition) throw new RpcError(-32602, 'Unknown tool.');
                         const properties = definition.inputSchema.properties as Record<
                             string,
-                            { type: string }
+                            { type?: string }
                         >;
                         for (const key of definition.inputSchema.required)
                             if (!Object.hasOwn(values, key))
@@ -1045,10 +1129,13 @@ export function registerMcp({
                         for (const [key, value] of Object.entries(values)) {
                             if (!Object.hasOwn(properties, key))
                                 throw new RpcError(-32602, `Unknown argument: ${key}`);
+                            // Untyped properties (such as memory values) accept any JSON value.
+                            const expected = properties[key]!.type;
                             if (
-                                properties[key]!.type === 'array'
+                                expected !== undefined &&
+                                (expected === 'array'
                                     ? !Array.isArray(value)
-                                    : typeof value !== properties[key]!.type
+                                    : typeof value !== expected)
                             )
                                 throw new RpcError(-32602, `Invalid argument type: ${key}`);
                         }
@@ -1062,38 +1149,48 @@ export function registerMcp({
                                 ? await callMock(values, request)
                                 : params.name === 'resource_request'
                                   ? await resourceRequest(values, request)
-                                  : [
-                                          'create_email_inbox',
-                                          'wait_for_email',
-                                          'list_emails',
-                                      ].includes(params.name)
-                                    ? await emailRequest(params.name, values, request)
-                                    : params.name === 'describe_tool'
-                                      ? result({
-                                            toolId: values.toolId,
-                                            guide: executionGuide(String(values.toolId)) ?? null,
-                                        })
-                                      : params.name === 'search_tools'
+                                  : params.name.startsWith('memory_')
+                                    ? await memoryRequest(params.name, values, request)
+                                    : [
+                                            'create_email_inbox',
+                                            'wait_for_email',
+                                            'list_emails',
+                                        ].includes(params.name)
+                                      ? await emailRequest(params.name, values, request)
+                                      : params.name === 'describe_tool'
                                         ? result({
-                                              tools: searchExecutable(
-                                                  typeof values.query === 'string'
-                                                      ? values.query
-                                                      : '',
-                                              ),
+                                              toolId: values.toolId,
+                                              guide: executionGuide(String(values.toolId)) ?? null,
                                           })
-                                        : params.name === 'list_tools'
-                                          ? result({ tools: executableIds })
-                                          : params.name === 'run_tool'
-                                            ? result(
-                                                  await tools.run(request, String(values.toolId), {
-                                                      input: values.input ?? '',
-                                                      options: values.options ?? {},
-                                                      ...(values.files || values.file
-                                                          ? { file: values.files ?? values.file }
-                                                          : {}),
-                                                  }),
-                                              )
-                                            : await callPlatform(params.name, values, request);
+                                        : params.name === 'search_tools'
+                                          ? result({
+                                                tools: searchExecutable(
+                                                    typeof values.query === 'string'
+                                                        ? values.query
+                                                        : '',
+                                                ),
+                                            })
+                                          : params.name === 'list_tools'
+                                            ? result({ tools: executableIds })
+                                            : params.name === 'run_tool'
+                                              ? result(
+                                                    await tools.run(
+                                                        request,
+                                                        String(values.toolId),
+                                                        {
+                                                            input: values.input ?? '',
+                                                            options: values.options ?? {},
+                                                            ...(values.files || values.file
+                                                                ? {
+                                                                      file:
+                                                                          values.files ??
+                                                                          values.file,
+                                                                  }
+                                                                : {}),
+                                                        },
+                                                    ),
+                                                )
+                                              : await callPlatform(params.name, values, request);
                     }
                     break;
                 }

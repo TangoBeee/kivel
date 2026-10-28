@@ -106,7 +106,7 @@ test('platform MCP creates, inspects, and deletes the same resources as HTTP', a
     const tools = (
         await app.inject({ method: 'POST', url: '/mcp', headers, payload: rpc('tools/list') })
     ).json().result.tools;
-    assert.equal(tools.length, 21);
+    assert.equal(tools.length, 25);
     assert.equal(
         tools.find((tool: { name: string }) => tool.name === 'delete_mock_api').annotations
             .destructiveHint,
@@ -289,7 +289,7 @@ test('the official MCP client can initialize, discover tools and call both serve
     const platform = new Client({ name: 'compatibility-test', version: '1.0' });
     t.after(() => platform.close());
     await platform.connect(transportFor('/mcp'));
-    assert.equal((await platform.listTools()).tools.length, 21);
+    assert.equal((await platform.listTools()).tools.length, 25);
     const call = await platform.callTool({ name: 'create_webhook_inbox', arguments: {} });
     assert.equal(call.isError, false);
     const created = (
@@ -599,4 +599,34 @@ test('mock APIs keep a log of recent calls for their owner, over HTTP and MCP', 
         ).json().result.content[0].text,
     );
     assert.equal(inspected.recentCalls.length, 2);
+});
+
+test('resource_request reads, lists and deletes resources over MCP', async (t) => {
+    const app = buildApp();
+    t.after(() => app.close());
+    const inbox = (await app.inject({ method: 'POST', url: '/api/inboxes' })).json();
+    const call = async (args: object) =>
+        (
+            await app.inject({
+                method: 'POST',
+                url: '/mcp',
+                headers,
+                payload: rpc('tools/call', { name: 'resource_request', arguments: args }),
+            })
+        ).json().result;
+    const inspected = await call({
+        kind: 'inboxes',
+        action: 'inspect',
+        id: inbox.id,
+        token: inbox.inspectionToken,
+    });
+    assert.notEqual(inspected.isError, true, inspected.content[0].text);
+    assert.deepEqual(JSON.parse(inspected.content[0].text).requests, []);
+    const deleted = await call({
+        kind: 'inboxes',
+        action: 'delete',
+        id: inbox.id,
+        token: inbox.inspectionToken,
+    });
+    assert.notEqual(deleted.isError, true, deleted.content[0].text);
 });

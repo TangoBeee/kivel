@@ -66,6 +66,17 @@ export function validateInboxResponse(value: unknown): InboxResponse {
     };
 }
 
+/** The outcome of relaying one captured request to an inbox's forwarding URL. */
+export interface InboxDelivery {
+    requestId: string;
+    at: string;
+    attempts: number;
+    status?: number;
+    error?: string;
+    durationMs: number;
+}
+export const DELIVERY_LIMIT = 100;
+
 export interface CapturedRequest {
     id: string;
     method: string;
@@ -91,6 +102,8 @@ interface Inbox extends Sharing {
     requestLimit: number;
     byteLimit: number;
     response?: InboxResponse;
+    forwardUrl?: string;
+    deliveries?: InboxDelivery[];
 }
 
 export interface StoreLimits {
@@ -122,10 +135,11 @@ export interface InboxInfo extends Sharing {
     requestLimit?: number;
     byteLimit?: number;
     response?: InboxResponse;
+    forwardUrl?: string;
 }
 
 export type CaptureResult =
-    | { status: 'captured'; requestId: string; response?: InboxResponse }
+    | { status: 'captured'; requestId: string; response?: InboxResponse; forwardUrl?: string }
     | { status: 'not-found' | 'inbox-full' | 'storage-full' };
 
 type MaybePromise<T> = T | Promise<T>;
@@ -164,6 +178,18 @@ export interface InboxRepository {
         response: InboxResponse | null,
         ownerId?: string,
     ): MaybePromise<boolean>;
+    setForward(
+        id: string,
+        token: string,
+        url: string | null,
+        ownerId?: string,
+    ): MaybePromise<boolean>;
+    recordDelivery(id: string, delivery: InboxDelivery): MaybePromise<void>;
+    listDeliveries(
+        id: string,
+        token: string,
+        ownerId?: string,
+    ): MaybePromise<InboxDelivery[] | undefined>;
     listOwned(ownerId: string): MaybePromise<InboxInfo[]>;
     deleteExpired(): MaybePromise<void>;
     ping(): MaybePromise<void>;
@@ -336,6 +362,7 @@ export class InboxStore implements InboxRepository {
             status: 'captured',
             requestId: captured.id,
             ...(inbox.response ? { response: inbox.response } : {}),
+            ...(inbox.forwardUrl ? { forwardUrl: inbox.forwardUrl } : {}),
         } as const;
     }
 
@@ -363,7 +390,27 @@ export class InboxStore implements InboxRepository {
                 : {}),
             ...(inbox.allocation?.ownerId ? { ownerId: inbox.allocation.ownerId } : {}),
             ...(inbox.response ? { response: inbox.response } : {}),
+            ...(inbox.forwardUrl ? { forwardUrl: inbox.forwardUrl } : {}),
         };
+    }
+
+    setForward(id: string, token: string, url: string | null, ownerId?: string) {
+        const inbox = this.authorize(id, token, ownerId);
+        if (!inbox) return false;
+        if (url) inbox.forwardUrl = url;
+        else delete inbox.forwardUrl;
+        return true;
+    }
+
+    recordDelivery(id: string, delivery: InboxDelivery) {
+        const inbox = this.find(id);
+        if (!inbox) return;
+        inbox.deliveries = [...(inbox.deliveries ?? []), delivery].slice(-DELIVERY_LIMIT);
+    }
+
+    listDeliveries(id: string, token: string, ownerId?: string) {
+        const inbox = this.authorize(id, token, ownerId);
+        return inbox ? [...(inbox.deliveries ?? [])] : undefined;
     }
 
     setResponse(id: string, token: string, response: InboxResponse | null, ownerId?: string) {

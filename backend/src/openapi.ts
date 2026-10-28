@@ -293,6 +293,78 @@ export function openApi(origin: string) {
                     responses: { '204': { description: 'Reset' }, ...unavailable, ...limited },
                 },
             },
+            '/api/inboxes/{id}/forward': {
+                put: {
+                    operationId: 'setInboxForward',
+                    tags: ['Webhook inboxes'],
+                    summary: 'Forward every captured request to your endpoint (Pro and Team)',
+                    description:
+                        'Each capture is relayed server-side with its method, query, headers (minus credentials and proxy headers) and text body, plus X-Socket-Help-Request-Id. Server errors and 429 are retried after 2 and 10 seconds. Binary bodies are not forwarded.',
+                    security: secured,
+                    parameters: id,
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    required: ['url'],
+                                    properties: {
+                                        url: { type: 'string', format: 'uri', maxLength: 2048 },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    responses: {
+                        '200': { description: 'Saved' },
+                        '400': { description: 'Not a public URL' },
+                        '403': { description: 'Requires a Pro or Team plan' },
+                        ...unavailable,
+                        ...limited,
+                    },
+                },
+                delete: {
+                    operationId: 'clearInboxForward',
+                    tags: ['Webhook inboxes'],
+                    summary: 'Stop forwarding',
+                    security: secured,
+                    parameters: id,
+                    responses: { '204': { description: 'Stopped' }, ...unavailable, ...limited },
+                },
+            },
+            '/api/inboxes/{id}/deliveries': {
+                get: {
+                    operationId: 'listInboxDeliveries',
+                    tags: ['Webhook inboxes'],
+                    summary: 'Read the last 100 forwarding attempts',
+                    security: secured,
+                    parameters: id,
+                    responses: {
+                        '200': json({
+                            type: 'object',
+                            properties: {
+                                deliveries: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            requestId: { type: 'string' },
+                                            at: { type: 'string', format: 'date-time' },
+                                            attempts: { type: 'integer' },
+                                            status: { type: 'integer' },
+                                            error: { type: 'string' },
+                                            durationMs: { type: 'integer' },
+                                        },
+                                    },
+                                },
+                            },
+                        }),
+                        ...unavailable,
+                        ...limited,
+                    },
+                },
+            },
             '/api/inboxes/{id}/wait': {
                 get: {
                     operationId: 'waitForRequests',

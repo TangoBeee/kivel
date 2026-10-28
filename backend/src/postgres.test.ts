@@ -425,8 +425,8 @@ test('upgrading an existing webhook-only database preserves captures and enables
     await inboxes.capture(inbox.id, input);
     await pool.query(
         `DROP TRIGGER inbox_quota ON inboxes; DROP FUNCTION enforce_resource_quota() CASCADE;
-         ALTER TABLE inboxes DROP COLUMN owner_id, DROP COLUMN quota_key, DROP COLUMN created_at, DROP COLUMN persistent, DROP COLUMN request_limit, DROP COLUMN byte_limit, DROP COLUMN visibility, DROP COLUMN access_token_hash, DROP COLUMN access_version, DROP COLUMN response;
-         DROP TABLE mock_calls, user_contact_emails, auth_mail_outbox, auth_challenges, user_recovery_emails, temporary_resources, resource_usage, account_members, auth_sessions, api_keys, account_invites, users, accounts, usage_plans, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events CASCADE; DELETE FROM schema_migrations WHERE version > 1`,
+         ALTER TABLE inboxes DROP COLUMN owner_id, DROP COLUMN quota_key, DROP COLUMN created_at, DROP COLUMN persistent, DROP COLUMN request_limit, DROP COLUMN byte_limit, DROP COLUMN visibility, DROP COLUMN access_token_hash, DROP COLUMN access_version, DROP COLUMN response, DROP COLUMN forward_url;
+         DROP TABLE mock_calls, inbox_deliveries, user_contact_emails, auth_mail_outbox, auth_challenges, user_recovery_emails, temporary_resources, resource_usage, account_members, auth_sessions, api_keys, account_invites, users, accounts, usage_plans, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events CASCADE; DELETE FROM schema_migrations WHERE version > 1`,
     );
     await Promise.all([migrate(pool), migrate(pool)]);
     assert.equal(
@@ -1140,7 +1140,7 @@ test('Dodo migration preserves legacy Stripe data without adopting its customer 
         user.personalAccountId,
     ]);
     await pool.query(
-        'ALTER TABLE accounts DROP COLUMN dodo_customer_id, DROP COLUMN dodo_subscription_id, DROP COLUMN dodo_event_created, DROP COLUMN dodo_checkout_id, DROP COLUMN dodo_checkout_url, DROP COLUMN dodo_checkout_plan; DROP TABLE dodo_events; ALTER TABLE inboxes DROP COLUMN response; DROP TABLE mock_calls; DELETE FROM schema_migrations WHERE version >= 8',
+        'ALTER TABLE accounts DROP COLUMN dodo_customer_id, DROP COLUMN dodo_subscription_id, DROP COLUMN dodo_event_created, DROP COLUMN dodo_checkout_id, DROP COLUMN dodo_checkout_url, DROP COLUMN dodo_checkout_plan; DROP TABLE dodo_events; ALTER TABLE inboxes DROP COLUMN response, DROP COLUMN forward_url; DROP TABLE mock_calls, inbox_deliveries; DELETE FROM schema_migrations WHERE version >= 8',
     );
     await Promise.all([migrate(pool), migrate(pool)]);
     const row = (
@@ -1195,4 +1195,29 @@ test('mock call logs keep only the newest calls for existing mocks and go with t
     assert.equal((await calls.list('00000000-0000-4000-8000-000000000000')).length, 0);
     await resources.delete(mock.id, 'mock', mock.managementToken);
     assert.equal((await calls.list(mock.id)).length, 0);
+});
+
+test('inbox forwarding settings and delivery logs persist and keep the newest entries', async () => {
+    const store = new PostgresInboxStore(pool);
+    const inbox = (await store.create())!;
+    assert.equal(
+        await store.setForward(inbox.id, inbox.inspectionToken, 'https://example.com/'),
+        true,
+    );
+    const captured = await store.capture(inbox.id, input, { token: inbox.accessToken! });
+    assert.equal(captured.status === 'captured' && captured.forwardUrl, 'https://example.com/');
+    for (let index = 0; index < 103; index++)
+        await store.recordDelivery(inbox.id, {
+            requestId: String(index),
+            at: new Date().toISOString(),
+            attempts: 1,
+            status: 200,
+            durationMs: 1,
+        });
+    const deliveries = (await store.listDeliveries(inbox.id, inbox.inspectionToken))!;
+    assert.equal(deliveries.length, 100);
+    assert.equal(deliveries[0]!.requestId, '3');
+    assert.equal(await store.listDeliveries(inbox.id, 'wrong'), undefined);
+    assert.equal(await store.setForward(inbox.id, inbox.inspectionToken, null), true);
+    assert.equal((await store.info(inbox.id, inbox.inspectionToken))?.forwardUrl, undefined);
 });

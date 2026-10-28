@@ -21,6 +21,9 @@ import { registerResources } from './resource-routes.js';
 import { registerMcp } from './mcp.js';
 import { Waiters, waitForRequests, waitSeconds } from './waiting.js';
 import { MemoryMockCalls } from './mock-calls.js';
+import { Forwarder } from './forwarding.js';
+import type { ForwardSend } from './forwarding.js';
+import { publicUrl } from './public-network.js';
 import type { MockCallRepository } from './mock-calls.js';
 import { MemoryAllocations, QuotaError } from './allocations.js';
 import { Access, HttpError, resourceToken } from './access.js';
@@ -52,6 +55,8 @@ interface AppOptions {
     recoveryStore?: RecoveryRepository;
     mailSender?: MailSender;
     mockCalls?: MockCallRepository;
+    forwardSend?: ForwardSend;
+    forwardDelays?: number[];
 }
 
 interface InboxRoute {
@@ -91,6 +96,8 @@ export function buildApp({
     recoveryStore,
     mailSender,
     mockCalls = new MemoryMockCalls(),
+    forwardSend,
+    forwardDelays,
 }: AppOptions = {}) {
     const ledger = new MemoryAllocations();
     const inboxStore = providedInboxes ?? new InboxStore({ quotaLedger: ledger });
@@ -98,6 +105,7 @@ export function buildApp({
         providedResources ?? new ResourceStore(Date.now, undefined, undefined, ledger);
     const access = new Access(identityStore, rateLimiter, publicBaseUrl, authSecret);
     const waiters = new Waiters();
+    const forwarder = new Forwarder(inboxStore, forwardSend, forwardDelays);
     const tools = new ToolService(access, frontendDir);
     const baseUrl = new URL(publicBaseUrl);
     if (
@@ -392,6 +400,19 @@ export function buildApp({
                             .send({ error: 'Capture storage capacity reached. Try again later.' });
                     case 'captured':
                         reply.header('X-Webhook-Request-Id', result.requestId);
+                        if (result.forwardUrl)
+                            forwarder
+                                .deliver(request.params.id, result.forwardUrl, {
+                                    id: result.requestId,
+                                    method: request.method,
+                                    query: request.url.split('?')[1] ?? '',
+                                    headers: request.headers,
+                                    body,
+                                    utf8: encoding === 'utf8',
+                                })
+                                .catch((error) =>
+                                    request.log.warn({ err: error }, 'Webhook forwarding failed.'),
+                                );
                         if (result.response) {
                             const custom = result.response;
                             if (custom.delayMs)
@@ -459,6 +480,54 @@ export function buildApp({
             (await access.actor(request)).identity?.account.id,
         );
         return saved ? reply.code(204).send() : reply.code(404).send(NOT_FOUND);
+    });
+
+    // Paid plans can relay every captured request to their own public endpoint.
+    app.put<InboxRoute>('/api/inboxes/:id/forward', async (request, reply) => {
+        const actor = await access.actor(request);
+        if (actor.plan !== 'pro' && actor.plan !== 'team')
+            return reply
+                .code(403)
+                .send({ error: 'Automatic forwarding is part of the Pro and Team plans.' });
+        const input = request.body as { url?: unknown } | undefined;
+        let target: URL;
+        try {
+            if (typeof input?.url !== 'string' || input.url.length > 2048) throw new Error();
+            target = publicUrl(input.url);
+        } catch {
+            return reply.code(400).send({
+                error: 'Use a public http(s) URL on port 80, 443, 8080 or 8443, up to 2,048 characters.',
+            });
+        }
+        // Forwarding back to socket.help could make inboxes relay to each other forever.
+        if (target.hostname === baseUrl.hostname)
+            return reply
+                .code(400)
+                .send({ error: 'Forward to your own endpoint, not socket.help.' });
+        const saved = await inboxStore.setForward(
+            request.params.id,
+            resourceToken(request),
+            target.href,
+            actor.identity?.account.id,
+        );
+        return saved ? { forwardUrl: target.href } : reply.code(404).send(NOT_FOUND);
+    });
+    app.delete<InboxRoute>('/api/inboxes/:id/forward', async (request, reply) => {
+        const saved = await inboxStore.setForward(
+            request.params.id,
+            resourceToken(request),
+            null,
+            (await access.actor(request)).identity?.account.id,
+        );
+        return saved ? reply.code(204).send() : reply.code(404).send(NOT_FOUND);
+    });
+    app.get<InboxRoute>('/api/inboxes/:id/deliveries', async (request, reply) => {
+        const deliveries = await inboxStore.listDeliveries(
+            request.params.id,
+            resourceToken(request),
+            (await access.actor(request)).identity?.account.id,
+        );
+        return deliveries ? { deliveries } : reply.code(404).send(NOT_FOUND);
     });
 
     // Long poll: answers as soon as the inbox has a request newer than `after`, so scripts and

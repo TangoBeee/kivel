@@ -1,11 +1,12 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import { transaction } from './database.js';
-import { INBOX_TTL_MS, resolveLimits } from './inboxes.js';
+import { DELIVERY_LIMIT, INBOX_TTL_MS, resolveLimits } from './inboxes.js';
 import type {
     CapturedRequest,
     CaptureResult,
     InboxRepository,
+    InboxDelivery,
     InboxResponse,
     StoreLimits,
 } from './inboxes.js';
@@ -35,6 +36,7 @@ interface InboxRow {
     request_limit: number;
     byte_limit: string;
     response: InboxResponse | null;
+    forward_url: string | null;
 }
 
 export class PostgresInboxStore implements InboxRepository {
@@ -204,6 +206,7 @@ export class PostgresInboxStore implements InboxRepository {
                 status: 'captured',
                 requestId: request.id,
                 ...(inbox.response ? { response: inbox.response } : {}),
+                ...(inbox.forward_url ? { forwardUrl: inbox.forward_url } : {}),
             };
         });
     }
@@ -228,7 +231,46 @@ export class PostgresInboxStore implements InboxRepository {
                 : {}),
             ...(inbox.owner_id ? { ownerId: inbox.owner_id } : {}),
             ...(inbox.response ? { response: inbox.response } : {}),
+            ...(inbox.forward_url ? { forwardUrl: inbox.forward_url } : {}),
         };
+    }
+
+    async setForward(id: string, token: string, url: string | null, ownerId?: string) {
+        const inbox = await this.authorized(id, token, this.pool, ownerId);
+        if (!inbox) return false;
+        const result = await this.pool.query('UPDATE inboxes SET forward_url = $2 WHERE id = $1', [
+            id,
+            url,
+        ]);
+        return result.rowCount === 1;
+    }
+
+    async recordDelivery(id: string, delivery: InboxDelivery) {
+        if (!UUID.test(id)) return;
+        // Same trim as mock calls: the DELETE sees the table before this INSERT.
+        await this.pool.query(
+            `WITH added AS (
+                INSERT INTO inbox_deliveries (inbox_id, delivery)
+                SELECT id, $2::jsonb FROM inboxes WHERE id = $1
+                RETURNING inbox_id
+            )
+            DELETE FROM inbox_deliveries WHERE inbox_id IN (SELECT inbox_id FROM added)
+                AND sequence <= (
+                    SELECT sequence FROM inbox_deliveries WHERE inbox_id = $1
+                    ORDER BY sequence DESC OFFSET $3 LIMIT 1
+                )`,
+            [id, JSON.stringify(delivery), DELIVERY_LIMIT - 1],
+        );
+    }
+
+    async listDeliveries(id: string, token: string, ownerId?: string) {
+        const inbox = await this.authorized(id, token, this.pool, ownerId);
+        if (!inbox) return undefined;
+        const result = await this.pool.query<{ delivery: InboxDelivery }>(
+            'SELECT delivery FROM inbox_deliveries WHERE inbox_id = $1 ORDER BY sequence',
+            [id],
+        );
+        return result.rows.map((row) => row.delivery);
     }
 
     async setResponse(

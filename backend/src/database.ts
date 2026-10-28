@@ -137,7 +137,13 @@ export async function migrate(pool: Pool): Promise<void> {
                 INSERT INTO schema_migrations (version) VALUES (8);`);
         }
         if (version < 9) {
-            await client.query(`ALTER TABLE inboxes ADD COLUMN response jsonb;
+            await client.query(`ALTER TABLE inboxes ADD COLUMN response jsonb, ADD COLUMN forward_url text;
+                CREATE TABLE inbox_deliveries (
+                    sequence bigserial PRIMARY KEY,
+                    inbox_id uuid NOT NULL REFERENCES inboxes(id) ON DELETE CASCADE,
+                    delivery jsonb NOT NULL
+                );
+                CREATE INDEX inbox_deliveries_inbox ON inbox_deliveries (inbox_id, sequence);
                 CREATE TABLE mock_calls (
                     sequence bigserial PRIMARY KEY,
                     resource_id uuid NOT NULL REFERENCES temporary_resources(id) ON DELETE CASCADE,

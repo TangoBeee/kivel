@@ -527,3 +527,84 @@ test('failed run reservations are released only from their original UTC day', (t
     repository.releaseRun('test', previous.day);
     assert.equal(repository.runUsage('test'), 1);
 });
+
+test('Pro inboxes forward captured webhooks with retries and keep a delivery log', async (t) => {
+    const identities = new MemoryIdentityRepository();
+    const sent: { url: string; method: string; headers: Record<string, string>; body?: string }[] =
+        [];
+    const answers = [503, 200];
+    const app = buildApp({
+        identityStore: identities,
+        forwardDelays: [0, 10],
+        forwardSend: async (url, _signal, options) => {
+            sent.push({
+                url,
+                method: options.method,
+                headers: options.headers,
+                ...(options.requestBody !== undefined ? { body: options.requestBody } : {}),
+            });
+            return { status: answers.shift() ?? 200 };
+        },
+    });
+    t.after(() => app.close());
+    const owner = await signup(app, 'forwarder'),
+        credential = await key(app, owner.cookie),
+        headers = { authorization: `Bearer ${credential.key}` };
+    const inbox = (
+        await app.inject({ method: 'POST', url: '/api/inboxes?visibility=public', headers })
+    ).json();
+    const forward = (url: string) =>
+        app.inject({
+            method: 'PUT',
+            url: `/api/inboxes/${inbox.id}/forward`,
+            headers,
+            payload: { url },
+        });
+    assert.equal((await forward('https://example.com/hook')).statusCode, 403);
+    await identities.setEntitlement(
+        owner.account.id,
+        'pro',
+        new Date(Date.now() + 86400000).toISOString(),
+    );
+    assert.equal((await forward('http://127.0.0.1:3000/x')).statusCode, 400);
+    assert.equal((await forward('https://localhost/x')).statusCode, 400);
+    assert.equal((await forward('http://localhost:3000/hooks/x')).statusCode, 400);
+    const saved = await forward('https://example.com/hook');
+    assert.equal(saved.statusCode, 200);
+    await app.inject({
+        method: 'POST',
+        url: `/hooks/${inbox.id}?event=paid`,
+        headers: {
+            'content-type': 'application/json',
+            'stripe-signature': 't=1,v1=abc',
+            cookie: 'secret=1',
+        },
+        payload: '{"paid":true}',
+    });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.equal(sent.length, 2);
+    assert.equal(sent[0]!.url, 'https://example.com/hook?event=paid');
+    assert.equal(sent[0]!.method, 'POST');
+    assert.equal(sent[0]!.body, '{"paid":true}');
+    assert.equal(sent[0]!.headers['stripe-signature'], 't=1,v1=abc');
+    assert.equal(sent[0]!.headers.cookie, undefined);
+    assert.ok(sent[0]!.headers['x-socket-help-request-id']);
+    const log = (await app.inject({ url: `/api/inboxes/${inbox.id}/deliveries`, headers })).json()
+        .deliveries;
+    assert.equal(log.length, 1);
+    assert.equal(log[0].status, 200);
+    assert.equal(log[0].attempts, 2);
+    assert.equal(
+        (
+            await app.inject({
+                method: 'DELETE',
+                url: `/api/inboxes/${inbox.id}/forward`,
+                headers,
+            })
+        ).statusCode,
+        204,
+    );
+    await app.inject({ method: 'POST', url: `/hooks/${inbox.id}`, payload: 'x' });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.equal(sent.length, 2);
+});

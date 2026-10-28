@@ -20,6 +20,7 @@ import {
     ArrowUpRight,
     File,
     WebhooksLogo,
+    EnvelopeSimple,
     BracketsCurly,
     Plugs,
     ShieldCheck,
@@ -55,7 +56,7 @@ type Key = { id: string; name: string; prefix: string; scopes: string[]; expires
 type Resource = {
     toolId?: string;
     id: string;
-    kind: 'inbox' | 'mock' | 'file' | 'mcp';
+    kind: 'inbox' | 'mock' | 'file' | 'mcp' | 'email';
     visibility: Visibility;
     name?: string;
     expiresAt: string;
@@ -63,12 +64,19 @@ type Resource = {
     storedBytes: number;
     available?: boolean;
 };
-const paths = { inbox: 'inboxes', mock: 'mocks', file: 'files', mcp: 'mcp-servers' };
+const paths = {
+    inbox: 'inboxes',
+    mock: 'mocks',
+    file: 'files',
+    mcp: 'mcp-servers',
+    email: 'email-inboxes',
+};
 const resourceTools = {
     inbox: 'webhooks',
     mock: 'mock-apis-mock-rest-api',
     file: 'files-temporary-file-transfer',
     mcp: 'agents-mock-mcp-server',
+    email: 'email-temporary-email-inbox',
 };
 const formatBytes = (value: number) =>
     value < 1048576 ? `${Math.ceil(value / 1024)} KiB` : `${(value / 1048576).toFixed(1)} MiB`;
@@ -312,6 +320,7 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
         file: 'File',
         mock: 'Mock API',
         mcp: 'MCP server',
+        email: 'Email inbox',
     };
     const bar = (value: number, max: number) => (
         <span className="metric-bar" aria-hidden="true">
@@ -322,7 +331,13 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
             />
         </span>
     );
-    const resourceIcons = { inbox: WebhooksLogo, file: File, mock: BracketsCurly, mcp: Plugs };
+    const resourceIcons = {
+        inbox: WebhooksLogo,
+        file: File,
+        mock: BracketsCurly,
+        mcp: Plugs,
+        email: EnvelopeSimple,
+    };
     const messages = (
         <>
             {error && (
@@ -1540,83 +1555,91 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                         </Tabs.Trigger>
                                     </Tabs.List>
                                     <Tabs.Content value="manage">
-                                        <SharingControl
-                                            value={selectedResource.visibility}
-                                            disabled={
-                                                busy || !session.scopes.includes('resources:write')
-                                            }
-                                            onChange={(visibility) =>
-                                                void action(async () => {
-                                                    const result = await json(
-                                                        `/api/${paths[selectedResource.kind]}/${selectedResource.id}/sharing`,
-                                                        'POST',
-                                                        { visibility },
-                                                    );
-                                                    setSelectedResource({
-                                                        ...selectedResource,
-                                                        visibility,
-                                                    });
-                                                    setSharedAccess(result.accessToken ?? '');
-                                                    await refresh();
-                                                    setNotice(
-                                                        visibility === 'private'
-                                                            ? 'Private sharing enabled. Previous access tokens are revoked.'
-                                                            : 'Public sharing enabled.',
-                                                    );
-                                                })
-                                            }
-                                        />
-                                        {selectedResource.visibility === 'private' && (
-                                            <div className="account-secret">
-                                                <p>
-                                                    Private access requires a sharing token or
-                                                    workspace access.
-                                                </p>
-                                                {selectedResource.kind === 'file' && (
-                                                    <p>
-                                                        Share the link and access token separately.
-                                                    </p>
-                                                )}
-                                                <div className="account-secret-actions">
-                                                    {selectedResource.kind === 'file' && (
-                                                        <CopyButton
-                                                            text={`${location.origin}/share/?id=${selectedResource.id}`}
-                                                            label="Copy share link"
-                                                        />
-                                                    )}
-                                                    {sharedAccess ? (
-                                                        <CopyButton
-                                                            text={sharedAccess}
-                                                            label="Copy access token"
-                                                        />
-                                                    ) : (
-                                                        <Button
-                                                            variant="soft"
-                                                            disabled={
-                                                                busy ||
-                                                                !session.scopes.includes(
-                                                                    'resources:write',
-                                                                )
-                                                            }
-                                                            onClick={() =>
-                                                                void action(async () => {
-                                                                    const result = await json(
-                                                                        `/api/${paths[selectedResource.kind]}/${selectedResource.id}/sharing`,
-                                                                        'POST',
-                                                                        { visibility: 'private' },
-                                                                    );
-                                                                    setSharedAccess(
-                                                                        result.accessToken,
-                                                                    );
-                                                                })
-                                                            }
-                                                        >
-                                                            Rotate access token
-                                                        </Button>
-                                                    )}
-                                                </div>
-                                            </div>
+                                        {selectedResource.kind !== 'email' && (
+                                            <SharingControl
+                                                value={selectedResource.visibility}
+                                                disabled={
+                                                    busy ||
+                                                    !session.scopes.includes('resources:write')
+                                                }
+                                                onChange={(visibility) =>
+                                                    void action(async () => {
+                                                        const result = await json(
+                                                            `/api/${paths[selectedResource.kind]}/${selectedResource.id}/sharing`,
+                                                            'POST',
+                                                            { visibility },
+                                                        );
+                                                        setSelectedResource({
+                                                            ...selectedResource,
+                                                            visibility,
+                                                        });
+                                                        setSharedAccess(result.accessToken ?? '');
+                                                        await refresh();
+                                                        setNotice(
+                                                            visibility === 'private'
+                                                                ? 'Private sharing enabled. Previous access tokens are revoked.'
+                                                                : 'Public sharing enabled.',
+                                                        );
+                                                    })
+                                                }
+                                            />
                                         )}
+                                        {selectedResource.kind !== 'email' &&
+                                            selectedResource.visibility === 'private' && (
+                                                <div className="account-secret">
+                                                    <p>
+                                                        Private access requires a sharing token or
+                                                        workspace access.
+                                                    </p>
+                                                    {selectedResource.kind === 'file' && (
+                                                        <p>
+                                                            Share the link and access token
+                                                            separately.
+                                                        </p>
+                                                    )}
+                                                    <div className="account-secret-actions">
+                                                        {selectedResource.kind === 'file' && (
+                                                            <CopyButton
+                                                                text={`${location.origin}/share/?id=${selectedResource.id}`}
+                                                                label="Copy share link"
+                                                            />
+                                                        )}
+                                                        {sharedAccess ? (
+                                                            <CopyButton
+                                                                text={sharedAccess}
+                                                                label="Copy access token"
+                                                            />
+                                                        ) : (
+                                                            <Button
+                                                                variant="soft"
+                                                                disabled={
+                                                                    busy ||
+                                                                    !session.scopes.includes(
+                                                                        'resources:write',
+                                                                    )
+                                                                }
+                                                                onClick={() =>
+                                                                    void action(async () => {
+                                                                        const result = await json(
+                                                                            `/api/${paths[selectedResource.kind]}/${selectedResource.id}/sharing`,
+                                                                            'POST',
+                                                                            {
+                                                                                visibility:
+                                                                                    'private',
+                                                                            },
+                                                                        );
+                                                                        setSharedAccess(
+                                                                            result.accessToken,
+                                                                        );
+                                                                    })
+                                                                }
+                                                            >
+                                                                Rotate access token
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
                                         {selectedResource.kind === 'file' && (
                                             <RemoteFilePreview
                                                 id={selectedResource.id}

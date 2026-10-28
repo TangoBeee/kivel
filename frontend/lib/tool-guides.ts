@@ -286,6 +286,16 @@ export function toolGuide(tool: CatalogTool): Guide {
             ],
             limits: 'Servers start with a one-hour lifetime; renewal stays within plan limits. Up to 10 tools, 80 KiB total configuration, and 120 requests per minute are supported. No custom code or outbound requests are executed. Choose public or private access. Private clients need an access token; management uses a separate credential. Account-owned resources require workspace access to manage.',
         };
+    if (tool.id === 'email-temporary-email-inbox')
+        return {
+            intro: 'Get a real, receive-only email address in one second. Use it to sign up to the app you are testing, then read the message here or let your AI agent wait for it. One-time codes and verification links are extracted automatically.',
+            steps: [
+                'Open the page: an address is created for you.',
+                'Use the address to sign up, reset a password or receive any test email.',
+                'Copy the extracted code or open the verification link, or call wait_for_email from your agent.',
+            ],
+            limits: 'Addresses last one hour without an account, up to 7 days on Free, 30 on Pro and 90 on Team. Each inbox keeps up to 100 messages; text and HTML are stored up to 64 KiB each and attachments are listed but not stored. Receive-only: nothing can be sent from these addresses. Reading messages always needs the private token or your workspace.',
+        };
     if (tool.id === 'agents-socket-help-mcp')
         return {
             intro: 'Use socket.help from an MCP-compatible agent to run utility tools and create, inspect, renew, and delete temporary webhook inboxes, mock APIs, and file shares.',
@@ -516,6 +526,12 @@ const examples: Record<string, { useCase: string; example: string }> = {
             'Test tool discovery and predictable success or failure responses in an MCP client.',
         example:
             'Create a tool named get_order.\nDefine a primitive string argument: id.\nReturn a static sample order.\nConnect your client and call tools/list.',
+    },
+    'email-temporary-email-inbox': {
+        useCase:
+            'Test a sign-up or password-reset flow end to end, by hand or with an AI agent, without a real mailbox.',
+        example:
+            'Address: k5zfrjb4ird2tgvpaox42dnr3e@socketspace.xyz\nSubject: Confirm your email\nCode: 700412\nVerification link: https://app.example/verify?token=…',
     },
     'agents-socket-help-mcp': {
         useCase:

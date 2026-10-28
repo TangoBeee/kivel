@@ -18,6 +18,7 @@ import { BrowserOperation } from '../../../components/browser-operation';
 import { ResourceWorkbench } from '../../../components/resource-workbench';
 import WebhookWorkbench from '../../../components/webhook-workbench';
 import { McpConnect } from '../../../components/mcp-connect';
+import { EmailInboxWorkbench } from '../../../components/email-inbox-workbench';
 import { CodeExample } from '../../../components/code-example';
 import { StructuredData } from '../../../components/content-layout';
 import { breadcrumbs } from '../../../lib/seo';
@@ -92,6 +93,8 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
                 <AudioComposer toolId={tool.id} />
             ) : tool.id === 'test-media-music-library' ? (
                 <MusicLibrary />
+            ) : tool.id === 'email-temporary-email-inbox' ? (
+                <EmailInboxWorkbench toolId={tool.id} />
             ) : tool.id === 'agents-socket-help-mcp' ? (
                 <McpConnect />
             ) : tool.id === 'webhooks' || tool.id === 'domains-temporary-callback-url' ? (

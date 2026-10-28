@@ -82,6 +82,7 @@ const capabilities: Capability[] = [
         icon: 'mail',
         title: 'Email inboxes',
         body: 'An address your agent can read: sign-up codes and magic links, extracted.',
+        href: '/tools/temporary-email-inbox/',
     },
     {
         icon: 'pulse',

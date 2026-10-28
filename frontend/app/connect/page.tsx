@@ -88,6 +88,8 @@ const tools: { name: string; does: string }[] = [
     { name: 'create_webhook_inbox', does: 'A private URL that captures any HTTP request.' },
     { name: 'wait_for_webhook', does: 'Block until the inbox receives a request.' },
     { name: 'inspect_webhook_inbox', does: 'Read captured requests: method, headers, body.' },
+    { name: 'create_email_inbox', does: 'A receive-only address for sign-up and reset tests.' },
+    { name: 'wait_for_email', does: 'Block until mail arrives; codes and links come extracted.' },
     { name: 'create_mock_api', does: 'Routes, templates, CRUD records and failure modes.' },
     { name: 'call_mock_api', does: 'Call a mock or change its CRUD data.' },
     { name: 'upload_temporary_file', does: 'Share a file through a private, expiring link.' },
@@ -98,6 +100,7 @@ const tools: { name: string; does: string }[] = [
 
 const prompts = [
     'Create a socket.help webhook inbox, wait for the first request, and explain what it contains.',
+    'Create a socket.help email inbox, sign up at my staging site with it, and finish verification.',
     'Mock GET /users/:id with three realistic users, then call it to check the response.',
     'Look up the DNS records and SSL certificate for example.com and summarize any problems.',
 ];

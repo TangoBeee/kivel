@@ -46,7 +46,7 @@ import { ResultPreview } from './result-preview';
 import { CopyButton } from './copy-button';
 type Session = {
     user: { username: string };
-    account: { id: string; name: string; effectivePlan: string };
+    account: { id: string; name: string; effectivePlan: string; planValidUntil: string | null };
     role: string;
     scopes: string[];
 };
@@ -121,6 +121,10 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
         [detail, setDetail] = useState('');
     const [selectedResource, setSelectedResource] = useState<Resource | null>(null),
         [sharedAccess, setSharedAccess] = useState('');
+    // Outcome of a Dodo checkout redirect. The plan itself only changes once the signed webhook lands.
+    const [checkout, setCheckout] = useState<
+        'activating' | 'active' | 'delayed' | 'cancelled' | null
+    >(null);
     async function refresh() {
         try {
             const account = await json('/api/account');
@@ -166,6 +170,11 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
             if (hash === 'register') setMode('register');
             if (hash === 'signin') setMode('login');
         };
+        const returned = new URLSearchParams(location.search).get('billing');
+        if (returned === 'returned' || returned === 'cancelled') {
+            setCheckout(returned === 'returned' ? 'activating' : 'cancelled');
+            history.replaceState(null, '', `${location.pathname}#billing`);
+        }
         applyHash();
         addEventListener('hashchange', applyHash);
         void refresh();
@@ -175,6 +184,27 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
             .catch(() => {});
         return () => removeEventListener('hashchange', applyHash);
     }, []);
+    const plan = session?.account.effectivePlan ?? 'free',
+        subscribed = plan === 'pro' || plan === 'team',
+        planName = plan[0]!.toUpperCase() + plan.slice(1),
+        signedIn = !!session;
+    useEffect(() => {
+        if (checkout !== 'activating' || !signedIn) return;
+        if (subscribed) {
+            setCheckout('active');
+            refreshViewer();
+            return;
+        }
+        // The webhook usually lands within seconds of the redirect; check for about half a minute.
+        let tries = 0;
+        const timer = setInterval(() => {
+            if (++tries > 15) {
+                clearInterval(timer);
+                setCheckout('delayed');
+            } else void refresh();
+        }, 2000);
+        return () => clearInterval(timer);
+    }, [checkout, signedIn, subscribed]);
     async function action(work: () => Promise<void>) {
         setBusy(true);
         setError('');
@@ -1290,16 +1320,61 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                     )}
                     {panel === 'billing' && (
                         <div className="settings-stack">
+                            {checkout && (
+                                <section
+                                    className={`checkout-result is-${checkout}`}
+                                    role="status"
+                                    aria-live="polite"
+                                >
+                                    <span className="checkout-result-icon" aria-hidden="true">
+                                        {checkout === 'activating' ? (
+                                            <ArrowsClockwise size={20} className="spin" />
+                                        ) : checkout === 'active' ? (
+                                            <Check size={20} weight="bold" />
+                                        ) : (
+                                            <Lightning size={20} />
+                                        )}
+                                    </span>
+                                    <div>
+                                        <strong>
+                                            {checkout === 'activating'
+                                                ? 'Payment received'
+                                                : checkout === 'active'
+                                                  ? `Welcome to ${planName}!`
+                                                  : checkout === 'delayed'
+                                                    ? 'Payment is still being confirmed'
+                                                    : 'Checkout cancelled'}
+                                        </strong>
+                                        <p>
+                                            {checkout === 'activating'
+                                                ? 'Activating your new plan. This usually takes a few seconds…'
+                                                : checkout === 'active'
+                                                  ? `Your workspace now has the ${planName} limits below. Dodo Payments will email your receipt, and you can change or cancel anytime from Manage billing.`
+                                                  : checkout === 'delayed'
+                                                    ? 'Your plan switches automatically once Dodo Payments confirms the payment. Refresh in a minute; if nothing changes, email support@socket.help.'
+                                                    : 'No payment was taken and your plan has not changed.'}
+                                        </p>
+                                    </div>
+                                    {checkout !== 'activating' && (
+                                        <button
+                                            className="text-button"
+                                            onClick={() => setCheckout(null)}
+                                        >
+                                            Dismiss
+                                        </button>
+                                    )}
+                                </section>
+                            )}
                             <section className="plan-hero">
                                 <div className="plan-hero-copy">
                                     <Badge color="green" variant="soft">
-                                        Current plan
+                                        {subscribed ? 'Subscribed' : 'Current plan'}
                                     </Badge>
-                                    <h2>
-                                        {session.account.effectivePlan[0]?.toUpperCase()}
-                                        {session.account.effectivePlan.slice(1)} plan
-                                    </h2>
+                                    <h2>{planName} plan</h2>
                                     <p>
+                                        {subscribed && session.account.planValidUntil
+                                            ? `Paid through ${new Date(session.account.planValidUntil).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}. `
+                                            : ''}
                                         Your allowances are shared across the web app, API, SDK,
                                         CLI, and MCP.
                                     </p>
@@ -1332,18 +1407,45 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                 title="Subscription"
                                 description="Paid plans are billed through Dodo Payments. Only workspace owners can change the plan."
                             >
-                                {billing.enabled ? (
+                                {billing.enabled && subscribed ? (
                                     <>
                                         <p>
-                                            Subscriptions are billed through Dodo Payments. Changing
-                                            plans and cancelling are available in the billing
+                                            {session.role === 'owner'
+                                                ? `You're subscribed to ${planName}. Switch plans, update your card, download invoices or cancel in the billing portal.`
+                                                : `This workspace is on ${planName}. Only the workspace owner can change the subscription.`}
+                                        </p>
+                                        {session.role === 'owner' && (
+                                            <div className="account-row-actions">
+                                                <button
+                                                    className="button button-primary"
+                                                    disabled={busy}
+                                                    onClick={() =>
+                                                        action(async () => {
+                                                            const result = await json(
+                                                                '/api/billing/portal',
+                                                                'POST',
+                                                            );
+                                                            location.assign(result.url);
+                                                        })
+                                                    }
+                                                >
+                                                    Manage billing
+                                                </button>
+                                            </div>
+                                        )}
+                                    </>
+                                ) : billing.enabled ? (
+                                    <>
+                                        <p>
+                                            Subscriptions are billed monthly through Dodo Payments.
+                                            You can switch plans or cancel anytime from the billing
                                             portal.
                                         </p>
                                         <div className="account-row-actions">
                                             {session.role === 'owner' &&
                                                 billing.prices.map((price) => (
                                                     <button
-                                                        className="button"
+                                                        className={`button ${price.plan === 'pro' ? 'button-primary' : ''}`}
                                                         key={price.plan}
                                                         disabled={busy}
                                                         onClick={() =>
@@ -1357,8 +1459,9 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                                             })
                                                         }
                                                     >
-                                                        {price.plan} ·{' '}
-                                                        {new Intl.NumberFormat(undefined, {
+                                                        Upgrade to {price.plan[0]!.toUpperCase()}
+                                                        {price.plan.slice(1)} ·{' '}
+                                                        {new Intl.NumberFormat('en-US', {
                                                             style: 'currency',
                                                             currency: price.currency,
                                                         }).format(
@@ -1374,31 +1477,14 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                                                     ).resolvedOptions()
                                                                         .maximumFractionDigits ??
                                                                         2),
-                                                        )}{' '}
-                                                        /{' '}
+                                                        )}
+                                                        /
                                                         {price.intervalCount > 1
                                                             ? `${price.intervalCount} `
                                                             : ''}
-                                                        {price.interval}
+                                                        {price.interval.toLowerCase()}
                                                     </button>
                                                 ))}
-                                            {session.role === 'owner' && (
-                                                <button
-                                                    className="button"
-                                                    disabled={busy}
-                                                    onClick={() =>
-                                                        action(async () => {
-                                                            const result = await json(
-                                                                '/api/billing/portal',
-                                                                'POST',
-                                                            );
-                                                            location.assign(result.url);
-                                                        })
-                                                    }
-                                                >
-                                                    Manage billing
-                                                </button>
-                                            )}
                                         </div>
                                     </>
                                 ) : (

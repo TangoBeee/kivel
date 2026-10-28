@@ -1100,3 +1100,71 @@ body:has(.dashboard-layout) main::after {
     transition: none;
   }
 }
+
+/* Result of returning from a Dodo checkout */
+.checkout-result {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+.checkout-result.is-active,
+.checkout-result.is-activating {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+.checkout-result > div {
+  flex: 1;
+  min-width: 0;
+}
+.checkout-result strong {
+  display: block;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+.checkout-result p {
+  margin-top: 2px;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+.checkout-result-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: var(--accent);
+  background: var(--surface);
+  border: 1px solid var(--accent-line);
+}
+.checkout-result .text-button {
+  flex: none;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+.checkout-result .text-button:hover {
+  color: var(--ink, inherit);
+}
+.checkout-result .spin {
+  animation: checkout-spin 1s linear infinite;
+}
+@keyframes checkout-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .checkout-result .spin {
+    animation: none;
+  }
+}

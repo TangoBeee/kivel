@@ -29,7 +29,7 @@ import { publicRequest, publicUrl } from './public-network.js';
 import type { MockCallRepository } from './mock-calls.js';
 import { MemoryAllocations, QuotaError } from './allocations.js';
 import { Access, HttpError, resourceToken } from './access.js';
-import { MemoryIdentityRepository } from './identity.js';
+import { effectivePlan, MemoryIdentityRepository } from './identity.js';
 import type { IdentityRepository } from './identity.js';
 import { registerAccounts } from './account-routes.js';
 import { ToolService, registerTools } from './tool-routes.js';
@@ -115,6 +115,13 @@ export function buildApp({
         providedResources ?? new ResourceStore(Date.now, undefined, undefined, ledger);
     const access = new Access(identityStore, rateLimiter, publicBaseUrl, authSecret);
     const waiters = new Waiters();
+    // Paid features are re-checked on use, so they stop as soon as the owner's plan lapses.
+    const ownerIsPaid = async (ownerId?: string) => {
+        if (!ownerId) return false;
+        const account = await identityStore.account(ownerId);
+        const plan = account ? effectivePlan(account) : 'free';
+        return plan === 'pro' || plan === 'team';
+    };
     const forwarder = new Forwarder(inboxStore, forwardSend, forwardDelays);
     const tools = new ToolService(access, frontendDir);
     const baseUrl = new URL(publicBaseUrl);
@@ -412,7 +419,7 @@ export function buildApp({
                             .send({ error: 'Capture storage capacity reached. Try again later.' });
                     case 'captured':
                         reply.header('X-Webhook-Request-Id', result.requestId);
-                        if (result.forwardUrl)
+                        if (result.forwardUrl && (await ownerIsPaid(result.ownerId)))
                             forwarder
                                 .deliver(request.params.id, result.forwardUrl, {
                                     id: result.requestId,
@@ -516,6 +523,16 @@ export function buildApp({
             return reply
                 .code(400)
                 .send({ error: 'Forward to your own endpoint, not socket.help.' });
+        const info = await inboxStore.info(
+            request.params.id,
+            resourceToken(request),
+            actor.identity?.account.id,
+        );
+        if (!info) return reply.code(404).send(NOT_FOUND);
+        if (info.ownerId !== actor.identity?.account.id)
+            return reply
+                .code(403)
+                .send({ error: 'Forwarding needs an inbox created in your workspace.' });
         const saved = await inboxStore.setForward(
             request.params.id,
             resourceToken(request),
@@ -630,6 +647,7 @@ export function buildApp({
         access,
         mockCalls,
         mockProxySend,
+        ownerIsPaid,
     );
     registerMcp({
         app,

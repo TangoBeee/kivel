@@ -63,6 +63,7 @@ export function registerResources(
     access: Access,
     calls: MockCallRepository = new MemoryMockCalls(),
     proxySend: typeof publicRequest = publicRequest,
+    ownerIsPaid: (ownerId?: string) => Promise<boolean> = async () => true,
 ) {
     const transfers = new Set<FastifyRequest>();
     const streams = new Set<AbortController>();
@@ -567,6 +568,10 @@ export function registerResources(
                         matches(request.method) ??
                         (request.method === 'HEAD' ? matches('GET') : undefined) ??
                         matches('ANY');
+                    if (!route && config.proxy && !(await ownerIsPaid(resource.ownerId)))
+                        return reply.code(402).send({
+                            error: 'This mock’s proxy is paused because its owner’s plan no longer includes it.',
+                        });
                     if (!route && config.proxy) {
                         const target = new URL(config.proxy.target);
                         target.pathname = `${target.pathname.replace(/\/$/, '')}${path}` || '/';

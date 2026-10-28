@@ -207,6 +207,7 @@ export class PostgresInboxStore implements InboxRepository {
                 requestId: request.id,
                 ...(inbox.response ? { response: inbox.response } : {}),
                 ...(inbox.forward_url ? { forwardUrl: inbox.forward_url } : {}),
+                ...(inbox.owner_id ? { ownerId: inbox.owner_id } : {}),
             };
         });
     }

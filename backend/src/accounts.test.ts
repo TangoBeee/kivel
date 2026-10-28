@@ -670,3 +670,82 @@ test('Pro proxy mocks pass unmatched calls through, never serve HTML, and record
     assert.equal(replay.headers['x-mock-proxied'], undefined);
     assert.equal(calls.length, 2);
 });
+
+test('forwarding and proxy mocks stop as soon as the owner’s paid plan ends', async (t) => {
+    const identities = new MemoryIdentityRepository();
+    let forwarded = 0,
+        proxied = 0;
+    const app = buildApp({
+        identityStore: identities,
+        forwardDelays: [0],
+        forwardSend: async () => {
+            forwarded++;
+            return { status: 200 };
+        },
+        mockProxySend: async (url) => {
+            proxied++;
+            return {
+                url,
+                status: 200,
+                headers: { 'content-type': 'application/json' },
+                body: Buffer.from('{}'),
+                truncated: false,
+                address: '93.184.216.34',
+                timings: { dnsMs: 1, responseMs: 1, totalMs: 2 },
+            } as Awaited<ReturnType<typeof import('./public-network.js').publicRequest>>;
+        },
+    });
+    t.after(() => app.close());
+    const owner = await signup(app, 'lapsing'),
+        credential = await key(app, owner.cookie),
+        headers = { authorization: `Bearer ${credential.key}` };
+    await identities.setEntitlement(
+        owner.account.id,
+        'pro',
+        new Date(Date.now() + 86400000).toISOString(),
+    );
+    const anonymous = (
+        await app.inject({ method: 'POST', url: '/api/inboxes?visibility=public' })
+    ).json();
+    assert.equal(
+        (
+            await app.inject({
+                method: 'PUT',
+                url: `/api/inboxes/${anonymous.id}/forward`,
+                headers: { ...headers, 'x-resource-token': anonymous.inspectionToken },
+                payload: { url: 'https://example.com/hook' },
+            })
+        ).statusCode,
+        403,
+    );
+    const inbox = (
+        await app.inject({ method: 'POST', url: '/api/inboxes?visibility=public', headers })
+    ).json();
+    await app.inject({
+        method: 'PUT',
+        url: `/api/inboxes/${inbox.id}/forward`,
+        headers,
+        payload: { url: 'https://example.com/hook' },
+    });
+    const mock = (
+        await app.inject({
+            method: 'POST',
+            url: '/api/mocks?visibility=public',
+            headers,
+            payload: { name: 'P', routes: [], proxy: { target: 'https://api.example.com' } },
+        })
+    ).json();
+    await app.inject({ method: 'POST', url: `/hooks/${inbox.id}`, payload: 'a' });
+    assert.equal((await app.inject({ url: `/mock/${mock.id}/x` })).statusCode, 200);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.deepEqual([forwarded, proxied], [1, 1]);
+    await identities.setEntitlement(
+        owner.account.id,
+        'pro',
+        new Date(Date.now() - 1000).toISOString(),
+    );
+    await app.inject({ method: 'POST', url: `/hooks/${inbox.id}`, payload: 'b' });
+    assert.equal((await app.inject({ url: `/mock/${mock.id}/x` })).statusCode, 402);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.deepEqual([forwarded, proxied], [1, 1]);
+});

@@ -139,7 +139,13 @@ export interface InboxInfo extends Sharing {
 }
 
 export type CaptureResult =
-    | { status: 'captured'; requestId: string; response?: InboxResponse; forwardUrl?: string }
+    | {
+          status: 'captured';
+          requestId: string;
+          response?: InboxResponse;
+          forwardUrl?: string;
+          ownerId?: string;
+      }
     | { status: 'not-found' | 'inbox-full' | 'storage-full' };
 
 type MaybePromise<T> = T | Promise<T>;
@@ -363,6 +369,7 @@ export class InboxStore implements InboxRepository {
             requestId: captured.id,
             ...(inbox.response ? { response: inbox.response } : {}),
             ...(inbox.forwardUrl ? { forwardUrl: inbox.forwardUrl } : {}),
+            ...(inbox.allocation?.ownerId ? { ownerId: inbox.allocation.ownerId } : {}),
         } as const;
     }
 

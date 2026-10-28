@@ -2535,3 +2535,10 @@ and calmer editors. Loaded last. */
   font-size: 0.8125rem;
   color: var(--muted);
 }
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 0.875rem;
+}

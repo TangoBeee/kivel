@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { EchoWorkbench } from './echo-workbench';
 import { StreamEventsPreview, renderToolResult } from './tool-result';
 import { McpToolEditor } from './mcp-tool-editor';
@@ -20,6 +21,7 @@ import { BlobPreview, RemoteFilePreview } from './file-preview';
 import { ResultPreview } from './result-preview';
 import { Icon } from './icons';
 import { MockCalls } from './mock-calls';
+import { useViewer } from '../lib/viewer';
 import { CrudConfiguration, CrudRecords, defaultCrudSeed } from './crud-workbench';
 import { validateCrud } from '@socket-help/tools/mock-crud';
 import { parseJsonSafely } from '@socket-help/tools/engine';
@@ -105,6 +107,10 @@ export function ResourceWorkbench({
                   ? 'My request check'
                   : 'My test API',
     );
+    const viewer = useViewer();
+    const paidPlan = viewer.status === 'user' && (viewer.plan === 'pro' || viewer.plan === 'team');
+    const [proxyTarget, setProxyTarget] = useState('');
+    const [proxyRecord, setProxyRecord] = useState(true);
     const [routes, setRoutes] = useState<Route[]>(
         () =>
             (['mock-apis-stateful-crud-api', 'network-http-echo'].includes(toolId)
@@ -274,6 +280,8 @@ export function ResourceWorkbench({
                 }
                 setName(metadata.name);
                 setRoutes(metadata.routes);
+                setProxyTarget(metadata.proxy?.target ?? '');
+                setProxyRecord(metadata.proxy?.record ?? true);
                 setActive(0);
             }
         } catch (error) {
@@ -353,7 +361,18 @@ export function ResourceWorkbench({
                                         ? { name, routes, crud }
                                         : echoMode
                                           ? { name, routes: [], echo: true }
-                                          : { name, routes },
+                                          : {
+                                                name,
+                                                routes,
+                                                ...(proxyTarget.trim()
+                                                    ? {
+                                                          proxy: {
+                                                              target: proxyTarget.trim(),
+                                                              record: proxyRecord,
+                                                          },
+                                                      }
+                                                    : {}),
+                                            },
                               ),
                     signal: request.signal,
                 },
@@ -735,6 +754,51 @@ export function ResourceWorkbench({
                 </>
             ) : kind === 'mock' ? (
                 <section className="resource-editor" aria-label="Mock API configuration">
+                    <details className="resource-access" open={!!proxyTarget || undefined}>
+                        <summary>
+                            Proxy &amp; record a real API{' '}
+                            <span className="badge badge-green">Pro</span>
+                        </summary>
+                        {paidPlan ? (
+                            <>
+                                <p className="tool-notice">
+                                    Calls that match no route go to this API and its answer comes
+                                    back. With recording on, each new answer becomes a route, so the
+                                    mock keeps working when the real API is down.
+                                </p>
+                                <label className="mock-import-label">
+                                    Real API base URL
+                                    <input
+                                        type="url"
+                                        value={proxyTarget}
+                                        disabled={busy}
+                                        placeholder="https://api.example.com/v1"
+                                        onChange={(event) => setProxyTarget(event.target.value)}
+                                    />
+                                </label>
+                                <label className="checkbox-label">
+                                    <input
+                                        type="checkbox"
+                                        checked={proxyRecord}
+                                        disabled={busy}
+                                        onChange={(event) => setProxyRecord(event.target.checked)}
+                                    />
+                                    Record answers as routes (up to 20)
+                                </label>
+                            </>
+                        ) : (
+                            <div className="upsell">
+                                <p>
+                                    Point the mock at your real API: unmatched calls pass through
+                                    and real answers are saved as routes. Beeceptor charges $10 a
+                                    month for its paid plans; this is part of socket.help Pro.
+                                </p>
+                                <Link className="button button-primary button-small" href="/plans/">
+                                    Get Pro for $2 a month
+                                </Link>
+                            </div>
+                        )}
+                    </details>
                     <details className="resource-access">
                         <summary>Import / export configuration</summary>
                         <label className="mock-import-label">
@@ -764,6 +828,8 @@ export function ResourceWorkbench({
                                             setCrudSeed(JSON.stringify(config.crud.seed, null, 2));
                                         }
                                         setRoutes(config.routes);
+                                        setProxyTarget(config.proxy?.target ?? '');
+                                        setProxyRecord(config.proxy?.record ?? true);
                                         setActive(0);
                                         setError('');
                                         setNotice(

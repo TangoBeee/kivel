@@ -2419,3 +2419,80 @@ and calmer editors. Loaded last. */
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Mock call log */
+.mock-calls {
+  margin: 16px 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+.mock-calls-heading {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.875rem;
+}
+.mock-calls-heading span,
+.mock-calls > p {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+.mock-calls > p {
+  padding: 16px;
+}
+.mock-calls ul {
+  max-height: 320px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+.mock-calls li + li {
+  border-top: 1px solid var(--line);
+}
+.mock-calls button {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) 48px auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 16px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+  cursor: pointer;
+}
+.mock-calls button:hover {
+  background: var(--subtle);
+}
+.mock-call-method {
+  font-weight: 600;
+}
+.mock-call-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mock-call-status {
+  font-weight: 600;
+  color: var(--accent);
+}
+.mock-call-status.is-error {
+  color: var(--danger);
+}
+.mock-call-meta {
+  color: var(--muted);
+}
+.mock-calls pre {
+  margin: 0 16px 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  background: var(--subtle);
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

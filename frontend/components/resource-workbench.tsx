@@ -19,6 +19,7 @@ import type { Visibility } from './sharing-control';
 import { BlobPreview, RemoteFilePreview } from './file-preview';
 import { ResultPreview } from './result-preview';
 import { Icon } from './icons';
+import { MockCalls } from './mock-calls';
 import { CrudConfiguration, CrudRecords, defaultCrudSeed } from './crud-workbench';
 import { validateCrud } from '@socket-help/tools/mock-crud';
 import { parseJsonSafely } from '@socket-help/tools/engine';
@@ -653,6 +654,9 @@ export function ResourceWorkbench({
                             </p>
                             <ResponseOutput text={testResult} sse={route.stream?.mode === 'sse'} />
                         </>
+                    )}
+                    {kind === 'mock' && !expired && (
+                        <MockCalls id={resource.id} token={resource.managementToken} />
                     )}
                     {resource.managementToken ? (
                         <details className="resource-access">

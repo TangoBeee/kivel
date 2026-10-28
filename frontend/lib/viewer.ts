@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 export type Viewer =
     | { status: 'loading' }
     | { status: 'guest' }
-    | { status: 'user'; username: string; workspace: string };
+    | { status: 'user'; username: string; workspace: string; plan: string; owner: boolean };
 
 let pending: Promise<Viewer> | null = null;
 const listeners = new Set<(viewer: Viewer) => void>();
@@ -20,6 +20,8 @@ function load(): Promise<Viewer> {
                 status: 'user',
                 username: account.user.username,
                 workspace: account.account.name,
+                plan: account.account.effectivePlan,
+                owner: account.role === 'owner',
             };
         })
         .catch((): Viewer => ({ status: 'guest' }));

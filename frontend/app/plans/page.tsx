@@ -6,6 +6,7 @@ import { Icon } from '../../components/icons';
 import { StructuredData } from '../../components/content-layout';
 import { FaqSection, absolute, faqSchema } from '../../components/content-blocks';
 import { money, paidPlansEnabled, pricing } from '../../lib/pricing';
+import { PlanAction, PlanBadge } from '../../components/plan-action';
 export const metadata = pageMetadata(
     'Pricing, plans & API limits',
     'Free open beta with clear account, API, storage and retention limits. Preview planned monthly Pro and Team subscriptions; no payment is required during beta.',
@@ -101,7 +102,11 @@ export default function Plans() {
             <PageIntro
                 label={paidPlansEnabled ? 'Plans & allowances' : 'Free open beta'}
                 title="Start free. Add room when you need it."
-                description="Use the available tools for free, with clear storage, retention and usage limits. Planned monthly subscriptions are shown separately."
+                description={
+                    paidPlansEnabled
+                        ? 'Use the tools for free, with clear storage, retention and usage limits. Upgrade to a monthly plan when you need more room, and cancel anytime.'
+                        : 'Use the available tools for free, with clear storage, retention and usage limits. Planned monthly subscriptions are shown separately.'
+                }
             />
             {!paidPlansEnabled && (
                 <aside className="content-note beta-launch-note">
@@ -121,7 +126,14 @@ export default function Plans() {
                     >
                         <div className="pricing-card-top">
                             <h2>{plans[id].name}</h2>
-                            {id === 'free' && <span className="content-tag">Start here</span>}
+                            <PlanBadge
+                                id={id}
+                                fallback={
+                                    id === 'free' ? (
+                                        <span className="content-tag">Start here</span>
+                                    ) : undefined
+                                }
+                            />
                             {!paidPlansEnabled && (id === 'pro' || id === 'team') && (
                                 <span className="content-tag">Planned</span>
                             )}
@@ -147,22 +159,7 @@ export default function Plans() {
                                 </>
                             )}
                         </div>
-                        {!paidPlansEnabled && (id === 'pro' || id === 'team') ? (
-                            <button className="button button-secondary" disabled>
-                                Not available during beta
-                            </button>
-                        ) : (
-                            <Link
-                                className={`button ${id === 'free' ? 'button-primary' : 'button-secondary'}`}
-                                href={id === 'anonymous' ? '/catalog/' : '/account/'}
-                            >
-                                {id === 'anonymous'
-                                    ? 'Use the tools'
-                                    : id === 'free'
-                                      ? 'Create free account'
-                                      : `Upgrade to ${plans[id].name}`}
-                            </Link>
-                        )}
+                        <PlanAction id={id} name={plans[id].name} checkoutOpen={paidPlansEnabled} />
                         <ul>
                             {[
                                 `${number(plans[id].maxResources)} active resources`,
@@ -187,9 +184,21 @@ export default function Plans() {
             <aside className="content-note">
                 <Icon name="info" size={20} />
                 <p>
-                    <strong>Monthly subscriptions, when available.</strong> Paid plans are billed
-                    through Dodo Payments in US dollars after checkout is enabled. Your workspace
-                    shows the exact price and billing period before you confirm. Read the{' '}
+                    {paidPlansEnabled ? (
+                        <>
+                            <strong>Monthly subscriptions, cancel anytime.</strong> Paid plans are
+                            billed through Dodo Payments. Prices are in US dollars; checkout may
+                            show your local currency and any applicable tax before you confirm. Read
+                            the{' '}
+                        </>
+                    ) : (
+                        <>
+                            <strong>Monthly subscriptions, when available.</strong> Paid plans are
+                            billed through Dodo Payments in US dollars after checkout is enabled.
+                            Your workspace shows the exact price and billing period before you
+                            confirm. Read the{' '}
+                        </>
+                    )}
                     <Link href="/refunds/">refund and cancellation policy</Link> or contact{' '}
                     <a href="mailto:support@socket.help">support@socket.help</a>.
                 </p>

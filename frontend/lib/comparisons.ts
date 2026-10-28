@@ -61,7 +61,7 @@ export const comparisons: Comparison[] = [
             },
         ],
         limitations:
-            'socket.help does not currently forward requests, receive email, customize the inbox response, or run scheduled actions. Its one-hour anonymous lifetime (up to one day with a free account) suits a test session and may be too short for a callback that arrives later.',
+            'socket.help does not currently forward requests, receive email, customize the inbox response, or run scheduled actions. Its one-hour anonymous lifetime (up to seven days with a free account) covers a test session and most delayed callbacks.',
         sources: [
             {
                 title: 'Webhook.site FAQ: features, privacy, and retention',
@@ -103,7 +103,7 @@ export const comparisons: Comparison[] = [
             },
             {
                 question: 'How long does a socket.help webhook inbox last?',
-                answer: 'Anonymous inboxes start with a one-hour lifetime and hold up to 100 requests or 1 MiB. Free accounts can keep resources for up to one day, with up to 1,000 requests or 10 MiB per inbox.',
+                answer: 'Anonymous inboxes start with a one-hour lifetime and hold up to 100 requests or 1 MiB. Free accounts can keep resources for up to seven days, with up to 1,000 requests or 10 MiB per inbox.',
             },
             {
                 question: 'Can socket.help forward webhooks to localhost?',
@@ -323,7 +323,7 @@ export const comparisons: Comparison[] = [
             },
             {
                 topic: 'Lifetime',
-                socket: 'Resources start at one hour, up to one day on a free account.',
+                socket: 'Resources start at one hour, up to seven days on a free account.',
                 other: 'Not stated in the pages we reviewed.',
             },
         ],
@@ -415,7 +415,7 @@ export const comparisons: Comparison[] = [
             },
             {
                 topic: 'Hosting and lifetime',
-                socket: 'Hosted on socket.help; starts at one hour, up to one day on a free account.',
+                socket: 'Hosted on socket.help; starts at one hour, up to seven days on a free account.',
                 other: 'Deployed to Postman Cloud and always available; mocks can also run locally.',
             },
             {
@@ -495,7 +495,7 @@ export const comparisons: Comparison[] = [
         rows: [
             {
                 topic: 'Account',
-                socket: 'Not required. A free account extends resources to one day.',
+                socket: 'Not required. A free account extends resources to seven days.',
                 other: 'Not required. Saving data creates a free Hookdeck account.',
             },
             {

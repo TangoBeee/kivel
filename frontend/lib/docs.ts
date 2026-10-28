@@ -364,7 +364,7 @@ curl -X POST https://socket.help/api/inboxes \\
                     rows: [
                         ['Active resources', '5', '20', '100', '500'],
                         ['Total storage', '32 MiB', '64 MiB', '512 MiB', '2 GiB'],
-                        ['Maximum retention', '1 hour', '1 day', '7 days', '30 days'],
+                        ['Maximum retention', '1 hour', '7 days', '30 days', '90 days'],
                         ['Hosted utility runs per day', '100', '1,000', '20,000', '100,000'],
                         ['Utility input per request', '64 KiB', '256 KiB', '1024 KiB', '1024 KiB'],
                         ['API requests per minute', '120', '240', '1,200', '3,000'],
@@ -646,7 +646,7 @@ X-Request-Id: 1e3e28f5-fb64-474f-845f-b06c17f52eef
             },
             {
                 question: 'How long does an inbox last?',
-                answer: 'One hour by default. You can set ttlSeconds at creation or renew up to your plan’s maximum retention: 1 hour anonymously, 1 day on Free, 7 days on Pro and 30 days on Team.',
+                answer: 'One hour by default. You can set ttlSeconds at creation or renew up to your plan’s maximum retention: 1 hour anonymously, 7 days on Free, 30 days on Pro and 90 days on Team.',
             },
         ],
         related: [
@@ -1188,9 +1188,9 @@ curl -o report.txt https://socket.help/files/FILE_ID \\
                     headers: ['Plan', 'Maximum retention'],
                     rows: [
                         ['Without an account', '1 hour'],
-                        ['Free', '1 day'],
-                        ['Pro', '7 days'],
-                        ['Team', '30 days'],
+                        ['Free', '7 days'],
+                        ['Pro', '30 days'],
+                        ['Team', '90 days'],
                     ],
                 },
             },

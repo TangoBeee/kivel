@@ -276,7 +276,7 @@ test('retention and persistent resources enforce the active plan; billing defaul
         403,
     );
     assert.equal(
-        (await app.inject({ method: 'POST', url: '/api/inboxes?ttlSeconds=86401', headers }))
+        (await app.inject({ method: 'POST', url: '/api/inboxes?ttlSeconds=604801', headers }))
             .statusCode,
         400,
     );

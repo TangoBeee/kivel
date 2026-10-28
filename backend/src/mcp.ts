@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { isUuid } from './security.js';
 import { API_VERSION } from './version.js';
+import { validateInboxResponse } from './inboxes.js';
 import type { InboxRepository } from './inboxes.js';
 import type { ResourceRepository } from './resources.js';
 import type { RateLimitRepository } from './rate-limit.js';
@@ -103,6 +104,27 @@ export const platformTools = [
             ['id', 'token'],
         ),
         annotations: readonly,
+    },
+    {
+        name: 'set_webhook_response',
+        description:
+            'Choose what a webhook inbox answers senders with: status (200-599), contentType (application/json, text/plain, application/xml or text/xml), body (up to 16 KiB), X- headers and delayMs (0-5000). Pass reset: true to restore the default JSON receipt.',
+        inputSchema: schema(
+            {
+                ...access,
+                status: { type: 'number' },
+                contentType: {
+                    type: 'string',
+                    enum: ['application/json', 'text/plain', 'application/xml', 'text/xml'],
+                },
+                body: stringProperty('Response body.'),
+                headers: { type: 'object', additionalProperties: { type: 'string' } },
+                delayMs: { type: 'number' },
+                reset: { type: 'boolean' },
+            },
+            ['id', 'token'],
+        ),
+        annotations: { ...creates, idempotentHint: true },
     },
     {
         name: 'delete_webhook_inbox',
@@ -544,6 +566,25 @@ export function registerMcp({
                         ? { timedOut: false, requests: outcome.requests }
                         : { timedOut: true, requests: [] },
                 );
+            }
+            case 'set_webhook_response': {
+                const { id, token } = credentials(value);
+                let response = null;
+                if (value.reset !== true) {
+                    const fields = Object.fromEntries(
+                        ['status', 'contentType', 'body', 'headers', 'delayMs']
+                            .filter((key) => value[key] !== undefined)
+                            .map((key) => [key, value[key]]),
+                    );
+                    try {
+                        response = validateInboxResponse(fields);
+                    } catch (error) {
+                        return result({ error: (error as Error).message }, true);
+                    }
+                }
+                return (await inboxes.setResponse(id, token, response, ownerId))
+                    ? result({ response: response ?? 'default' })
+                    : result({ error: 'Inbox unavailable or access denied.' }, true);
             }
             case 'delete_webhook_inbox': {
                 const { id, token } = credentials(value);

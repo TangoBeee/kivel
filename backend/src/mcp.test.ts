@@ -106,7 +106,7 @@ test('platform MCP creates, inspects, and deletes the same resources as HTTP', a
     const tools = (
         await app.inject({ method: 'POST', url: '/mcp', headers, payload: rpc('tools/list') })
     ).json().result.tools;
-    assert.equal(tools.length, 17);
+    assert.equal(tools.length, 18);
     assert.equal(
         tools.find((tool: { name: string }) => tool.name === 'delete_mock_api').annotations
             .destructiveHint,
@@ -289,7 +289,7 @@ test('the official MCP client can initialize, discover tools and call both serve
     const platform = new Client({ name: 'compatibility-test', version: '1.0' });
     t.after(() => platform.close());
     await platform.connect(transportFor('/mcp'));
-    assert.equal((await platform.listTools()).tools.length, 17);
+    assert.equal((await platform.listTools()).tools.length, 18);
     const call = await platform.callTool({ name: 'create_webhook_inbox', arguments: {} });
     assert.equal(call.isError, false);
     const created = (
@@ -469,4 +469,84 @@ test('agents can block on a webhook over HTTP and MCP, and search utility tools'
         ).tools.length,
         0,
     );
+});
+
+test('webhook inboxes answer with a custom response that cannot become HTML or set cookies', async (t) => {
+    const app = buildApp();
+    t.after(() => app.close());
+    const inbox = (
+        await app.inject({ method: 'POST', url: '/api/inboxes?visibility=public' })
+    ).json();
+    const auth = { authorization: `Bearer ${inbox.inspectionToken}` };
+    const put = (payload: object) =>
+        app.inject({
+            method: 'PUT',
+            url: `/api/inboxes/${inbox.id}/response`,
+            headers: auth,
+            payload,
+        });
+    assert.equal((await put({ contentType: 'text/html', body: '<b>x</b>' })).statusCode, 400);
+    assert.equal((await put({ headers: { 'set-cookie': 'a=b' } })).statusCode, 400);
+    assert.equal((await put({ status: 302 })).statusCode, 200);
+    assert.equal((await put({ status: 99 })).statusCode, 400);
+    assert.equal((await put({ delayMs: 6000 })).statusCode, 400);
+    const saved = await put({
+        status: 202,
+        contentType: 'text/plain',
+        body: 'accepted',
+        headers: { 'X-Test': 'yes' },
+    });
+    assert.equal(saved.statusCode, 200);
+    const hook = await app.inject({ method: 'POST', url: `/hooks/${inbox.id}`, payload: 'hi' });
+    assert.equal(hook.statusCode, 202);
+    assert.equal(hook.body, 'accepted');
+    assert.equal(hook.headers['x-test'], 'yes');
+    assert.match(String(hook.headers['content-type']), /^text\/plain/);
+    assert.ok(hook.headers['x-webhook-request-id']);
+    const head = await app.inject({ method: 'HEAD', url: `/hooks/${inbox.id}` });
+    assert.equal(head.statusCode, 202);
+    assert.equal(
+        (await app.inject({ url: `/api/inboxes/${inbox.id}/requests`, headers: auth })).json()
+            .requests.length,
+        2,
+    );
+    assert.equal(
+        (
+            await app.inject({
+                method: 'PUT',
+                url: `/api/inboxes/${inbox.id}/response`,
+                payload: { status: 200 },
+            })
+        ).statusCode,
+        404,
+    );
+    const reset = await app.inject({
+        method: 'DELETE',
+        url: `/api/inboxes/${inbox.id}/response`,
+        headers: auth,
+    });
+    assert.equal(reset.statusCode, 204);
+    const plain = await app.inject({ method: 'POST', url: `/hooks/${inbox.id}`, payload: 'x' });
+    assert.equal(plain.statusCode, 200);
+    assert.equal(plain.json().received, true);
+
+    const call = (args: object) =>
+        app.inject({
+            method: 'POST',
+            url: '/mcp',
+            headers,
+            payload: rpc('tools/call', { name: 'set_webhook_response', arguments: args }),
+        });
+    const viaMcp = (
+        await call({ id: inbox.id, token: inbox.inspectionToken, status: 500, body: '{}' })
+    ).json().result;
+    assert.notEqual(viaMcp.isError, true);
+    assert.equal(
+        (await app.inject({ method: 'POST', url: `/hooks/${inbox.id}`, payload: 'y' })).statusCode,
+        500,
+    );
+    const rejected = (
+        await call({ id: inbox.id, token: inbox.inspectionToken, contentType: 'text/html' })
+    ).json();
+    assert.ok(rejected.error || rejected.result.isError);
 });

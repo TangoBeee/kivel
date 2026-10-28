@@ -230,6 +230,69 @@ export function openApi(origin: string) {
                     },
                 },
             },
+            '/api/inboxes/{id}/response': {
+                put: {
+                    operationId: 'setInboxResponse',
+                    tags: ['Webhook inboxes'],
+                    summary: 'Choose what the inbox answers senders with',
+                    description:
+                        'Replaces the default JSON receipt. HTML, cookies and redirects-by-header are not allowed; custom header names must start with X-.',
+                    security: secured,
+                    parameters: id,
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    additionalProperties: false,
+                                    properties: {
+                                        status: {
+                                            type: 'integer',
+                                            minimum: 200,
+                                            maximum: 599,
+                                            default: 200,
+                                        },
+                                        contentType: {
+                                            type: 'string',
+                                            enum: [
+                                                'application/json',
+                                                'text/plain',
+                                                'application/xml',
+                                                'text/xml',
+                                            ],
+                                        },
+                                        body: { type: 'string', maxLength: 16384 },
+                                        headers: {
+                                            type: 'object',
+                                            maxProperties: 10,
+                                            additionalProperties: {
+                                                type: 'string',
+                                                maxLength: 256,
+                                            },
+                                        },
+                                        delayMs: { type: 'integer', minimum: 0, maximum: 5000 },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    responses: {
+                        '200': { description: 'Saved' },
+                        '400': { description: 'Invalid response settings' },
+                        ...unavailable,
+                        ...limited,
+                    },
+                },
+                delete: {
+                    operationId: 'resetInboxResponse',
+                    tags: ['Webhook inboxes'],
+                    summary: 'Restore the default JSON receipt',
+                    security: secured,
+                    parameters: id,
+                    responses: { '204': { description: 'Reset' }, ...unavailable, ...limited },
+                },
+            },
             '/api/inboxes/{id}/wait': {
                 get: {
                     operationId: 'waitForRequests',

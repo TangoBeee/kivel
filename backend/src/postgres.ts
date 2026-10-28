@@ -2,7 +2,13 @@ import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypt
 import type { Pool, PoolClient } from 'pg';
 import { transaction } from './database.js';
 import { INBOX_TTL_MS, resolveLimits } from './inboxes.js';
-import type { CapturedRequest, CaptureResult, InboxRepository, StoreLimits } from './inboxes.js';
+import type {
+    CapturedRequest,
+    CaptureResult,
+    InboxRepository,
+    InboxResponse,
+    StoreLimits,
+} from './inboxes.js';
 import { RATE_WINDOW_MS } from './rate-limit.js';
 import type { RateLimitRepository } from './rate-limit.js';
 import { sharingCredentials, publicAccessAllowed, tokenHash } from './sharing.js';
@@ -28,6 +34,7 @@ interface InboxRow {
     persistent: boolean;
     request_limit: number;
     byte_limit: string;
+    response: InboxResponse | null;
 }
 
 export class PostgresInboxStore implements InboxRepository {
@@ -193,7 +200,11 @@ export class PostgresInboxStore implements InboxRepository {
                 'UPDATE platform_usage SET stored_bytes = stored_bytes + $1 WHERE id = 1',
                 [bytes],
             );
-            return { status: 'captured', requestId: request.id };
+            return {
+                status: 'captured',
+                requestId: request.id,
+                ...(inbox.response ? { response: inbox.response } : {}),
+            };
         });
     }
 
@@ -216,7 +227,23 @@ export class PostgresInboxStore implements InboxRepository {
                   }
                 : {}),
             ...(inbox.owner_id ? { ownerId: inbox.owner_id } : {}),
+            ...(inbox.response ? { response: inbox.response } : {}),
         };
+    }
+
+    async setResponse(
+        id: string,
+        token: string,
+        response: InboxResponse | null,
+        ownerId?: string,
+    ): Promise<boolean> {
+        const inbox = await this.authorized(id, token, this.pool, ownerId);
+        if (!inbox) return false;
+        const result = await this.pool.query('UPDATE inboxes SET response = $2 WHERE id = $1', [
+            id,
+            response,
+        ]);
+        return result.rowCount === 1;
     }
 
     async listRequests(

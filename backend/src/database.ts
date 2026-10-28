@@ -79,7 +79,7 @@ export async function migrate(pool: Pool): Promise<void> {
             'SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1',
         );
         const version = result.rows[0]?.version ?? 0;
-        if (version > 8) throw new Error('Database schema is newer than this application.');
+        if (version > 9) throw new Error('Database schema is newer than this application.');
         if (version < 1) {
             await client.query(schema);
             await client.query('INSERT INTO schema_migrations (version) VALUES (1)');
@@ -135,6 +135,10 @@ export async function migrate(pool: Pool): Promise<void> {
             await client.query(`ALTER TABLE accounts ADD COLUMN dodo_customer_id text UNIQUE, ADD COLUMN dodo_subscription_id text, ADD COLUMN dodo_event_created bigint NOT NULL DEFAULT 0, ADD COLUMN dodo_checkout_id text, ADD COLUMN dodo_checkout_url text, ADD COLUMN dodo_checkout_plan text;
                 CREATE TABLE dodo_events (id text PRIMARY KEY, created bigint NOT NULL, processed_at timestamptz NOT NULL DEFAULT clock_timestamp());
                 INSERT INTO schema_migrations (version) VALUES (8);`);
+        }
+        if (version < 9) {
+            await client.query(`ALTER TABLE inboxes ADD COLUMN response jsonb;
+                INSERT INTO schema_migrations (version) VALUES (9);`);
         }
     });
 }

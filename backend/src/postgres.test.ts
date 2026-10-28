@@ -424,7 +424,7 @@ test('upgrading an existing webhook-only database preserves captures and enables
     await inboxes.capture(inbox.id, input);
     await pool.query(
         `DROP TRIGGER inbox_quota ON inboxes; DROP FUNCTION enforce_resource_quota() CASCADE;
-         ALTER TABLE inboxes DROP COLUMN owner_id, DROP COLUMN quota_key, DROP COLUMN created_at, DROP COLUMN persistent, DROP COLUMN request_limit, DROP COLUMN byte_limit, DROP COLUMN visibility, DROP COLUMN access_token_hash, DROP COLUMN access_version;
+         ALTER TABLE inboxes DROP COLUMN owner_id, DROP COLUMN quota_key, DROP COLUMN created_at, DROP COLUMN persistent, DROP COLUMN request_limit, DROP COLUMN byte_limit, DROP COLUMN visibility, DROP COLUMN access_token_hash, DROP COLUMN access_version, DROP COLUMN response;
          DROP TABLE user_contact_emails, auth_mail_outbox, auth_challenges, user_recovery_emails, temporary_resources, resource_usage, account_members, auth_sessions, api_keys, account_invites, users, accounts, usage_plans, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events CASCADE; DELETE FROM schema_migrations WHERE version > 1`,
     );
     await Promise.all([migrate(pool), migrate(pool)]);
@@ -441,7 +441,7 @@ test('upgrading an existing webhook-only database preserves captures and enables
     );
     assert.equal(
         (await pool.query('SELECT max(version) AS version FROM schema_migrations')).rows[0].version,
-        8,
+        9,
     );
 });
 
@@ -1139,7 +1139,7 @@ test('Dodo migration preserves legacy Stripe data without adopting its customer 
         user.personalAccountId,
     ]);
     await pool.query(
-        'ALTER TABLE accounts DROP COLUMN dodo_customer_id, DROP COLUMN dodo_subscription_id, DROP COLUMN dodo_event_created, DROP COLUMN dodo_checkout_id, DROP COLUMN dodo_checkout_url, DROP COLUMN dodo_checkout_plan; DROP TABLE dodo_events; DELETE FROM schema_migrations WHERE version=8',
+        'ALTER TABLE accounts DROP COLUMN dodo_customer_id, DROP COLUMN dodo_subscription_id, DROP COLUMN dodo_event_created, DROP COLUMN dodo_checkout_id, DROP COLUMN dodo_checkout_url, DROP COLUMN dodo_checkout_plan; DROP TABLE dodo_events; ALTER TABLE inboxes DROP COLUMN response; DELETE FROM schema_migrations WHERE version >= 8',
     );
     await Promise.all([migrate(pool), migrate(pool)]);
     const row = (
@@ -1150,4 +1150,24 @@ test('Dodo migration preserves legacy Stripe data without adopting its customer 
     assert.equal(row.stripe_customer_id, 'cus_legacy');
     assert.equal(row.dodo_customer_id, null);
     assert.equal((await identities.account(user.personalAccountId))!.customerId, null);
+});
+
+test('custom inbox responses persist, apply to captures and reset', async () => {
+    const store = new PostgresInboxStore(pool);
+    const inbox = (await store.create())!;
+    const response = {
+        status: 201,
+        contentType: 'text/plain',
+        body: 'ok',
+        headers: { 'x-test': '1' },
+        delayMs: 0,
+    };
+    assert.equal(await store.setResponse(inbox.id, 'wrong-token', response), false);
+    assert.equal(await store.setResponse(inbox.id, inbox.inspectionToken, response), true);
+    assert.deepEqual((await store.info(inbox.id, inbox.inspectionToken))?.response, response);
+    const captured = await store.capture(inbox.id, input, { token: inbox.accessToken! });
+    assert.equal(captured.status, 'captured');
+    assert.deepEqual(captured.status === 'captured' && captured.response, response);
+    assert.equal(await store.setResponse(inbox.id, inbox.inspectionToken, null), true);
+    assert.equal((await store.info(inbox.id, inbox.inspectionToken))?.response, undefined);
 });

@@ -10,6 +10,62 @@ export const MAX_REQUESTS_PER_INBOX = 100;
 export const MAX_INBOX_BYTES = 1024 * 1024;
 export const MAX_TOTAL_BYTES = 32 * 1024 * 1024;
 
+/** What a webhook inbox answers its senders with, instead of the default JSON receipt. */
+export interface InboxResponse {
+    status: number;
+    contentType: string;
+    body: string;
+    headers: Record<string, string>;
+    delayMs: number;
+}
+
+const RESPONSE_TYPES = ['application/json', 'text/plain', 'application/xml', 'text/xml'];
+export const MAX_RESPONSE_BODY = 16 * 1024;
+
+// Responses are served from the main origin, so HTML, cookies and redirects are never allowed.
+export function validateInboxResponse(value: unknown): InboxResponse {
+    if (!value || typeof value !== 'object' || Array.isArray(value))
+        throw new Error('Response must be an object.');
+    const input = value as Record<string, unknown>;
+    for (const key of Object.keys(input))
+        if (!['status', 'contentType', 'body', 'headers', 'delayMs'].includes(key))
+            throw new Error(`Unknown response field: ${key}.`);
+    const status = input.status ?? 200;
+    if (!Number.isInteger(status) || (status as number) < 200 || (status as number) > 599)
+        throw new Error('status must be an integer from 200 to 599.');
+    const contentType = input.contentType ?? 'application/json';
+    if (typeof contentType !== 'string' || !RESPONSE_TYPES.includes(contentType))
+        throw new Error(`contentType must be one of ${RESPONSE_TYPES.join(', ')}.`);
+    const body = input.body ?? '';
+    if (typeof body !== 'string' || Buffer.byteLength(body) > MAX_RESPONSE_BODY)
+        throw new Error('body must be a string of at most 16 KiB.');
+    const delayMs = input.delayMs ?? 0;
+    if (!Number.isInteger(delayMs) || (delayMs as number) < 0 || (delayMs as number) > 5000)
+        throw new Error('delayMs must be an integer from 0 to 5000.');
+    const headers: Record<string, string> = {};
+    const rawHeaders = input.headers ?? {};
+    if (!rawHeaders || typeof rawHeaders !== 'object' || Array.isArray(rawHeaders))
+        throw new Error('headers must be an object.');
+    const entries = Object.entries(rawHeaders);
+    if (entries.length > 10) throw new Error('Use at most 10 response headers.');
+    for (const [name, headerValue] of entries) {
+        if (!/^x-[a-z0-9-]{1,60}$/i.test(name))
+            throw new Error(
+                'Custom header names must start with X- and use letters, digits and dashes.',
+            );
+        if (typeof headerValue !== 'string' || !/^[\x20-\x7e]{0,256}$/.test(headerValue))
+            throw new Error('Header values must be printable text of at most 256 characters.');
+        headers[name.toLowerCase()] = headerValue;
+    }
+    return {
+        status: status as number,
+        contentType,
+        body,
+        headers,
+        delayMs: delayMs as number,
+    };
+}
+
 export interface CapturedRequest {
     id: string;
     method: string;
@@ -34,6 +90,7 @@ interface Inbox extends Sharing {
     allocation?: AllocationContext;
     requestLimit: number;
     byteLimit: number;
+    response?: InboxResponse;
 }
 
 export interface StoreLimits {
@@ -64,10 +121,11 @@ export interface InboxInfo extends Sharing {
     ownerId?: string;
     requestLimit?: number;
     byteLimit?: number;
+    response?: InboxResponse;
 }
 
 export type CaptureResult =
-    | { status: 'captured'; requestId: string }
+    | { status: 'captured'; requestId: string; response?: InboxResponse }
     | { status: 'not-found' | 'inbox-full' | 'storage-full' };
 
 type MaybePromise<T> = T | Promise<T>;
@@ -100,6 +158,12 @@ export interface InboxRepository {
         visibility: Visibility,
         ownerId?: string,
     ): MaybePromise<SharingCredentials | undefined>;
+    setResponse(
+        id: string,
+        token: string,
+        response: InboxResponse | null,
+        ownerId?: string,
+    ): MaybePromise<boolean>;
     listOwned(ownerId: string): MaybePromise<InboxInfo[]>;
     deleteExpired(): MaybePromise<void>;
     ping(): MaybePromise<void>;
@@ -268,7 +332,11 @@ export class InboxStore implements InboxRepository {
         inbox.requests.push(captured);
         inbox.storedBytes += bytes;
         this.totalBytes += bytes;
-        return { status: 'captured', requestId: captured.id } as const;
+        return {
+            status: 'captured',
+            requestId: captured.id,
+            ...(inbox.response ? { response: inbox.response } : {}),
+        } as const;
     }
 
     listRequests(id: string, token: string, ownerId?: string): CapturedRequest[] | undefined {
@@ -294,7 +362,16 @@ export class InboxStore implements InboxRepository {
                   }
                 : {}),
             ...(inbox.allocation?.ownerId ? { ownerId: inbox.allocation.ownerId } : {}),
+            ...(inbox.response ? { response: inbox.response } : {}),
         };
+    }
+
+    setResponse(id: string, token: string, response: InboxResponse | null, ownerId?: string) {
+        const inbox = this.authorize(id, token, ownerId);
+        if (!inbox) return false;
+        if (response) inbox.response = response;
+        else delete inbox.response;
+        return true;
     }
 
     delete(id: string, token: string, ownerId?: string): boolean {

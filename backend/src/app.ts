@@ -9,7 +9,7 @@ import { randomUUID } from 'node:crypto';
 import fastify, { LogController } from 'fastify';
 import type { FastifyRequest } from 'fastify';
 import fastifyStatic from '@fastify/static';
-import { InboxStore } from './inboxes.js';
+import { InboxStore, validateInboxResponse } from './inboxes.js';
 import type { InboxRepository } from './inboxes.js';
 import { CREATIONS_PER_MINUTE, RateLimiter, REQUESTS_PER_MINUTE } from './rate-limit.js';
 import type { RateLimitRepository } from './rate-limit.js';
@@ -388,6 +388,16 @@ export function buildApp({
                             .send({ error: 'Capture storage capacity reached. Try again later.' });
                     case 'captured':
                         reply.header('X-Webhook-Request-Id', result.requestId);
+                        if (result.response) {
+                            const custom = result.response;
+                            if (custom.delayMs)
+                                await new Promise((resolve) => setTimeout(resolve, custom.delayMs));
+                            reply.code(custom.status).headers(custom.headers);
+                            if (request.method === 'HEAD') return reply.send();
+                            return reply
+                                .header('Content-Type', `${custom.contentType}; charset=utf-8`)
+                                .send(custom.body);
+                        }
                         if (request.method === 'HEAD') return reply.code(200).send();
                         return reply
                             .code(200)
@@ -419,6 +429,32 @@ export function buildApp({
         );
         if (!requests) return reply.code(404).send(NOT_FOUND);
         return { requests };
+    });
+
+    // What the inbox answers senders with. Inspection credentials only; never the sender token.
+    app.put<InboxRoute>('/api/inboxes/:id/response', async (request, reply) => {
+        let response;
+        try {
+            response = validateInboxResponse(request.body);
+        } catch (error) {
+            return reply.code(400).send({ error: (error as Error).message });
+        }
+        const saved = await inboxStore.setResponse(
+            request.params.id,
+            resourceToken(request),
+            response,
+            (await access.actor(request)).identity?.account.id,
+        );
+        return saved ? { response } : reply.code(404).send(NOT_FOUND);
+    });
+    app.delete<InboxRoute>('/api/inboxes/:id/response', async (request, reply) => {
+        const saved = await inboxStore.setResponse(
+            request.params.id,
+            resourceToken(request),
+            null,
+            (await access.actor(request)).identity?.account.id,
+        );
+        return saved ? reply.code(204).send() : reply.code(404).send(NOT_FOUND);
     });
 
     // Long poll: answers as soon as the inbox has a request newer than `after`, so scripts and

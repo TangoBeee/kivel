@@ -230,6 +230,43 @@ export function openApi(origin: string) {
                     },
                 },
             },
+            '/api/inboxes/{id}/wait': {
+                get: {
+                    operationId: 'waitForRequests',
+                    tags: ['Webhook inboxes'],
+                    summary: 'Wait until the inbox receives a request',
+                    description:
+                        'Long poll. Answers as soon as a request newer than `after` (or any request, when `after` is omitted) is captured, or with `timedOut: true` after `timeoutSeconds`. Call again to keep waiting.',
+                    security: secured,
+                    parameters: [
+                        ...id,
+                        {
+                            name: 'after',
+                            in: 'query',
+                            description: 'Return only requests captured after this request ID.',
+                            schema: { type: 'string' },
+                        },
+                        {
+                            name: 'timeoutSeconds',
+                            in: 'query',
+                            schema: { type: 'integer', minimum: 1, maximum: 30, default: 25 },
+                        },
+                    ],
+                    responses: {
+                        '200': json({
+                            type: 'object',
+                            required: ['timedOut', 'requests'],
+                            properties: {
+                                timedOut: { type: 'boolean' },
+                                requests: { type: 'array', items: reference('CapturedRequest') },
+                            },
+                        }),
+                        '400': { description: 'Invalid timeoutSeconds' },
+                        ...unavailable,
+                        ...limited,
+                    },
+                },
+            },
         },
         components: {
             securitySchemes: {

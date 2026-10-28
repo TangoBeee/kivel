@@ -5,10 +5,12 @@ import type { InboxRepository } from './inboxes.js';
 import type { ResourceRepository } from './resources.js';
 import type { RateLimitRepository } from './rate-limit.js';
 import { Access, resourceToken, HttpError } from './access.js';
-import { executableIds, executionGuide } from './tool-routes.js';
+import { executableIds, executionGuide, searchExecutable } from './tool-routes.js';
 import type { ToolService } from './tool-routes.js';
 import { validateMock, mockPayload } from '@socket-help/tools/mock-config';
 import { crudSchema } from '@socket-help/tools/mock-crud';
+import { waitForRequests, waitSeconds, WAIT_MAX_SECONDS } from './waiting.js';
+import type { Waiters } from './waiting.js';
 
 const versions = ['2025-11-25', '2025-06-18', '2025-03-26'];
 const object = (value: unknown): value is Record<string, unknown> =>
@@ -68,14 +70,38 @@ export const platformTools = [
     {
         name: 'create_webhook_inbox',
         description:
-            'Create a webhook receiver that expires after one hour. Save the private inspection token.',
-        inputSchema: schema({ visibility: { type: 'string', enum: ['public', 'private'] } }, []),
+            'Create a webhook receiver. It expires after one hour unless ttlSeconds is set (up to the plan maximum: 1 hour anonymously, 7 days on Free). Save the private inspection token, then use wait_for_webhook.',
+        inputSchema: schema(
+            {
+                visibility: { type: 'string', enum: ['public', 'private'] },
+                ttlSeconds: { type: 'number', description: 'Lifetime in seconds, from 60.' },
+            },
+            [],
+        ),
         annotations: creates,
     },
     {
         name: 'inspect_webhook_inbox',
         description: 'Read a webhook inbox and captured requests using its private token.',
         inputSchema: schema(access),
+        annotations: readonly,
+    },
+    {
+        name: 'wait_for_webhook',
+        description: `Block until a webhook inbox receives a request, then return the new requests. Pass after (the last request ID you have seen) to wait for newer ones only. Returns timedOut: true after timeoutSeconds (default 25, max ${WAIT_MAX_SECONDS}); call again to keep waiting.`,
+        inputSchema: schema(
+            {
+                ...access,
+                after: stringProperty(
+                    'Optional request ID; only requests captured after it are returned.',
+                ),
+                timeoutSeconds: {
+                    type: 'number',
+                    description: `1 to ${WAIT_MAX_SECONDS} seconds.`,
+                },
+            },
+            ['id', 'token'],
+        ),
         annotations: readonly,
     },
     {
@@ -284,8 +310,18 @@ export const platformTools = [
         annotations: readonly,
     },
     {
+        name: 'search_tools',
+        description:
+            'Find utility tools by keyword (for example "json format", "pdf merge", "dns"). Returns up to 25 matches with ID, name and description; then call describe_tool and run_tool.',
+        inputSchema: schema(
+            { query: stringProperty('Keywords; leave empty to list the first 25 tools.') },
+            [],
+        ),
+        annotations: readonly,
+    },
+    {
         name: 'list_tools',
-        description: 'List executable utility tool IDs.',
+        description: 'List every executable utility tool ID. Prefer search_tools.',
         inputSchema: schema({}),
         annotations: readonly,
     },
@@ -431,8 +467,18 @@ interface Context {
     origin: string;
     access: Access;
     tools: ToolService;
+    waiters: Waiters;
 }
-export function registerMcp({ app, inboxes, resources, limits, origin, access, tools }: Context) {
+export function registerMcp({
+    app,
+    inboxes,
+    resources,
+    limits,
+    origin,
+    access,
+    tools,
+    waiters,
+}: Context) {
     const uploads = new Set<FastifyRequest>();
     app.addHook('onResponse', async (request) => {
         uploads.delete(request);
@@ -450,7 +496,9 @@ export function registerMcp({ app, inboxes, resources, limits, origin, access, t
         }
         const actor = await access.scope(
             request,
-            name.startsWith('inspect_') || name === 'download_temporary_file'
+            name.startsWith('inspect_') ||
+                name.startsWith('wait_for_') ||
+                name === 'download_temporary_file'
                 ? 'resources:read'
                 : 'resources:write',
         );
@@ -468,6 +516,34 @@ export function registerMcp({ app, inboxes, resources, limits, origin, access, t
                 return info
                     ? result({ ...info, requests: await inboxes.listRequests(id, token, ownerId) })
                     : result({ error: 'Inbox unavailable or access denied.' }, true);
+            }
+            case 'wait_for_webhook': {
+                const { id, token } = credentials(value);
+                const timeout = waitSeconds(value.timeoutSeconds);
+                // Waiting holds no upload slot, so other MCP calls are not blocked meanwhile.
+                uploads.delete(request);
+                const abort = new AbortController();
+                request.raw.once('close', () => abort.abort());
+                const outcome = await waiters.run(actor.quotaKey, () =>
+                    waitForRequests(
+                        inboxes,
+                        {
+                            id,
+                            token,
+                            ...(ownerId ? { ownerId } : {}),
+                            ...(typeof value.after === 'string' ? { after: value.after } : {}),
+                        },
+                        timeout * 1000,
+                        abort.signal,
+                    ),
+                );
+                if (outcome.status === 'gone')
+                    return result({ error: 'Inbox unavailable or access denied.' }, true);
+                return result(
+                    outcome.status === 'ready'
+                        ? { timedOut: false, requests: outcome.requests }
+                        : { timedOut: true, requests: [] },
+                );
             }
             case 'delete_webhook_inbox': {
                 const { id, token } = credentials(value);
@@ -853,19 +929,27 @@ export function registerMcp({ app, inboxes, resources, limits, origin, access, t
                                           toolId: values.toolId,
                                           guide: executionGuide(String(values.toolId)) ?? null,
                                       })
-                                    : params.name === 'list_tools'
-                                      ? result({ tools: executableIds })
-                                      : params.name === 'run_tool'
-                                        ? result(
-                                              await tools.run(request, String(values.toolId), {
-                                                  input: values.input ?? '',
-                                                  options: values.options ?? {},
-                                                  ...(values.files || values.file
-                                                      ? { file: values.files ?? values.file }
-                                                      : {}),
-                                              }),
-                                          )
-                                        : await callPlatform(params.name, values, request);
+                                    : params.name === 'search_tools'
+                                      ? result({
+                                            tools: searchExecutable(
+                                                typeof values.query === 'string'
+                                                    ? values.query
+                                                    : '',
+                                            ),
+                                        })
+                                      : params.name === 'list_tools'
+                                        ? result({ tools: executableIds })
+                                        : params.name === 'run_tool'
+                                          ? result(
+                                                await tools.run(request, String(values.toolId), {
+                                                    input: values.input ?? '',
+                                                    options: values.options ?? {},
+                                                    ...(values.files || values.file
+                                                        ? { file: values.files ?? values.file }
+                                                        : {}),
+                                                }),
+                                            )
+                                          : await callPlatform(params.name, values, request);
                     }
                     break;
                 }

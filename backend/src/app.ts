@@ -19,6 +19,7 @@ import { ResourceStore } from './resources.js';
 import type { ResourceRepository } from './resources.js';
 import { registerResources } from './resource-routes.js';
 import { registerMcp } from './mcp.js';
+import { Waiters, waitForRequests, waitSeconds } from './waiting.js';
 import { MemoryAllocations, QuotaError } from './allocations.js';
 import { Access, HttpError, resourceToken } from './access.js';
 import { MemoryIdentityRepository } from './identity.js';
@@ -92,6 +93,7 @@ export function buildApp({
     const resourceStore =
         providedResources ?? new ResourceStore(Date.now, undefined, undefined, ledger);
     const access = new Access(identityStore, rateLimiter, publicBaseUrl, authSecret);
+    const waiters = new Waiters();
     const tools = new ToolService(access, frontendDir);
     const baseUrl = new URL(publicBaseUrl);
     if (
@@ -419,6 +421,36 @@ export function buildApp({
         return { requests };
     });
 
+    // Long poll: answers as soon as the inbox has a request newer than `after`, so scripts and
+    // agents can block on a webhook instead of polling.
+    app.get<InboxRoute & { Querystring: { after?: string; timeoutSeconds?: string } }>(
+        '/api/inboxes/:id/wait',
+        async (request, reply) => {
+            const token = resourceToken(request);
+            const actor = await access.actor(request);
+            const timeout = waitSeconds(request.query.timeoutSeconds);
+            const abort = new AbortController();
+            request.raw.once('close', () => abort.abort());
+            const outcome = await waiters.run(actor.quotaKey, () =>
+                waitForRequests(
+                    inboxStore,
+                    {
+                        id: request.params.id,
+                        token,
+                        ...(actor.identity ? { ownerId: actor.identity.account.id } : {}),
+                        ...(request.query.after ? { after: request.query.after } : {}),
+                    },
+                    timeout * 1000,
+                    abort.signal,
+                ),
+            );
+            if (outcome.status === 'gone') return reply.code(404).send(NOT_FOUND);
+            return outcome.status === 'ready'
+                ? { timedOut: false, requests: outcome.requests }
+                : { timedOut: true, requests: [] };
+        },
+    );
+
     app.get<InboxRoute>('/api/inboxes/:id', async (request, reply) => {
         const inbox = await inboxStore.info(
             request.params.id,
@@ -469,6 +501,7 @@ export function buildApp({
         origin: baseUrl.origin,
         access,
         tools,
+        waiters,
     });
 
     if (frontendDir) {

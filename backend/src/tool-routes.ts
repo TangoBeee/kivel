@@ -79,6 +79,20 @@ const optionKeys = [
     'algorithm',
     'unit',
 ];
+/** Executable tools whose ID, name or description contains every word of the query. */
+export function searchExecutable(query = '', limit = 25) {
+    const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+    return executableIds
+        .map((id) => {
+            const tool = catalog.find((entry) => entry.id === id);
+            return { id, name: tool?.name ?? id, description: tool?.description ?? '' };
+        })
+        .filter((tool) => {
+            const text = `${tool.id} ${tool.name} ${tool.description}`.toLowerCase();
+            return words.every((word) => text.includes(word));
+        })
+        .slice(0, limit);
+}
 export function executionGuide(id: string) {
     const definition = (
         {

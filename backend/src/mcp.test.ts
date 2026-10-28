@@ -106,7 +106,7 @@ test('platform MCP creates, inspects, and deletes the same resources as HTTP', a
     const tools = (
         await app.inject({ method: 'POST', url: '/mcp', headers, payload: rpc('tools/list') })
     ).json().result.tools;
-    assert.equal(tools.length, 15);
+    assert.equal(tools.length, 17);
     assert.equal(
         tools.find((tool: { name: string }) => tool.name === 'delete_mock_api').annotations
             .destructiveHint,
@@ -289,7 +289,7 @@ test('the official MCP client can initialize, discover tools and call both serve
     const platform = new Client({ name: 'compatibility-test', version: '1.0' });
     t.after(() => platform.close());
     await platform.connect(transportFor('/mcp'));
-    assert.equal((await platform.listTools()).tools.length, 15);
+    assert.equal((await platform.listTools()).tools.length, 17);
     const call = await platform.callTool({ name: 'create_webhook_inbox', arguments: {} });
     assert.equal(call.isError, false);
     const created = (
@@ -388,3 +388,85 @@ test(
         );
     },
 );
+
+test('agents can block on a webhook over HTTP and MCP, and search utility tools', async (t) => {
+    const app = buildApp();
+    t.after(() => app.close());
+    const inbox = (await app.inject({ method: 'POST', url: '/api/inboxes' })).json();
+    const auth = { authorization: `Bearer ${inbox.inspectionToken}` };
+    const waiting = app.inject({
+        url: `/api/inboxes/${inbox.id}/wait?timeoutSeconds=5`,
+        headers: auth,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const hook = await app.inject({
+        method: 'POST',
+        url: `/hooks/${inbox.id}`,
+        headers: { 'x-access-token': inbox.accessToken, 'content-type': 'application/json' },
+        payload: { event: 'paid' },
+    });
+    assert.equal(hook.statusCode, 200);
+    const arrived = (await waiting).json();
+    assert.equal(arrived.timedOut, false);
+    assert.equal(arrived.requests.length, 1);
+    assert.equal(JSON.parse(arrived.requests[0].body).event, 'paid');
+    const after = arrived.requests[0].id;
+    const idle = await app.inject({
+        url: `/api/inboxes/${inbox.id}/wait?timeoutSeconds=1&after=${after}`,
+        headers: auth,
+    });
+    assert.deepEqual(idle.json(), { timedOut: true, requests: [] });
+    assert.equal(
+        (
+            await app.inject({
+                url: `/api/inboxes/${inbox.id}/wait?timeoutSeconds=31`,
+                headers: auth,
+            })
+        ).statusCode,
+        400,
+    );
+    assert.equal(
+        (await app.inject({ url: `/api/inboxes/${inbox.id}/wait`, headers: {} })).statusCode,
+        404,
+    );
+
+    const call = (name: string, args: object) =>
+        app.inject({
+            method: 'POST',
+            url: '/mcp',
+            headers,
+            payload: rpc('tools/call', { name, arguments: args }),
+        });
+    const listed = (
+        await app.inject({ method: 'POST', url: '/mcp', headers, payload: rpc('tools/list') })
+    )
+        .json()
+        .result.tools.map((tool: { name: string }) => tool.name);
+    assert.ok(listed.includes('wait_for_webhook') && listed.includes('search_tools'));
+    const mcpWait = call('wait_for_webhook', {
+        id: inbox.id,
+        token: inbox.inspectionToken,
+        after,
+        timeoutSeconds: 5,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await app.inject({
+        method: 'POST',
+        url: `/hooks/${inbox.id}`,
+        headers: { 'x-access-token': inbox.accessToken },
+        payload: 'second',
+    });
+    const second = JSON.parse((await mcpWait).json().result.content[0].text);
+    assert.equal(second.requests.length, 1);
+    assert.equal(second.requests[0].body, 'second');
+    const found = JSON.parse(
+        (await call('search_tools', { query: 'base64' })).json().result.content[0].text,
+    );
+    assert.ok(found.tools.some((tool: { id: string }) => tool.id === 'base64'));
+    assert.equal(
+        JSON.parse(
+            (await call('search_tools', { query: 'zzzz-nothing' })).json().result.content[0].text,
+        ).tools.length,
+        0,
+    );
+});

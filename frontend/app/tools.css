@@ -2376,3 +2376,46 @@ and calmer editors. Loaded last. */
   font-size: 0.8125rem;
   color: var(--muted);
 }
+
+/* Custom webhook response */
+.inbox-response summary strong {
+  font-weight: 550;
+}
+.inbox-response-form {
+  display: grid;
+  gap: 12px;
+}
+.inbox-response-form p {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.inbox-response-row {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr) 140px;
+  gap: 12px;
+}
+.inbox-response-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: 550;
+}
+.inbox-response-form input,
+.inbox-response-form select,
+.inbox-response-form textarea {
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  font: inherit;
+  font-weight: 400;
+}
+.inbox-response-form textarea {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+}
+@media (max-width: 600px) {
+  .inbox-response-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

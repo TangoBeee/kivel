@@ -7,6 +7,15 @@ export interface Inbox {
     requestLimit?: number;
     webhookUrl: string;
     expiresAt: string;
+    response?: InboxResponse;
+}
+
+export interface InboxResponse {
+    status: number;
+    contentType: string;
+    body: string;
+    headers: Record<string, string>;
+    delayMs: number;
 }
 
 export interface CapturedRequest {

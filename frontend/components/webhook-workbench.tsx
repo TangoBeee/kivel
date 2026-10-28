@@ -14,6 +14,7 @@ import type { CapturedRequest, Inbox } from '../lib/api';
 import { AppSelect, SelectOption } from './app-select';
 import { filterRequests } from '../lib/request-filter';
 import { useViewer } from '../lib/viewer';
+import { InboxResponseSettings } from './inbox-response';
 import type { RequestSearchScope } from '../lib/request-filter';
 
 function timeLeft(seconds: number) {
@@ -790,6 +791,17 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
                             />
                         </section>
                     </div>
+                    <InboxResponseSettings
+                        key={inbox.id}
+                        inbox={inbox}
+                        onError={setError}
+                        onSaved={(response) => {
+                            const { response: _old, ...rest } = inbox;
+                            const updated = response ? { ...rest, response } : rest;
+                            remember(updated);
+                            setInbox(updated);
+                        }}
+                    />
                     <details className="connection-details">
                         <summary>Send a test request & connection details</summary>
                         <div className="connection-content">

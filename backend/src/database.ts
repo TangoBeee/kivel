@@ -175,6 +175,23 @@ export async function migrate(pool: Pool): Promise<void> {
                     PRIMARY KEY (account_id, namespace, key)
                 );
                 CREATE INDEX kv_entries_expiry ON kv_entries (expires_at) WHERE expires_at IS NOT NULL;
+                CREATE TABLE monitors (
+                    id uuid PRIMARY KEY,
+                    account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                    monitor jsonb NOT NULL,
+                    ping_hash text UNIQUE,
+                    next_run_at timestamptz NOT NULL,
+                    paused boolean NOT NULL DEFAULT false,
+                    created_at timestamptz NOT NULL DEFAULT clock_timestamp()
+                );
+                CREATE INDEX monitors_due ON monitors (next_run_at) WHERE NOT paused;
+                CREATE INDEX monitors_account ON monitors (account_id);
+                CREATE TABLE monitor_events (
+                    sequence bigserial PRIMARY KEY,
+                    monitor_id uuid NOT NULL REFERENCES monitors(id) ON DELETE CASCADE,
+                    event jsonb NOT NULL
+                );
+                CREATE INDEX monitor_events_monitor ON monitor_events (monitor_id, sequence);
                 INSERT INTO schema_migrations (version) VALUES (9);`);
         }
     });

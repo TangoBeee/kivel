@@ -11,6 +11,7 @@ import { PostgresMockCalls } from './mock-calls.js';
 import { PostgresEmailMessages } from './email.js';
 import { PostgresActivity } from './activity.js';
 import { PostgresKv } from './kv.js';
+import { PostgresMonitors } from './monitors.js';
 import type { CrudState } from '@socket-help/tools/mock-crud';
 import { PostgresRecoveryRepository } from './recovery-store.js';
 import { passwordHash, PostgresIdentityRepository } from './identity.js';
@@ -429,7 +430,7 @@ test('upgrading an existing webhook-only database preserves captures and enables
     await pool.query(
         `DROP TRIGGER inbox_quota ON inboxes; DROP FUNCTION enforce_resource_quota() CASCADE;
          ALTER TABLE inboxes DROP COLUMN owner_id, DROP COLUMN quota_key, DROP COLUMN created_at, DROP COLUMN persistent, DROP COLUMN request_limit, DROP COLUMN byte_limit, DROP COLUMN visibility, DROP COLUMN access_token_hash, DROP COLUMN access_version, DROP COLUMN response, DROP COLUMN forward_url;
-         DROP TABLE mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, user_contact_emails, auth_mail_outbox, auth_challenges, user_recovery_emails, temporary_resources, resource_usage, account_members, auth_sessions, api_keys, account_invites, users, accounts, usage_plans, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events CASCADE; DELETE FROM schema_migrations WHERE version > 1`,
+         DROP TABLE mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors, user_contact_emails, auth_mail_outbox, auth_challenges, user_recovery_emails, temporary_resources, resource_usage, account_members, auth_sessions, api_keys, account_invites, users, accounts, usage_plans, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events CASCADE; DELETE FROM schema_migrations WHERE version > 1`,
     );
     await Promise.all([migrate(pool), migrate(pool)]);
     assert.equal(
@@ -1143,7 +1144,7 @@ test('Dodo migration preserves legacy Stripe data without adopting its customer 
         user.personalAccountId,
     ]);
     await pool.query(
-        'ALTER TABLE accounts DROP COLUMN dodo_customer_id, DROP COLUMN dodo_subscription_id, DROP COLUMN dodo_event_created, DROP COLUMN dodo_checkout_id, DROP COLUMN dodo_checkout_url, DROP COLUMN dodo_checkout_plan; DROP TABLE dodo_events; ALTER TABLE inboxes DROP COLUMN response, DROP COLUMN forward_url; DROP TABLE mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries; DELETE FROM schema_migrations WHERE version >= 8',
+        'ALTER TABLE accounts DROP COLUMN dodo_customer_id, DROP COLUMN dodo_subscription_id, DROP COLUMN dodo_event_created, DROP COLUMN dodo_checkout_id, DROP COLUMN dodo_checkout_url, DROP COLUMN dodo_checkout_plan; DROP TABLE dodo_events; ALTER TABLE inboxes DROP COLUMN response, DROP COLUMN forward_url; DROP TABLE mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors; DELETE FROM schema_migrations WHERE version >= 8',
     );
     await Promise.all([migrate(pool), migrate(pool)]);
     const row = (
@@ -1302,4 +1303,53 @@ test('agent memory enforces the account allowance, expires values and lists by p
     assert.equal(await kv.usage(account), 90);
     assert.equal(await kv.delete(account, 'ns', 'a/1'), true);
     assert.equal(await kv.usage(account), 0);
+});
+
+test('monitors are claimed once when due, found by ping hash and keep 50 events', async () => {
+    const identities = new PostgresIdentityRepository(pool);
+    const user = (await identities.register(
+        'monitor-owner',
+        await passwordHash('correct-horse-battery-staple'),
+    ))!;
+    const store = new PostgresMonitors(pool);
+    const base = {
+        accountId: user.personalAccountId,
+        kind: 'http' as const,
+        name: 'Site',
+        target: 'https://example.com/',
+        intervalSeconds: 300,
+        graceSeconds: 60,
+        paused: false,
+        status: 'pending' as const,
+        failures: 0,
+        createdAt: new Date().toISOString(),
+        nextRunAt: new Date(Date.now() - 1000).toISOString(),
+    };
+    const id = crypto.randomUUID();
+    await store.create({ ...base, id }, 'ping-hash');
+    const [first, second] = await Promise.all([store.claimDue(10), store.claimDue(10)]);
+    assert.equal(first.length + second.length, 1);
+    assert.equal((await store.claimDue(10)).length, 0);
+    assert.equal((await store.byPing('ping-hash'))?.id, id);
+    await store.save({
+        ...base,
+        id,
+        status: 'up',
+        nextRunAt: new Date(Date.now() - 1000).toISOString(),
+    });
+    assert.equal((await store.get(user.personalAccountId, id))?.status, 'up');
+    assert.equal(await store.setPaused(user.personalAccountId, id, true), true);
+    assert.equal((await store.claimDue(10)).length, 0);
+    for (let index = 0; index < 55; index++)
+        await store.addEvent(id, {
+            at: new Date().toISOString(),
+            status: 'up',
+            message: String(index),
+        });
+    const events = await store.events(id);
+    assert.equal(events.length, 50);
+    assert.equal(events[0]!.message, '54');
+    assert.equal(await store.count(user.personalAccountId), 1);
+    assert.equal(await store.delete(user.personalAccountId, id), true);
+    assert.equal((await store.events(id)).length, 0);
 });

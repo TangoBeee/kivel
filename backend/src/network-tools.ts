@@ -165,7 +165,7 @@ async function rdap(name: string, signal: AbortSignal) {
     }
     return { domain: name, status: response.status, source: response.url, data };
 }
-async function inspectTls(input: string, signal: AbortSignal) {
+export async function inspectTls(input: string, signal: AbortSignal) {
     const parsed = publicUrl(input.includes('://') ? input : `https://${input}`);
     if (parsed.protocol !== 'https:') throw new ToolExecutionError('Use an HTTPS URL or hostname.');
     const host = parsed.hostname.replace(/^\[|\]$/g, '').replace(/\.$/, ''),

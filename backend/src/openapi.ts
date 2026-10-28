@@ -293,6 +293,91 @@ export function openApi(origin: string) {
                     responses: { '204': { description: 'Reset' }, ...unavailable, ...limited },
                 },
             },
+            '/api/monitors': {
+                post: {
+                    operationId: 'createMonitor',
+                    tags: ['Monitors'],
+                    summary: 'Watch a URL, a certificate or a scheduled job',
+                    description:
+                        'Needs an account or API key. http checks a public URL; ssl alerts before a certificate expires; heartbeat returns a pingUrl your job calls (append /fail to report a failure). Alerts go to the owner’s verified email and optional alertWebhook when status changes. Free: 20 monitors, every 5 minutes at most; Pro: 100, every minute.',
+                    security: secured,
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    required: ['kind', 'name'],
+                                    properties: {
+                                        kind: {
+                                            type: 'string',
+                                            enum: ['http', 'ssl', 'heartbeat'],
+                                        },
+                                        name: { type: 'string', maxLength: 80 },
+                                        target: { type: 'string' },
+                                        intervalSeconds: { type: 'integer' },
+                                        graceSeconds: { type: 'integer', default: 60 },
+                                        expectStatus: { type: 'integer' },
+                                        expectText: { type: 'string', maxLength: 200 },
+                                        sslDays: { type: 'integer', default: 14 },
+                                        alertWebhook: { type: 'string', format: 'uri' },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    responses: {
+                        '201': { description: 'Created; heartbeats include pingUrl once' },
+                        '400': { description: 'Invalid settings' },
+                        '401': { description: 'Needs an account' },
+                        '403': { description: 'Monitor limit reached' },
+                        ...limited,
+                    },
+                },
+                get: {
+                    operationId: 'listMonitors',
+                    tags: ['Monitors'],
+                    summary: 'List monitors and their status',
+                    security: secured,
+                    responses: { '200': { description: 'Monitors and plan limits' }, ...limited },
+                },
+            },
+            '/api/monitors/{id}': {
+                parameters: id,
+                get: {
+                    operationId: 'getMonitor',
+                    tags: ['Monitors'],
+                    summary: 'Read a monitor and its last 50 status changes',
+                    security: secured,
+                    responses: { '200': { description: 'Monitor' }, ...unavailable, ...limited },
+                },
+                patch: {
+                    operationId: 'pauseMonitor',
+                    tags: ['Monitors'],
+                    summary: 'Pause or resume a monitor',
+                    security: secured,
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    required: ['paused'],
+                                    properties: { paused: { type: 'boolean' } },
+                                },
+                            },
+                        },
+                    },
+                    responses: { '200': { description: 'Updated' }, ...unavailable, ...limited },
+                },
+                delete: {
+                    operationId: 'deleteMonitor',
+                    tags: ['Monitors'],
+                    summary: 'Delete a monitor',
+                    security: secured,
+                    responses: { '204': { description: 'Deleted' }, ...unavailable, ...limited },
+                },
+            },
             '/api/memory/{namespace}/{key}': {
                 parameters: [
                     { name: 'namespace', in: 'path', required: true, schema: { type: 'string' } },
@@ -593,7 +678,11 @@ export function openApi(origin: string) {
                 parameters?: object[];
                 description?: string;
             };
-            if (/^\/api\/(inboxes|mocks|files|mcp-servers|email-inboxes|memory)(\/|$)/.test(path)) {
+            if (
+                /^\/api\/(inboxes|mocks|files|mcp-servers|email-inboxes|memory|monitors)(\/|$)/.test(
+                    path,
+                )
+            ) {
                 operation.security = [
                     ...(operation.security ??
                         (path.includes('{id}') ? [{ resourceToken: [] }] : [{}])),

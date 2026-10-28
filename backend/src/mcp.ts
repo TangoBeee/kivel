@@ -166,6 +166,38 @@ export const platformTools = [
         annotations: readonly,
     },
     {
+        name: 'create_monitor',
+        description:
+            'Watch something on a schedule and alert the workspace owner by email (and optionally a webhook) when it goes down or recovers. kind "http" checks a public URL (expectStatus, expectText), "ssl" warns before a certificate expires (sslDays), "heartbeat" returns a pingUrl your job calls when it finishes. Needs an API key; Free allows 20 monitors every 5 minutes or slower.',
+        inputSchema: schema(
+            {
+                kind: { type: 'string', enum: ['http', 'ssl', 'heartbeat'] },
+                name: stringProperty('Short label, up to 80 characters.'),
+                target: stringProperty('URL or hostname for http and ssl.'),
+                intervalSeconds: { type: 'number' },
+                graceSeconds: { type: 'number' },
+                expectStatus: { type: 'number' },
+                expectText: stringProperty('Text the response must contain.'),
+                sslDays: { type: 'number' },
+                alertWebhook: stringProperty('Public URL that receives alert JSON.'),
+            },
+            ['kind', 'name'],
+        ),
+        annotations: creates,
+    },
+    {
+        name: 'list_monitors',
+        description: 'List the workspace’s monitors with their current status and last message.',
+        inputSchema: schema({}),
+        annotations: readonly,
+    },
+    {
+        name: 'delete_monitor',
+        description: 'Delete a monitor by ID.',
+        inputSchema: schema({ id: stringProperty('Monitor UUID.') }),
+        annotations: deletes,
+    },
+    {
         name: 'memory_set',
         description:
             'Remember a JSON value for later sessions, under a namespace and key (for example namespace "project-x", key "last-deploy"). Values up to 256 KiB; optional ttlSeconds. Needs an API key; space depends on the plan (5 MiB on Free).',
@@ -920,6 +952,31 @@ export function registerMcp({
             response.statusCode >= 400,
         );
     }
+    // Monitor tools reuse the HTTP routes so plan limits and validation stay identical.
+    async function monitorRequest(
+        name: string,
+        value: Record<string, unknown>,
+        request: FastifyRequest,
+    ) {
+        const headers: Record<string, string> =
+            name === 'create_monitor' ? { 'content-type': 'application/json' } : {};
+        for (const key of ['authorization', 'cookie', 'origin'])
+            if (typeof request.headers[key] === 'string') headers[key] = request.headers[key];
+        if (name === 'delete_monitor' && !isUuid(String(value.id)))
+            throw new RpcError(-32602, 'Provide a monitor UUID.');
+        const response = await app.inject({
+            method:
+                name === 'create_monitor' ? 'POST' : name === 'delete_monitor' ? 'DELETE' : 'GET',
+            url: name === 'delete_monitor' ? `/api/monitors/${value.id}` : '/api/monitors',
+            headers,
+            remoteAddress: request.ip,
+            ...(name === 'create_monitor' ? { payload: value } : {}),
+        });
+        return result(
+            response.statusCode === 204 ? { deleted: true } : response.json(),
+            response.statusCode >= 400,
+        );
+    }
     async function resourceRequest(value: Record<string, unknown>, request: FastifyRequest) {
         const kind = String(value.kind ?? ''),
             action = String(value.action ?? '');
@@ -1149,48 +1206,53 @@ export function registerMcp({
                                 ? await callMock(values, request)
                                 : params.name === 'resource_request'
                                   ? await resourceRequest(values, request)
-                                  : params.name.startsWith('memory_')
-                                    ? await memoryRequest(params.name, values, request)
-                                    : [
-                                            'create_email_inbox',
-                                            'wait_for_email',
-                                            'list_emails',
-                                        ].includes(params.name)
-                                      ? await emailRequest(params.name, values, request)
-                                      : params.name === 'describe_tool'
-                                        ? result({
-                                              toolId: values.toolId,
-                                              guide: executionGuide(String(values.toolId)) ?? null,
-                                          })
-                                        : params.name === 'search_tools'
+                                  : ['create_monitor', 'list_monitors', 'delete_monitor'].includes(
+                                          params.name,
+                                      )
+                                    ? await monitorRequest(params.name, values, request)
+                                    : params.name.startsWith('memory_')
+                                      ? await memoryRequest(params.name, values, request)
+                                      : [
+                                              'create_email_inbox',
+                                              'wait_for_email',
+                                              'list_emails',
+                                          ].includes(params.name)
+                                        ? await emailRequest(params.name, values, request)
+                                        : params.name === 'describe_tool'
                                           ? result({
-                                                tools: searchExecutable(
-                                                    typeof values.query === 'string'
-                                                        ? values.query
-                                                        : '',
-                                                ),
+                                                toolId: values.toolId,
+                                                guide:
+                                                    executionGuide(String(values.toolId)) ?? null,
                                             })
-                                          : params.name === 'list_tools'
-                                            ? result({ tools: executableIds })
-                                            : params.name === 'run_tool'
-                                              ? result(
-                                                    await tools.run(
-                                                        request,
-                                                        String(values.toolId),
-                                                        {
-                                                            input: values.input ?? '',
-                                                            options: values.options ?? {},
-                                                            ...(values.files || values.file
-                                                                ? {
-                                                                      file:
-                                                                          values.files ??
-                                                                          values.file,
-                                                                  }
-                                                                : {}),
-                                                        },
-                                                    ),
-                                                )
-                                              : await callPlatform(params.name, values, request);
+                                          : params.name === 'search_tools'
+                                            ? result({
+                                                  tools: searchExecutable(
+                                                      typeof values.query === 'string'
+                                                          ? values.query
+                                                          : '',
+                                                  ),
+                                              })
+                                            : params.name === 'list_tools'
+                                              ? result({ tools: executableIds })
+                                              : params.name === 'run_tool'
+                                                ? result(
+                                                      await tools.run(
+                                                          request,
+                                                          String(values.toolId),
+                                                          {
+                                                              input: values.input ?? '',
+                                                              options: values.options ?? {},
+                                                              ...(values.files || values.file
+                                                                  ? {
+                                                                        file:
+                                                                            values.files ??
+                                                                            values.file,
+                                                                    }
+                                                                  : {}),
+                                                          },
+                                                      ),
+                                                  )
+                                                : await callPlatform(params.name, values, request);
                     }
                     break;
                 }

@@ -23,6 +23,8 @@ import { Waiters, waitForRequests, waitSeconds } from './waiting.js';
 import { MemoryMockCalls } from './mock-calls.js';
 import { MemoryActivity } from './activity.js';
 import { MemoryKv, registerKv } from './kv.js';
+import { MemoryMonitors, registerMonitors } from './monitors.js';
+import type { MonitorChecks, MonitorRepository } from './monitors.js';
 import type { MemoryRepository } from './kv.js';
 import type { ActivityRepository } from './activity.js';
 import { MemoryEmailMessages, registerEmail } from './email.js';
@@ -69,6 +71,8 @@ interface AppOptions {
     emailIngestSecret?: string;
     activity?: ActivityRepository;
     memory?: MemoryRepository;
+    monitorStore?: MonitorRepository;
+    monitorChecks?: MonitorChecks;
 }
 
 interface InboxRoute {
@@ -116,6 +120,8 @@ export function buildApp({
     emailIngestSecret,
     activity = new MemoryActivity(),
     memory = new MemoryKv(),
+    monitorStore = new MemoryMonitors(),
+    monitorChecks,
 }: AppOptions = {}) {
     const ledger = new MemoryAllocations();
     const inboxStore = providedInboxes ?? new InboxStore({ quotaLedger: ledger });
@@ -318,7 +324,7 @@ export function buildApp({
         if (request.url.startsWith('/api/') || request.url.split('?')[0] === '/mcp') {
             await access.rate(request);
             if (
-                /^\/api\/(inboxes|mocks|files|mcp-servers|email-inboxes|memory)(\/|\?|$)/.test(
+                /^\/api\/(inboxes|mocks|files|mcp-servers|email-inboxes|memory|monitors)(\/|\?|$)/.test(
                     request.url,
                 )
             )
@@ -637,6 +643,17 @@ export function buildApp({
     recovery.start();
     app.addHook('preClose', () => recovery.close());
     registerAccounts(app, access, rateLimiter, recovery);
+    registerMonitors({
+        app,
+        access,
+        monitors: monitorStore,
+        identities: identityStore,
+        recovery: recovery.store,
+        ...(mailSender ? { mail: mailSender } : {}),
+        limits: rateLimiter,
+        origin: baseUrl.origin,
+        ...(monitorChecks ? { checks: monitorChecks } : {}),
+    });
     registerBilling(app, access, billingRepository, billingConfig, dodoClient, recovery.store);
     registerTools(app, access, tools);
     registerMusic(app, frontendDir);

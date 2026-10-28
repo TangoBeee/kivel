@@ -21,6 +21,24 @@ export interface ResourceCredentials {
     managementToken?: string;
     inspectionToken?: string;
 }
+export interface CapturedRequest {
+    id: string;
+    method: string;
+    path: string;
+    headers: Record<string, string | string[]>;
+    query: Record<string, string | string[]>;
+    body: string;
+    bodyEncoding: 'utf8' | 'base64';
+    bodySize: number;
+    timestamp: string;
+}
+export interface InboxResponse {
+    status?: number;
+    contentType?: 'application/json' | 'text/plain' | 'application/xml' | 'text/xml';
+    body?: string;
+    headers?: Record<string, string>;
+    delayMs?: number;
+}
 export interface Execution {
     toolId: string;
     output: string;
@@ -190,6 +208,35 @@ export class SocketHelp {
             'GET',
             `/api/inboxes/${encodeURIComponent(id)}/requests`,
             undefined,
+            token,
+        );
+    }
+    /**
+     * Long-polls until the inbox captures a request newer than `after` (any request when omitted).
+     * Resolves with `timedOut: true` when nothing arrives; call again to keep waiting.
+     */
+    waitForRequests(
+        id: string,
+        options: { token?: string; after?: string; timeoutSeconds?: number } = {},
+    ) {
+        // Stay inside the client timeout so the server answers before the request is aborted.
+        const ceiling = Math.max(1, Math.floor(this.timeoutMs / 1000) - 5);
+        const query = new URLSearchParams({
+            timeoutSeconds: String(Math.min(options.timeoutSeconds ?? 20, ceiling, 30)),
+            ...(options.after ? { after: options.after } : {}),
+        });
+        return this.request<{ timedOut: boolean; requests: CapturedRequest[] }>(
+            'GET',
+            `/api/inboxes/${encodeURIComponent(id)}/wait?${query}`,
+            undefined,
+            options.token,
+        );
+    }
+    setInboxResponse(id: string, response: InboxResponse | null, token?: string) {
+        return this.request(
+            response ? 'PUT' : 'DELETE',
+            `/api/inboxes/${encodeURIComponent(id)}/response`,
+            response ?? undefined,
             token,
         );
     }

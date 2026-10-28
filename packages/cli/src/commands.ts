@@ -3,6 +3,7 @@ export const help = `socket-help tools | usage | resources
 socket-help describe <tool-id>
 socket-help run <tool-id> [--file <filename>] [--options '{"action":"minify"}'] < input.txt
 socket-help inbox create [--visibility private|public]
+socket-help listen <inbox-id> [--token <inspection-token>] [--forward http://localhost:3000] [--all]
 socket-help api <GET|POST|PUT|PATCH|DELETE> /api/path-or-/mock/path [--token <resource-token>] < body.json
 socket-help upload <filename> [--visibility private|public] [--max-downloads 1] < file.bin
 socket-help download <file-id> [--access-token token] > file.bin

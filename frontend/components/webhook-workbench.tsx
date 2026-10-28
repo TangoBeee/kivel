@@ -15,6 +15,7 @@ import { AppSelect, SelectOption } from './app-select';
 import { filterRequests } from '../lib/request-filter';
 import { useViewer } from '../lib/viewer';
 import { InboxResponseSettings } from './inbox-response';
+import { InboxForwardSettings } from './inbox-forward';
 import type { RequestSearchScope } from '../lib/request-filter';
 
 function timeLeft(seconds: number) {
@@ -791,6 +792,17 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
                             />
                         </section>
                     </div>
+                    <InboxForwardSettings
+                        key={`forward-${inbox.id}`}
+                        inbox={inbox}
+                        onError={setError}
+                        onSaved={(forwardUrl) => {
+                            const { forwardUrl: _old, ...rest } = inbox;
+                            const updated = forwardUrl ? { ...rest, forwardUrl } : rest;
+                            remember(updated);
+                            setInbox(updated);
+                        }}
+                    />
                     <InboxResponseSettings
                         key={inbox.id}
                         inbox={inbox}

@@ -8,6 +8,7 @@ export interface Inbox {
     webhookUrl: string;
     expiresAt: string;
     response?: InboxResponse;
+    forwardUrl?: string;
 }
 
 export interface InboxResponse {

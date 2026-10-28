@@ -2496,3 +2496,42 @@ and calmer editors. Loaded last. */
   white-space: pre-wrap;
   word-break: break-all;
 }
+.delivery-log {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8125rem;
+}
+.delivery-log li {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: var(--radius-control);
+  background: var(--subtle);
+}
+.delivery-log .is-ok {
+  font-weight: 600;
+  color: var(--accent);
+}
+.delivery-log .is-error {
+  font-weight: 600;
+  color: var(--danger);
+}
+.delivery-log time {
+  color: var(--muted);
+}
+.upsell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.upsell p {
+  max-width: 560px;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}

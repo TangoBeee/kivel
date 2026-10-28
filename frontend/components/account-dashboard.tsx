@@ -27,6 +27,7 @@ import {
     Check,
     Key as KeyIcon,
     UsersThree,
+    WarningCircle,
 } from '@phosphor-icons/react';
 import { DashboardShell, isDashboardPanel, Meter, SettingsSection } from './dashboard-shell';
 import { DashboardTools, QuickCreate, RecentTools, SavedTools } from './dashboard-tools';
@@ -123,7 +124,7 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
         [sharedAccess, setSharedAccess] = useState('');
     // Outcome of a Dodo checkout redirect. The plan itself only changes once the signed webhook lands.
     const [checkout, setCheckout] = useState<
-        'activating' | 'active' | 'delayed' | 'cancelled' | null
+        'activating' | 'active' | 'delayed' | 'failed' | 'cancelled' | null
     >(null);
     async function refresh() {
         try {
@@ -170,9 +171,18 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
             if (hash === 'register') setMode('register');
             if (hash === 'signin') setMode('login');
         };
-        const returned = new URLSearchParams(location.search).get('billing');
+        const query = new URLSearchParams(location.search),
+            returned = query.get('billing'),
+            // Dodo appends the checkout status to the return URL; anything but a live or pending subscription failed.
+            status = query.get('status');
         if (returned === 'returned' || returned === 'cancelled') {
-            setCheckout(returned === 'returned' ? 'activating' : 'cancelled');
+            setCheckout(
+                returned === 'cancelled'
+                    ? 'cancelled'
+                    : status && !['active', 'succeeded', 'processing', 'pending'].includes(status)
+                      ? 'failed'
+                      : 'activating',
+            );
             history.replaceState(null, '', `${location.pathname}#billing`);
         }
         applyHash();
@@ -1331,6 +1341,8 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                             <ArrowsClockwise size={20} className="spin" />
                                         ) : checkout === 'active' ? (
                                             <Check size={20} weight="bold" />
+                                        ) : checkout === 'failed' ? (
+                                            <WarningCircle size={20} />
                                         ) : (
                                             <Lightning size={20} />
                                         )}
@@ -1338,21 +1350,25 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                     <div>
                                         <strong>
                                             {checkout === 'activating'
-                                                ? 'Payment received'
+                                                ? 'Confirming your payment'
                                                 : checkout === 'active'
                                                   ? `Welcome to ${planName}!`
                                                   : checkout === 'delayed'
-                                                    ? 'Payment is still being confirmed'
-                                                    : 'Checkout cancelled'}
+                                                    ? 'Payment not confirmed yet'
+                                                    : checkout === 'failed'
+                                                      ? 'Payment didn’t go through'
+                                                      : 'Checkout cancelled'}
                                         </strong>
                                         <p>
                                             {checkout === 'activating'
-                                                ? 'Activating your new plan. This usually takes a few seconds…'
+                                                ? 'Waiting for Dodo Payments to confirm. This usually takes a few seconds…'
                                                 : checkout === 'active'
                                                   ? `Your workspace now has the ${planName} limits below. Dodo Payments will email your receipt, and you can change or cancel anytime from Manage billing.`
                                                   : checkout === 'delayed'
-                                                    ? 'Your plan switches automatically once Dodo Payments confirms the payment. Refresh in a minute; if nothing changes, email support@socket.help.'
-                                                    : 'No payment was taken and your plan has not changed.'}
+                                                    ? 'We haven’t received a successful payment yet. If you were charged, your plan switches automatically within a few minutes. If not, the payment didn’t complete and you can try again. Questions? Email support@socket.help.'
+                                                    : checkout === 'failed'
+                                                      ? 'You weren’t charged and your plan hasn’t changed. Try again, or use a different card.'
+                                                      : 'No payment was taken and your plan has not changed.'}
                                         </p>
                                     </div>
                                     {checkout !== 'activating' && (

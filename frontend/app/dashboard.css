@@ -1117,6 +1117,14 @@ body:has(.dashboard-layout) main::after {
   border-color: var(--accent-line);
   background: var(--accent-soft);
 }
+.checkout-result.is-failed {
+  border-color: var(--danger);
+  background: var(--danger-bg);
+}
+.checkout-result.is-failed .checkout-result-icon {
+  color: var(--danger);
+  border-color: var(--danger);
+}
 .checkout-result > div {
   flex: 1;
   min-width: 0;

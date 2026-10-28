@@ -792,3 +792,74 @@ test('MCP calls made with a workspace key appear in its activity feed without th
     assert.equal(entries[1].keyId, credential.info.id);
     assert.ok(!JSON.stringify(entries).includes('secret'));
 });
+
+test('agent memory stores JSON per workspace within the plan allowance, over HTTP and MCP', async (t) => {
+    const app = buildApp();
+    t.after(() => app.close());
+    const owner = await signup(app, 'rememberer'),
+        credential = await key(app, owner.cookie),
+        headers = { authorization: `Bearer ${credential.key}` };
+    assert.equal(
+        (await app.inject({ method: 'PUT', url: '/api/memory/p/k', payload: { value: 1 } }))
+            .statusCode,
+        401,
+    );
+    const put = (path: string, payload: object) =>
+        app.inject({ method: 'PUT', url: `/api/memory/${path}`, headers, payload });
+    assert.equal(
+        (await put('project/deploys/last', { value: { sha: 'abc', ok: true } })).statusCode,
+        200,
+    );
+    assert.equal((await put('bad space/k', { value: 1 })).statusCode, 400);
+    assert.equal((await put('project/k', {})).statusCode, 400);
+    assert.equal((await put('project/huge', { value: 'x'.repeat(300 * 1024) })).statusCode, 413);
+    const read = await app.inject({ url: '/api/memory/project/deploys/last', headers });
+    assert.deepEqual(read.json().value, { sha: 'abc', ok: true });
+    const list = (await app.inject({ url: '/api/memory/project?prefix=deploys/', headers })).json();
+    assert.equal(list.keys.length, 1);
+    assert.equal(list.keys[0].value, undefined);
+    assert.equal(list.limitBytes, 5 * 1024 * 1024);
+    for (let index = 0; index < 20; index++)
+        await put(`fill/k${index}`, { value: 'y'.repeat(250 * 1024) });
+    assert.equal((await put('fill/over', { value: 'y'.repeat(250 * 1024) })).statusCode, 413);
+    const other = await signup(app, 'stranger'),
+        otherKey = await key(app, other.cookie);
+    assert.equal(
+        (
+            await app.inject({
+                url: '/api/memory/project/deploys/last',
+                headers: { authorization: `Bearer ${otherKey.key}` },
+            })
+        ).statusCode,
+        404,
+    );
+    const mcp = async (name: string, args: object) =>
+        JSON.parse(
+            (
+                await app.inject({
+                    method: 'POST',
+                    url: '/mcp',
+                    headers: {
+                        ...headers,
+                        'content-type': 'application/json',
+                        accept: 'application/json, text/event-stream',
+                    },
+                    payload: {
+                        jsonrpc: '2.0',
+                        id: 1,
+                        method: 'tools/call',
+                        params: { name, arguments: args },
+                    },
+                })
+            ).json().result.content[0].text,
+        );
+    await mcp('memory_set', { namespace: 'agent', key: 'notes/todo', value: ['ship email'] });
+    assert.deepEqual((await mcp('memory_get', { namespace: 'agent', key: 'notes/todo' })).value, [
+        'ship email',
+    ]);
+    assert.equal(
+        (await mcp('memory_delete', { namespace: 'agent', key: 'notes/todo' })).deleted,
+        true,
+    );
+    assert.ok((await mcp('memory_get', { namespace: 'agent', key: 'notes/todo' })).error);
+});

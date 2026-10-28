@@ -293,6 +293,87 @@ export function openApi(origin: string) {
                     responses: { '204': { description: 'Reset' }, ...unavailable, ...limited },
                 },
             },
+            '/api/memory/{namespace}/{key}': {
+                parameters: [
+                    { name: 'namespace', in: 'path', required: true, schema: { type: 'string' } },
+                    {
+                        name: 'key',
+                        in: 'path',
+                        required: true,
+                        description: 'May contain slashes.',
+                        schema: { type: 'string' },
+                    },
+                ],
+                put: {
+                    operationId: 'setMemory',
+                    tags: ['Agent memory'],
+                    summary: 'Remember a JSON value',
+                    description:
+                        'Needs an account or API key. Values up to 256 KiB; the workspace total is limited by plan (5 MiB on Free, 100 MiB on Pro, 1 GiB on Team).',
+                    security: secured,
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    required: ['value'],
+                                    properties: {
+                                        value: {},
+                                        ttlSeconds: { type: 'integer', minimum: 1 },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    responses: {
+                        '200': { description: 'Stored' },
+                        '400': { description: 'Invalid name or value' },
+                        '401': { description: 'Needs an account' },
+                        '413': { description: 'Value too large or memory full' },
+                        ...limited,
+                    },
+                },
+                get: {
+                    operationId: 'getMemory',
+                    tags: ['Agent memory'],
+                    summary: 'Read a remembered value',
+                    security: secured,
+                    responses: {
+                        '200': { description: 'The value and its metadata' },
+                        ...unavailable,
+                        ...limited,
+                    },
+                },
+                delete: {
+                    operationId: 'deleteMemory',
+                    tags: ['Agent memory'],
+                    summary: 'Forget a value',
+                    security: secured,
+                    responses: { '204': { description: 'Deleted' }, ...unavailable, ...limited },
+                },
+            },
+            '/api/memory/{namespace}': {
+                get: {
+                    operationId: 'listMemory',
+                    tags: ['Agent memory'],
+                    summary: 'List keys in a namespace',
+                    security: secured,
+                    parameters: [
+                        {
+                            name: 'namespace',
+                            in: 'path',
+                            required: true,
+                            schema: { type: 'string' },
+                        },
+                        { name: 'prefix', in: 'query', schema: { type: 'string' } },
+                    ],
+                    responses: {
+                        '200': { description: 'Keys, space used and the limit' },
+                        ...limited,
+                    },
+                },
+            },
             '/api/inboxes/{id}/forward': {
                 put: {
                     operationId: 'setInboxForward',
@@ -512,7 +593,7 @@ export function openApi(origin: string) {
                 parameters?: object[];
                 description?: string;
             };
-            if (/^\/api\/(inboxes|mocks|files|mcp-servers|email-inboxes)(\/|$)/.test(path)) {
+            if (/^\/api\/(inboxes|mocks|files|mcp-servers|email-inboxes|memory)(\/|$)/.test(path)) {
                 operation.security = [
                     ...(operation.security ??
                         (path.includes('{id}') ? [{ resourceToken: [] }] : [{}])),

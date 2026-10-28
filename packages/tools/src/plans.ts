@@ -9,6 +9,7 @@ export const plans = {
         runsPerDay: 100,
         inputBytes: 64 * 1024,
         fileBytes: 10 * 1024 * 1024,
+        memoryBytes: 0,
         persistent: false,
     },
     free: {
@@ -21,6 +22,7 @@ export const plans = {
         runsPerDay: 1000,
         inputBytes: 256 * 1024,
         fileBytes: 10 * 1024 * 1024,
+        memoryBytes: 5 * 1024 * 1024,
         persistent: false,
     },
     pro: {
@@ -33,6 +35,7 @@ export const plans = {
         runsPerDay: 20000,
         inputBytes: 1024 * 1024,
         fileBytes: 10 * 1024 * 1024,
+        memoryBytes: 100 * 1024 * 1024,
         persistent: true,
     },
     team: {
@@ -45,6 +48,7 @@ export const plans = {
         runsPerDay: 100000,
         inputBytes: 1024 * 1024,
         fileBytes: 10 * 1024 * 1024,
+        memoryBytes: 1024 * 1024 * 1024,
         persistent: true,
     },
 } as const;

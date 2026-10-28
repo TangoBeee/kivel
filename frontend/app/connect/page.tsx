@@ -93,6 +93,7 @@ const tools: { name: string; does: string }[] = [
     { name: 'create_mock_api', does: 'Routes, templates, CRUD records and failure modes.' },
     { name: 'call_mock_api', does: 'Call a mock or change its CRUD data.' },
     { name: 'upload_temporary_file', does: 'Share a file through a private, expiring link.' },
+    { name: 'memory_set / memory_get', does: 'Remember JSON between sessions (needs an API key).' },
     { name: 'search_tools', does: 'Find one of 130+ utilities by keyword.' },
     { name: 'run_tool', does: 'Run a utility: JSON, JWT, DNS, SSL, PDF, images and more.' },
     { name: 'resource_request', does: 'List, renew, share or delete what your agent created.' },

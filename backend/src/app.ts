@@ -22,6 +22,8 @@ import { registerMcp } from './mcp.js';
 import { Waiters, waitForRequests, waitSeconds } from './waiting.js';
 import { MemoryMockCalls } from './mock-calls.js';
 import { MemoryActivity } from './activity.js';
+import { MemoryKv, registerKv } from './kv.js';
+import type { MemoryRepository } from './kv.js';
 import type { ActivityRepository } from './activity.js';
 import { MemoryEmailMessages, registerEmail } from './email.js';
 import type { EmailMessageRepository } from './email.js';
@@ -66,6 +68,7 @@ interface AppOptions {
     mailDomain?: string;
     emailIngestSecret?: string;
     activity?: ActivityRepository;
+    memory?: MemoryRepository;
 }
 
 interface InboxRoute {
@@ -112,6 +115,7 @@ export function buildApp({
     mailDomain,
     emailIngestSecret,
     activity = new MemoryActivity(),
+    memory = new MemoryKv(),
 }: AppOptions = {}) {
     const ledger = new MemoryAllocations();
     const inboxStore = providedInboxes ?? new InboxStore({ quotaLedger: ledger });
@@ -166,6 +170,7 @@ export function buildApp({
             resourceStore.deleteExpired(),
             rateLimiter.deleteExpired(),
             identityStore.cleanup(),
+            memory.deleteExpired(),
         ])
             .catch(() => app.log.error('Resource cleanup failed'))
             .finally(() => {
@@ -313,7 +318,9 @@ export function buildApp({
         if (request.url.startsWith('/api/') || request.url.split('?')[0] === '/mcp') {
             await access.rate(request);
             if (
-                /^\/api\/(inboxes|mocks|files|mcp-servers|email-inboxes)(\/|\?|$)/.test(request.url)
+                /^\/api\/(inboxes|mocks|files|mcp-servers|email-inboxes|memory)(\/|\?|$)/.test(
+                    request.url,
+                )
             )
                 await access.scope(
                     request,
@@ -634,6 +641,7 @@ export function buildApp({
     registerTools(app, access, tools);
     registerMusic(app, frontendDir);
     registerLifecycle(app, access, inboxStore, resourceStore);
+    registerKv(app, access, memory);
     registerEmail({
         app,
         access,

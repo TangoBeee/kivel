@@ -93,6 +93,7 @@ const capabilities: Capability[] = [
         icon: 'database',
         title: 'Memory',
         body: 'A small key-value store so agents remember things between sessions.',
+        href: '/connect/',
     },
     {
         icon: 'terminal',

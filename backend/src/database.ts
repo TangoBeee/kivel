@@ -164,6 +164,17 @@ export async function migrate(pool: Pool): Promise<void> {
                     entry jsonb NOT NULL
                 );
                 CREATE INDEX activity_log_account ON activity_log (account_id, sequence);
+                CREATE TABLE kv_entries (
+                    account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                    namespace text NOT NULL,
+                    key text NOT NULL,
+                    value jsonb NOT NULL,
+                    bytes integer NOT NULL,
+                    expires_at timestamptz,
+                    updated_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+                    PRIMARY KEY (account_id, namespace, key)
+                );
+                CREATE INDEX kv_entries_expiry ON kv_entries (expires_at) WHERE expires_at IS NOT NULL;
                 INSERT INTO schema_migrations (version) VALUES (9);`);
         }
     });

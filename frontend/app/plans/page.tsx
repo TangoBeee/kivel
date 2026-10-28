@@ -42,6 +42,15 @@ const rows: { name: string; value: (id: PlanId) => string }[] = [
         value: (id) => (plans[id].persistent ? 'Included' : 'Not included'),
     },
     {
+        name: 'Agent memory',
+        value: (id) =>
+            plans[id].memoryBytes
+                ? plans[id].memoryBytes >= 1073741824
+                    ? `${plans[id].memoryBytes / 1073741824} GiB`
+                    : `${plans[id].memoryBytes / 1048576} MiB`
+                : 'Not included',
+    },
+    {
         name: 'Webhook forwarding to your server',
         value: (id) => (plans[id].persistent ? 'Included, with retries' : 'Not included'),
     },

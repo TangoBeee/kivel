@@ -10,6 +10,7 @@ import { PostgresResourceStore } from './resources.js';
 import { PostgresMockCalls } from './mock-calls.js';
 import { PostgresEmailMessages } from './email.js';
 import { PostgresActivity } from './activity.js';
+import { PostgresKv } from './kv.js';
 import type { CrudState } from '@socket-help/tools/mock-crud';
 import { PostgresRecoveryRepository } from './recovery-store.js';
 import { passwordHash, PostgresIdentityRepository } from './identity.js';
@@ -428,7 +429,7 @@ test('upgrading an existing webhook-only database preserves captures and enables
     await pool.query(
         `DROP TRIGGER inbox_quota ON inboxes; DROP FUNCTION enforce_resource_quota() CASCADE;
          ALTER TABLE inboxes DROP COLUMN owner_id, DROP COLUMN quota_key, DROP COLUMN created_at, DROP COLUMN persistent, DROP COLUMN request_limit, DROP COLUMN byte_limit, DROP COLUMN visibility, DROP COLUMN access_token_hash, DROP COLUMN access_version, DROP COLUMN response, DROP COLUMN forward_url;
-         DROP TABLE mock_calls, inbox_deliveries, email_messages, activity_log, user_contact_emails, auth_mail_outbox, auth_challenges, user_recovery_emails, temporary_resources, resource_usage, account_members, auth_sessions, api_keys, account_invites, users, accounts, usage_plans, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events CASCADE; DELETE FROM schema_migrations WHERE version > 1`,
+         DROP TABLE mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, user_contact_emails, auth_mail_outbox, auth_challenges, user_recovery_emails, temporary_resources, resource_usage, account_members, auth_sessions, api_keys, account_invites, users, accounts, usage_plans, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events CASCADE; DELETE FROM schema_migrations WHERE version > 1`,
     );
     await Promise.all([migrate(pool), migrate(pool)]);
     assert.equal(
@@ -1142,7 +1143,7 @@ test('Dodo migration preserves legacy Stripe data without adopting its customer 
         user.personalAccountId,
     ]);
     await pool.query(
-        'ALTER TABLE accounts DROP COLUMN dodo_customer_id, DROP COLUMN dodo_subscription_id, DROP COLUMN dodo_event_created, DROP COLUMN dodo_checkout_id, DROP COLUMN dodo_checkout_url, DROP COLUMN dodo_checkout_plan; DROP TABLE dodo_events; ALTER TABLE inboxes DROP COLUMN response, DROP COLUMN forward_url; DROP TABLE mock_calls, inbox_deliveries, email_messages, activity_log; DELETE FROM schema_migrations WHERE version >= 8',
+        'ALTER TABLE accounts DROP COLUMN dodo_customer_id, DROP COLUMN dodo_subscription_id, DROP COLUMN dodo_event_created, DROP COLUMN dodo_checkout_id, DROP COLUMN dodo_checkout_url, DROP COLUMN dodo_checkout_plan; DROP TABLE dodo_events; ALTER TABLE inboxes DROP COLUMN response, DROP COLUMN forward_url; DROP TABLE mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries; DELETE FROM schema_migrations WHERE version >= 8',
     );
     await Promise.all([migrate(pool), migrate(pool)]);
     const row = (
@@ -1267,4 +1268,38 @@ test('workspace activity keeps the newest 500 entries, newest first', async () =
     assert.equal(entries.length, 500);
     assert.equal(entries[0]!.tool, 'tool_502');
     assert.equal(entries.at(-1)!.tool, 'tool_3');
+});
+
+test('agent memory enforces the account allowance, expires values and lists by prefix', async () => {
+    const identities = new PostgresIdentityRepository(pool);
+    const user = (await identities.register(
+        'memory-owner',
+        await passwordHash('correct-horse-battery-staple'),
+    ))!;
+    const kv = new PostgresKv(pool);
+    const account = user.personalAccountId;
+    const entry = (key: string, bytes: number, expiresAt?: string) => ({
+        namespace: 'ns',
+        key,
+        value: 'x',
+        bytes,
+        ...(expiresAt ? { expiresAt } : {}),
+    });
+    assert.equal(await kv.set(account, entry('a/1', 60), 100), 'stored');
+    assert.equal(await kv.set(account, entry('a/2', 50), 100), 'full');
+    assert.equal(await kv.set(account, entry('a/1', 90), 100), 'stored');
+    assert.equal(await kv.usage(account), 90);
+    assert.equal(
+        await kv.set(account, entry('b/old', 5, new Date(Date.now() - 1000).toISOString()), 100),
+        'stored',
+    );
+    assert.equal(await kv.get(account, 'ns', 'b/old'), undefined);
+    assert.deepEqual(
+        (await kv.list(account, 'ns', 'a/')).map((item) => item.key),
+        ['a/1'],
+    );
+    await kv.deleteExpired();
+    assert.equal(await kv.usage(account), 90);
+    assert.equal(await kv.delete(account, 'ns', 'a/1'), true);
+    assert.equal(await kv.usage(account), 0);
 });

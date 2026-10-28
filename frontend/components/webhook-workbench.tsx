@@ -13,7 +13,17 @@ import { api, ApiError, remember, restore, resourceHeaders } from '../lib/api';
 import type { CapturedRequest, Inbox } from '../lib/api';
 import { AppSelect, SelectOption } from './app-select';
 import { filterRequests } from '../lib/request-filter';
+import { useViewer } from '../lib/viewer';
 import type { RequestSearchScope } from '../lib/request-filter';
+
+function timeLeft(seconds: number) {
+    const days = Math.floor(seconds / 86400),
+        hours = Math.floor((seconds % 86400) / 3600),
+        minutes = Math.floor((seconds % 3600) / 60);
+    if (days) return `${days}d ${hours}h left`;
+    if (hours) return `${hours}h ${minutes}m left`;
+    return `${minutes}m ${String(seconds % 60).padStart(2, '0')}s left`;
+}
 
 async function openInbox(id: string, token: string, signal?: AbortSignal): Promise<Inbox> {
     const info = await (
@@ -52,9 +62,11 @@ function DataTable({ values }: { values: Record<string, string | string[]> }) {
 function Detail({
     request,
     filteredOut = false,
+    command = '',
 }: {
     request: CapturedRequest | undefined;
     filteredOut?: boolean;
+    command?: string;
 }) {
     const [tab, setTab] = useState('Body');
     const [pretty, setPretty] = useState(true);
@@ -67,6 +79,18 @@ function Detail({
         }
         return request.body;
     }, [request, pretty]);
+    if (!request && !filteredOut && command)
+        return (
+            <div className="detail-empty detail-first">
+                <Icon name="terminal" size={30} />
+                <h3>Send your first request.</h3>
+                <p>Paste this in a terminal, or point any webhook at your endpoint.</p>
+                <div className="code-row">
+                    <code>{command}</code>
+                    <CopyButton text={command} label="Copy cURL command" compact />
+                </div>
+            </div>
+        );
     if (!request)
         return (
             <div className="detail-empty">
@@ -173,6 +197,7 @@ function Detail({
 }
 
 export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = {}) {
+    const viewer = useViewer();
     const [inbox, setInbox] = useState<Inbox | null>(null);
     const [visibility, setVisibility] = useState<Visibility>('private');
     const [requests, setRequests] = useState<CapturedRequest[]>([]);
@@ -219,6 +244,14 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
         activeId.current = value?.id ?? null;
         setInbox(value);
         if (value) setVisibility(value.visibility ?? 'public');
+        // Hand people a working endpoint straight away; crawlers and automation don't need one.
+        else if (
+            !navigator.webdriver &&
+            !/bot|crawl|spider|preview|lighthouse/i.test(navigator.userAgent)
+        )
+            void createInbox();
+        // createInbox only reads state set before this first effect runs.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
     const clear = useCallback(() => {
         activeId.current = null;
@@ -565,10 +598,17 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
                         <code className="endpoint-url">{inbox.webhookUrl}</code>
                         <CopyButton text={inbox.webhookUrl} label="Copy URL" />
                         <span className="expiry">
-                            <Icon name="clock" size={13} /> {Math.floor(remaining / 60)}m{' '}
-                            {String(remaining % 60).padStart(2, '0')}s left
+                            <Icon name="clock" size={13} /> {timeLeft(remaining)}
                         </span>
                     </div>
+                    {viewer.status === 'guest' && (
+                        <p className="keep-longer">
+                            <Icon name="clock" size={14} />
+                            Anonymous inboxes last 1 hour.{' '}
+                            <Link href="/account/#register">Sign up free</Link> to keep them for 7
+                            days and use them from your AI agent.
+                        </p>
+                    )}
                     <SharingControl
                         value={inbox.visibility ?? 'public'}
                         onChange={(mode) => void changeSharing(mode)}
@@ -746,6 +786,7 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
                             <Detail
                                 request={current}
                                 filteredOut={requests.length > 0 && !filtered.length}
+                                command={command}
                             />
                         </section>
                     </div>

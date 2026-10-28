@@ -591,6 +591,38 @@ textarea::placeholder {
   max-width: 270px;
   line-height: 1.9;
 }
+.detail-first h3 {
+  font-size: 1rem;
+}
+.detail-first p {
+  max-width: 340px;
+}
+.detail-first .code-row {
+  width: min(100%, 560px);
+  margin-top: 16px;
+  text-align: left;
+}
+.detail-first .code-row code {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.keep-longer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 10px 14px;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius-control);
+  background: var(--accent-soft);
+  font-size: 0.8125rem;
+  color: var(--ink);
+}
+.keep-longer a {
+  font-weight: 600;
+  color: var(--accent);
+}
 .data-table {
   width: 100%;
   border-collapse: collapse;

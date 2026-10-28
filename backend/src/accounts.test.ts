@@ -749,3 +749,46 @@ test('forwarding and proxy mocks stop as soon as the owner’s paid plan ends', 
     await new Promise((resolve) => setTimeout(resolve, 50));
     assert.deepEqual([forwarded, proxied], [1, 1]);
 });
+
+test('MCP calls made with a workspace key appear in its activity feed without their data', async (t) => {
+    const app = buildApp();
+    t.after(() => app.close());
+    const owner = await signup(app, 'watcher'),
+        credential = await key(app, owner.cookie);
+    const mcp = (name: string, args: object, auth = true) =>
+        app.inject({
+            method: 'POST',
+            url: '/mcp',
+            headers: {
+                'content-type': 'application/json',
+                accept: 'application/json, text/event-stream',
+                ...(auth ? { authorization: `Bearer ${credential.key}` } : {}),
+            },
+            payload: {
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'tools/call',
+                params: { name, arguments: args },
+            },
+        });
+    await mcp('run_tool', { toolId: 'json', input: '{"secret":"value"}' });
+    await mcp('inspect_webhook_inbox', {
+        id: '00000000-0000-4000-8000-000000000000',
+        token: 'a'.repeat(43),
+    });
+    await mcp('run_tool', { toolId: 'json', input: '{}' }, false);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const feed = await app.inject({
+        url: '/api/account/activity',
+        headers: { origin, cookie: owner.cookie },
+    });
+    assert.equal(feed.statusCode, 200);
+    const entries = feed.json().activity;
+    assert.equal(entries.length, 2);
+    assert.equal(entries[0].tool, 'inspect_webhook_inbox');
+    assert.equal(entries[0].ok, false);
+    assert.equal(entries[1].tool, 'run_tool');
+    assert.equal(entries[1].ok, true);
+    assert.equal(entries[1].keyId, credential.info.id);
+    assert.ok(!JSON.stringify(entries).includes('secret'));
+});

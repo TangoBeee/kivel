@@ -14,6 +14,7 @@ import { crudSchema } from '@socket-help/tools/mock-crud';
 import { waitForRequests, waitSeconds, WAIT_MAX_SECONDS } from './waiting.js';
 import type { Waiters } from './waiting.js';
 import type { MockCallRepository } from './mock-calls.js';
+import type { ActivityRepository } from './activity.js';
 
 const versions = ['2025-11-25', '2025-06-18', '2025-03-26'];
 const object = (value: unknown): value is Record<string, unknown> =>
@@ -524,6 +525,7 @@ interface Context {
     tools: ToolService;
     waiters: Waiters;
     mockCalls: MockCallRepository;
+    activity: ActivityRepository;
 }
 export function registerMcp({
     app,
@@ -535,6 +537,7 @@ export function registerMcp({
     tools,
     waiters,
     mockCalls,
+    activity,
 }: Context) {
     const uploads = new Set<FastifyRequest>();
     app.addHook('onResponse', async (request) => {
@@ -952,8 +955,31 @@ export function registerMcp({
             config = server.payload as unknown as typeof config;
         }
         if (body.id === undefined) return reply.code(202).send();
+        const started = Date.now();
+        let calledTool: string | undefined;
+        // Workspace activity: which tool an agent called and whether it worked, never its data.
+        const log = (ok: boolean) => {
+            if (!calledTool) return;
+            const tool = calledTool;
+            void access
+                .actor(request)
+                .then((actor) =>
+                    actor.identity
+                        ? activity.record(actor.identity.account.id, {
+                              at: new Date().toISOString(),
+                              tool,
+                              ok,
+                              durationMs: Date.now() - started,
+                              ...(actor.identity.keyId ? { keyId: actor.identity.keyId } : {}),
+                          })
+                        : undefined,
+                )
+                .catch((error) => request.log.warn({ err: error }, 'Unable to record activity.'));
+        };
         try {
             const params = body.params === undefined ? {} : args(body.params);
+            if (!config && body.method === 'tools/call' && typeof params.name === 'string')
+                calledTool = params.name.slice(0, 64);
             let response: unknown;
             switch (body.method) {
                 case 'initialize': {
@@ -1074,8 +1100,10 @@ export function registerMcp({
                 default:
                     throw new RpcError(-32601, 'Method not found.');
             }
+            log(!(response as { isError?: boolean } | undefined)?.isError);
             return reply.send({ jsonrpc: '2.0', id: body.id, result: response });
         } catch (error) {
+            log(false);
             if (error instanceof HttpError)
                 return reply.send({
                     jsonrpc: '2.0',

@@ -21,6 +21,8 @@ import { registerResources } from './resource-routes.js';
 import { registerMcp } from './mcp.js';
 import { Waiters, waitForRequests, waitSeconds } from './waiting.js';
 import { MemoryMockCalls } from './mock-calls.js';
+import { MemoryActivity } from './activity.js';
+import type { ActivityRepository } from './activity.js';
 import { MemoryEmailMessages, registerEmail } from './email.js';
 import type { EmailMessageRepository } from './email.js';
 import { Forwarder } from './forwarding.js';
@@ -63,6 +65,7 @@ interface AppOptions {
     emailMessages?: EmailMessageRepository;
     mailDomain?: string;
     emailIngestSecret?: string;
+    activity?: ActivityRepository;
 }
 
 interface InboxRoute {
@@ -108,6 +111,7 @@ export function buildApp({
     emailMessages = new MemoryEmailMessages(),
     mailDomain,
     emailIngestSecret,
+    activity = new MemoryActivity(),
 }: AppOptions = {}) {
     const ledger = new MemoryAllocations();
     const inboxStore = providedInboxes ?? new InboxStore({ quotaLedger: ledger });
@@ -659,6 +663,11 @@ export function buildApp({
         tools,
         waiters,
         mockCalls,
+        activity,
+    });
+    app.get('/api/account/activity', async (request) => {
+        const identity = await access.require(request, 'account:read');
+        return { activity: await activity.list(identity.account.id) };
     });
 
     if (frontendDir) {

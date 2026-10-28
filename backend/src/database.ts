@@ -158,6 +158,12 @@ export async function migrate(pool: Pool): Promise<void> {
                     message jsonb NOT NULL
                 );
                 CREATE INDEX email_messages_resource ON email_messages (resource_id, sequence);
+                CREATE TABLE activity_log (
+                    sequence bigserial PRIMARY KEY,
+                    account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                    entry jsonb NOT NULL
+                );
+                CREATE INDEX activity_log_account ON activity_log (account_id, sequence);
                 INSERT INTO schema_migrations (version) VALUES (9);`);
         }
     });

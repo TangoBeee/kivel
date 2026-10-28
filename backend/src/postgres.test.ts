@@ -9,6 +9,7 @@ import { buildApp } from './app.js';
 import { PostgresResourceStore } from './resources.js';
 import { PostgresMockCalls } from './mock-calls.js';
 import { PostgresEmailMessages } from './email.js';
+import { PostgresActivity } from './activity.js';
 import type { CrudState } from '@socket-help/tools/mock-crud';
 import { PostgresRecoveryRepository } from './recovery-store.js';
 import { passwordHash, PostgresIdentityRepository } from './identity.js';
@@ -427,7 +428,7 @@ test('upgrading an existing webhook-only database preserves captures and enables
     await pool.query(
         `DROP TRIGGER inbox_quota ON inboxes; DROP FUNCTION enforce_resource_quota() CASCADE;
          ALTER TABLE inboxes DROP COLUMN owner_id, DROP COLUMN quota_key, DROP COLUMN created_at, DROP COLUMN persistent, DROP COLUMN request_limit, DROP COLUMN byte_limit, DROP COLUMN visibility, DROP COLUMN access_token_hash, DROP COLUMN access_version, DROP COLUMN response, DROP COLUMN forward_url;
-         DROP TABLE mock_calls, inbox_deliveries, email_messages, user_contact_emails, auth_mail_outbox, auth_challenges, user_recovery_emails, temporary_resources, resource_usage, account_members, auth_sessions, api_keys, account_invites, users, accounts, usage_plans, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events CASCADE; DELETE FROM schema_migrations WHERE version > 1`,
+         DROP TABLE mock_calls, inbox_deliveries, email_messages, activity_log, user_contact_emails, auth_mail_outbox, auth_challenges, user_recovery_emails, temporary_resources, resource_usage, account_members, auth_sessions, api_keys, account_invites, users, accounts, usage_plans, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events CASCADE; DELETE FROM schema_migrations WHERE version > 1`,
     );
     await Promise.all([migrate(pool), migrate(pool)]);
     assert.equal(
@@ -1141,7 +1142,7 @@ test('Dodo migration preserves legacy Stripe data without adopting its customer 
         user.personalAccountId,
     ]);
     await pool.query(
-        'ALTER TABLE accounts DROP COLUMN dodo_customer_id, DROP COLUMN dodo_subscription_id, DROP COLUMN dodo_event_created, DROP COLUMN dodo_checkout_id, DROP COLUMN dodo_checkout_url, DROP COLUMN dodo_checkout_plan; DROP TABLE dodo_events; ALTER TABLE inboxes DROP COLUMN response, DROP COLUMN forward_url; DROP TABLE mock_calls, inbox_deliveries, email_messages; DELETE FROM schema_migrations WHERE version >= 8',
+        'ALTER TABLE accounts DROP COLUMN dodo_customer_id, DROP COLUMN dodo_subscription_id, DROP COLUMN dodo_event_created, DROP COLUMN dodo_checkout_id, DROP COLUMN dodo_checkout_url, DROP COLUMN dodo_checkout_plan; DROP TABLE dodo_events; ALTER TABLE inboxes DROP COLUMN response, DROP COLUMN forward_url; DROP TABLE mock_calls, inbox_deliveries, email_messages, activity_log; DELETE FROM schema_migrations WHERE version >= 8',
     );
     await Promise.all([migrate(pool), migrate(pool)]);
     const row = (
@@ -1246,4 +1247,24 @@ test('email messages persist per inbox, stop at the limit and go with the inbox'
     assert.equal(await messages.record('00000000-0000-4000-8000-000000000000', message(0)), 'full');
     await resources.delete(inbox.id, 'email', inbox.managementToken);
     assert.equal(await messages.count(inbox.id), 0);
+});
+
+test('workspace activity keeps the newest 500 entries, newest first', async () => {
+    const identities = new PostgresIdentityRepository(pool);
+    const user = (await identities.register(
+        'activity-owner',
+        await passwordHash('correct-horse-battery-staple'),
+    ))!;
+    const activity = new PostgresActivity(pool);
+    for (let index = 0; index < 503; index++)
+        await activity.record(user.personalAccountId, {
+            at: new Date().toISOString(),
+            tool: `tool_${index}`,
+            ok: true,
+            durationMs: 1,
+        });
+    const entries = await activity.list(user.personalAccountId);
+    assert.equal(entries.length, 500);
+    assert.equal(entries[0]!.tool, 'tool_502');
+    assert.equal(entries.at(-1)!.tool, 'tool_3');
 });

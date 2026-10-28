@@ -2,90 +2,185 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Icon } from '../components/icons';
 import type { IconName } from '../components/icons';
-import { CommandBar } from '../components/landing/command-bar';
 import { Interfaces } from '../components/landing/interfaces';
 import { Reveal } from '../components/landing/reveal';
 import { SignalTraces } from '../components/landing/signal-traces';
 import { HeroPill } from '../components/landing/hero-pill';
-import { SocketBoard } from '../components/landing/socket-board';
-import { TaglineReveal } from '../components/landing/tagline-reveal';
+import { AgentTerminal } from '../components/landing/agent-terminal';
 import { toolGlyphs } from '../components/tool-glyphs';
 import { siteOrigin } from '../lib/site';
-import { catalog, categories } from '../lib/catalog';
+import { catalog, toolPageHref } from '../lib/catalog';
 import './landing.css';
 
 const total = catalog.length;
 const available = catalog.filter((tool) => tool.status === 'available').length;
+// Rounded down so the copy reads "130+" rather than an exact count that changes every release.
+const roundedAvailable = Math.floor(available / 10) * 10;
 const glyphs = toolGlyphs();
-const description = `${available} working tools for formatting, conversion, webhooks, mock APIs, file sharing, and MCP. Explore ${total} tools in the catalog, with planned features clearly marked. No account or ads.`;
+const description = `Webhook inboxes, mock APIs, MCP servers, file drops and ${roundedAvailable}+ utilities for you and your AI agent, over one MCP connection. Free to start; Pro is $2 a month.`;
 
 export const metadata: Metadata = {
     metadataBase: new URL(siteOrigin),
-    title: { absolute: 'socket.help | One toolbox for the whole internet' },
+    title: { absolute: 'socket.help | Everything your AI agent needs from the internet' },
     description,
     alternates: { canonical: '/' },
     openGraph: {
         type: 'website',
         url: '/',
         siteName: 'socket.help',
-        title: 'One toolbox for the whole internet',
+        title: 'Everything your AI agent needs from the internet',
         description,
     },
     twitter: {
         card: 'summary_large_image',
-        title: 'One toolbox for the whole internet',
+        title: 'Everything your AI agent needs from the internet',
         description,
     },
 };
 
-const audiences: { icon: IconName; label: string; title: string; body: string }[] = [
+type Capability = { icon: IconName; title: string; body: string; href?: string };
+
+// Live capabilities link to their tool; the rest are on the agent kit roadmap and say so.
+const capabilities: Capability[] = [
     {
-        icon: 'shapes',
-        label: 'For everyone',
-        title: 'The everyday essentials',
-        body: 'Format text, convert data, generate a password, or send a file to another computer. Process images and PDFs with bounded previews and downloads.',
+        icon: 'webhook',
+        title: 'Webhook inboxes',
+        body: 'A private URL in one second. Inspect every request, or let your agent wait for one.',
+        href: '/webhooks/',
     },
     {
-        icon: 'code',
-        label: 'For developers',
-        title: 'Test infrastructure on tap',
-        body: 'Mock APIs and webhook inboxes that appear in a second and clean up after themselves. Temporary databases and tunnels are on the roadmap.',
+        icon: 'cube',
+        title: 'Mock APIs',
+        body: 'REST, CRUD, GraphQL and OpenAPI mocks with realistic responses, errors and delays.',
+        href: '/tools/mock-rest-api/',
     },
     {
         icon: 'robot',
-        label: 'For AI agents',
-        title: 'A sandbox your agent can drive',
-        body: 'Claude Code, Cursor, and your own agents can create, inspect, and tear down resources over MCP.',
+        title: 'Mock MCP servers',
+        body: 'Spin up a fake MCP server, or inspect a real one, without installing anything.',
+        href: '/tools/mock-mcp-server/',
+    },
+    {
+        icon: 'files',
+        title: 'File drops',
+        body: 'Upload from a browser, script or agent and share a private, expiring link.',
+        href: '/tools/private-file-sharing/',
+    },
+    {
+        icon: 'grid',
+        title: '130+ utilities',
+        body: 'JSON, JWT, DNS, SSL, PDFs, images and more, in the browser or through the API.',
+        href: '/catalog/',
+    },
+    {
+        icon: 'timer',
+        title: 'Wait for events',
+        body: 'Agents block until a webhook arrives, so tests and flows finish on their own.',
+        href: '/tools/socket-help-mcp/',
+    },
+    {
+        icon: 'mail',
+        title: 'Email inboxes',
+        body: 'An address your agent can read: sign-up codes and magic links, extracted.',
+    },
+    {
+        icon: 'pulse',
+        title: 'Monitors and schedules',
+        body: 'Heartbeats, uptime and SSL checks, and scheduled calls that wake your agent.',
+    },
+    {
+        icon: 'database',
+        title: 'Memory',
+        body: 'A small key-value store so agents remember things between sessions.',
+    },
+    {
+        icon: 'terminal',
+        title: 'Code sandbox',
+        body: 'Run short JavaScript and Python snippets in isolation, with hard limits.',
+    },
+    {
+        icon: 'click',
+        title: 'Ask a human',
+        body: 'Your agent asks before risky steps, and you approve from one email link.',
+    },
+    {
+        icon: 'receipt',
+        title: 'Agent wallet',
+        body: 'A prepaid balance with per-agent spending limits for metered extras.',
     },
 ];
+
+// Competitor figures come from their public pricing pages and FAQs as of October 2026.
+const comparison: { need: string; others: string; ours: string }[] = [
+    {
+        need: 'Webhook inbox lifetime',
+        others: 'webhook.site free URLs: about 7 days',
+        ours: '7 days with a free account',
+    },
+    {
+        need: 'Mock API requests',
+        others: 'Beeceptor free plan: 50 a day',
+        ours: '120 a minute, free',
+    },
+    {
+        need: 'MCP server testing',
+        others: 'MCP Inspector, MCPJam: install and run locally',
+        ours: 'Hosted. Nothing to install.',
+    },
+    {
+        need: 'Use from an AI agent',
+        others: 'A separate product and account for each job',
+        ours: 'One MCP connection for everything',
+    },
+    {
+        need: 'Paid plan',
+        others: 'webhook.site from $7.50, Beeceptor from $10 a month',
+        ours: 'Pro is $2 a month',
+    },
+];
+
+const popular = [
+    'webhooks',
+    'mock-apis-mock-rest-api',
+    'agents-mcp-server-inspector',
+    'files-private-file-sharing',
+    'json',
+    'developer-jwt-inspector',
+    'network-dns-lookup',
+    'network-ssl-tls-inspector',
+    'everyday-merge-pdfs',
+    'everyday-image-compressor',
+    'everyday-qr-code-generator',
+    'everyday-password-generator',
+].flatMap((id) => catalog.filter((tool) => tool.id === id));
 
 const promises: { icon: IconName; title: string; body: string }[] = [
     {
         icon: 'coffee',
-        title: 'Free for everyone',
-        body: 'Every available tool has a useful free allowance. The basics never sit behind a paywall.',
+        title: 'A real free plan',
+        body: 'Free allowances that match or beat other tools’ free tiers. No card, no trial clock.',
+    },
+    {
+        icon: 'shield',
+        title: 'Private by default',
+        body: 'Every inbox, mock and file starts private, with separate access and management tokens.',
     },
     {
         icon: 'eye-off',
         title: 'No ads, ever',
-        body: 'No banners, popups, sponsored results, or tracking analytics. Useful tools without advertising.',
-    },
-    {
-        icon: 'code',
-        title: 'Self-hostable',
-        body: 'Run your own copy with the portable Docker setup. Keep your tools and temporary data on infrastructure you control.',
+        body: 'No banners, popups, sponsored results, or tracking analytics.',
     },
     {
         icon: 'receipt',
         title: 'Limits in plain sight',
-        body: 'Quotas, retention, and expiry are written down before you click, not discovered afterwards.',
+        body: 'Quotas, retention and expiry are written down before you click, not discovered afterwards.',
     },
 ];
 
 const faqs: { question: string; answer: string }[] = [
     {
         question: 'Is socket.help free?',
-        answer: 'Yes. Available tools are free within the published limits, with no account required. Planned tools are marked Coming soon; free accounts add a workspace and larger allowances. Pro and Team checkout opens only when billing is configured.',
+        answer: 'Yes. Every available tool has a free allowance and most need no account. A free account keeps resources for 7 days and adds API keys for your agents. Pro is $2 a month for longer retention and much higher limits.',
     },
     {
         question: 'Do I need an account?',
@@ -93,7 +188,7 @@ const faqs: { question: string; answer: string }[] = [
     },
     {
         question: 'What happens to my files and data?',
-        answer: 'Browser-local tools keep input on your device. Hosted resources start with a one-hour lifetime, with longer retention available within plan limits. Each tool explains what it stores and how to delete it.',
+        answer: 'Browser-local tools keep input on your device. Hosted resources are private by default and expire on schedule: 1 hour without an account, up to 7 days on Free, 30 on Pro and 90 on Team. Each tool explains what it stores and how to delete it.',
     },
     {
         question: 'What does a workspace include?',
@@ -101,7 +196,7 @@ const faqs: { question: string; answer: string }[] = [
     },
     {
         question: 'Can AI agents use socket.help?',
-        answer: 'Yes. socket.help speaks MCP, so agents like Claude Code and Cursor can create mock services, capture callbacks, inspect results, and clean up, using the same resources you see in the browser.',
+        answer: 'That is what it is built for. Connect Claude Code, Cursor, Codex, ChatGPT or any MCP client to one endpoint, and your agent can create inboxes, wait for webhooks, mock APIs, share files and run any utility, with the same resources you see in the browser.',
     },
     {
         question: 'Is there an API and a CLI?',
@@ -138,25 +233,10 @@ const jsonLd = [
 
 function PrimaryAction() {
     return (
-        <Link href="/catalog/" className="lp-button">
-            Browse all {total} tools
+        <Link href="/connect/" className="lp-button">
+            Connect your agent
             <Icon name="arrow" size={16} />
         </Link>
-    );
-}
-
-function AudienceVisual({ index }: { index: number }) {
-    const examples = [
-        { label: 'Format JSON', code: '{"ready":true} → {\n  "ready": true\n}' },
-        { label: 'Mock a response', code: 'GET /orders → 200\n[{ "id": "test-001" }]' },
-        { label: 'Connect an agent', code: 'tools/list → discover\ntools/call → run_tool' },
-    ];
-    const example = examples[index]!;
-    return (
-        <div className="lp-mini lp-example">
-            <span>{example.label} · Example</span>
-            <pre>{example.code}</pre>
-        </div>
     );
 }
 
@@ -173,111 +253,99 @@ export default function Home() {
             <section className="lp-hero" aria-labelledby="hero-heading">
                 <SignalTraces />
                 <div className="lp-container lp-hero-inner">
-                    <HeroPill
-                        stats={`${available} ready · ${total} in the catalog · ${categories.length} categories`}
-                    />
+                    <HeroPill stats="Open beta · Works with Claude Code, Cursor, Codex and ChatGPT" />
                     <h1 id="hero-heading" className="lp-hero-heading">
-                        One toolbox
-                        <br />
-                        for the whole internet.
+                        Everything your AI agent needs from the internet.
                     </h1>
                     <p className="lp-hero-sub">
-                        Free open beta. Format data, test APIs, catch webhooks, and share files.
-                        Free allowances, no ads, and no account needed to start.
+                        Webhook inboxes, mock APIs, MCP servers, file drops and {roundedAvailable}+
+                        tools. Use them in your browser, or give your agent all of them through one
+                        MCP connection. Free to start. Pro is $2 a month.
                     </p>
-                    <CommandBar total={total} />
                     <div className="lp-hero-action">
                         <PrimaryAction />
-                    </div>
-                </div>
-            </section>
-
-            <section className="lp-section lp-container" aria-labelledby="board-heading">
-                <Reveal className="lp-section-head">
-                    <span className="lp-eyebrow">The board</span>
-                    <h2 id="board-heading">{total} tools, one panel</h2>
-                    <p>Every socket is a tool. Pick a category to see what lives there.</p>
-                </Reveal>
-                <Reveal>
-                    <SocketBoard glyphs={glyphs} />
-                </Reveal>
-            </section>
-
-            <section className="lp-section lp-container" aria-label="What socket.help is for">
-                <TaglineReveal
-                    lines={[
-                        'Format some data, mock an API,',
-                        'hand your agent a sandbox.',
-                        'Same place. Same simplicity.',
-                    ]}
-                />
-            </section>
-
-            <section className="lp-section lp-container" aria-labelledby="audience-heading">
-                <Reveal className="lp-section-head">
-                    <h2 id="audience-heading">
-                        Simple enough for anyone, deep enough for engineers
-                    </h2>
-                </Reveal>
-                <div className="lp-audiences">
-                    {audiences.map((audience, index) => (
-                        <Reveal
-                            key={audience.label}
-                            className="lp-card lp-audience"
-                            delay={index * 120}
-                        >
-                            <AudienceVisual index={index} />
-                            <span className="lp-label">
-                                <Icon name={audience.icon} size={14} /> {audience.label}
-                            </span>
-                            <h3>{audience.title}</h3>
-                            <p>{audience.body}</p>
-                        </Reveal>
-                    ))}
-                </div>
-            </section>
-
-            <section className="lp-section lp-container" aria-labelledby="workspace-heading">
-                <Reveal className="lp-workflow">
-                    <div>
-                        <h2 id="workspace-heading">Temporary tools. A workspace that remembers.</h2>
-                        <p>
-                            Create resources, see their expiry, rotate access, and clean up from one
-                            place. A free account keeps your resources and API keys together.
-                        </p>
-                        <Link className="lp-button" href="/account/">
-                            Open your workspace <Icon name="arrow" size={16} />
+                        <Link href="/webhooks/" className="lp-button lp-button-ghost">
+                            Try a webhook inbox
                         </Link>
                     </div>
-                    <ol>
-                        <li>
-                            <span aria-hidden="true">
-                                <Icon name="plus" size={18} />
-                            </span>
-                            <div>
-                                <strong>Create what you need</strong>
-                                <p>A webhook inbox, mock API, MCP server, or file share.</p>
-                            </div>
-                        </li>
-                        <li>
-                            <span aria-hidden="true">
-                                <Icon name="shield" size={18} />
-                            </span>
-                            <div>
-                                <strong>Choose who can use it</strong>
-                                <p>Private access by default. Public sharing when you choose.</p>
-                            </div>
-                        </li>
-                        <li>
-                            <span aria-hidden="true">
-                                <Icon name="timer" size={18} />
-                            </span>
-                            <div>
-                                <strong>Keep track of the lifetime</strong>
-                                <p>Inspect, renew within plan limits, or delete when finished.</p>
-                            </div>
-                        </li>
-                    </ol>
+                    <p className="lp-hero-proof">
+                        No card · Private by default · No ads · API, SDK, CLI and MCP
+                    </p>
+                    <AgentTerminal />
+                </div>
+            </section>
+
+            <section className="lp-section lp-container" aria-labelledby="kit-heading">
+                <Reveal className="lp-section-head">
+                    <span className="lp-eyebrow">The agent kit</span>
+                    <h2 id="kit-heading">One connection. Everything an agent can’t do alone.</h2>
+                    <p>
+                        Agents can write code, but they can’t receive a webhook, keep a URL online
+                        or remember yesterday. socket.help does that part for them.
+                    </p>
+                </Reveal>
+                <div className="lp-kit">
+                    {capabilities.map((item, index) => {
+                        const body = (
+                            <>
+                                <span className="lp-icon">
+                                    <Icon name={item.icon} size={20} />
+                                </span>
+                                <h3>
+                                    {item.title}
+                                    {!item.href && <em className="lp-soon">Coming soon</em>}
+                                </h3>
+                                <p>{item.body}</p>
+                            </>
+                        );
+                        return (
+                            <Reveal key={item.title} delay={(index % 4) * 80}>
+                                {item.href ? (
+                                    <Link href={item.href} className="lp-kit-card">
+                                        {body}
+                                    </Link>
+                                ) : (
+                                    <div className="lp-kit-card is-soon">{body}</div>
+                                )}
+                            </Reveal>
+                        );
+                    })}
+                </div>
+            </section>
+
+            <section className="lp-section lp-container" aria-labelledby="compare-heading">
+                <Reveal className="lp-section-head">
+                    <span className="lp-eyebrow">Worth it?</span>
+                    <h2 id="compare-heading">More free than the free tools. Pro for $2.</h2>
+                    <p>
+                        The jobs people use separate tools for, side by side. Their figures come
+                        from their public pricing pages as of October 2026.
+                    </p>
+                </Reveal>
+                <Reveal className="lp-compare">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th scope="col">What you need</th>
+                                <th scope="col">Elsewhere</th>
+                                <th scope="col">socket.help</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {comparison.map((row) => (
+                                <tr key={row.need}>
+                                    <th scope="row">{row.need}</th>
+                                    <td>{row.others}</td>
+                                    <td>
+                                        <Icon name="check" size={15} /> {row.ours}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    <Link href="/compare/" className="text-link">
+                        See detailed comparisons <Icon name="arrow" size={14} />
+                    </Link>
                 </Reveal>
             </section>
 
@@ -288,13 +356,41 @@ export default function Home() {
                             Click it, curl it, script it, or ask an agent
                         </h2>
                         <p>
-                            Try JSON in the browser, then use the same toolbox from your code,
-                            terminal, or agent.
+                            Every tool works in the browser and from your code, terminal or agent,
+                            with the same limits and the same data.
                         </p>
                     </Reveal>
                     <Reveal>
                         <Interfaces />
                     </Reveal>
+                </div>
+            </section>
+
+            <section className="lp-section lp-container" aria-labelledby="popular-heading">
+                <Reveal className="lp-section-head">
+                    <span className="lp-eyebrow">For people too</span>
+                    <h2 id="popular-heading">Popular tools, ready in the browser</h2>
+                    <p>
+                        No sign-up for most of them. Your files stay on your device where possible.
+                    </p>
+                </Reveal>
+                <div className="lp-popular">
+                    {popular.map((tool, index) => (
+                        <Reveal key={tool.id} delay={(index % 4) * 60}>
+                            <Link href={toolPageHref(tool)} className="lp-popular-item">
+                                <span className="lp-popular-glyph">{glyphs[tool.id]}</span>
+                                <span>
+                                    <strong>{tool.name}</strong>
+                                    <small>{tool.description}</small>
+                                </span>
+                            </Link>
+                        </Reveal>
+                    ))}
+                </div>
+                <div className="lp-center">
+                    <Link href="/catalog/" className="lp-button lp-button-ghost">
+                        Browse all {total} tools <Icon name="arrow" size={16} />
+                    </Link>
                 </div>
             </section>
 
@@ -319,9 +415,9 @@ export default function Home() {
                 <Reveal className="lp-learning">
                     <h2 id="learn-heading">A little context goes a long way.</h2>
                     <div>
-                        <Link href="/blog/">
-                            <strong>Practical guides</strong>
-                            <span>Webhooks, file access, and better API tests.</span>
+                        <Link href="/connect/">
+                            <strong>Connect your agent</strong>
+                            <span>Claude Code, Cursor, Codex, ChatGPT and VS Code setup.</span>
                             <Icon name="arrow" size={18} />
                         </Link>
                         <Link href="/compare/">
@@ -359,20 +455,14 @@ export default function Home() {
 
             <section className="lp-section lp-container" aria-labelledby="final-heading">
                 <Reveal className="lp-final">
-                    <div className="lp-final-sockets" aria-hidden="true">
-                        {categories.map((category) => (
-                            <span key={category.id}>
-                                <Icon name={category.icon} size={18} />
-                            </span>
-                        ))}
-                    </div>
-                    <h2 id="final-heading">
-                        Whatever the job,
-                        <br />
-                        there is a socket for it.
-                    </h2>
+                    <h2 id="final-heading">Give your agent the internet in one minute.</h2>
                     <p>Free to start, nothing to install, and nothing to cancel.</p>
-                    <PrimaryAction />
+                    <div className="lp-hero-action">
+                        <PrimaryAction />
+                        <Link href="/catalog/" className="lp-button lp-button-ghost">
+                            Browse tools
+                        </Link>
+                    </div>
                 </Reveal>
             </section>
         </div>

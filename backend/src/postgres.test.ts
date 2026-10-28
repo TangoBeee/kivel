@@ -8,6 +8,7 @@ import { PostgresInboxStore, PostgresRateLimiter } from './postgres.js';
 import { buildApp } from './app.js';
 import { PostgresResourceStore } from './resources.js';
 import { PostgresMockCalls } from './mock-calls.js';
+import { PostgresEmailMessages } from './email.js';
 import type { CrudState } from '@socket-help/tools/mock-crud';
 import { PostgresRecoveryRepository } from './recovery-store.js';
 import { passwordHash, PostgresIdentityRepository } from './identity.js';
@@ -426,7 +427,7 @@ test('upgrading an existing webhook-only database preserves captures and enables
     await pool.query(
         `DROP TRIGGER inbox_quota ON inboxes; DROP FUNCTION enforce_resource_quota() CASCADE;
          ALTER TABLE inboxes DROP COLUMN owner_id, DROP COLUMN quota_key, DROP COLUMN created_at, DROP COLUMN persistent, DROP COLUMN request_limit, DROP COLUMN byte_limit, DROP COLUMN visibility, DROP COLUMN access_token_hash, DROP COLUMN access_version, DROP COLUMN response, DROP COLUMN forward_url;
-         DROP TABLE mock_calls, inbox_deliveries, user_contact_emails, auth_mail_outbox, auth_challenges, user_recovery_emails, temporary_resources, resource_usage, account_members, auth_sessions, api_keys, account_invites, users, accounts, usage_plans, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events CASCADE; DELETE FROM schema_migrations WHERE version > 1`,
+         DROP TABLE mock_calls, inbox_deliveries, email_messages, user_contact_emails, auth_mail_outbox, auth_challenges, user_recovery_emails, temporary_resources, resource_usage, account_members, auth_sessions, api_keys, account_invites, users, accounts, usage_plans, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events CASCADE; DELETE FROM schema_migrations WHERE version > 1`,
     );
     await Promise.all([migrate(pool), migrate(pool)]);
     assert.equal(
@@ -1140,7 +1141,7 @@ test('Dodo migration preserves legacy Stripe data without adopting its customer 
         user.personalAccountId,
     ]);
     await pool.query(
-        'ALTER TABLE accounts DROP COLUMN dodo_customer_id, DROP COLUMN dodo_subscription_id, DROP COLUMN dodo_event_created, DROP COLUMN dodo_checkout_id, DROP COLUMN dodo_checkout_url, DROP COLUMN dodo_checkout_plan; DROP TABLE dodo_events; ALTER TABLE inboxes DROP COLUMN response, DROP COLUMN forward_url; DROP TABLE mock_calls, inbox_deliveries; DELETE FROM schema_migrations WHERE version >= 8',
+        'ALTER TABLE accounts DROP COLUMN dodo_customer_id, DROP COLUMN dodo_subscription_id, DROP COLUMN dodo_event_created, DROP COLUMN dodo_checkout_id, DROP COLUMN dodo_checkout_url, DROP COLUMN dodo_checkout_plan; DROP TABLE dodo_events; ALTER TABLE inboxes DROP COLUMN response, DROP COLUMN forward_url; DROP TABLE mock_calls, inbox_deliveries, email_messages; DELETE FROM schema_migrations WHERE version >= 8',
     );
     await Promise.all([migrate(pool), migrate(pool)]);
     const row = (
@@ -1220,4 +1221,29 @@ test('inbox forwarding settings and delivery logs persist and keep the newest en
     assert.equal(await store.listDeliveries(inbox.id, 'wrong'), undefined);
     assert.equal(await store.setForward(inbox.id, inbox.inspectionToken, null), true);
     assert.equal((await store.info(inbox.id, inbox.inspectionToken))?.forwardUrl, undefined);
+});
+
+test('email messages persist per inbox, stop at the limit and go with the inbox', async () => {
+    const resources = new PostgresResourceStore(pool);
+    const messages = new PostgresEmailMessages(pool);
+    const inbox = (await resources.create('email', {}, undefined))!;
+    const message = (index: number) => ({
+        id: String(index),
+        receivedAt: new Date().toISOString(),
+        from: 'a@b.test',
+        to: 'x@socketspace.xyz',
+        subject: 'Hi',
+        text: 'code 123456',
+        codes: ['123456'],
+        links: [],
+        attachments: [],
+    });
+    for (let index = 0; index < 100; index++)
+        assert.equal(await messages.record(inbox.id, message(index)), 'stored');
+    assert.equal(await messages.record(inbox.id, message(100)), 'full');
+    assert.equal(await messages.count(inbox.id), 100);
+    assert.equal((await messages.list(inbox.id))[0]!.id, '0');
+    assert.equal(await messages.record('00000000-0000-4000-8000-000000000000', message(0)), 'full');
+    await resources.delete(inbox.id, 'email', inbox.managementToken);
+    assert.equal(await messages.count(inbox.id), 0);
 });

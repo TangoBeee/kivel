@@ -377,6 +377,7 @@ export const backendToolIds = [
         'network-response-builder',
         'agents-mock-mcp-server',
         'agents-socket-help-mcp',
+        'email-temporary-email-inbox',
         'network-http-status-simulator',
         'network-delay-timeout-simulator',
     ]),

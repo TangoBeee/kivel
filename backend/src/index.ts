@@ -1,5 +1,6 @@
 import { PostgresRecoveryRepository } from './recovery-store.js';
 import { PostgresMockCalls } from './mock-calls.js';
+import { PostgresEmailMessages } from './email.js';
 import { smtpSender } from './mail.js';
 import { buildApp } from './app.js';
 import { existsSync } from 'node:fs';
@@ -38,6 +39,10 @@ try {
         ...(config.authSecret ? { authSecret: config.authSecret } : {}),
         ...(pool ? { billingRepository: new BillingRepository(pool) } : {}),
         ...(pool ? { mockCalls: new PostgresMockCalls(pool) } : {}),
+        ...(pool ? { emailMessages: new PostgresEmailMessages(pool) } : {}),
+        ...(config.mailDomain && config.emailIngestSecret
+            ? { mailDomain: config.mailDomain, emailIngestSecret: config.emailIngestSecret }
+            : {}),
         ...(config.billingConfig ? { billingConfig: config.billingConfig } : {}),
         publicBaseUrl: config.publicBaseUrl,
         production: config.production,

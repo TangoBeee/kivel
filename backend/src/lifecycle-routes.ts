@@ -90,6 +90,7 @@ export function registerLifecycle(
         ['mocks', 'mock'],
         ['files', 'file'],
         ['mcp-servers', 'mcp'],
+        ['email-inboxes', 'email'],
     ] as const)
         app.post<{ Params: { id: string } }>(`/api/${path}/:id/renew`, async (request) => {
             const actor = await access.scope(request, 'resources:write'),

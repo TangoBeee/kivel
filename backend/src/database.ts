@@ -150,6 +150,14 @@ export async function migrate(pool: Pool): Promise<void> {
                     call jsonb NOT NULL
                 );
                 CREATE INDEX mock_calls_resource ON mock_calls (resource_id, sequence);
+                ALTER TABLE temporary_resources DROP CONSTRAINT temporary_resources_kind_check;
+                ALTER TABLE temporary_resources ADD CONSTRAINT temporary_resources_kind_check CHECK (kind IN ('mock', 'file', 'mcp', 'email'));
+                CREATE TABLE email_messages (
+                    sequence bigserial PRIMARY KEY,
+                    resource_id uuid NOT NULL REFERENCES temporary_resources(id) ON DELETE CASCADE,
+                    message jsonb NOT NULL
+                );
+                CREATE INDEX email_messages_resource ON email_messages (resource_id, sequence);
                 INSERT INTO schema_migrations (version) VALUES (9);`);
         }
     });

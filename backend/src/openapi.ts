@@ -512,7 +512,7 @@ export function openApi(origin: string) {
                 parameters?: object[];
                 description?: string;
             };
-            if (/^\/api\/(inboxes|mocks|files|mcp-servers)(\/|$)/.test(path)) {
+            if (/^\/api\/(inboxes|mocks|files|mcp-servers|email-inboxes)(\/|$)/.test(path)) {
                 operation.security = [
                     ...(operation.security ??
                         (path.includes('{id}') ? [{ resourceToken: [] }] : [{}])),

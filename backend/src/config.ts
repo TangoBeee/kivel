@@ -170,8 +170,19 @@ export function readConfig(env: Record<string, string | undefined>) {
         resourceCount = positive('MAX_RESOURCES', 10000);
     const inboxBytes = positive('MAX_TOTAL_INBOX_BYTES', 1024 ** 3),
         inboxCount = positive('MAX_INBOXES', 10000);
+    // Agent email inboxes: receive-only, delivered by a Cloudflare Email Worker. Both or neither.
+    const mailDomain = env.MAIL_DOMAIN?.trim().toLowerCase() || undefined;
+    const emailIngestSecret = env.EMAIL_INGEST_SECRET || undefined;
+    if (!!mailDomain !== !!emailIngestSecret)
+        throw new Error('Set MAIL_DOMAIN and EMAIL_INGEST_SECRET together.');
+    if (mailDomain && !/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(mailDomain))
+        throw new Error('MAIL_DOMAIN must be a domain name such as socketspace.xyz.');
+    if (emailIngestSecret && emailIngestSecret.length < 32)
+        throw new Error('EMAIL_INGEST_SECRET must be at least 32 characters.');
     return {
         production,
+        mailDomain,
+        emailIngestSecret,
         resourceBytes,
         resourceCount,
         inboxBytes,

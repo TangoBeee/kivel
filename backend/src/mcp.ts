@@ -135,6 +135,36 @@ export const platformTools = [
         annotations: deletes,
     },
     {
+        name: 'create_email_inbox',
+        description:
+            'Create a receive-only email address (for example to sign up to a site under test). Lasts one hour unless ttlSeconds is set, up to the plan maximum. Save the managementToken, then call wait_for_email.',
+        inputSchema: schema(
+            { ttlSeconds: { type: 'number', description: 'Lifetime in seconds, from 60.' } },
+            [],
+        ),
+        annotations: creates,
+    },
+    {
+        name: 'wait_for_email',
+        description: `Block until the email inbox receives a message, then return new messages with extracted one-time codes and links (verification links first). Pass after (the last message ID seen) to wait for newer ones. Returns timedOut: true after timeoutSeconds (default 25, max ${WAIT_MAX_SECONDS}); call again to keep waiting.`,
+        inputSchema: schema(
+            {
+                ...access,
+                after: stringProperty('Optional message ID; only newer messages are returned.'),
+                timeoutSeconds: { type: 'number' },
+            },
+            ['id', 'token'],
+        ),
+        annotations: readonly,
+    },
+    {
+        name: 'list_emails',
+        description:
+            'Read every message in an email inbox (up to 100): sender, subject, text, HTML, extracted codes and links, attachment names.',
+        inputSchema: schema(access),
+        annotations: readonly,
+    },
+    {
         name: 'create_mock_api',
         description:
             'Create an expiring mock API with static or request-value response templates and optional request-field conditions. Up to 20 routes and 80 KiB total.',
@@ -773,6 +803,38 @@ export function registerMcp({
             response.statusCode >= 400,
         );
     }
+    // Email tools reuse the HTTP routes so quotas, scopes and errors stay identical.
+    async function emailRequest(
+        name: string,
+        value: Record<string, unknown>,
+        request: FastifyRequest,
+    ) {
+        const headers: Record<string, string> = {};
+        for (const key of ['authorization', 'cookie', 'origin'])
+            if (typeof request.headers[key] === 'string') headers[key] = request.headers[key];
+        let url: string;
+        if (name === 'create_email_inbox') {
+            url = `/api/email-inboxes${value.ttlSeconds !== undefined ? `?ttlSeconds=${Number(value.ttlSeconds)}` : ''}`;
+        } else {
+            const { id, token } = credentials(value);
+            if (!isUuid(id)) throw new RpcError(-32602, 'Provide an email inbox UUID.');
+            headers['x-resource-token'] = token;
+            const query = new URLSearchParams();
+            if (typeof value.after === 'string') query.set('after', value.after);
+            if (value.timeoutSeconds !== undefined)
+                query.set('timeoutSeconds', String(value.timeoutSeconds));
+            url = `/api/email-inboxes/${id}/${name === 'wait_for_email' ? 'wait' : 'messages'}${query.size ? `?${query}` : ''}`;
+            // Waiting holds no MCP upload slot, so other calls are not blocked meanwhile.
+            if (name === 'wait_for_email') uploads.delete(request);
+        }
+        const response = await app.inject({
+            method: name === 'create_email_inbox' ? 'POST' : 'GET',
+            url,
+            headers,
+            remoteAddress: request.ip,
+        });
+        return result(response.json(), response.statusCode >= 400);
+    }
     async function resourceRequest(value: Record<string, unknown>, request: FastifyRequest) {
         const kind = String(value.kind ?? ''),
             action = String(value.action ?? '');
@@ -974,32 +1036,38 @@ export function registerMcp({
                                 ? await callMock(values, request)
                                 : params.name === 'resource_request'
                                   ? await resourceRequest(values, request)
-                                  : params.name === 'describe_tool'
-                                    ? result({
-                                          toolId: values.toolId,
-                                          guide: executionGuide(String(values.toolId)) ?? null,
-                                      })
-                                    : params.name === 'search_tools'
+                                  : [
+                                          'create_email_inbox',
+                                          'wait_for_email',
+                                          'list_emails',
+                                      ].includes(params.name)
+                                    ? await emailRequest(params.name, values, request)
+                                    : params.name === 'describe_tool'
                                       ? result({
-                                            tools: searchExecutable(
-                                                typeof values.query === 'string'
-                                                    ? values.query
-                                                    : '',
-                                            ),
+                                            toolId: values.toolId,
+                                            guide: executionGuide(String(values.toolId)) ?? null,
                                         })
-                                      : params.name === 'list_tools'
-                                        ? result({ tools: executableIds })
-                                        : params.name === 'run_tool'
-                                          ? result(
-                                                await tools.run(request, String(values.toolId), {
-                                                    input: values.input ?? '',
-                                                    options: values.options ?? {},
-                                                    ...(values.files || values.file
-                                                        ? { file: values.files ?? values.file }
-                                                        : {}),
-                                                }),
-                                            )
-                                          : await callPlatform(params.name, values, request);
+                                      : params.name === 'search_tools'
+                                        ? result({
+                                              tools: searchExecutable(
+                                                  typeof values.query === 'string'
+                                                      ? values.query
+                                                      : '',
+                                              ),
+                                          })
+                                        : params.name === 'list_tools'
+                                          ? result({ tools: executableIds })
+                                          : params.name === 'run_tool'
+                                            ? result(
+                                                  await tools.run(request, String(values.toolId), {
+                                                      input: values.input ?? '',
+                                                      options: values.options ?? {},
+                                                      ...(values.files || values.file
+                                                          ? { file: values.files ?? values.file }
+                                                          : {}),
+                                                  }),
+                                              )
+                                            : await callPlatform(params.name, values, request);
                     }
                     break;
                 }

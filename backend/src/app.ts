@@ -21,6 +21,8 @@ import { registerResources } from './resource-routes.js';
 import { registerMcp } from './mcp.js';
 import { Waiters, waitForRequests, waitSeconds } from './waiting.js';
 import { MemoryMockCalls } from './mock-calls.js';
+import { MemoryEmailMessages, registerEmail } from './email.js';
+import type { EmailMessageRepository } from './email.js';
 import { Forwarder } from './forwarding.js';
 import type { ForwardSend } from './forwarding.js';
 import { publicRequest, publicUrl } from './public-network.js';
@@ -58,6 +60,9 @@ interface AppOptions {
     forwardSend?: ForwardSend;
     forwardDelays?: number[];
     mockProxySend?: typeof publicRequest;
+    emailMessages?: EmailMessageRepository;
+    mailDomain?: string;
+    emailIngestSecret?: string;
 }
 
 interface InboxRoute {
@@ -100,6 +105,9 @@ export function buildApp({
     forwardSend,
     forwardDelays,
     mockProxySend,
+    emailMessages = new MemoryEmailMessages(),
+    mailDomain,
+    emailIngestSecret,
 }: AppOptions = {}) {
     const ledger = new MemoryAllocations();
     const inboxStore = providedInboxes ?? new InboxStore({ quotaLedger: ledger });
@@ -293,7 +301,9 @@ export function buildApp({
             return;
         if (request.url.startsWith('/api/') || request.url.split('?')[0] === '/mcp') {
             await access.rate(request);
-            if (/^\/api\/(inboxes|mocks|files|mcp-servers)(\/|\?|$)/.test(request.url))
+            if (
+                /^\/api\/(inboxes|mocks|files|mcp-servers|email-inboxes)(\/|\?|$)/.test(request.url)
+            )
                 await access.scope(
                     request,
                     ['GET', 'HEAD'].includes(request.method) ? 'resources:read' : 'resources:write',
@@ -603,6 +613,15 @@ export function buildApp({
     registerTools(app, access, tools);
     registerMusic(app, frontendDir);
     registerLifecycle(app, access, inboxStore, resourceStore);
+    registerEmail({
+        app,
+        access,
+        resources: resourceStore,
+        messages: emailMessages,
+        waiters,
+        ...(mailDomain ? { mailDomain } : {}),
+        ...(emailIngestSecret ? { ingestSecret: emailIngestSecret } : {}),
+    });
     registerResources(
         app,
         resourceStore,

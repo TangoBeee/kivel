@@ -10,7 +10,7 @@ export const RESOURCE_TTL_MS = 60 * 60 * 1000;
 export const MAX_RESOURCES = 500;
 export const MAX_RESOURCE_BYTES = 128 * 1024 * 1024;
 export const MAX_FILE_BYTES = 10 * 1024 * 1024;
-export type ResourceKind = 'mock' | 'file' | 'mcp';
+export type ResourceKind = 'mock' | 'file' | 'mcp' | 'email';
 export type MockAccess = PublicAccess & { managementToken?: string };
 export interface Resource extends Sharing {
     id: string;

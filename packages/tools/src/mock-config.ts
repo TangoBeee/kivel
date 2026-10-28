@@ -21,6 +21,8 @@ export interface MockConfig {
     routes: MockRoute[];
     crud?: CrudConfig;
     echo?: true;
+    /** Unmatched calls go to this API; with record, its answers become new routes. */
+    proxy?: { target: string; record: boolean };
 }
 export const mockPayload = (config: MockConfig) => ({
     ...config,
@@ -36,7 +38,10 @@ export function validateMock(value: unknown): MockConfig {
         !value.name.trim() ||
         value.name.length > 80 ||
         !Array.isArray(value.routes) ||
-        (!value.routes.length && value.crud === undefined && value.echo !== true) ||
+        (!value.routes.length &&
+            value.crud === undefined &&
+            value.echo !== true &&
+            value.proxy === undefined) ||
         value.routes.length > 20
     )
         throw new Error('Provide a name and either 1–20 static routes or a CRUD collection.');
@@ -215,6 +220,23 @@ export function validateMock(value: unknown): MockConfig {
             headers,
         };
     });
+    let proxy: MockConfig['proxy'];
+    if (value.proxy !== undefined) {
+        const input = value.proxy;
+        if (
+            !object(input) ||
+            typeof input.target !== 'string' ||
+            input.target.length > 2048 ||
+            !/^https?:\/\/[^\s]+$/i.test(input.target) ||
+            (input.record !== undefined && typeof input.record !== 'boolean') ||
+            value.echo !== undefined ||
+            value.crud !== undefined
+        )
+            throw new Error(
+                'proxy needs a target http(s) URL and an optional record flag, without echo or CRUD.',
+            );
+        proxy = { target: input.target, record: input.record === true };
+    }
     const crud = value.crud === undefined ? undefined : validateCrud(value.crud);
     if (
         crud &&
@@ -231,6 +253,7 @@ export function validateMock(value: unknown): MockConfig {
         routes,
         ...(value.echo === true ? { echo: true as const } : {}),
         ...(crud ? { crud } : {}),
+        ...(proxy ? { proxy } : {}),
     };
     if (byteLength(JSON.stringify(config)) > 80 * 1024)
         throw new Error('The complete configuration must fit within 80 KiB.');

@@ -6,7 +6,9 @@ import { echoRequest } from './http-echo.js';
 import { Readable } from 'node:stream';
 import { setTimeout as delay } from 'node:timers/promises';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import { resourceToken as token } from './access.js';
+import { HttpError, resourceToken as token } from './access.js';
+import type { Actor } from './access.js';
+import { publicRequest, publicUrl } from './public-network.js';
 import type { Access } from './access.js';
 import type { ResourceRepository } from './resources.js';
 import { MAX_FILE_BYTES } from './resources.js';
@@ -18,6 +20,25 @@ import { crudPath, initialCrud, executeCrud } from '@socket-help/tools/mock-crud
 import type { CrudState, CrudReply } from '@socket-help/tools/mock-crud';
 import { parseJsonSafely } from '@socket-help/tools/engine';
 export { validateMock, mockPayload } from '@socket-help/tools/mock-config';
+
+/** Proxy mocks are a paid feature and may only point at public APIs other than socket.help. */
+export function checkMockProxy(config: MockConfig, actor: Actor, origin: string) {
+    if (!config.proxy) return;
+    if (actor.plan !== 'pro' && actor.plan !== 'team')
+        throw new HttpError(403, 'Proxy and record mocks are part of the Pro and Team plans.');
+    let target: URL;
+    try {
+        target = publicUrl(config.proxy.target);
+    } catch {
+        throw new HttpError(400, 'The proxy target must be a public http(s) URL.');
+    }
+    if (target.hostname === new URL(origin).hostname)
+        throw new HttpError(400, 'Proxy to your own API, not socket.help.');
+}
+
+const proxiedTypes =
+    /^(application\/(json|problem\+json|xml)|text\/(plain|csv|xml))(;\s*charset=[\w-]+)?$/i;
+const PROXY_BODY_LIMIT = 256 * 1024;
 export type { MockRoute, MockConfig } from '@socket-help/tools/mock-config';
 const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD', 'ANY'];
 const missing = { error: 'Resource not found or access denied.' };
@@ -41,6 +62,7 @@ export function registerResources(
     origin: string,
     access: Access,
     calls: MockCallRepository = new MemoryMockCalls(),
+    proxySend: typeof publicRequest = publicRequest,
 ) {
     const transfers = new Set<FastifyRequest>();
     const streams = new Set<AbortController>();
@@ -74,6 +96,7 @@ export function registerResources(
         } catch (error) {
             return reply.code(400).send({ error: (error as Error).message });
         }
+        checkMockProxy(config, await access.actor(request), origin);
         const created = await store.create(
             'mock',
             mockPayload(config),
@@ -102,6 +125,7 @@ export function registerResources(
         } catch (error) {
             return reply.code(400).send({ error: (error as Error).message });
         }
+        checkMockProxy(config, await access.actor(request), origin);
         const ownerId = (await access.actor(request)).identity?.account.id;
         const result = await store.mutateMock(
             request.params.id,
@@ -543,6 +567,83 @@ export function registerResources(
                         matches(request.method) ??
                         (request.method === 'HEAD' ? matches('GET') : undefined) ??
                         matches('ANY');
+                    if (!route && config.proxy) {
+                        const target = new URL(config.proxy.target);
+                        target.pathname = `${target.pathname.replace(/\/$/, '')}${path}` || '/';
+                        target.search = request.url.split('?')[1] ?? '';
+                        const outgoing = Buffer.isBuffer(request.body) ? request.body : undefined;
+                        const method = request.method as 'GET';
+                        let upstream;
+                        try {
+                            upstream = await proxySend(target.href, AbortSignal.timeout(8000), {
+                                method,
+                                headers: {
+                                    ...(typeof request.headers['content-type'] === 'string'
+                                        ? { 'Content-Type': request.headers['content-type'] }
+                                        : {}),
+                                    Accept: String(request.headers.accept ?? '*/*'),
+                                },
+                                ...(outgoing?.length
+                                    ? { requestBody: outgoing.toString('utf8') }
+                                    : {}),
+                                limit: PROXY_BODY_LIMIT,
+                            });
+                        } catch {
+                            return reply
+                                .code(502)
+                                .send({ error: 'The proxied API did not answer in time.' });
+                        }
+                        const upstreamType = String(upstream.headers['content-type'] ?? '');
+                        const safeType = proxiedTypes.test(upstreamType)
+                            ? upstreamType
+                            : 'application/octet-stream';
+                        const recordable =
+                            config.proxy.record &&
+                            safeType !== 'application/octet-stream' &&
+                            !upstream.truncated &&
+                            upstream.body.length <= 50 * 1024 &&
+                            upstream.status >= 200 &&
+                            upstream.status <= 599 &&
+                            !['HEAD', 'OPTIONS'].includes(request.method) &&
+                            /^\/(?:[a-zA-Z0-9._~-]+\/?)*$/.test(path);
+                        if (recordable)
+                            await store.mutateMock(request.params.id, caller, (payload) => {
+                                const current = payload as unknown as MockConfig;
+                                if (
+                                    current.routes.length >= 20 ||
+                                    current.routes.some(
+                                        (item) =>
+                                            item.method === request.method && item.path === path,
+                                    )
+                                )
+                                    return { payload, result: false };
+                                return {
+                                    payload: {
+                                        ...payload,
+                                        routes: [
+                                            ...current.routes,
+                                            {
+                                                method: request.method,
+                                                path,
+                                                status: upstream.status,
+                                                body: upstream.body.toString('utf8'),
+                                                headers: {
+                                                    'content-type': safeType.split(';')[0]!,
+                                                },
+                                                delayMs: 0,
+                                            },
+                                        ],
+                                    },
+                                    result: true,
+                                };
+                            });
+                        return reply
+                            .header('Content-Security-Policy', "default-src 'none'; sandbox")
+                            .header('X-Mock-Proxied', 'true')
+                            .type(safeType)
+                            .code(upstream.status)
+                            .send(request.method === 'HEAD' ? undefined : upstream.body);
+                    }
                     if (!route) return reply.code(404).send({ error: 'No matching mock route.' });
                     // Simulated outages let callers test retries without a separate failing route.
                     if (route.failureRate && Math.random() * 100 < route.failureRate) {

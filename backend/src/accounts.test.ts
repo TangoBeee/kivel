@@ -608,3 +608,65 @@ test('Pro inboxes forward captured webhooks with retries and keep a delivery log
     await new Promise((resolve) => setTimeout(resolve, 50));
     assert.equal(sent.length, 2);
 });
+
+test('Pro proxy mocks pass unmatched calls through, never serve HTML, and record answers as routes', async (t) => {
+    const identities = new MemoryIdentityRepository();
+    const calls: string[] = [];
+    const app = buildApp({
+        identityStore: identities,
+        mockProxySend: async (url, _signal, options = {}) => {
+            calls.push(`${options.method} ${url} ${options.requestBody ?? ''}`);
+            const html = url.includes('/page');
+            return {
+                url,
+                status: html ? 200 : 201,
+                headers: { 'content-type': html ? 'text/html' : 'application/json' },
+                body: Buffer.from(html ? '<script>x</script>' : '{"real":true}'),
+                truncated: false,
+                address: '93.184.216.34',
+                timings: { dnsMs: 1, responseMs: 1, totalMs: 2 },
+            } as Awaited<ReturnType<typeof import('./public-network.js').publicRequest>>;
+        },
+    });
+    t.after(() => app.close());
+    const owner = await signup(app, 'proxier'),
+        credential = await key(app, owner.cookie),
+        headers = { authorization: `Bearer ${credential.key}` };
+    const create = (proxy: object) =>
+        app.inject({
+            method: 'POST',
+            url: '/api/mocks?visibility=public',
+            headers,
+            payload: { name: 'Proxy', routes: [], proxy },
+        });
+    assert.equal((await create({ target: 'https://api.example.com' })).statusCode, 403);
+    await identities.setEntitlement(
+        owner.account.id,
+        'pro',
+        new Date(Date.now() + 86400000).toISOString(),
+    );
+    assert.equal((await create({ target: 'http://10.0.0.1/' })).statusCode, 400);
+    const mock = (await create({ target: 'https://api.example.com/v1', record: true })).json();
+    const first = await app.inject({
+        method: 'POST',
+        url: `/mock/${mock.id}/orders?x=1`,
+        headers: { 'content-type': 'application/json' },
+        payload: '{"a":1}',
+    });
+    assert.equal(first.statusCode, 201);
+    assert.equal(first.headers['x-mock-proxied'], 'true');
+    assert.equal(calls[0], 'POST https://api.example.com/v1/orders?x=1 {"a":1}');
+    const page = await app.inject({ url: `/mock/${mock.id}/page` });
+    assert.match(String(page.headers['content-type']), /octet-stream/);
+    const stored = (await app.inject({ url: `/api/mocks/${mock.id}`, headers })).json();
+    assert.deepEqual(
+        stored.routes.map(
+            (route: { method: string; path: string }) => `${route.method} ${route.path}`,
+        ),
+        ['POST /orders'],
+    );
+    const replay = await app.inject({ method: 'POST', url: `/mock/${mock.id}/orders` });
+    assert.equal(replay.statusCode, 201);
+    assert.equal(replay.headers['x-mock-proxied'], undefined);
+    assert.equal(calls.length, 2);
+});

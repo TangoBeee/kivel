@@ -9,6 +9,7 @@ import { Access, resourceToken, HttpError } from './access.js';
 import { executableIds, executionGuide, searchExecutable } from './tool-routes.js';
 import type { ToolService } from './tool-routes.js';
 import { validateMock, mockPayload } from '@socket-help/tools/mock-config';
+import { checkMockProxy } from './resource-routes.js';
 import { crudSchema } from '@socket-help/tools/mock-crud';
 import { waitForRequests, waitSeconds, WAIT_MAX_SECONDS } from './waiting.js';
 import type { Waiters } from './waiting.js';
@@ -603,6 +604,7 @@ export function registerMcp({
                 } catch (error) {
                     return result({ error: (error as Error).message }, true);
                 }
+                checkMockProxy(config, actor, origin);
                 const mock = await resources.create(
                     'mock',
                     mockPayload(config),

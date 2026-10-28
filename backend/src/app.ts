@@ -23,7 +23,7 @@ import { Waiters, waitForRequests, waitSeconds } from './waiting.js';
 import { MemoryMockCalls } from './mock-calls.js';
 import { Forwarder } from './forwarding.js';
 import type { ForwardSend } from './forwarding.js';
-import { publicUrl } from './public-network.js';
+import { publicRequest, publicUrl } from './public-network.js';
 import type { MockCallRepository } from './mock-calls.js';
 import { MemoryAllocations, QuotaError } from './allocations.js';
 import { Access, HttpError, resourceToken } from './access.js';
@@ -57,6 +57,7 @@ interface AppOptions {
     mockCalls?: MockCallRepository;
     forwardSend?: ForwardSend;
     forwardDelays?: number[];
+    mockProxySend?: typeof publicRequest;
 }
 
 interface InboxRoute {
@@ -98,6 +99,7 @@ export function buildApp({
     mockCalls = new MemoryMockCalls(),
     forwardSend,
     forwardDelays,
+    mockProxySend,
 }: AppOptions = {}) {
     const ledger = new MemoryAllocations();
     const inboxStore = providedInboxes ?? new InboxStore({ quotaLedger: ledger });
@@ -601,7 +603,15 @@ export function buildApp({
     registerTools(app, access, tools);
     registerMusic(app, frontendDir);
     registerLifecycle(app, access, inboxStore, resourceStore);
-    registerResources(app, resourceStore, rateLimiter, baseUrl.origin, access, mockCalls);
+    registerResources(
+        app,
+        resourceStore,
+        rateLimiter,
+        baseUrl.origin,
+        access,
+        mockCalls,
+        mockProxySend,
+    );
     registerMcp({
         app,
         inboxes: inboxStore,

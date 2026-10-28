@@ -64,6 +64,16 @@ export function resourceOpenApi(origin: string) {
                 description:
                     'Reflect request metadata and body as JSON. Requires routes: [] and no crud. Credential fields are redacted; request content is not retained.',
             },
+            proxy: {
+                type: 'object',
+                required: ['target'],
+                description:
+                    'Pro and Team. Calls that match no route are sent to target (a public http(s) API) and its answer is returned with X-Mock-Proxied: true; non-text answers are served as application/octet-stream. With record: true, each new JSON, XML or text answer up to 50 KiB is saved as a route, up to 20 routes.',
+                properties: {
+                    target: { type: 'string', format: 'uri', maxLength: 2048 },
+                    record: { type: 'boolean', default: false },
+                },
+            },
         },
         example: {
             name: 'Users API',

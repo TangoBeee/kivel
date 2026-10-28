@@ -24,6 +24,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
         })),
         { path: '/plans/' },
         { path: '/integrations/' },
+        { path: '/connect/' },
         { path: '/privacy/' },
         { path: '/terms/' },
         { path: '/refunds/' },

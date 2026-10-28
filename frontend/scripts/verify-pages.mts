@@ -60,6 +60,7 @@ const contentPaths = [
     ...docPages.map((page) => `/docs/${page.slug}/`),
     '/plans/',
     '/integrations/',
+    '/connect/',
     '/privacy/',
     '/refunds/',
     '/contact/',

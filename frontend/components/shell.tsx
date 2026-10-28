@@ -14,6 +14,11 @@ const links = [
         label: 'Explore tools',
         match: (path: string) => path.startsWith('/catalog'),
     },
+    {
+        href: '/connect/',
+        label: 'For agents',
+        match: (path: string) => path.startsWith('/connect'),
+    },
     { href: '/docs/', label: 'API', match: (path: string) => path.startsWith('/docs') },
     { href: '/plans/', label: 'Plans', match: (path: string) => path === '/plans' },
 ];

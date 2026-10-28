@@ -178,7 +178,7 @@ test('Dodo prices use live product minor units and reject unsupported billing co
                 is_recurring: true,
                 price: {
                     type: 'recurring_price',
-                    price: String(url).includes('pdt_team') ? 2400 : 600,
+                    price: String(url).includes('pdt_team') ? 600 : 200,
                     currency: 'USD',
                     payment_frequency_count: 1,
                     payment_frequency_interval: 'Month',
@@ -197,7 +197,7 @@ test('Dodo prices use live product minor units and reject unsupported billing co
     const response = await app.inject('/api/billing');
     assert.equal(response.statusCode, 200, response.body);
     assert.equal(response.json().provider, 'dodo');
-    assert.equal(response.json().prices[0].amount, 600);
+    assert.equal(response.json().prices[0].amount, 200);
     trial = 7;
     const bad = buildApp({
         dodoClient: dodo,

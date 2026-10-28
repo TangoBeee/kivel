@@ -1010,7 +1010,7 @@ test('Dodo checkout is serialized, reused, owner-only and does not grant access 
                     is_recurring: true,
                     price: {
                         type: 'recurring_price',
-                        price: url.pathname.endsWith('pdt_team') ? 2400 : 600,
+                        price: url.pathname.endsWith('pdt_team') ? 600 : 200,
                         currency: 'USD',
                         payment_frequency_count: 1,
                         payment_frequency_interval: 'Month',

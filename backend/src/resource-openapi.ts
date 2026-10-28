@@ -396,6 +396,14 @@ export function resourceOpenApi(origin: string) {
                 type: 'object',
                 required: ['method', 'path', 'status', 'body'],
                 properties: {
+                    failureRate: {
+                        type: 'integer',
+                        minimum: 0,
+                        maximum: 100,
+                        description:
+                            'Percentage of calls answered with failureStatus and X-Mock-Simulated-Failure: true, to test retries.',
+                    },
+                    failureStatus: { type: 'integer', minimum: 400, maximum: 599, default: 503 },
                     template: {
                         type: 'boolean',
                         default: false,

@@ -903,6 +903,25 @@ export function ResourceWorkbench({
                             />
                         </label>
                         <label>
+                            Random failures (%)
+                            <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                value={route.failureRate ?? 0}
+                                disabled={busy}
+                                title="Share of calls answered with 503, to test retries"
+                                onChange={(event) => {
+                                    const rate = Number(event.target.value);
+                                    patch(
+                                        rate
+                                            ? { failureRate: rate, failureStatus: 503 }
+                                            : { failureRate: undefined, failureStatus: undefined },
+                                    );
+                                }}
+                            />
+                        </label>
+                        <label>
                             Delivery
                             <AppSelect
                                 value={route.stream?.mode ?? 'single'}

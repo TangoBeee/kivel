@@ -544,6 +544,15 @@ export function registerResources(
                         (request.method === 'HEAD' ? matches('GET') : undefined) ??
                         matches('ANY');
                     if (!route) return reply.code(404).send({ error: 'No matching mock route.' });
+                    // Simulated outages let callers test retries without a separate failing route.
+                    if (route.failureRate && Math.random() * 100 < route.failureRate) {
+                        if (route.delayMs)
+                            await new Promise((resolve) => setTimeout(resolve, route.delayMs));
+                        return reply
+                            .header('X-Mock-Simulated-Failure', 'true')
+                            .code(route.failureStatus ?? 503)
+                            .send({ error: 'Simulated failure from socket.help mock.' });
+                    }
                     if (route.requestsPerMinute !== undefined) {
                         const retry = await limits.consume(
                             `mock-quota:${resource.id}:${route.method}:${route.path}`,

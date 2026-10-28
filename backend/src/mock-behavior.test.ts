@@ -275,3 +275,25 @@ test('fake data placeholders render fresh JSON-safe sample values', async (t) =>
         uuids.add((await app.inject({ url: `/mock/${mock.id}/users/7` })).json().uuid);
     assert.equal(uuids.size, 5);
 });
+
+test('routes can fail a share of calls on purpose and reject impossible rates', async (t) => {
+    const app = buildApp();
+    t.after(() => app.close());
+    const create = (extra: object) =>
+        app.inject({
+            method: 'POST',
+            url: '/api/mocks?visibility=public',
+            payload: {
+                name: 'Chaos',
+                routes: [{ method: 'GET', path: '/pay', status: 200, body: '{}', ...extra }],
+            },
+        });
+    assert.equal((await create({ failureRate: 150 })).statusCode, 400);
+    assert.equal((await create({ failureRate: 10, failureStatus: 302 })).statusCode, 400);
+    const always = (await create({ failureRate: 100, failureStatus: 502 })).json();
+    const failed = await app.inject({ url: `/mock/${always.id}/pay` });
+    assert.equal(failed.statusCode, 502);
+    assert.equal(failed.headers['x-mock-simulated-failure'], 'true');
+    const never = (await create({ failureRate: 0 })).json();
+    assert.equal((await app.inject({ url: `/mock/${never.id}/pay` })).statusCode, 200);
+});

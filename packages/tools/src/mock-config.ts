@@ -12,6 +12,9 @@ export interface MockRoute {
     condition?: { source: 'header' | 'query' | 'body'; key: string; value: string };
     requestsPerMinute?: number;
     stream?: { mode: 'sse' | 'text'; intervalMs: number };
+    /** Percentage of calls (1-100) answered with failureStatus instead of the configured response. */
+    failureRate?: number;
+    failureStatus?: number;
 }
 export interface MockConfig {
     name: string;
@@ -73,6 +76,17 @@ export function validateMock(value: unknown): MockConfig {
             );
         if (item.template !== undefined && typeof item.template !== 'boolean')
             throw new Error('Template must be a boolean.');
+        const failureRate = Number(item.failureRate ?? 0);
+        const failureStatus = Number(item.failureStatus ?? 503);
+        if (
+            !Number.isInteger(failureRate) ||
+            failureRate < 0 ||
+            failureRate > 100 ||
+            !Number.isInteger(failureStatus) ||
+            failureStatus < 400 ||
+            failureStatus > 599
+        )
+            throw new Error('failureRate must be 0–100 and failureStatus 400–599.');
         let condition: MockRoute['condition'];
         if (item.condition !== undefined) {
             const rule = item.condition;
@@ -186,6 +200,7 @@ export function validateMock(value: unknown): MockConfig {
             headers['content-type'] = stream.mode === 'sse' ? 'text/event-stream' : 'text/plain';
         }
         return {
+            ...(failureRate ? { failureRate, failureStatus } : {}),
             ...(stream ? { stream } : {}),
             ...(condition ? { condition } : {}),
             ...(item.template ? { template: true } : {}),

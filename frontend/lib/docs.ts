@@ -731,6 +731,11 @@ curl https://socket.help/mock/MOCK_ID/users/42
                         ],
                         ['delayMs', 'No', '0 to 2000 milliseconds, default 0'],
                         [
+                            'failureRate',
+                            'No',
+                            '0 to 100: share of calls answered with failureStatus (400 to 599, default 503) and X-Mock-Simulated-Failure: true',
+                        ],
+                        [
                             'template',
                             'No',
                             'true to insert request values into a JSON or plain text body',

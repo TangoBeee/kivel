@@ -26,13 +26,13 @@ export const comparisons: Comparison[] = [
         name: 'Webhook.site',
         focus: 'Webhook testing',
         description:
-            'socket.help gives private, short-lived webhook inboxes next to other dev tools; Webhook.site adds email, custom responses, forwarding, and automation.',
+            'socket.help gives private webhook inboxes with custom responses, forwarding, email inboxes and MCP for agents; Webhook.site adds workflows, schedules and custom domains.',
         summary:
-            'Both give a callback a temporary destination. socket.help inboxes are private by default and sit next to mocks, files, utilities, and MCP. Webhook.site adds email addresses, custom responses, and a larger automation platform.',
+            'Both give a callback a temporary destination with a custom response. socket.help inboxes are private by default, forward to your server on Pro, and sit next to email inboxes, mocks, files, utilities and MCP for agents. Webhook.site adds a larger automation platform with workflows and schedules.',
         socketFit:
             'Choose socket.help when a disposable inbox is one part of a development workflow: capture a callback, format its JSON, test a mock response, or let an MCP agent inspect the result.',
         otherFit:
-            'Choose Webhook.site when you need a longer-lived URL, an email address, a custom response, or webhook forwarding, custom actions, and schedules. Its documentation covers automation beyond request inspection.',
+            'Choose Webhook.site when you need custom actions, workflows, schedules or custom domains. Its documentation covers automation well beyond request inspection.',
         rows: [
             {
                 topic: 'Main workflow',
@@ -51,17 +51,17 @@ export const comparisons: Comparison[] = [
             },
             {
                 topic: 'Response to the sender',
-                socket: 'A fixed 200 response with a request ID. Use a separate mock API for custom responses.',
+                socket: 'Any status from 200 to 599, a JSON, text or XML body, X- headers and a delay of up to 5 seconds.',
                 other: 'The default response can be edited on free URLs.',
             },
             {
                 topic: 'Related work',
-                socket: 'Mock APIs, mock MCP servers, temporary file shares, local utilities, and platform MCP.',
+                socket: 'Receive-only email inboxes, forwarding with retries on Pro, replay, mock APIs, file shares, utilities and MCP tools such as wait_for_webhook.',
                 other: 'Forwarding, schedules, CSV export, and email workflows on paid plans.',
             },
         ],
         limitations:
-            'socket.help does not currently forward requests, receive email, customize the inbox response, or run scheduled actions. Its one-hour anonymous lifetime (up to seven days with a free account) covers a test session and most delayed callbacks.',
+            'socket.help does not run workflows, custom actions or schedules, and forwarding to a public URL is a Pro feature that skips binary bodies. Its one-hour anonymous lifetime (up to seven days with a free account) covers a test session and most delayed callbacks.',
         sources: [
             {
                 title: 'Webhook.site FAQ: features, privacy, and retention',
@@ -73,19 +73,18 @@ export const comparisons: Comparison[] = [
             { title: 'HMAC generator', href: '/tools/hmac-generator/' },
             { title: 'Webhook testing guide', href: '/blog/test-webhooks-without-a-server/' },
         ],
-        reviewedAt: '2026-10-27',
+        reviewedAt: '2026-10-29',
         bestFor: {
             socket: [
                 'You want captured payloads private unless you choose public access',
-                'The test fits within an hour, or a day with a free account',
+                'The test fits within an hour, or seven days with a free account',
                 'You also need a mock API, file share, or JSON formatter in the same session',
                 'An MCP agent should create and read the inbox',
             ],
             other: [
-                'A callback may arrive days later',
-                'You need a temporary email address as well as a URL',
-                'The sender expects a specific custom response',
-                'You want forwarding, custom actions, or schedules',
+                'A callback may arrive weeks later on a free URL',
+                'You want custom actions or workflows on each request',
+                'You need schedules or a custom domain',
             ],
         },
         faqs: [
@@ -106,8 +105,8 @@ export const comparisons: Comparison[] = [
                 answer: 'Anonymous inboxes start with a one-hour lifetime and hold up to 100 requests or 1 MiB. Free accounts can keep resources for up to seven days, with up to 1,000 requests or 10 MiB per inbox.',
             },
             {
-                question: 'Can socket.help forward webhooks to localhost?',
-                answer: 'No. socket.help captures requests for inspection; it does not forward them to another URL or to your machine.',
+                question: 'Can socket.help forward webhooks to my server?',
+                answer: 'Yes. On Pro and Team, an inbox can forward every captured request to a public URL, with retries after server errors and a delivery log. Any captured request can also be replayed to a URL from the inbox page.',
             },
         ],
     },
@@ -131,7 +130,7 @@ export const comparisons: Comparison[] = [
             },
             {
                 topic: 'Response behavior',
-                socket: 'Up to 20 static routes with simple templates and conditions, plus one seeded CRUD collection with record editing and reset.',
+                socket: 'Up to 20 routes with request-value and fake-data templates, conditions, random failure rates and a live call log, plus one seeded CRUD collection with record editing and reset.',
                 other: 'Templating helpers with Faker.js data, multiple responses with rules, CRUD routes, data buckets, and callbacks.',
             },
             {
@@ -151,7 +150,7 @@ export const comparisons: Comparison[] = [
             },
         ],
         limitations:
-            'socket.help mocks do not proxy upstream requests, record traffic, generate Faker data, or support WebSockets. OpenAPI import accepts JSON only, with local references and up to 20 routes.',
+            'socket.help fake data covers about twenty common fields rather than the full Faker.js library, proxy and record is a Pro feature limited to 20 recorded routes, and WebSockets are not supported. OpenAPI import accepts JSON only, with local references and up to 20 routes.',
         sources: [
             {
                 title: 'Mockoon documentation and application scope',
@@ -173,7 +172,7 @@ export const comparisons: Comparison[] = [
             { title: 'Mock response templates', href: '/tools/mock-response-templates/' },
             { title: 'Testing error responses', href: '/blog/mock-api-error-responses/' },
         ],
-        reviewedAt: '2026-10-27',
+        reviewedAt: '2026-10-29',
         bestFor: {
             socket: [
                 'You need a reachable mock URL without installing anything',
@@ -183,8 +182,8 @@ export const comparisons: Comparison[] = [
             ],
             other: [
                 'You want mocks that run locally on your machine',
-                'Responses need Faker data, proxying, or reusable local environments',
-                'You need proxying, recording, or WebSockets',
+                'Responses need the full Faker.js library or reusable local environments',
+                'You need WebSockets or mocks that run offline',
                 'Mock definitions should live in your repository and run in CI',
             ],
         },
@@ -293,13 +292,13 @@ export const comparisons: Comparison[] = [
         name: 'Beeceptor',
         focus: 'API mocking',
         description:
-            'socket.help keeps mock APIs and webhook inboxes private by default with short lifetimes; Beeceptor adds proxying, tunnels, stateful CRUD, gRPC, and SOAP.',
+            'socket.help mock APIs are private by default, log every call, generate fake data and proxy real APIs on Pro for $2; Beeceptor adds tunnels, gRPC and SOAP.',
         summary:
             'Both give you a hosted endpoint you can inspect and mock without writing a server. socket.help endpoints are private by default and expire on their own. Beeceptor endpoints are public by default and cover more protocols and behaviors.',
         socketFit:
-            'Choose socket.help for a short test with a few static routes or a temporary callback receiver, where you want the endpoint and its history private unless you share them.',
+            'Choose socket.help when you want mocks private by default, a live log of every call, fake data, random failures and proxy-and-record on Pro at $2 a month, all usable by an AI agent over MCP.',
         otherFit:
-            'Choose Beeceptor when a mock needs to proxy a real API, expose a local service, use advanced CRUD filters, or speak GraphQL, gRPC, or SOAP from a contract.',
+            'Choose Beeceptor when a mock needs to expose a local service, use advanced CRUD filters, or speak gRPC or SOAP from a contract.',
         rows: [
             {
                 topic: 'Default access',
@@ -308,7 +307,7 @@ export const comparisons: Comparison[] = [
             },
             {
                 topic: 'Mocking',
-                socket: 'Up to 20 static routes with simple templates and conditions, plus one CRUD collection with seed reset and revision guards.',
+                socket: 'Up to 20 routes with request-value and fake-data templates, conditions and random failure rates, plus one CRUD collection with seed reset and revision guards.',
                 other: 'Matching rules, template operators, and stateful CRUD routes.',
             },
             {
@@ -318,7 +317,7 @@ export const comparisons: Comparison[] = [
             },
             {
                 topic: 'Traffic',
-                socket: 'Webhook inbox and mock API are separate tools. No proxy or tunnel.',
+                socket: 'A live log of the last 100 calls on every mock. Proxy and record a real API on Pro. No local tunnel.',
                 other: 'Request inspection on the mock endpoint, forward proxy to a real API, and local tunneling.',
             },
             {
@@ -328,7 +327,7 @@ export const comparisons: Comparison[] = [
             },
         ],
         limitations:
-            'socket.help supports one bounded CRUD collection per mock resource, with seed reset and revision guards. It has no proxy mode, local tunnel, gRPC, or SOAP mocks. Its mocks are capped at 20 routes, 50 KiB per response body, and two-second delays, and they expire, so they are not a long-term shared sandbox.',
+            'socket.help supports one bounded CRUD collection per mock resource. Proxy and record needs Pro and saves up to 20 routes. It has no local tunnel, gRPC, or SOAP mocks. Its mocks are capped at 20 routes, 50 KiB per response body, and two-second delays, and they expire, so they are not a long-term shared sandbox.',
         sources: [
             { title: 'Beeceptor documentation', url: 'https://beeceptor.com/docs/' },
             {
@@ -351,19 +350,18 @@ export const comparisons: Comparison[] = [
             { title: 'GraphQL mock', href: '/tools/graphql-mock/' },
             { title: 'Webhook inbox', href: '/tools/webhook-inbox/' },
         ],
-        reviewedAt: '2026-10-27',
+        reviewedAt: '2026-10-29',
         bestFor: {
             socket: [
                 'Mock responses or captured payloads should not be public',
                 'The endpoint should clean itself up after the test',
-                'A few static routes or error statuses are enough',
+                'You want every call logged and fake data in responses',
                 'An MCP agent should create and call the mock',
             ],
             other: [
-                'You need to proxy a real API or tunnel to localhost',
-                'The mock needs advanced CRUD rules or proxying beyond a bounded collection',
+                'You need to tunnel to localhost',
+                'The mock needs advanced CRUD rules beyond a bounded collection',
                 'Your contract is gRPC or SOAP',
-                'The same endpoint should both mock and log traffic',
             ],
         },
         faqs: [
@@ -485,13 +483,13 @@ export const comparisons: Comparison[] = [
         name: 'Hookdeck Inspect',
         focus: 'Webhook testing',
         description:
-            'socket.help webhook inboxes are private by default and last one hour; Hookdeck Inspect keeps requests 3 days and forwards to localhost with its CLI.',
+            'socket.help webhook inboxes are private, answer with custom responses and forward to your server on Pro; Hookdeck Inspect keeps requests 3 days and forwards to localhost.',
         summary:
             'Both give you a test webhook URL without an account. socket.help keeps the receiver and history private by default with a short lifetime. Hookdeck Inspect keeps requests for three days and adds retries, sample webhooks, and forwarding to localhost.',
         socketFit:
-            'Choose socket.help when a callback is part of a short test session and you want the receiver private, with mocks, files, utilities, and MCP in the same place.',
+            'Choose socket.help when you want the receiver private, a custom response, replay to a public URL, forwarding to your server on Pro, and mocks, email inboxes, utilities and MCP in the same place.',
         otherFit:
-            'Choose Hookdeck Inspect when you want to forward webhooks to a handler on localhost, resend a captured request while you iterate, or trigger sample events from common providers.',
+            'Choose Hookdeck Inspect when you want to forward webhooks to a handler on localhost or trigger sample events from common providers.',
         rows: [
             {
                 topic: 'Account',
@@ -510,17 +508,17 @@ export const comparisons: Comparison[] = [
             },
             {
                 topic: 'Local development',
-                socket: 'No localhost forwarding. Request replay sends a request you write to a public URL.',
+                socket: 'No localhost forwarding yet. Replay any captured request to a public URL; Pro forwards every request to your server with retries.',
                 other: 'Forwards requests to localhost through the Hookdeck CLI and retries captured requests.',
             },
             {
                 topic: 'Automation',
-                socket: 'HTTP API, CLI, SDK, SSH, and MCP create and read inboxes.',
+                socket: 'HTTP API, CLI, SDK, SSH, and MCP create and read inboxes; wait_for_webhook blocks until a request arrives.',
                 other: 'Inspect API creates Source URLs and waits for the next request, with no API key.',
             },
         ],
         limitations:
-            'socket.help cannot forward captured webhooks to localhost, resend a captured request to your handler, or send sample provider events. Its one-hour anonymous lifetime is much shorter than Hookdeck Inspect’s three-day request retention.',
+            'socket.help cannot yet forward captured webhooks to localhost or send sample provider events, and binary bodies are not forwarded or replayed. Its one-hour anonymous lifetime is much shorter than Hookdeck Inspect’s three-day request retention; a free account keeps inboxes for seven days.',
         sources: [
             {
                 title: 'Hookdeck Inspect documentation',
@@ -533,7 +531,7 @@ export const comparisons: Comparison[] = [
             { title: 'HMAC generator', href: '/tools/hmac-generator/' },
             { title: 'Webhook testing guide', href: '/blog/test-webhooks-without-a-server/' },
         ],
-        reviewedAt: '2026-10-27',
+        reviewedAt: '2026-10-29',
         bestFor: {
             socket: [
                 'Senders and viewers should need a token, not just the URL',
@@ -543,7 +541,6 @@ export const comparisons: Comparison[] = [
             ],
             other: [
                 'Your handler runs on localhost',
-                'You want to resend a captured webhook while you fix code',
                 'You want sample events instead of triggering real ones',
                 'Requests should stay readable for a few days',
             ],
@@ -563,7 +560,7 @@ export const comparisons: Comparison[] = [
             },
             {
                 question: 'Can socket.help forward webhooks to my local server?',
-                answer: 'No. socket.help captures and stores requests for inspection. To test a local handler with live events, use a forwarding tool such as the Hookdeck CLI.',
+                answer: 'Not to localhost yet. You can replay any captured request to a public URL, and on Pro an inbox forwards every request to your server with retries. For a handler on localhost, use a tunnel or the Hookdeck CLI for now.',
             },
         ],
     },

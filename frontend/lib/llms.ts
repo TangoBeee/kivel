@@ -13,7 +13,7 @@ const clean = (text: string) => text.replace(/\s+/g, ' ').trim();
 const available = catalog.filter((tool) => tool.status === 'available');
 
 const SUMMARY =
-    'socket.help is a free online toolbox for developers, everyday users, and AI agents. It offers browser utilities (JSON, encoding, hashing, IDs, payment card fixtures, media), temporary webhook inboxes, mock REST APIs, mock MCP servers, and temporary file sharing. Tools work without an account; an optional account adds a workspace, longer retention, and scoped API keys. Every tool is available from the browser, an HTTP API, a CLI, a TypeScript SDK, an SSH gateway, and MCP. There are no ads.';
+    'socket.help gives AI agents and developers everything they need from the internet, over one MCP connection: private webhook inboxes (custom responses, wait_for_webhook, forwarding on Pro), receive-only email inboxes with extracted codes and links (wait_for_email), mock REST APIs (fake data, random failures, call logs, proxy and record on Pro), mock MCP servers, temporary file sharing, and 130+ browser utilities. Tools work without an account; a free account adds a workspace, 7-day retention and scoped API keys. Pro is $2 a month. Every tool is available from the browser, an HTTP API, a CLI, a TypeScript SDK, an SSH gateway, and MCP (setup: https://socket.help/connect/). There are no ads.';
 
 export function llmsIndex() {
     const lines = [`# socket.help`, '', `> ${SUMMARY}`, ''];

@@ -18,9 +18,9 @@ const retention = (seconds: number) =>
 const number = (value: number) => value.toLocaleString('en-US');
 const descriptions = {
     anonymous: 'A quick task. No sign-up.',
-    free: 'Your tools, in one workspace.',
-    pro: 'More room for regular use.',
-    team: 'Shared tools and allowances.',
+    free: 'A workspace and API keys for you and your agents.',
+    pro: 'For daily use: forwarding, proxy mocks and 30-day retention.',
+    team: 'Pro for the whole workspace, up to 20 members.',
 };
 const rows: { name: string; value: (id: PlanId) => string }[] = [
     { name: 'Active resources', value: (id) => number(plans[id].maxResources) },
@@ -41,7 +41,26 @@ const rows: { name: string; value: (id: PlanId) => string }[] = [
         name: 'Persistent resource leases',
         value: (id) => (plans[id].persistent ? 'Included' : 'Not included'),
     },
+    {
+        name: 'Webhook forwarding to your server',
+        value: (id) => (plans[id].persistent ? 'Included, with retries' : 'Not included'),
+    },
+    {
+        name: 'Proxy & record real APIs',
+        value: (id) => (plans[id].persistent ? 'Included' : 'Not included'),
+    },
+    {
+        name: 'Custom webhook responses, mock call logs, MCP',
+        value: () => 'Included',
+    },
 ];
+
+const extras: Record<PlanId, string[]> = {
+    anonymous: ['Webhooks, mocks and MCP without sign-up'],
+    free: ['Custom webhook responses and mock call logs', 'API keys for your AI agents'],
+    pro: ['Forward webhooks to your server', 'Proxy and record real APIs'],
+    team: ['Everything in Pro, shared', 'Forwarding and proxy mocks for the team'],
+};
 const faqs = [
     {
         question: 'Is socket.help free?',
@@ -171,6 +190,7 @@ export default function Plans() {
                                     : plans[id].persistent
                                       ? 'Persistent resource leases'
                                       : 'Automatic resource cleanup',
+                                ...extras[id],
                             ].map((feature) => (
                                 <li key={feature}>
                                     <Icon name="check" size={15} />

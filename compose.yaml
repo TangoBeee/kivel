@@ -37,6 +37,8 @@ services:
       DODO_PAYMENTS_WEBHOOK_KEY: ${DODO_PAYMENTS_WEBHOOK_KEY:-}
       DODO_PRO_PRODUCT_ID: ${DODO_PRO_PRODUCT_ID:-}
       DODO_TEAM_PRODUCT_ID: ${DODO_TEAM_PRODUCT_ID:-}
+      MAIL_DOMAIN: ${MAIL_DOMAIN:-}
+      EMAIL_INGEST_SECRET: ${EMAIL_INGEST_SECRET:-}
     depends_on:
       database:
         condition: service_healthy

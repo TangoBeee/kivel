@@ -58,6 +58,14 @@ www.{$DOMAIN} {
 		}
 		import socket_upstream
 	}
+	# Signed mail from the Cloudflare Email Worker: text and HTML bodies are capped at 64 KiB each.
+	@email path /hooks/email
+	handle @email {
+		request_body {
+			max_size 1048576
+		}
+		import socket_upstream
+	}
 	handle {
 		request_body {
 			max_size 102400

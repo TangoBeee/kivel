@@ -1,0 +1,14 @@
+{
+    "name": "socketspace-email-worker",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "deploy": "wrangler deploy"
+    },
+    "dependencies": {
+        "postal-mime": "^4.1.4"
+    },
+    "devDependencies": {
+        "wrangler": "^4.154.0"
+    }
+}

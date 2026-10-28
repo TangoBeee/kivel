@@ -1,0 +1,9 @@
+name = "socketspace-email"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+INGEST_URL = "https://socket.help/hooks/email"
+
+# Set the shared secret (same value as EMAIL_INGEST_SECRET on the server):
+#   npx wrangler secret put EMAIL_INGEST_SECRET

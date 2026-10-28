@@ -56,7 +56,12 @@ bearer_token_env_var = "SOCKET_HELP_API_KEY"`,
     }
   },
   "inputs": [
-    { "id": "socket-help-key", "type": "promptString", "description": "socket.help API key", "password": true }
+    {
+      "id": "socket-help-key",
+      "type": "promptString",
+      "description": "socket.help API key",
+      "password": true
+    }
   ]
 }`,
     },

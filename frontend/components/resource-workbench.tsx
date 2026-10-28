@@ -1067,10 +1067,12 @@ export function ResourceWorkbench({
                             </label>
                         </div>
                         <p className="tool-notice">
-                            Templates accept {'{{path.id}}'}, {'{{query.name}}'} and{' '}
-                            {'{{body.name}}'} inside JSON strings or plain text. Missing values
-                            become empty strings. No code runs. Test credentials are stored in the
-                            configuration; use fake tokens only.
+                            Templates accept {'{{path.id}}'}, {'{{query.name}}'}, {'{{body.name}}'}{' '}
+                            and sample data such as {'{{fake.name}}'}, {'{{fake.email}}'},{' '}
+                            {'{{fake.uuid}}'}, {'{{fake.price}}'} or {'{{fake.datetime}}'} inside
+                            JSON strings or plain text. Missing values become empty strings. No code
+                            runs. Test credentials are stored in the configuration; use fake tokens
+                            only.
                         </p>
                     </details>
                     <div className="editor-panel">

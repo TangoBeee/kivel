@@ -231,3 +231,47 @@ test('mock conditions select before fallbacks and templates escape JSON request 
         }),
     );
 });
+
+test('fake data placeholders render fresh JSON-safe sample values', async (t) => {
+    const app = buildApp();
+    t.after(() => app.close());
+    const mock = (
+        await app.inject({
+            method: 'POST',
+            url: '/api/mocks?visibility=public',
+            payload: {
+                name: 'Fake',
+                routes: [
+                    {
+                        method: 'GET',
+                        path: '/users/:id',
+                        status: 200,
+                        template: true,
+                        body: JSON.stringify({
+                            id: '{{path.id}}',
+                            name: '{{fake.name}}',
+                            email: '{{fake.email}}',
+                            uuid: '{{fake.uuid}}',
+                            price: '{{fake.price}}',
+                            missing: '{{fake.nothing}}',
+                        }),
+                    },
+                ],
+            },
+        })
+    ).json();
+    const first = (await app.inject({ url: `/mock/${mock.id}/users/7` })).json();
+    assert.equal(first.id, '7');
+    assert.match(first.name, /^\S+ \S+$/);
+    assert.match(first.email, /^[a-z]+\.[a-z]+@example\.com$/);
+    assert.match(
+        first.uuid,
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+    assert.match(first.price, /^\d+\.\d{2}$/);
+    assert.equal(first.missing, '');
+    const uuids = new Set();
+    for (let index = 0; index < 5; index++)
+        uuids.add((await app.inject({ url: `/mock/${mock.id}/users/7` })).json().uuid);
+    assert.equal(uuids.size, 5);
+});

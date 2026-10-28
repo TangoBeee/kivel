@@ -767,7 +767,7 @@ curl https://socket.help/mock/MOCK_ID/users/42
                 title: 'Response content',
                 paragraphs: [
                     'Content-Type defaults to application/json. Allowed types are application/json, application/problem+json, application/xml, text/plain, text/csv and text/event-stream, optionally with ; charset=utf-8. Responses with status 204, 205 or 304 and HEAD requests send no body.',
-                    'Templates replace {{path.name}}, {{query.name}} and {{body.name}} with the request value. In JSON templates, placeholders must sit inside strings and values are JSON-escaped. Missing values become empty strings. Each inserted value is limited to 4,096 characters and the rendered body to 64 KiB. Templates do not support XML or streaming.',
+                    'Templates replace {{path.name}}, {{query.name}} and {{body.name}} with the request value, and {{fake.name}} placeholders with fresh sample data on every call: firstName, lastName, name, email, username, phone, company, city, country, uuid, id, int, price, bool, word, sentence, url, date, datetime and now. In JSON templates, placeholders must sit inside strings and values are JSON-escaped. Missing values become empty strings. Each inserted value is limited to 4,096 characters and the rendered body to 64 KiB. Templates do not support XML or streaming.',
                     'Streaming routes must use GET or ANY with status 200. Each line of the body is sent as one chunk, or as one server-sent event with sequential id and event: message, at the configured interval. A stream allows up to 20 lines of 4 KiB and five seconds of delivery.',
                 ],
             },

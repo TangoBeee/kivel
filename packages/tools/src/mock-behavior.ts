@@ -18,6 +18,113 @@ export function matchMockCondition(route: MockRoute, request: MockRequest): bool
         String((object as Record<string, unknown>)[key]) === value
     );
 }
+const pick = <T>(items: readonly T[]) => items[Math.floor(Math.random() * items.length)]!;
+const first = [
+    'Ava',
+    'Liam',
+    'Maya',
+    'Noah',
+    'Priya',
+    'Arjun',
+    'Sofia',
+    'Kenji',
+    'Amara',
+    'Lucas',
+    'Zara',
+    'Omar',
+];
+const last = [
+    'Patel',
+    'Garcia',
+    'Kim',
+    'Okafor',
+    'Rossi',
+    'Nguyen',
+    'Silva',
+    'Haddad',
+    'Novak',
+    'Sato',
+    'Singh',
+    'Brown',
+];
+const cities = [
+    'Lisbon',
+    'Pune',
+    'Austin',
+    'Nairobi',
+    'Osaka',
+    'Toronto',
+    'Berlin',
+    'Bogotá',
+    'Melbourne',
+    'Seoul',
+];
+const countries = [
+    'Portugal',
+    'India',
+    'United States',
+    'Kenya',
+    'Japan',
+    'Canada',
+    'Germany',
+    'Colombia',
+    'Australia',
+    'South Korea',
+];
+const companies = [
+    'Acme Labs',
+    'Northwind',
+    'Blue Harbor',
+    'Lumen Works',
+    'Pinecrest',
+    'Orbital Systems',
+    'Brightline',
+    'Cobalt & Co',
+];
+const words = [
+    'socket',
+    'river',
+    'amber',
+    'pixel',
+    'harbor',
+    'signal',
+    'meadow',
+    'vector',
+    'lantern',
+    'quartz',
+    'summit',
+    'echo',
+];
+const hex = (length: number) =>
+    Array.from({ length }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+
+/** Realistic sample values for `{{fake.*}}` placeholders. Unknown names render as empty text. */
+export const fakeValues: Record<string, () => string> = {
+    firstName: () => pick(first),
+    lastName: () => pick(last),
+    name: () => `${pick(first)} ${pick(last)}`,
+    email: () => `${pick(first).toLowerCase()}.${pick(last).toLowerCase()}@example.com`,
+    username: () => `${pick(words)}_${Math.floor(Math.random() * 900 + 100)}`,
+    phone: () => `+1-555-${String(Math.floor(Math.random() * 9000 + 1000))}`,
+    company: () => pick(companies),
+    city: () => pick(cities),
+    country: () => pick(countries),
+    uuid: () => `${hex(8)}-${hex(4)}-4${hex(3)}-${pick(['8', '9', 'a', 'b'])}${hex(3)}-${hex(12)}`,
+    id: () => hex(12),
+    int: () => String(Math.floor(Math.random() * 1000)),
+    price: () => (Math.random() * 200 + 1).toFixed(2),
+    bool: () => String(Math.random() < 0.5),
+    word: () => pick(words),
+    sentence: () => {
+        const text = Array.from({ length: 6 }, () => pick(words)).join(' ');
+        return `${text[0]!.toUpperCase()}${text.slice(1)}.`;
+    },
+    url: () => `https://${pick(words)}.example.com/${pick(words)}`,
+    date: () => new Date(Date.now() - Math.random() * 3e10).toISOString().slice(0, 10),
+    datetime: () => new Date(Date.now() - Math.random() * 3e10).toISOString(),
+    now: () => new Date().toISOString(),
+};
+
 export function renderMockBody(route: MockRoute, request: MockRequest): string {
     if (!route.template) return route.body;
     const path: Record<string, string> = Object.create(null);
@@ -27,8 +134,15 @@ export function renderMockBody(route: MockRoute, request: MockRequest): string {
     const json = (route.headers['content-type'] ?? 'application/json').includes('json');
     let bytes = new TextEncoder().encode(route.body).length;
     return route.body.replace(
-        /\{\{(path|query|body)\.([A-Za-z][A-Za-z0-9_]*)\}\}/g,
+        /\{\{(path|query|body|fake)\.([A-Za-z][A-Za-z0-9_]*)\}\}/g,
         (_match, source: string, key: string) => {
+            if (source === 'fake') {
+                const text = Object.hasOwn(fakeValues, key) ? fakeValues[key]!() : '';
+                const replacement = json ? JSON.stringify(text).slice(1, -1) : text;
+                bytes += new TextEncoder().encode(replacement).length - _match.length;
+                if (bytes > 65536) throw new Error('Rendered response exceeds 64 KiB.');
+                return replacement;
+            }
             const object =
                 source === 'path' ? path : source === 'query' ? request.query : request.body;
             const value =

@@ -400,7 +400,7 @@ export function resourceOpenApi(origin: string) {
                         type: 'boolean',
                         default: false,
                         description:
-                            'Insert {{path.id}}, {{query.name}} and {{body.name}} into JSON string values or plain text. No code is executed.',
+                            'Insert {{path.id}}, {{query.name}}, {{body.name}} and sample data such as {{fake.name}}, {{fake.email}} or {{fake.uuid}} into JSON string values or plain text. No code is executed.',
                     },
                     condition: {
                         type: 'object',

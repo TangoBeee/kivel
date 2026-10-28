@@ -25,6 +25,21 @@ export function mockPreset(id: string): MockRoute[] | undefined {
                 { template: true },
             ),
             route('POST', '/greet', 200, { message: 'Hello {{body.name}}' }, { template: true }),
+            route(
+                'GET',
+                '/customers/:id',
+                200,
+                {
+                    id: '{{path.id}}',
+                    name: '{{fake.name}}',
+                    email: '{{fake.email}}',
+                    company: '{{fake.company}}',
+                    city: '{{fake.city}}',
+                    balance: '{{fake.price}}',
+                    createdAt: '{{fake.datetime}}',
+                },
+                { template: true },
+            ),
         ];
     if (id === 'mock-apis-authentication-mock')
         return [

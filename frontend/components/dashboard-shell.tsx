@@ -26,6 +26,7 @@ import {
     BookOpen,
     House,
     List,
+    Robot,
     X,
 } from '@phosphor-icons/react';
 
@@ -57,6 +58,13 @@ export const dashboardPanels = [
         label: 'API keys',
         description: 'Connect your scripts, CLI, SDK, and agents.',
         icon: Key,
+    },
+    {
+        id: 'agents',
+        group: 'Build',
+        label: 'Agent activity',
+        description: 'Every tool call your agents made, by key.',
+        icon: Robot,
     },
     {
         id: 'workspace',

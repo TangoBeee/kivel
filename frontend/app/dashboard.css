@@ -1176,3 +1176,34 @@ body:has(.dashboard-layout) main::after {
     animation: none;
   }
 }
+
+/* Agent activity */
+.agent-activity-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.agent-activity-heading p {
+  max-width: 560px;
+  margin-top: 4px;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+.agent-activity-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 0.8125rem;
+  font-weight: 550;
+}
+.agent-activity-filter select {
+  padding: 6px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  font: inherit;
+  font-weight: 400;
+}

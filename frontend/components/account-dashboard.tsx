@@ -33,6 +33,7 @@ import {
 import { DashboardShell, isDashboardPanel, Meter, SettingsSection } from './dashboard-shell';
 import { DashboardTools, QuickCreate, RecentTools, SavedTools } from './dashboard-tools';
 import { LogoMark } from './logo';
+import { AgentActivity } from './agent-activity';
 import { refreshViewer } from '../lib/viewer';
 import type { DashboardPanel } from './dashboard-shell';
 import { useEffect, useState } from 'react';
@@ -901,6 +902,7 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                             )}
                         </section>
                     )}
+                    {panel === 'agents' && <AgentActivity keys={keys} />}
                     {panel === 'keys' && (
                         <div className="settings-stack">
                             {secret && (

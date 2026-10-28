@@ -138,6 +138,12 @@ export async function migrate(pool: Pool): Promise<void> {
         }
         if (version < 9) {
             await client.query(`ALTER TABLE inboxes ADD COLUMN response jsonb;
+                CREATE TABLE mock_calls (
+                    sequence bigserial PRIMARY KEY,
+                    resource_id uuid NOT NULL REFERENCES temporary_resources(id) ON DELETE CASCADE,
+                    call jsonb NOT NULL
+                );
+                CREATE INDEX mock_calls_resource ON mock_calls (resource_id, sequence);
                 INSERT INTO schema_migrations (version) VALUES (9);`);
         }
     });

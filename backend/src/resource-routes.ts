@@ -1,4 +1,6 @@
 import { matchMockCondition, renderMockBody } from '@socket-help/tools/mock-behavior';
+import { MemoryMockCalls, mockCall } from './mock-calls.js';
+import type { MockCallRepository } from './mock-calls.js';
 import { isUuid } from './security.js';
 import { echoRequest } from './http-echo.js';
 import { Readable } from 'node:stream';
@@ -38,6 +40,7 @@ export function registerResources(
     limits: RateLimitRepository,
     origin: string,
     access: Access,
+    calls: MockCallRepository = new MemoryMockCalls(),
 ) {
     const transfers = new Set<FastifyRequest>();
     const streams = new Set<AbortController>();
@@ -304,6 +307,18 @@ export function registerResources(
             return reply.send(request.method === 'HEAD' ? undefined : file.data);
         },
     });
+    // The calls a mock received, oldest first. Same credentials as reading the mock itself.
+    app.get<IdRoute>('/api/mocks/:id/calls', async (request, reply) => {
+        const resource = await store.read(
+            request.params.id,
+            'mock',
+            token(request),
+            (await access.actor(request)).identity?.account.id,
+        );
+        if (!resource)
+            return reply.code(404).send({ error: 'Resource unavailable or access denied.' });
+        return { calls: await calls.list(resource.id) };
+    });
     app.register(async (mocks) => {
         mocks.removeAllContentTypeParsers();
         mocks.addContentTypeParser('*', { parseAs: 'buffer' }, (_request, body, done) =>
@@ -315,6 +330,31 @@ export function registerResources(
                     (method) => method !== 'ANY',
                 ) as import('fastify').HTTPMethods[],
                 url,
+                // Log what callers sent and what the mock answered, after the response is out.
+                onResponse: async (request, reply) => {
+                    if (
+                        !isUuid(request.params.id) ||
+                        (request.method === 'OPTIONS' &&
+                            request.headers['access-control-request-method'])
+                    )
+                        return;
+                    try {
+                        await calls.record(
+                            request.params.id,
+                            mockCall({
+                                method: request.method,
+                                path: `/${request.params['*'] ?? ''}`,
+                                query: request.query,
+                                status: reply.statusCode,
+                                durationMs: reply.elapsedTime,
+                                headers: request.headers,
+                                body: request.body,
+                            }),
+                        );
+                    } catch (error) {
+                        request.log.warn({ err: error }, 'Unable to record a mock call.');
+                    }
+                },
                 handler: async (request, reply) => {
                     reply
                         .header('Access-Control-Allow-Origin', '*')

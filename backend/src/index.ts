@@ -1,4 +1,5 @@
 import { PostgresRecoveryRepository } from './recovery-store.js';
+import { PostgresMockCalls } from './mock-calls.js';
 import { smtpSender } from './mail.js';
 import { buildApp } from './app.js';
 import { existsSync } from 'node:fs';
@@ -36,6 +37,7 @@ try {
         rateLimiter: limits,
         ...(config.authSecret ? { authSecret: config.authSecret } : {}),
         ...(pool ? { billingRepository: new BillingRepository(pool) } : {}),
+        ...(pool ? { mockCalls: new PostgresMockCalls(pool) } : {}),
         ...(config.billingConfig ? { billingConfig: config.billingConfig } : {}),
         publicBaseUrl: config.publicBaseUrl,
         production: config.production,

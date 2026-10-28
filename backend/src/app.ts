@@ -20,6 +20,8 @@ import type { ResourceRepository } from './resources.js';
 import { registerResources } from './resource-routes.js';
 import { registerMcp } from './mcp.js';
 import { Waiters, waitForRequests, waitSeconds } from './waiting.js';
+import { MemoryMockCalls } from './mock-calls.js';
+import type { MockCallRepository } from './mock-calls.js';
 import { MemoryAllocations, QuotaError } from './allocations.js';
 import { Access, HttpError, resourceToken } from './access.js';
 import { MemoryIdentityRepository } from './identity.js';
@@ -49,6 +51,7 @@ interface AppOptions {
     dodoClient?: DodoPayments;
     recoveryStore?: RecoveryRepository;
     mailSender?: MailSender;
+    mockCalls?: MockCallRepository;
 }
 
 interface InboxRoute {
@@ -87,6 +90,7 @@ export function buildApp({
     dodoClient,
     recoveryStore,
     mailSender,
+    mockCalls = new MemoryMockCalls(),
 }: AppOptions = {}) {
     const ledger = new MemoryAllocations();
     const inboxStore = providedInboxes ?? new InboxStore({ quotaLedger: ledger });
@@ -528,7 +532,7 @@ export function buildApp({
     registerTools(app, access, tools);
     registerMusic(app, frontendDir);
     registerLifecycle(app, access, inboxStore, resourceStore);
-    registerResources(app, resourceStore, rateLimiter, baseUrl.origin, access);
+    registerResources(app, resourceStore, rateLimiter, baseUrl.origin, access, mockCalls);
     registerMcp({
         app,
         inboxes: inboxStore,
@@ -538,6 +542,7 @@ export function buildApp({
         access,
         tools,
         waiters,
+        mockCalls,
     });
 
     if (frontendDir) {

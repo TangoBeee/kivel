@@ -550,3 +550,53 @@ test('webhook inboxes answer with a custom response that cannot become HTML or s
     ).json();
     assert.ok(rejected.error || rejected.result.isError);
 });
+
+test('mock APIs keep a log of recent calls for their owner, over HTTP and MCP', async (t) => {
+    const app = buildApp();
+    t.after(() => app.close());
+    const mock = (
+        await app.inject({
+            method: 'POST',
+            url: '/api/mocks?visibility=public',
+            payload: {
+                name: 'Log',
+                routes: [{ method: 'POST', path: '/orders', status: 201, body: '{"ok":true}' }],
+            },
+        })
+    ).json();
+    await app.inject({
+        method: 'POST',
+        url: `/mock/${mock.id}/orders?debug=1`,
+        headers: { 'content-type': 'application/json', 'user-agent': 'test-agent' },
+        payload: '{"item":"book"}',
+    });
+    await app.inject({ url: `/mock/${mock.id}/missing` });
+    const calls = await app.inject({
+        url: `/api/mocks/${mock.id}/calls`,
+        headers: { 'x-resource-token': mock.managementToken },
+    });
+    assert.equal(calls.statusCode, 200);
+    const [first, second] = calls.json().calls;
+    assert.equal(first.method, 'POST');
+    assert.equal(first.path, '/orders');
+    assert.equal(first.status, 201);
+    assert.equal(first.query.debug, '1');
+    assert.equal(first.bodyPreview, '{"item":"book"}');
+    assert.equal(first.userAgent, 'test-agent');
+    assert.equal(second.status, 404);
+    assert.equal((await app.inject({ url: `/api/mocks/${mock.id}/calls` })).statusCode, 404);
+    const inspected = JSON.parse(
+        (
+            await app.inject({
+                method: 'POST',
+                url: '/mcp',
+                headers,
+                payload: rpc('tools/call', {
+                    name: 'inspect_mock_api',
+                    arguments: { id: mock.id, token: mock.managementToken },
+                }),
+            })
+        ).json().result.content[0].text,
+    );
+    assert.equal(inspected.recentCalls.length, 2);
+});

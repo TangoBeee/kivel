@@ -12,6 +12,7 @@ import { validateMock, mockPayload } from '@socket-help/tools/mock-config';
 import { crudSchema } from '@socket-help/tools/mock-crud';
 import { waitForRequests, waitSeconds, WAIT_MAX_SECONDS } from './waiting.js';
 import type { Waiters } from './waiting.js';
+import type { MockCallRepository } from './mock-calls.js';
 
 const versions = ['2025-11-25', '2025-06-18', '2025-03-26'];
 const object = (value: unknown): value is Record<string, unknown> =>
@@ -205,7 +206,8 @@ export const platformTools = [
     },
     {
         name: 'inspect_mock_api',
-        description: 'Read a mock API configuration and usage with its private token.',
+        description:
+            'Read a mock API configuration, usage and its 20 most recent calls (method, path, status, body preview) with its private token.',
         inputSchema: schema(access),
         annotations: readonly,
     },
@@ -490,6 +492,7 @@ interface Context {
     access: Access;
     tools: ToolService;
     waiters: Waiters;
+    mockCalls: MockCallRepository;
 }
 export function registerMcp({
     app,
@@ -500,6 +503,7 @@ export function registerMcp({
     access,
     tools,
     waiters,
+    mockCalls,
 }: Context) {
     const uploads = new Set<FastifyRequest>();
     app.addHook('onResponse', async (request) => {
@@ -623,7 +627,10 @@ export function registerMcp({
                           expiresAt: item.expiresAt,
                           uses: item.uses,
                           ...(kind === 'mock'
-                              ? { endpointUrl: `${origin}/mock/${id}` }
+                              ? {
+                                    endpointUrl: `${origin}/mock/${id}`,
+                                    recentCalls: (await mockCalls.list(id)).slice(-20),
+                                }
                               : {
                                     downloadUrl: `${origin}/files/${id}`,
                                     remainingDownloads: Math.max(

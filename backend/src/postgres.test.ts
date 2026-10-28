@@ -7,6 +7,7 @@ import { migrate } from './database.js';
 import { PostgresInboxStore, PostgresRateLimiter } from './postgres.js';
 import { buildApp } from './app.js';
 import { PostgresResourceStore } from './resources.js';
+import { PostgresMockCalls } from './mock-calls.js';
 import type { CrudState } from '@socket-help/tools/mock-crud';
 import { PostgresRecoveryRepository } from './recovery-store.js';
 import { passwordHash, PostgresIdentityRepository } from './identity.js';
@@ -425,7 +426,7 @@ test('upgrading an existing webhook-only database preserves captures and enables
     await pool.query(
         `DROP TRIGGER inbox_quota ON inboxes; DROP FUNCTION enforce_resource_quota() CASCADE;
          ALTER TABLE inboxes DROP COLUMN owner_id, DROP COLUMN quota_key, DROP COLUMN created_at, DROP COLUMN persistent, DROP COLUMN request_limit, DROP COLUMN byte_limit, DROP COLUMN visibility, DROP COLUMN access_token_hash, DROP COLUMN access_version, DROP COLUMN response;
-         DROP TABLE user_contact_emails, auth_mail_outbox, auth_challenges, user_recovery_emails, temporary_resources, resource_usage, account_members, auth_sessions, api_keys, account_invites, users, accounts, usage_plans, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events CASCADE; DELETE FROM schema_migrations WHERE version > 1`,
+         DROP TABLE mock_calls, user_contact_emails, auth_mail_outbox, auth_challenges, user_recovery_emails, temporary_resources, resource_usage, account_members, auth_sessions, api_keys, account_invites, users, accounts, usage_plans, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events CASCADE; DELETE FROM schema_migrations WHERE version > 1`,
     );
     await Promise.all([migrate(pool), migrate(pool)]);
     assert.equal(
@@ -1139,7 +1140,7 @@ test('Dodo migration preserves legacy Stripe data without adopting its customer 
         user.personalAccountId,
     ]);
     await pool.query(
-        'ALTER TABLE accounts DROP COLUMN dodo_customer_id, DROP COLUMN dodo_subscription_id, DROP COLUMN dodo_event_created, DROP COLUMN dodo_checkout_id, DROP COLUMN dodo_checkout_url, DROP COLUMN dodo_checkout_plan; DROP TABLE dodo_events; ALTER TABLE inboxes DROP COLUMN response; DELETE FROM schema_migrations WHERE version >= 8',
+        'ALTER TABLE accounts DROP COLUMN dodo_customer_id, DROP COLUMN dodo_subscription_id, DROP COLUMN dodo_event_created, DROP COLUMN dodo_checkout_id, DROP COLUMN dodo_checkout_url, DROP COLUMN dodo_checkout_plan; DROP TABLE dodo_events; ALTER TABLE inboxes DROP COLUMN response; DROP TABLE mock_calls; DELETE FROM schema_migrations WHERE version >= 8',
     );
     await Promise.all([migrate(pool), migrate(pool)]);
     const row = (
@@ -1170,4 +1171,28 @@ test('custom inbox responses persist, apply to captures and reset', async () => 
     assert.deepEqual(captured.status === 'captured' && captured.response, response);
     assert.equal(await store.setResponse(inbox.id, inbox.inspectionToken, null), true);
     assert.equal((await store.info(inbox.id, inbox.inspectionToken))?.response, undefined);
+});
+
+test('mock call logs keep only the newest calls for existing mocks and go with the mock', async () => {
+    const resources = new PostgresResourceStore(pool);
+    const calls = new PostgresMockCalls(pool);
+    const mock = (await resources.create('mock', { name: 'Log', routes: [] }))!;
+    const call = (index: number) => ({
+        at: new Date().toISOString(),
+        method: 'GET',
+        path: `/${index}`,
+        query: {},
+        status: 200,
+        durationMs: 1,
+        bodySize: 0,
+    });
+    for (let index = 0; index < 105; index++) await calls.record(mock.id, call(index));
+    const listed = await calls.list(mock.id);
+    assert.equal(listed.length, 100);
+    assert.equal(listed[0]!.path, '/5');
+    assert.equal(listed.at(-1)!.path, '/104');
+    await calls.record('00000000-0000-4000-8000-000000000000', call(0));
+    assert.equal((await calls.list('00000000-0000-4000-8000-000000000000')).length, 0);
+    await resources.delete(mock.id, 'mock', mock.managementToken);
+    assert.equal((await calls.list(mock.id)).length, 0);
 });

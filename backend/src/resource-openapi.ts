@@ -140,6 +140,43 @@ export function resourceOpenApi(origin: string) {
                     },
                 },
             },
+            '/api/mocks/{id}/calls': {
+                get: {
+                    operationId: 'listMockCalls',
+                    tags: ['Mock APIs'],
+                    summary: 'Read the most recent calls to a mock',
+                    description:
+                        'Up to 100 calls, oldest first: method, path, query, status, duration, content type, user agent and a 2 KiB body preview. Requires management credentials or workspace read access.',
+                    security,
+                    parameters: id,
+                    responses: {
+                        '200': json({
+                            type: 'object',
+                            properties: {
+                                calls: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            at: { type: 'string', format: 'date-time' },
+                                            method: { type: 'string' },
+                                            path: { type: 'string' },
+                                            query: { type: 'object' },
+                                            status: { type: 'integer' },
+                                            durationMs: { type: 'integer' },
+                                            contentType: { type: 'string' },
+                                            userAgent: { type: 'string' },
+                                            bodySize: { type: 'integer' },
+                                            bodyPreview: { type: 'string' },
+                                        },
+                                    },
+                                },
+                            },
+                        }),
+                        ...errors,
+                    },
+                },
+            },
             '/api/mocks': {
                 post: {
                     operationId: 'createMockApi',

@@ -16,6 +16,7 @@ import { filterRequests } from '../lib/request-filter';
 import { useViewer } from '../lib/viewer';
 import { InboxResponseSettings } from './inbox-response';
 import { InboxForwardSettings } from './inbox-forward';
+import { ReplayRequest } from './replay-request';
 import type { RequestSearchScope } from '../lib/request-filter';
 
 function timeLeft(seconds: number) {
@@ -194,6 +195,7 @@ function Detail({
                     </Tabs.Content>
                 ))}
             </Tabs.Root>
+            <ReplayRequest key={request.id} request={request} />
         </>
     );
 }

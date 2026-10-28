@@ -2678,3 +2678,37 @@ and calmer editors. Loaded last. */
     border-bottom: 1px solid var(--line);
   }
 }
+.replay-request {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.replay-request label {
+  display: grid;
+  flex: 1 1 280px;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: 550;
+}
+.replay-request input {
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  font: inherit;
+  font-weight: 400;
+}
+.replay-request [role='status'] {
+  flex-basis: 100%;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.replay-ok {
+  color: var(--accent);
+}
+.replay-error {
+  color: var(--danger);
+}

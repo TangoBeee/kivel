@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { resolve } from 'node:path';
 
 for (const image of [
     'socket-help:local',
@@ -14,8 +15,12 @@ for (const image of [
             '/var/run/docker.sock:/var/run/docker.sock',
             '-v',
             'socket_trivy_cache:/root/.cache/trivy',
+            '-v',
+            `${resolve('.trivyignore.yaml')}:/trivyignore.yaml:ro`,
             'aquasec/trivy:0.76.1',
             'image',
+            '--ignorefile',
+            '/trivyignore.yaml',
             '--quiet',
             '--format',
             'json',

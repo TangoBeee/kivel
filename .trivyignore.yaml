@@ -1,0 +1,11 @@
+# Accepted image-scan findings. Each entry is pinned to one package version and expires,
+# so the scan fails again once a fix should be picked up.
+vulnerabilities:
+  - id: CVE-2026-116587
+    purls:
+      - pkg:golang/github.com/go-jose/go-jose/v3@v3.0.5
+    statement: >-
+      No v3 fix exists. v3 is only used by smallstep/certificates for Caddy's internal CA
+      (tls internal / acme_server), which our Caddyfile never enables; public certificates
+      come from Let's Encrypt. v4, used by the ACME client, is upgraded to the fixed 4.1.6.
+    expired_at: 2027-01-31

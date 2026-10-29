@@ -29,7 +29,8 @@ export function RidgeField() {
         let width = 0,
             height = 0,
             frame = 0,
-            visible = true;
+            visible = true,
+            activeUntil = performance.now() + 10000;
 
         function resize() {
             const box = element!.getBoundingClientRect();
@@ -82,7 +83,8 @@ export function RidgeField() {
         }
         function loop(time: number) {
             draw(time);
-            frame = visible && !still ? requestAnimationFrame(loop) : 0;
+            // Drift for the first seconds only, then rest until a request arrives.
+            frame = visible && !still && time < activeUntil ? requestAnimationFrame(loop) : 0;
         }
         const onSignal = () => {
             if (still) return;
@@ -98,7 +100,8 @@ export function RidgeField() {
         });
         const watcher = new IntersectionObserver(([entry]) => {
             visible = !!entry?.isIntersecting;
-            if (visible && !frame && !still) frame = requestAnimationFrame(loop);
+            if (visible && !frame && !still && performance.now() < activeUntil)
+                frame = requestAnimationFrame(loop);
         });
         sizer.observe(element);
         watcher.observe(element);

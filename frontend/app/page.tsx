@@ -243,7 +243,7 @@ export default function Home() {
                     ))}
                 </Reveal>
                 <p className="home-footnote">
-                    Entry paid plans from each vendor&apos;s pricing page, October 2026.{' '}
+                    Entry paid plans from each vendor’s pricing page, October 2026.{' '}
                     <Link href="/plans/">Compare our plans</Link>
                 </p>
             </section>

@@ -153,15 +153,40 @@ export function Capabilities() {
     const [active, setActive] = useState(capabilities[0]!.id);
     const reduce = useReducedMotion();
     const current = capabilities.find((item) => item.id === active)!;
+    // Arrow keys move between tabs; only the selected tab is in the Tab order.
+    function onKey(event: React.KeyboardEvent<HTMLDivElement>) {
+        const index = capabilities.findIndex((item) => item.id === active);
+        const next =
+            event.key === 'ArrowRight'
+                ? (index + 1) % capabilities.length
+                : event.key === 'ArrowLeft'
+                  ? (index - 1 + capabilities.length) % capabilities.length
+                  : event.key === 'Home'
+                    ? 0
+                    : event.key === 'End'
+                      ? capabilities.length - 1
+                      : -1;
+        if (next < 0) return;
+        event.preventDefault();
+        const id = capabilities[next]!.id;
+        setActive(id);
+        document.getElementById(`cap-tab-${id}`)?.focus();
+    }
     return (
         <div className="home-caps">
-            <div className="home-caps-tabs" role="tablist" aria-label="Capabilities">
+            <div
+                className="home-caps-tabs"
+                role="tablist"
+                aria-label="Capabilities"
+                onKeyDown={onKey}
+            >
                 {capabilities.map((item) => (
                     <button
                         key={item.id}
                         role="tab"
                         id={`cap-tab-${item.id}`}
                         aria-selected={item.id === active}
+                        tabIndex={item.id === active ? 0 : -1}
                         aria-controls="cap-panel"
                         onClick={() => setActive(item.id)}
                     >

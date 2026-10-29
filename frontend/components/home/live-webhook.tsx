@@ -126,7 +126,7 @@ export function LiveWebhook() {
     const curl = inbox ? `curl -X POST ${inbox.webhookUrl} -d '{"hello":"agent"}'` : '';
 
     return (
-        <div ref={card} className="home-live" aria-live="polite">
+        <div ref={card} className="home-live">
             <div className="home-live-head">
                 <span>Webhook inbox</span>
                 <span className="home-live-status">
@@ -140,7 +140,11 @@ export function LiveWebhook() {
                         needed.
                     </p>
                     {state === 'creating' ? (
-                        <span className="home-live-skeleton" aria-label="Creating a live URL…" />
+                        <span
+                            className="home-live-skeleton"
+                            role="status"
+                            aria-label="Creating a live URL…"
+                        />
                     ) : (
                         <button
                             type="button"
@@ -186,7 +190,11 @@ export function LiveWebhook() {
                         </button>
                         <span>or curl it from your terminal</span>
                     </div>
-                    <ol className="home-live-feed">
+                    <ol
+                        className="home-live-feed"
+                        aria-live="polite"
+                        aria-label="Captured requests"
+                    >
                         {requests.length === 0 ? (
                             <li className="home-live-waiting">
                                 <ArrowsClockwise size={16} className="home-spin" />

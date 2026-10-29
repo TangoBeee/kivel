@@ -1,3 +1,6 @@
+html:has(.radix-themes.dark) {
+  color-scheme: dark;
+}
 /* Dark theme for the homepage and dashboard (ToolboxProvider sets Radix to dark there). */
 body:has(.radix-themes.dark) {
   --bg: #0b0c0c;

@@ -15,6 +15,9 @@
 .home p {
   text-wrap: pretty;
 }
+.home [id] {
+  scroll-margin-top: 96px;
+}
 .home-container {
   max-width: 1200px;
   margin: 0 auto;

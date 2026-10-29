@@ -144,6 +144,8 @@ export function AgentQuestion() {
                         <label className="agent-question-note">
                             <span>Note for the agent (optional)</span>
                             <textarea
+                                name="note"
+                                autoComplete="off"
                                 rows={2}
                                 maxLength={1000}
                                 value={note}

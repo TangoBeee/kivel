@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@radix-ui/themes';
 import { Icon } from './icons';
+import { highlight } from '../lib/highlight';
 
 export function CodeExample({ title, code }: { title: string; code: string }) {
     const [state, setState] = useState('');
@@ -30,7 +31,7 @@ export function CodeExample({ title, code }: { title: string; code: string }) {
                 </Button>
             </div>
             <pre>
-                <code>{code}</code>
+                <code>{highlight(code)}</code>
             </pre>
             <span className="sr-only" role="status">
                 {state}

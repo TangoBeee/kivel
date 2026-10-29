@@ -6,6 +6,7 @@ import { Button } from '@radix-ui/themes';
 import { Check, Copy } from '@phosphor-icons/react';
 import { api } from '../lib/api';
 import { setupPrompt } from '../lib/setup-prompt';
+import type { DashboardPanel } from './dashboard-shell';
 
 interface Agent {
     id: string;
@@ -59,8 +60,18 @@ function CopySetup({
     );
 }
 
-/** The top of the Overview: connect an agent, or see what your agents are waiting on. */
-export function AgentOverview({ onOpenAgents }: { onOpenAgents: () => void }) {
+/** Home: a summary line, what needs you, your agents and what they did. */
+export function AgentOverview({
+    onOpen,
+    plan,
+    resources,
+    maxResources,
+}: {
+    onOpen: (panel: DashboardPanel) => void;
+    plan: string;
+    resources: number;
+    maxResources: number;
+}) {
     const [agents, setAgents] = useState<Agent[] | null>(null);
     const [limit, setLimit] = useState(0);
     const [questions, setQuestions] = useState<Question[]>([]);
@@ -110,8 +121,22 @@ export function AgentOverview({ onOpenAgents }: { onOpenAgents: () => void }) {
                 </div>
             </section>
         );
+    const summary: { label: string; value: string; panel: DashboardPanel }[] = [
+        { label: 'Agents', value: `${agents.length} of ${limit}`, panel: 'agents' },
+        { label: 'Waiting on you', value: String(questions.length), panel: 'agents' },
+        { label: 'Resources', value: `${resources} of ${maxResources || '-'}`, panel: 'resources' },
+        { label: 'Plan', value: plan, panel: 'billing' },
+    ];
     return (
         <div className="home-panels">
+            <div className="home-summary">
+                {summary.map((item) => (
+                    <button key={item.label} type="button" onClick={() => onOpen(item.panel)}>
+                        <small>{item.label}</small>
+                        <strong>{item.value}</strong>
+                    </button>
+                ))}
+            </div>
             {questions.length > 0 && (
                 <section className="home-panel" aria-labelledby="waiting-heading">
                     <h2 id="waiting-heading">Waiting on you</h2>
@@ -133,58 +158,64 @@ export function AgentOverview({ onOpenAgents }: { onOpenAgents: () => void }) {
                     </ul>
                 </section>
             )}
-            <section className="home-panel" aria-labelledby="agents-heading">
-                <div className="home-panel-head">
-                    <h2 id="agents-heading">
-                        Agents{' '}
-                        <span>
-                            {agents.length} of {limit}
-                        </span>
-                    </h2>
-                    <button type="button" className="home-panel-link" onClick={onOpenAgents}>
-                        Manage
-                    </button>
-                </div>
-                <ul>
-                    {agents.map((agent) => (
-                        <li key={agent.id}>
+            <div className="home-columns">
+                <section className="home-panel" aria-labelledby="agents-heading">
+                    <div className="home-panel-head">
+                        <h2 id="agents-heading">
+                            Agents{' '}
                             <span>
-                                <strong>{agent.name}</strong>
-                                <small>
-                                    {agent.lastUsedAt
-                                        ? `Active ${since(agent.lastUsedAt)}`
-                                        : 'Not used yet'}
-                                </small>
+                                {agents.length} of {limit}
                             </span>
-                        </li>
-                    ))}
-                </ul>
-                {agents.length < limit && <CopySetup label="Connect another agent" quiet />}
-            </section>
-            <section className="home-panel" aria-labelledby="activity-heading">
-                <h2 id="activity-heading">Recent activity</h2>
-                {activity.length ? (
+                        </h2>
+                        <button
+                            type="button"
+                            className="home-panel-link"
+                            onClick={() => onOpen('agents')}
+                        >
+                            Manage
+                        </button>
+                    </div>
                     <ul>
-                        {activity.map((entry, index) => (
-                            <li key={`${entry.at}-${index}`}>
+                        {agents.map((agent) => (
+                            <li key={agent.id}>
                                 <span>
-                                    <strong>
-                                        <code>{entry.tool}</code>
-                                        {!entry.ok && <em> failed</em>}
-                                    </strong>
+                                    <strong>{agent.name}</strong>
                                     <small>
-                                        {agents.find((agent) => agent.id === entry.keyId)?.name ??
-                                            'API key'}
+                                        {agent.lastUsedAt
+                                            ? `Active ${since(agent.lastUsedAt)}`
+                                            : 'Not used yet'}
                                     </small>
                                 </span>
-                                <time dateTime={entry.at}>{since(entry.at)}</time>
                             </li>
                         ))}
                     </ul>
-                ) : (
-                    <p>Every tool your agents call shows up here.</p>
-                )}
-            </section>
+                    {agents.length < limit && <CopySetup label="Connect another agent" quiet />}
+                </section>
+                <section className="home-panel" aria-labelledby="activity-heading">
+                    <h2 id="activity-heading">Recent activity</h2>
+                    {activity.length ? (
+                        <ul>
+                            {activity.map((entry, index) => (
+                                <li key={`${entry.at}-${index}`}>
+                                    <span>
+                                        <strong>
+                                            <code>{entry.tool}</code>
+                                            {!entry.ok && <em> failed</em>}
+                                        </strong>
+                                        <small>
+                                            {agents.find((agent) => agent.id === entry.keyId)
+                                                ?.name ?? 'API key'}
+                                        </small>
+                                    </span>
+                                    <time dateTime={entry.at}>{since(entry.at)}</time>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p>Every tool your agents call shows up here.</p>
+                    )}
+                </section>
+            </div>
         </div>
     );
 }

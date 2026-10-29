@@ -149,9 +149,27 @@ sentence case label above a page heading */
 with green kept for soft accents */
 .radix-themes[data-accent-color='green'],
 .radix-themes [data-accent-color='green'] {
+  /* The interface is ink and grey; colour comes from the art */
+  --accent-2: #fafafa;
+  --accent-3: #f2f2f1;
+  --accent-4: #ebebea;
+  --accent-5: #e2e2e1;
+  --accent-6: #d6d6d5;
+  --accent-7: #c4c4c3;
+  --accent-8: #a3a3a2;
   --accent-9: var(--ink);
   --accent-10: #2b2f2d;
+  --accent-11: var(--ink);
+  --accent-12: var(--ink);
+  --accent-a3: rgb(20 20 20 / 0.05);
+  --accent-a4: rgb(20 20 20 / 0.08);
+  --accent-a5: rgb(20 20 20 / 0.11);
+  --accent-a6: rgb(20 20 20 / 0.16);
+  --accent-a7: rgb(20 20 20 / 0.24);
+  --accent-a8: rgb(20 20 20 / 0.36);
+  --accent-a11: var(--ink);
   --accent-contrast: var(--bg);
+  --accent-surface: #fafafa;
 }
 .text-link {
   font-weight: 600;
@@ -366,6 +384,7 @@ and depth on every page */
 }
 .code-example pre {
   color: var(--ink);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
   font-size: 0.8125rem;
   line-height: 1.6;
 }
@@ -375,6 +394,33 @@ and depth on every page */
 .code-example .rt-Button:hover {
   background: var(--subtle);
   color: var(--ink);
+}
+
+/* Syntax colours for code blocks (lib/highlight.tsx), after GitHub's light palette */
+.tok-key {
+  color: #6f42c1;
+}
+.tok-string {
+  color: #116329;
+}
+.tok-url,
+.tok-number,
+.tok-literal {
+  color: #0550ae;
+}
+.tok-flag,
+.tok-var {
+  color: #953800;
+}
+.tok-section {
+  color: #8250df;
+}
+.tok-command {
+  font-weight: 600;
+  color: var(--ink);
+}
+.tok-comment {
+  color: #6e7781;
 }
 
 /* Visible to screen readers only */

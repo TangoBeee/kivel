@@ -326,7 +326,7 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                 .toLowerCase()
                 .includes(resourceQuery.toLowerCase()),
     );
-    const visibleResources = filteredResources;
+    const visibleResources = panel === 'overview' ? resources.slice(0, 5) : filteredResources;
     const resourceNames = {
         inbox: 'Webhook inbox',
         file: 'File',
@@ -377,10 +377,10 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                     <div className="auth-layout">
                         <figure className="auth-art">
                             <img
-                                src="/art/klint-tall.webp"
-                                alt="Hilma af Klint, The Ten Largest, No. 3, Youth, 1907."
-                                width={1274}
-                                height={1692}
+                                src="/art/klint-childhood.webp"
+                                alt="Hilma af Klint, The Ten Largest, No. 1, Childhood, 1907."
+                                width={1275}
+                                height={1690}
                             />
                         </figure>
                         <div className="auth-main">
@@ -538,7 +538,12 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                     {messages}
                     {panel === 'overview' && (
                         <>
-                            <AgentOverview onOpenAgents={() => changePanel('agents')} />
+                            <AgentOverview
+                                onOpen={changePanel}
+                                plan={planName}
+                                resources={resources.length}
+                                maxResources={usage?.limits.maxResources ?? 0}
+                            />
                             {!recoveryEmail.verifiedAt && (
                                 <div className="dashboard-security-note">
                                     <ShieldCheck size={22} />
@@ -563,12 +568,14 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                         </>
                     )}
                     {panel === 'tools' && <DashboardTools glyphs={glyphs} />}
-                    {panel === 'resources' && (
+                    {(panel === 'overview' || panel === 'resources') && (
                         <section className="account-card dashboard-resources">
                             <div className="account-section-heading">
                                 <div>
                                     <h2>
-                                        All resources
+                                        {panel === 'overview'
+                                            ? 'Recent resources'
+                                            : 'All resources'}
                                         <Badge variant="soft" color="gray">
                                             {resources.length}
                                         </Badge>
@@ -579,6 +586,14 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                     </p>
                                 </div>
                                 <div className="dashboard-section-actions">
+                                    {panel === 'overview' && resources.length > 0 && (
+                                        <Button
+                                            variant="ghost"
+                                            onClick={() => changePanel('resources')}
+                                        >
+                                            View all
+                                        </Button>
+                                    )}
                                     <IconButton
                                         aria-label="Refresh resources"
                                         variant="ghost"

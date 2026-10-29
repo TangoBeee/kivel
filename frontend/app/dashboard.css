@@ -319,9 +319,9 @@ body:has(.dashboard-layout) main::after {
 }
 .dashboard-content {
   width: 100%;
-  max-width: 960px;
+  max-width: 1080px;
   margin: 0 auto;
-  padding: 56px 40px 80px;
+  padding: 48px 40px 80px;
 }
 .dashboard-content .dashboard-heading h1 {
   font-size: 2rem;
@@ -1455,6 +1455,66 @@ body:has(.dashboard-layout) main::after {
   flex-wrap: wrap;
   align-items: center;
   gap: 20px;
+}
+
+/* Home summary: four numbers in one quiet strip, each opens its page */
+.home-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+.home-summary button {
+  display: grid;
+  gap: 4px;
+  padding: 16px 20px;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 200ms var(--ease);
+}
+.home-summary button + button {
+  border-left: 1px solid var(--line);
+}
+.home-summary button:hover {
+  background: var(--subtle);
+}
+.home-summary button:first-child {
+  border-radius: var(--radius-card) 0 0 var(--radius-card);
+}
+.home-summary button:last-child {
+  border-radius: 0 var(--radius-card) var(--radius-card) 0;
+}
+.home-summary small {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.home-summary strong {
+  font-size: 1.375rem;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+.home-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 40px;
+}
+@media (max-width: 860px) {
+  .home-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .home-summary button:nth-child(3) {
+    border-left: 0;
+  }
+  .home-summary button:nth-child(n + 3) {
+    border-top: 1px solid var(--line);
+  }
+  .home-columns {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Settings: one sidebar entry, its pages as tabs */

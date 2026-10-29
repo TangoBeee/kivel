@@ -422,7 +422,7 @@ export function DashboardShell({
                             </h1>
                             <p>{current.description}</p>
                         </div>
-                        {panel === 'resources' && <NewResourceMenu />}
+                        {(panel === 'overview' || panel === 'resources') && <NewResourceMenu />}
                     </header>
                     {settingsPanels.includes(panel) && (
                         <nav className="dashboard-tabs" aria-label="Settings">

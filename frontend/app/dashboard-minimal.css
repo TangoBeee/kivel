@@ -1,0 +1,315 @@
+/*
+  Dashboard, minimal: a quiet grey sidebar, a narrow white page, and every section the same way:
+  a small heading, one muted line, then plain rows on hairlines. No boxes around content.
+  Loaded last so it wins over the older dashboard, account and settings styles.
+*/
+.dashboard-layout {
+  grid-template-columns: 232px minmax(0, 1fr);
+  background: #ffffff;
+}
+
+/* Sidebar */
+.dashboard-sidebar {
+  gap: 4px;
+  padding: 14px 10px;
+  border-right: 1px solid var(--line);
+  background: #fafafa;
+}
+.dashboard-sidebar-top {
+  padding: 4px 8px 12px;
+}
+.dashboard-brand {
+  font-size: 1rem;
+}
+.dashboard-workspace,
+.dashboard-user {
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+}
+.dashboard-workspace:hover,
+.dashboard-user:hover,
+.dashboard-workspace[data-state='open'],
+.dashboard-user[data-state='open'] {
+  background: #f0f0ef;
+}
+.dashboard-workspace-mark,
+.dashboard-user-avatar {
+  width: 24px !important;
+  height: 24px !important;
+  border-radius: 6px !important;
+  font-size: 0.75rem !important;
+}
+.dashboard-workspace strong,
+.dashboard-user strong {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.dashboard-workspace small,
+.dashboard-user small {
+  font-size: 0.75rem;
+}
+.dashboard-nav {
+  gap: 1px;
+  margin-top: 12px;
+  flex: 1;
+}
+.dashboard-nav button {
+  min-height: 34px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-weight: 500;
+}
+.dashboard-nav button:hover {
+  background: #f0f0ef;
+}
+.dashboard-nav button[aria-current='page'] {
+  background: #ffffff;
+  box-shadow: 0 0 0 1px var(--line);
+  font-weight: 500;
+}
+.dashboard-nav button[aria-current='page'] svg {
+  color: var(--ink);
+}
+
+/* Page */
+.dashboard-content {
+  max-width: 880px;
+  padding: 56px 48px 96px;
+}
+.dashboard-content .dashboard-heading {
+  margin-bottom: 40px;
+}
+.dashboard-content .dashboard-heading h1 {
+  font-family: var(--font-sans), sans-serif;
+  font-size: 1.75rem;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+}
+.dashboard-content .dashboard-heading p {
+  margin-top: 6px;
+  font-size: 0.9375rem;
+}
+
+/* Every container becomes a plain section */
+.dashboard-content .account-card,
+.dashboard-content .settings-card,
+.dashboard-content .dashboard-block,
+.dashboard-content .plan-hero,
+.dashboard-content .home-panel-empty {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+.dashboard-content .account-card + .account-card,
+.dashboard-content .dashboard-block + .dashboard-block,
+.dashboard-content .settings-stack > * + * {
+  margin-top: 48px;
+}
+.dashboard-content .account-card,
+.dashboard-content .dashboard-block {
+  margin-bottom: 48px;
+}
+
+/* Section headings: small, with the action on the right */
+.dashboard-content .account-section-heading,
+.dashboard-content .agent-activity-heading,
+.dashboard-content .dashboard-block-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.dashboard-content .account-section-heading h2,
+.dashboard-content .agent-activity-heading h2,
+.dashboard-content .dashboard-block-title,
+.dashboard-content .settings-intro h2,
+.dashboard-content .home-panel h2 {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.dashboard-content .account-section-heading p,
+.dashboard-content .agent-activity-heading p,
+.dashboard-content .settings-intro p {
+  max-width: 560px;
+  margin-top: 2px;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  color: var(--muted);
+}
+.dashboard-content .rt-Badge {
+  font-weight: 500;
+}
+
+/* Settings: one column, heading over its fields */
+.dashboard-content .settings-section {
+  grid-template-columns: 1fr;
+  gap: 14px;
+  padding: 32px 0;
+  border-top: 1px solid var(--line);
+}
+.dashboard-content .settings-stack > .settings-section:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+.dashboard-content .settings-card {
+  max-width: 560px;
+  gap: 14px;
+}
+.dashboard-content .dashboard-tabs {
+  margin: -16px 0 40px;
+}
+
+/* Tables and lists: hairline rows, no frame */
+.dashboard-content .account-table-wrap {
+  border: 0;
+  border-radius: 0;
+}
+.dashboard-content .account-table {
+  border-top: 1px solid var(--line);
+}
+.dashboard-content .account-table thead th {
+  padding: 10px 12px 10px 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+.dashboard-content .account-table td {
+  padding: 12px 12px 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.dashboard-content .account-table tbody tr {
+  transition: background-color 150ms var(--motion-ease, ease);
+}
+.dashboard-content .account-table tbody tr:hover {
+  background: #fafafa;
+}
+.dashboard-content .dashboard-resource-icon {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  background: #f4f4f3;
+}
+.dashboard-content .settings-list > * {
+  border-radius: 0;
+}
+
+/* Empty states: one line and an action, aligned left */
+.dashboard-content .dashboard-empty,
+.dashboard-content .monitor-empty,
+.dashboard-content .settings-empty {
+  align-items: flex-start;
+  padding: 20px 0;
+  border-top: 1px solid var(--line);
+  text-align: left;
+}
+.dashboard-content .dashboard-empty-icon {
+  display: none;
+}
+
+/* Tools: a plain list grouped by category, not a wall of cards */
+.dashboard-content .tool-launch-grid {
+  gap: 0 32px;
+}
+.dashboard-content .tool-launch {
+  padding: 10px 8px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+.dashboard-content .tool-launch:hover {
+  background: #fafafa;
+  transform: none;
+}
+.dashboard-content .tool-launch-icon {
+  border: 0;
+  background: #f4f4f3;
+}
+.dashboard-content .recent-tool {
+  border-color: var(--line);
+}
+
+/* Buttons inside the dashboard are small pills */
+.dashboard-content .rt-Button,
+.dashboard-content .button {
+  min-height: 32px;
+  font-size: 0.8125rem;
+}
+
+/* Home summary: numbers without a frame */
+.dashboard-content .home-summary {
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+}
+.dashboard-content .home-summary button {
+  padding: 16px 16px 16px 0;
+  border-radius: 0 !important;
+}
+.dashboard-content .home-summary button + button {
+  padding-left: 16px;
+}
+.dashboard-content .home-panels {
+  gap: 48px;
+}
+
+@media (max-width: 900px) {
+  .dashboard-content {
+    padding: 32px 20px 64px;
+  }
+}
+
+/* Quick create: a row of plain links, not boxes */
+.dashboard-content .quick-create {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.dashboard-content .quick-create > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 0;
+  padding: 8px 14px 8px 8px;
+  border: 1px solid var(--line);
+  border-radius: 9999px;
+  background: #ffffff;
+  box-shadow: none;
+}
+.dashboard-content .quick-create > a:hover {
+  border-color: var(--ink);
+  transform: none;
+}
+.dashboard-content .quick-create > a small,
+.dashboard-content .quick-create > a span:not(:first-child) > :not(strong) {
+  display: none;
+}
+.dashboard-content .settings-actions {
+  padding-top: 0;
+  border-top: 0;
+  justify-content: flex-start;
+}
+.dashboard-content .quick-create-icon {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  background: #f4f4f3;
+}
+.dashboard-content .quick-create-arrow {
+  display: none;
+}
+.dashboard-content .quick-create > a strong {
+  font-size: 0.8125rem;
+  font-weight: 500;
+}

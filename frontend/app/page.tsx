@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Plus } from '@phosphor-icons/react/dist/ssr';
+import { CookieJar } from '../components/home/cookie-jar';
 import { CopyPrompt } from '../components/home/copy-prompt';
 import { LiveWebhook } from '../components/home/live-webhook';
 import { catalog } from '../lib/catalog';
@@ -207,6 +208,7 @@ export default function Home() {
                 <h2 id="close-heading">Give your agent the internet.</h2>
                 <CopyPrompt prompt={setupPrompt} />
             </section>
+            <CookieJar />
         </div>
     );
 }

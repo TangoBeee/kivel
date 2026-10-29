@@ -548,3 +548,125 @@
     margin-top: 96px !important;
   }
 }
+
+/* The cookie banner we don't need */
+.cookie-jar {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+.cookie-button {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 9999px;
+  background: #ffffff;
+  color: var(--ink);
+  box-shadow: 0 8px 24px rgb(20 20 20 / 0.1);
+  cursor: pointer;
+  transition: transform 300ms var(--home-ease);
+}
+.cookie-button:hover {
+  transform: rotate(-18deg) scale(1.06);
+}
+.cookie-button:active {
+  transform: scale(0.94);
+}
+.cookie-card {
+  position: relative;
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  width: 280px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 20px 50px rgb(20 20 20 / 0.12);
+  transform-origin: bottom right;
+  animation: cookie-pop 320ms var(--home-ease) backwards;
+}
+.cookie-card:focus {
+  outline: none;
+}
+.cookie-card strong {
+  font-size: 0.9375rem;
+}
+.cookie-card p {
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  color: var(--muted);
+}
+.cookie-card small {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.cookie-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 9999px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.cookie-close:hover {
+  background: var(--subtle);
+  color: var(--ink);
+}
+.cookie-treat {
+  padding: 4px;
+  border: 0;
+  background: none;
+  color: #a0632a;
+  cursor: pointer;
+  animation: cookie-wobble 900ms var(--home-ease) 200ms backwards;
+}
+.cookie-treat.is-eaten {
+  animation: cookie-crunch 450ms var(--home-ease);
+}
+.cookie-button:focus-visible,
+.cookie-treat:focus-visible,
+.cookie-close:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+@keyframes cookie-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.92);
+  }
+}
+@keyframes cookie-wobble {
+  0% {
+    transform: rotate(0deg) scale(0.6);
+    opacity: 0;
+  }
+  50% {
+    transform: rotate(-14deg) scale(1.08);
+    opacity: 1;
+  }
+  75% {
+    transform: rotate(8deg);
+  }
+}
+@keyframes cookie-crunch {
+  30% {
+    transform: scale(0.8) rotate(10deg);
+  }
+  60% {
+    transform: scale(1.1) rotate(-6deg);
+  }
+}

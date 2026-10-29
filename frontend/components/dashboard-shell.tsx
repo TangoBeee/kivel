@@ -105,6 +105,7 @@ const navItems = [
     { id: 'overview', label: 'Home', icon: House },
     { id: 'agents', label: 'Agents', icon: Robot },
     { id: 'resources', label: 'Resources', icon: FolderSimple },
+    { id: 'tools', label: 'Tools', icon: Toolbox },
     { id: 'monitors', label: 'Monitors', icon: Pulse },
     { id: 'workspace', label: 'Settings', icon: GearSix },
 ] as const;

@@ -219,6 +219,7 @@ const footerColumns = [
         title: 'Product',
         links: [
             { href: '/connect/', label: 'Connect an agent' },
+            { href: '/use-cases/', label: 'Agent use cases' },
             { href: '/catalog/', label: 'Free tools' },
             { href: '/integrations/', label: 'Integrations' },
             { href: '/plans/', label: 'Plans' },

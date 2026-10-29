@@ -30,3 +30,7 @@ __pycache__/
 # Impeccable review captures and mocks (local only)
 frontend/.impeccable/review/
 frontend/.impeccable/mocks/
+
+# npm release artifacts
+release/
+*.tgz

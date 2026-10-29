@@ -667,6 +667,8 @@ test('SSH verifies host identity, executes the shared engine, rejects shell comm
         new Date(Date.now() + 60000).toISOString(),
     );
     const app = buildApp({
+        mailDomain: 'inbox.example.test',
+        emailIngestSecret: 'test-ingest-secret',
         identityStore: identities,
         recoveryStore: new PostgresRecoveryRepository(pool),
         rateLimiter: new PostgresRateLimiter(pool),
@@ -723,6 +725,26 @@ test('SSH verifies host identity, executes the shared engine, rejects shell comm
     assert.equal(response.code, 0);
     assert.match(JSON.parse(response.stdout).output, /9007199254740993/);
     assert.equal((await execute(client, 'socket-help usage')).code, 0);
+    const memory = await execute(client, 'socket-help memory set ssh result', '{"success":true}');
+    assert.equal(memory.code, 0, memory.stderr);
+    const missing = await execute(client, 'socket-help memory get ssh missing');
+    assert.equal(missing.code, 1);
+    assert.equal(JSON.parse(missing.stderr).status, 404);
+    const remembered = await execute(client, 'socket-help memory get ssh result');
+    assert.deepEqual(JSON.parse(remembered.stdout).value, { success: true });
+    const email = await execute(client, 'socket-help email create');
+    assert.equal(email.code, 0, email.stderr);
+    const emailId = JSON.parse(email.stdout).id;
+    assert.equal((await execute(client, `socket-help email messages ${emailId}`)).code, 0);
+    assert.equal((await execute(client, `socket-help email delete ${emailId}`)).code, 0);
+    const monitor = await execute(client, 'socket-help monitor create', '{"kind":"heartbeat","name":"SSH job","intervalSeconds":300}');
+    assert.equal(monitor.code, 0, monitor.stderr);
+    const monitorId = JSON.parse(monitor.stdout).id;
+    assert.equal((await execute(client, `socket-help monitor pause ${monitorId}`)).code, 0);
+    assert.equal((await execute(client, `socket-help monitor delete ${monitorId}`)).code, 0);
+    const approval = await execute(client, 'socket-help approval ask', '{"question":"Proceed?"}');
+    assert.equal(approval.code, 0, approval.stderr);
+    assert.equal(JSON.parse(approval.stdout).status, 'pending');
     const mock = await execute(
         client,
         'socket-help api POST /api/mocks',

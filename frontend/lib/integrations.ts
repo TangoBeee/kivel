@@ -25,29 +25,32 @@ export const integrations: {
         id: 'sdk',
         title: 'TypeScript SDK',
         icon: 'braces',
-        description: 'Typed methods for utilities, resource creation, inspection, and cleanup.',
-        availability: 'Repository package',
+        description:
+            'Typed methods for agent login, email, webhooks, memory, monitors, human questions and utilities.',
+        availability: 'Published beta',
         code: `import { SocketHelp } from '@socket-help/sdk';
 
 const socket = new SocketHelp({
   apiKey: process.env.SOCKET_HELP_API_KEY,
 });
-const result = await socket.run('json', '{"hello":true}');
-const inbox = await socket.createInbox({ visibility: 'private' });`,
-        note: 'The SDK is a workspace package, not a published npm install. From the repository, run pnpm build:packages, then pnpm --filter @socket-help/sdk pack to create an installable tarball.',
+const inbox = await socket.createEmailInbox();
+const mail = await socket.waitForEmail(inbox.id);
+await socket.memorySet('build', 'verification', mail.messages[0]?.codes ?? []);`,
+        note: 'Install npm install @socket-help/sdk@beta (or pin an exact version). Requires Node.js 22.13+; ESM import and TypeScript declarations are included. The package uses your configured API origin.',
     },
     {
         id: 'cli',
         title: 'Command line',
         icon: 'terminal',
         description: 'Pipe input in, get JSON out, and use exit codes in automation.',
-        availability: 'Repository package',
+        availability: 'Published beta',
         code: `export SOCKET_HELP_API_KEY='your-key'
 printf '{"hello":true}' | socket-help run json
-socket-help inbox create
-socket-help resources
-socket-help api GET /api/account/resources`,
-        note: 'Build repository packages with pnpm build:packages and use pnpm cli --help locally. Package the CLI with pnpm --filter @socket-help/cli pack. Set SOCKET_HELP_URL for your installation. Errors go to stderr with a nonzero exit code.',
+socket-help email create
+socket-help memory list build
+socket-help monitor list
+socket-help approval pending`,
+        note: 'Install npm install --global @socket-help/cli@beta, or run npx --package=@socket-help/cli@beta socket-help --help. Requires Node.js 22.13+. Set SOCKET_HELP_URL for your installation. Errors go to stderr with a nonzero exit code.',
     },
     {
         id: 'ssh',
@@ -76,6 +79,6 @@ Content-Type: application/json
   "name":"run_tool",
   "arguments":{"toolId":"json","input":"{\\"hello\\":true}"}
 }}`,
-        note: 'Connect a Streamable HTTP client and initialize before making tool calls. Use tools/list for MCP discovery, list_tools for utility IDs, and run_tool for execution. Resource-specific tools handle creation and cleanup.',
+        note: 'Connect a Streamable HTTP client and initialize before making tool calls. Use tools/list for MCP discovery, list_tools for utility IDs, and run_tool for execution. Use start_login and finish_login to connect through human approval. Email, webhooks, mocks, memory, monitors and ask_human share HTTP permissions and quotas.',
     },
 ];

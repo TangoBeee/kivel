@@ -26,7 +26,9 @@ const schema = (
 ) => ({ type: 'object', properties, required, additionalProperties: false });
 const access = {
     id: stringProperty('Resource UUID.'),
-    token: stringProperty('Private management or inspection token returned at creation.'),
+    token: stringProperty(
+        'Management or inspection token for anonymous resources. Omit for resources owned by your authenticated workspace.',
+    ),
 };
 const readonly = {
     readOnlyHint: true,
@@ -87,7 +89,7 @@ export const platformTools = [
     {
         name: 'inspect_webhook_inbox',
         description: 'Read a webhook inbox and captured requests using its private token.',
-        inputSchema: schema(access),
+        inputSchema: schema(access, ['id']),
         annotations: readonly,
     },
     {
@@ -104,7 +106,7 @@ export const platformTools = [
                     description: `1 to ${WAIT_MAX_SECONDS} seconds.`,
                 },
             },
-            ['id', 'token'],
+            ['id'],
         ),
         annotations: readonly,
     },
@@ -125,14 +127,14 @@ export const platformTools = [
                 delayMs: { type: 'number' },
                 reset: { type: 'boolean' },
             },
-            ['id', 'token'],
+            ['id'],
         ),
         annotations: { ...creates, idempotentHint: true },
     },
     {
         name: 'delete_webhook_inbox',
         description: 'Permanently delete an inbox and its history.',
-        inputSchema: schema(access),
+        inputSchema: schema(access, ['id']),
         annotations: deletes,
     },
     {
@@ -140,7 +142,10 @@ export const platformTools = [
         description:
             'Create a receive-only email address (for example to sign up to a site under test). Lasts one hour unless ttlSeconds is set, up to the plan maximum. Save the managementToken, then call wait_for_email.',
         inputSchema: schema(
-            { ttlSeconds: { type: 'number', description: 'Lifetime in seconds, from 60.' } },
+            {
+                ttlSeconds: { type: 'number', description: 'Lifetime in seconds, from 60.' },
+                persistent: { type: 'boolean' },
+            },
             [],
         ),
         annotations: creates,
@@ -154,7 +159,7 @@ export const platformTools = [
                 after: stringProperty('Optional message ID; only newer messages are returned.'),
                 timeoutSeconds: { type: 'number' },
             },
-            ['id', 'token'],
+            ['id'],
         ),
         annotations: readonly,
     },
@@ -162,7 +167,7 @@ export const platformTools = [
         name: 'list_emails',
         description:
             'Read every message in an email inbox (up to 100): sender, subject, text, HTML, extracted codes and links, attachment names.',
-        inputSchema: schema(access),
+        inputSchema: schema(access, ['id']),
         annotations: readonly,
     },
     {
@@ -380,13 +385,13 @@ export const platformTools = [
         name: 'inspect_mock_api',
         description:
             'Read a mock API configuration, usage and its 20 most recent calls (method, path, status, body preview) with its private token.',
-        inputSchema: schema(access),
+        inputSchema: schema(access, ['id']),
         annotations: readonly,
     },
     {
         name: 'delete_mock_api',
         description: 'Permanently delete a mock API.',
-        inputSchema: schema(access),
+        inputSchema: schema(access, ['id']),
         annotations: deletes,
     },
     {
@@ -412,13 +417,13 @@ export const platformTools = [
     {
         name: 'inspect_temporary_file',
         description: 'Read file metadata and remaining downloads with its private token.',
-        inputSchema: schema(access),
+        inputSchema: schema(access, ['id']),
         annotations: readonly,
     },
     {
         name: 'delete_temporary_file',
         description: 'Permanently delete an uploaded file.',
-        inputSchema: schema(access),
+        inputSchema: schema(access, ['id']),
         annotations: deletes,
     },
     {
@@ -468,12 +473,52 @@ export const platformTools = [
         annotations: creates,
     },
     {
-        name: 'resource_request',
+        name: 'ping_monitor',
         description:
-            'Manage webhook, mock API, file, or mock MCP resources through the same HTTP lifecycle. Supports inspect, update, delete, renew, and listing account resources; creation supports webhook and mock configurations.',
+            'Report success or failure for a heartbeat monitor. token is the secret last segment of its pingUrl, not its monitor UUID. Anyone holding this token can report a heartbeat; keep it private.',
         inputSchema: schema(
             {
-                kind: { type: 'string', enum: ['inboxes', 'mocks', 'files', 'mcp-servers'] },
+                token: stringProperty('32-character token from pingUrl.'),
+                failed: { type: 'boolean' },
+            },
+            ['token'],
+        ),
+        annotations: { ...creates, idempotentHint: true },
+    },
+    {
+        name: 'inspect_monitor',
+        description: 'Read one workspace monitor and its recent status events.',
+        inputSchema: schema({ id: stringProperty('Monitor UUID.') }),
+        annotations: readonly,
+    },
+    {
+        name: 'pause_monitor',
+        description: 'Pause or resume a workspace monitor without deleting it.',
+        inputSchema: schema({ id: stringProperty('Monitor UUID.'), paused: { type: 'boolean' } }),
+        annotations: deletes,
+    },
+    {
+        name: 'workspace_status',
+        description:
+            'Read workspace agents, MCP activity, plan limits, usage, or human questions. This cannot approve agents, answer questions or manage billing.',
+        inputSchema: schema({
+            section: {
+                type: 'string',
+                enum: ['agents', 'activity', 'plans', 'usage', 'approvals'],
+            },
+        }),
+        annotations: readonly,
+    },
+    {
+        name: 'resource_request',
+        description:
+            'Manage webhook, email, mock API, file and mock MCP resources through HTTP lifecycle routes. Use calls for mock history; response or forward with config to configure a webhook (config.reset=true restores defaults); deliveries reads forwarding history. Email supports create, inspect, delete and renew; mail reading stays private.',
+        inputSchema: schema(
+            {
+                kind: {
+                    type: 'string',
+                    enum: ['inboxes', 'mocks', 'files', 'mcp-servers', 'email-inboxes'],
+                },
                 action: {
                     type: 'string',
                     enum: [
@@ -485,6 +530,10 @@ export const platformTools = [
                         'sharing',
                         'list',
                         'reset',
+                        'calls',
+                        'response',
+                        'forward',
+                        'deliveries',
                     ],
                 },
                 id: stringProperty('Resource UUID for existing resources.'),
@@ -638,11 +687,11 @@ function args(value: unknown) {
 function credentials(value: Record<string, unknown>) {
     if (
         typeof value.id !== 'string' ||
-        typeof value.token !== 'string' ||
-        !/^[A-Za-z0-9_-]{43}$/.test(value.token)
+        (value.token !== undefined &&
+            (typeof value.token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(value.token)))
     )
         throw new RpcError(-32602, 'Provide a resource ID and private token.');
-    return { id: value.id, token: value.token };
+    return { id: value.id, token: typeof value.token === 'string' ? value.token : '' };
 }
 function customArguments(tool: MockTool, value: Record<string, unknown>) {
     for (const key of tool.inputSchema.required)
@@ -957,7 +1006,10 @@ export function registerMcp({
             if (typeof request.headers[key] === 'string') headers[key] = request.headers[key];
         let url: string;
         if (name === 'create_email_inbox') {
-            url = `/api/email-inboxes${value.ttlSeconds !== undefined ? `?ttlSeconds=${Number(value.ttlSeconds)}` : ''}`;
+            const query = new URLSearchParams();
+            for (const key of ['ttlSeconds', 'persistent'])
+                if (value[key] !== undefined) query.set(key, String(value[key]));
+            url = `/api/email-inboxes${query.size ? `?${query}` : ''}`;
         } else {
             const { id, token } = credentials(value);
             if (!isUuid(id)) throw new RpcError(-32602, 'Provide an email inbox UUID.');
@@ -1062,6 +1114,7 @@ export function registerMcp({
         for (const key of ['authorization', 'cookie', 'origin'])
             if (typeof request.headers[key] === 'string') headers[key] = request.headers[key];
         if (name === 'wait_for_approval') {
+            uploads.delete(request);
             if (!isUuid(String(value.id))) throw new RpcError(-32602, 'Provide an approval UUID.');
             uploads.delete(request);
         }
@@ -1083,24 +1136,67 @@ export function registerMcp({
         value: Record<string, unknown>,
         request: FastifyRequest,
     ) {
-        const headers: Record<string, string> =
-            name === 'create_monitor' ? { 'content-type': 'application/json' } : {};
+        const headers: Record<string, string> = ['create_monitor', 'pause_monitor'].includes(name)
+            ? { 'content-type': 'application/json' }
+            : {};
         for (const key of ['authorization', 'cookie', 'origin'])
             if (typeof request.headers[key] === 'string') headers[key] = request.headers[key];
-        if (name === 'delete_monitor' && !isUuid(String(value.id)))
+        if (
+            ['delete_monitor', 'inspect_monitor', 'pause_monitor'].includes(name) &&
+            !isUuid(String(value.id))
+        )
             throw new RpcError(-32602, 'Provide a monitor UUID.');
+        if (name === 'ping_monitor' && !/^[A-Za-z0-9_-]{32}$/.test(String(value.token)))
+            throw new RpcError(-32602, 'Provide the 32-character token from pingUrl.');
         const response = await app.inject({
             method:
-                name === 'create_monitor' ? 'POST' : name === 'delete_monitor' ? 'DELETE' : 'GET',
-            url: name === 'delete_monitor' ? `/api/monitors/${value.id}` : '/api/monitors',
+                name === 'create_monitor' || name === 'ping_monitor'
+                    ? 'POST'
+                    : name === 'delete_monitor'
+                      ? 'DELETE'
+                      : name === 'pause_monitor'
+                        ? 'PATCH'
+                        : 'GET',
+            url:
+                name === 'ping_monitor'
+                    ? `/ping/${value.token}${value.failed === true ? '/fail' : ''}`
+                    : ['delete_monitor', 'inspect_monitor', 'pause_monitor'].includes(name)
+                      ? `/api/monitors/${value.id}`
+                      : '/api/monitors',
             headers,
             remoteAddress: request.ip,
-            ...(name === 'create_monitor' ? { payload: value } : {}),
+            ...(name === 'create_monitor'
+                ? { payload: value }
+                : name === 'pause_monitor'
+                  ? { payload: { paused: value.paused } }
+                  : {}),
         });
         return result(
             response.statusCode === 204 ? { deleted: true } : response.json(),
             response.statusCode >= 400,
         );
+    }
+    async function workspaceStatus(value: Record<string, unknown>, request: FastifyRequest) {
+        const paths: Record<string, string> = {
+            agents: '/api/agents',
+            activity: '/api/account/activity',
+            plans: '/api/plans',
+            usage: '/api/usage',
+            approvals: '/api/approvals',
+        };
+        const path = paths[String(value.section)];
+        if (!Object.hasOwn(paths, String(value.section)) || !path)
+            throw new RpcError(-32602, 'Choose agents, activity, plans, usage or approvals.');
+        const headers: Record<string, string> = {};
+        for (const key of ['authorization', 'cookie', 'origin'])
+            if (typeof request.headers[key] === 'string') headers[key] = request.headers[key];
+        const response = await app.inject({
+            method: 'GET',
+            url: path,
+            headers,
+            remoteAddress: request.ip,
+        });
+        return result(response.json(), response.statusCode >= 400);
     }
     async function resourceRequest(value: Record<string, unknown>, request: FastifyRequest) {
         const kind = String(value.kind ?? ''),
@@ -1115,12 +1211,22 @@ export function registerMcp({
                 'sharing',
                 'list',
                 'reset',
+                'calls',
+                'response',
+                'forward',
+                'deliveries',
             ].includes(action) ||
-            (action !== 'list' && !['inboxes', 'mocks', 'files', 'mcp-servers'].includes(kind))
+            (action !== 'list' &&
+                !['inboxes', 'mocks', 'files', 'mcp-servers', 'email-inboxes'].includes(kind))
         )
             throw new RpcError(-32602, 'Choose a resource kind and action.');
-        if (action === 'reset' && kind !== 'mocks')
-            throw new RpcError(-32602, 'Only CRUD mocks support reset.');
+        if (
+            (['calls', 'reset'].includes(action) && kind !== 'mocks') ||
+            (['response', 'forward', 'deliveries'].includes(action) && kind !== 'inboxes') ||
+            (action === 'update' && kind !== 'mocks') ||
+            (action === 'sharing' && kind === 'email-inboxes')
+        )
+            throw new RpcError(-32602, 'This resource does not support that action.');
         if (action === 'create' && kind === 'files')
             throw new RpcError(-32602, 'Use upload_temporary_file for file creation.');
         if (
@@ -1132,18 +1238,35 @@ export function registerMcp({
         const query = new URLSearchParams();
         for (const key of ['ttlSeconds', 'persistent', 'visibility'])
             if (value[key] !== undefined) query.set(key, String(value[key]));
+        const suffix = [
+            'sharing',
+            'renew',
+            'reset',
+            'calls',
+            'response',
+            'forward',
+            'deliveries',
+        ].includes(action)
+            ? `/${action}`
+            : action === 'inspect' && kind === 'inboxes'
+              ? '/requests'
+              : '';
         const path =
             action === 'list'
                 ? '/api/account/resources'
-                : `/api/${kind}${action === 'create' ? '' : `/${value.id}`}${action === 'sharing' ? '/sharing' : action === 'renew' ? '/renew' : action === 'reset' ? '/reset' : action === 'inspect' && kind === 'inboxes' ? '/requests' : ''}${query.size ? `?${query}` : ''}`;
+                : `/api/${kind}${action === 'create' ? '' : `/${value.id}`}${suffix}${query.size ? `?${query}` : ''}`;
         const headers: Record<string, string> = {};
         for (const key of ['authorization', 'cookie', 'origin'])
             if (typeof request.headers[key] === 'string') headers[key] = request.headers[key];
         if (typeof value.token === 'string') headers['x-resource-token'] = value.token;
+        const resetSetting =
+            ['response', 'forward'].includes(action) &&
+            object(value.config) &&
+            value.config.reset === true;
         const method =
-            action === 'delete'
+            action === 'delete' || resetSetting
                 ? 'DELETE'
-                : action === 'update'
+                : ['update', 'response', 'forward'].includes(action)
                   ? 'PUT'
                   : ['create', 'renew', 'sharing', 'reset'].includes(action)
                     ? 'POST'
@@ -1329,68 +1452,73 @@ export function registerMcp({
                         response =
                             params.name === 'call_mock_api'
                                 ? await callMock(values, request)
-                                : params.name === 'resource_request'
-                                  ? await resourceRequest(values, request)
-                                  : ['start_login', 'start_trial', 'finish_login'].includes(
-                                          params.name,
-                                      )
-                                    ? await loginRequest(params.name, values, request)
-                                    : ['ask_human', 'wait_for_approval'].includes(params.name)
-                                      ? await approvalRequest(params.name, values, request)
-                                      : [
-                                              'create_monitor',
-                                              'list_monitors',
-                                              'delete_monitor',
-                                          ].includes(params.name)
-                                        ? await monitorRequest(params.name, values, request)
-                                        : params.name.startsWith('memory_')
-                                          ? await memoryRequest(params.name, values, request)
-                                          : [
-                                                  'create_email_inbox',
-                                                  'wait_for_email',
-                                                  'list_emails',
-                                              ].includes(params.name)
-                                            ? await emailRequest(params.name, values, request)
-                                            : params.name === 'describe_tool'
-                                              ? result({
-                                                    toolId: values.toolId,
-                                                    guide:
-                                                        executionGuide(String(values.toolId)) ??
-                                                        null,
-                                                })
-                                              : params.name === 'search_tools'
+                                : params.name === 'workspace_status'
+                                  ? await workspaceStatus(values, request)
+                                  : params.name === 'resource_request'
+                                    ? await resourceRequest(values, request)
+                                    : ['start_login', 'start_trial', 'finish_login'].includes(
+                                            params.name,
+                                        )
+                                      ? await loginRequest(params.name, values, request)
+                                      : ['ask_human', 'wait_for_approval'].includes(params.name)
+                                        ? await approvalRequest(params.name, values, request)
+                                        : [
+                                                'create_monitor',
+                                                'list_monitors',
+                                                'ping_monitor',
+                                                'inspect_monitor',
+                                                'pause_monitor',
+                                                'delete_monitor',
+                                            ].includes(params.name)
+                                          ? await monitorRequest(params.name, values, request)
+                                          : params.name.startsWith('memory_')
+                                            ? await memoryRequest(params.name, values, request)
+                                            : [
+                                                    'create_email_inbox',
+                                                    'wait_for_email',
+                                                    'list_emails',
+                                                ].includes(params.name)
+                                              ? await emailRequest(params.name, values, request)
+                                              : params.name === 'describe_tool'
                                                 ? result({
-                                                      tools: searchExecutable(
-                                                          typeof values.query === 'string'
-                                                              ? values.query
-                                                              : '',
-                                                      ),
+                                                      toolId: values.toolId,
+                                                      guide:
+                                                          executionGuide(String(values.toolId)) ??
+                                                          null,
                                                   })
-                                                : params.name === 'list_tools'
-                                                  ? result({ tools: executableIds })
-                                                  : params.name === 'run_tool'
-                                                    ? result(
-                                                          await tools.run(
-                                                              request,
-                                                              String(values.toolId),
-                                                              {
-                                                                  input: values.input ?? '',
-                                                                  options: values.options ?? {},
-                                                                  ...(values.files || values.file
-                                                                      ? {
-                                                                            file:
-                                                                                values.files ??
-                                                                                values.file,
-                                                                        }
-                                                                      : {}),
-                                                              },
-                                                          ),
-                                                      )
-                                                    : await callPlatform(
-                                                          params.name,
-                                                          values,
-                                                          request,
-                                                      );
+                                                : params.name === 'search_tools'
+                                                  ? result({
+                                                        tools: searchExecutable(
+                                                            typeof values.query === 'string'
+                                                                ? values.query
+                                                                : '',
+                                                        ),
+                                                    })
+                                                  : params.name === 'list_tools'
+                                                    ? result({ tools: executableIds })
+                                                    : params.name === 'run_tool'
+                                                      ? result(
+                                                            await tools.run(
+                                                                request,
+                                                                String(values.toolId),
+                                                                {
+                                                                    input: values.input ?? '',
+                                                                    options: values.options ?? {},
+                                                                    ...(values.files || values.file
+                                                                        ? {
+                                                                              file:
+                                                                                  values.files ??
+                                                                                  values.file,
+                                                                          }
+                                                                        : {}),
+                                                                },
+                                                            ),
+                                                        )
+                                                      : await callPlatform(
+                                                            params.name,
+                                                            values,
+                                                            request,
+                                                        );
                     }
                     break;
                 }

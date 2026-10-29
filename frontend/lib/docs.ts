@@ -1,3 +1,4 @@
+import { agentDoc } from './agent-doc';
 import { echoDoc } from './echo-content';
 import { crudDoc } from './crud-content';
 import { scenarioDoc } from './scenario-content';
@@ -32,6 +33,7 @@ export const docGroups = ['Get started', 'Resources', 'Interfaces', 'Reference']
 const updatedAt = '2026-10-27';
 
 export const docPages: DocPage[] = [
+    agentDoc,
     echoDoc,
     crudDoc,
     scenarioDoc,
@@ -1415,14 +1417,14 @@ curl https://socket.help/api/tools/everyday-file-checksums/run \\
         group: 'Interfaces',
         description:
             'Use the socket-help CLI to run utilities from a pipe, create webhook inboxes, upload and download files, and call any /api/ endpoint with JSON output.',
-        updatedAt,
+        updatedAt: '2026-10-30',
         sections: [
             {
                 id: 'overview',
                 title: 'What the CLI is for',
                 paragraphs: [
                     'socket-help is a small command line client for shell scripts and CI. It reads input from standard input, prints JSON to standard output, writes errors as JSON to standard error and exits with a nonzero code on failure. It is built on the TypeScript SDK.',
-                    'The CLI ships in the repository as a workspace package, not as a published npm package. Build it with pnpm build:packages and run pnpm cli --help, or create an installable tarball with pnpm --filter @socket-help/cli pack.',
+                    'The CLI beta is published as @socket-help/cli. Install it with npm install --global @socket-help/cli@beta, or run npx --package=@socket-help/cli@beta socket-help --help. It installs the matching SDK automatically. In the repository you can also use pnpm cli instead of socket-help.',
                 ],
             },
             {
@@ -1448,7 +1450,7 @@ curl https://socket.help/api/tools/everyday-file-checksums/run \\
                 id: 'commands',
                 title: 'Commands',
                 paragraphs: [
-                    'Creation commands default to private visibility and also accept --ttl-seconds <n> and --persistent.',
+                    'Resource creation accepts --ttl-seconds and --persistent. Webhooks, mocks, mock MCP servers and files default to private visibility. Email addresses accept incoming mail publicly; reading mail always requires management access. Agent login/trial commands use their own fixed expiry rules.',
                 ],
                 table: {
                     caption: 'socket-help commands',
@@ -1458,6 +1460,17 @@ curl https://socket.help/api/tools/everyday-file-checksums/run \\
                         ['socket-help describe <tool-id>', 'Show one tool and its options'],
                         ['socket-help usage', 'Show your plan, limits and runs today'],
                         ['socket-help resources', 'List workspace resources (needs an API key)'],
+                        ['socket-help agent login <name> / agent token', 'Start device login, then pipe {"deviceCode":"…"} to agent token after browser approval; save the returned key privately'],
+                        ['socket-help agent trial <name>', 'Start a 72-hour anonymous-limit trial; --human-email optionally notifies the human'],
+                        ['socket-help email create / messages <id> / wait <id>', 'Receive-only mail; waits accept --after and --timeout-seconds'],
+                        ['socket-help memory set|get|delete <namespace> <key>', 'Pipe a JSON value to set; memory list <namespace> accepts --prefix'],
+                        ['socket-help monitor create|list|inspect|pause|resume|delete [id]', 'Pipe monitor settings as JSON to create'],
+                        ['socket-help monitor ping|fail <ping-token>', 'Report job success or failure using the secret from pingUrl'],
+                        ['socket-help approval ask|list|pending|inspect|wait [id]', 'Pipe question/options as JSON to ask; only the signed-in human can answer'],
+                        ['socket-help inbox requests|wait|response|forward|deliveries <id>', 'Read requests, wait, pipe response/forward settings as JSON, or inspect delivery attempts'],
+                        ['socket-help mock create|update|calls|reset [id]', 'Pipe mock configuration as JSON to create/update'],
+                        ['socket-help mcp-server create', 'Pipe a mock MCP configuration as JSON'],
+                        ['socket-help inbox|email|mock|mcp-server|file inspect|delete|renew <id>', 'Shared lifecycle commands; --token for anonymous management, --persistent on renew for paid leases'],
                         [
                             'socket-help run <tool-id> [--options JSON] [--file <name>]',
                             'Run a utility with standard input as text, or as file bytes with --file',
@@ -1503,7 +1516,7 @@ socket-help api DELETE /api/mocks/MOCK_ID --token "$MANAGEMENT_TOKEN"`,
                     'Errors print {"error", "status", "requestId", "retryAfter"} to standard error and exit with code 1.',
                     'Standard input is limited to 10 MiB. Requests time out after 90 seconds.',
                     'Mutations are never retried automatically.',
-                    'The api command sends the --token value in X-Resource-Token, so it works alongside an API key.',
+                    'The api command accepts GET, HEAD, OPTIONS, POST, PUT, PATCH and DELETE. It sends --token in X-Resource-Token for /api/ paths, or X-Access-Token for /mock/ callers, alongside any workspace key.',
                 ],
                 paragraphs: [],
             },
@@ -1511,7 +1524,7 @@ socket-help api DELETE /api/mocks/MOCK_ID --token "$MANAGEMENT_TOKEN"`,
         faqs: [
             {
                 question: 'How do I install the socket-help CLI?',
-                answer: 'It is a repository package. Run pnpm build:packages, then pnpm cli --help, or pnpm --filter @socket-help/cli pack to build a tarball you can install with npm.',
+                answer: 'Install npm install --global @socket-help/cli@beta, or use npx --package=@socket-help/cli@beta socket-help --help without a global installation. The CLI requires Node.js 22.13+. Use the scoped package name @socket-help/cli; the executable is named socket-help.',
             },
             {
                 question: 'How do I run a multi-file tool such as PDF merging from the CLI?',
@@ -1536,14 +1549,14 @@ socket-help api DELETE /api/mocks/MOCK_ID --token "$MANAGEMENT_TOKEN"`,
         group: 'Interfaces',
         description:
             'Use the @socket-help/sdk TypeScript client to run utilities, create inboxes, mocks, files and mock MCP servers, change sharing, renew and handle typed errors.',
-        updatedAt,
+        updatedAt: '2026-10-30',
         sections: [
             {
                 id: 'overview',
                 title: 'What the SDK covers',
                 paragraphs: [
                     '@socket-help/sdk is a small, dependency-free TypeScript client for the socket.help HTTP API. It works in Node.js and any runtime with fetch. Use it when you want typed methods for utilities and resources instead of building requests by hand.',
-                    'The SDK is a workspace package, not a published npm install. From the repository, run pnpm build:packages, then pnpm --filter @socket-help/sdk pack to create an installable tarball.',
+                    'Install the SDK beta with npm install @socket-help/sdk@beta. The ESM package includes JavaScript and TypeScript declarations, requires Node.js 22.13+ and uses import rather than CommonJS require. Use an explicit beta tag or version until a latest release is promoted.',
                 ],
             },
             {
@@ -1578,6 +1591,22 @@ console.log(result.output, result.usage.used);`,
                         ['tool(id)', 'GET /api/tools/{id}'],
                         ['run(toolId, input?, options?, file?)', 'POST /api/tools/{id}/run'],
                         ['usage()', 'GET /api/usage'],
+                        ['plans() / activity() / agents()', 'Read plan limits, MCP activity and workspace agents'],
+                        ['startLogin(name, client?) / finishLogin(deviceCode)', 'Device login; approved keys are delivered once. Approval remains in the human browser'],
+                        ['startTrial(name, humanEmail?, client?)', '72-hour trial with anonymous limits and a human claim link'],
+                        ['createEmailInbox(settings?) / emailInbox(id, token?) / emails(id, token?)', 'Receive-only inbox creation, metadata and messages'],
+                        ['waitForEmail(id, {token?, after?, timeoutSeconds?})', 'Long-poll for messages, extracted codes and links'],
+                        ['memorySet(namespace, key, value, ttlSeconds?)', 'Save a JSON value within workspace memory limits'],
+                        ['memoryGet<T>(namespace, key) / memoryList(namespace, prefix?) / memoryDelete(namespace, key)', 'Read, list metadata and delete workspace memory'],
+                        ['createMonitor(settings) / monitors() / monitor(id)', 'Create and inspect HTTP, SSL or heartbeat monitors'],
+                        ['pingMonitor(token, failed?)', 'Report a job success or failure using the secret token from pingUrl'],
+                        ['pauseMonitor(id, paused?) / deleteMonitor(id)', 'Pause, resume or remove a monitor'],
+                        ['askHuman({question, options?, details?, timeoutMinutes?})', 'Ask the human; answerUrl is safe to show them'],
+                        ['approvals(pendingOnly?) / approval(id) / waitForApproval(id, timeoutSeconds?)', 'Read questions and wait; a timeout never means approval'],
+                        ['waitForRequests(id, {token?, after?, timeoutSeconds?})', 'Long-poll for webhook captures'],
+                        ['setInboxResponse(id, settingsOrNull, token?) / setInboxForward(id, urlOrNull, token?)', 'Configure responses or paid forwarding; null restores defaults'],
+                        ['inboxDeliveries(id, token?) / mockCalls(id, token?)', 'Read recent forwarding attempts and mock calls'],
+                        ['inspectResource(kind, id, token?) / updateMock(id, config, token?) / resetMock(id, token?)', 'Resource metadata, mock configuration and CRUD reset'],
                         ['resources()', 'GET /api/account/resources'],
                         ['createInbox(settings?)', 'POST /api/inboxes'],
                         ['inspectInbox(id, token?)', 'GET /api/inboxes/{id}/requests'],
@@ -1590,7 +1619,7 @@ console.log(result.output, result.usage.used);`,
                         ['remove(kind, id, token?)', 'DELETE /api/{kind}/{id}'],
                         [
                             'request(method, path, body?, token?, headers?)',
-                            'Any relative /api/ path',
+                            'Relative /api/ or /mock/ paths; HEAD succeeds without a JSON body',
                         ],
                     ],
                 },
@@ -1599,7 +1628,7 @@ console.log(result.output, result.usage.used);`,
                 id: 'resources',
                 title: 'Work with resources',
                 paragraphs: [
-                    'settings accepts ttlSeconds, persistent and visibility; upload also accepts maxDownloads. For endpoints without a dedicated method, such as reading a mock API, use request().',
+                    'Webhook, mock, mock MCP and file settings accept ttlSeconds, persistent and visibility; upload also accepts maxDownloads. Email settings accept ttlSeconds and persistent, with management-protected reading. inspectResource reads metadata. Use request() for other /api/ operations and /mock/ caller requests; its token is a caller access token for /mock/ paths.',
                 ],
                 code: {
                     title: 'Inbox and file lifecycle',
@@ -1613,7 +1642,7 @@ const file = await socket.upload('report.txt', new TextEncoder().encode('hello')
 });
 const bytes = await socket.downloadFile(file.id, file.accessToken);
 
-const mock = await socket.request('GET', '/api/mocks/MOCK_ID');
+const mock = await socket.inspectResource('mocks', 'MOCK_ID');
 await socket.remove('inboxes', inbox.id);`,
                 },
             },
@@ -1639,7 +1668,7 @@ await socket.remove('inboxes', inbox.id);`,
         faqs: [
             {
                 question: 'Is the SDK on npm?',
-                answer: 'No. It is a workspace package in the repository. Build it with pnpm build:packages and pack it with pnpm --filter @socket-help/sdk pack.',
+                answer: 'Yes. Install @socket-help/sdk@beta for the published beta, or pin an exact @socket-help/sdk version. It includes TypeScript declarations. An untagged install requires a latest-tag release.',
             },
             {
                 question: 'Does the SDK create public resources?',
@@ -1664,7 +1693,7 @@ await socket.remove('inboxes', inbox.id);`,
         group: 'Interfaces',
         description:
             'Run socket-help CLI commands over SSH with your API key as the password. No shell, forwarding, SCP or SFTP: one command per session with JSON output.',
-        updatedAt,
+        updatedAt: '2026-10-30',
         sections: [
             {
                 id: 'overview',
@@ -1678,7 +1707,7 @@ await socket.remove('inboxes', inbox.id);`,
                 id: 'connect',
                 title: 'Connect',
                 paragraphs: [
-                    'Log in as user socket with a workspace API key (sh_...) as the password. Commands must start with socket-help. Pipe input on standard input for run, upload and api requests with a body; use -n for commands that read nothing.',
+                    'Log in as user socket with a workspace API key (sh_...) as the password. Commands must start with socket-help. Pipe JSON to memory set, monitor create, approval ask, mock creation and other commands with a body; pipe bytes to upload or run --file. Use -n for read-only commands. The local CLI listen command is not offered over SSH.',
                 ],
                 code: {
                     title: 'Run commands over SSH',
@@ -1712,7 +1741,7 @@ ssh -T -n -p 2222 socket@your-host socket-help inbox create --visibility public`
             },
             {
                 question: 'Which commands are available over SSH?',
-                answer: 'The same commands as the CLI: tools, describe, usage, resources, run, inbox create, upload, download and api.',
+                answer: 'The shared CLI commands cover utilities, email, webhooks, memory, monitors, human questions, mock APIs, mock MCP servers and file lifecycle. The continuous listen command runs locally in the CLI only. SSH requires a workspace key; human approvals and billing stay in the browser.',
             },
             {
                 question: 'Is the SSH gateway available on every installation?',
@@ -1732,7 +1761,7 @@ ssh -T -n -p 2222 socket@your-host socket-help inbox create --visibility public`
         group: 'Interfaces',
         description:
             'Connect an AI agent to the socket.help MCP endpoint at /mcp to run utilities and manage webhook inboxes, mock APIs, files and mock MCP servers over HTTP.',
-        updatedAt,
+        updatedAt: '2026-10-30',
         sections: [
             {
                 id: 'overview',
@@ -1771,6 +1800,7 @@ ssh -T -n -p 2222 socket@your-host socket-help inbox create --visibility public`
                     caption: 'Platform MCP tools',
                     headers: ['Tool', 'Purpose'],
                     rows: [
+                        ['search_tools', 'Find executable utilities by keyword; preferred over listing the full catalog'],
                         ['list_tools', 'List executable utility IDs'],
                         ['describe_tool', 'Options, defaults, limits and examples for one tool ID'],
                         [
@@ -1779,11 +1809,20 @@ ssh -T -n -p 2222 socket@your-host socket-help inbox create --visibility public`
                         ],
                         ['create_webhook_inbox', 'Create an inbox; optional visibility'],
                         ['inspect_webhook_inbox', 'Read inbox details and captured requests'],
+                        ['wait_for_webhook', 'Wait for new requests; after is the last request ID seen'],
+                        ['set_webhook_response', 'Configure status, body, content type, headers and delay; reset restores defaults'],
                         ['delete_webhook_inbox', 'Delete an inbox and its history'],
+                        ['start_login / finish_login / start_trial', 'Connect through human approval, or start a capped trial'],
+                        ['create_email_inbox / list_emails / wait_for_email', 'Receive email with extracted codes and links'],
+                        ['memory_set / memory_get / memory_list / memory_delete', 'Workspace-scoped JSON memory'],
+                        ['create_monitor / list_monitors / inspect_monitor / pause_monitor / ping_monitor / delete_monitor', 'Manage uptime, SSL and heartbeat checks'],
+                        ['ask_human / wait_for_approval', 'Ask and wait; answering stays in the human browser'],
+                        ['workspace_status', 'Read agents, activity, plan limits, usage or human questions'],
                         ['create_mock_api', 'Create a mock API from name and routes'],
+                        ['call_mock_api', 'Call a mock route or mutate CRUD data with caller access'],
                         ['inspect_mock_api', 'Read a mock configuration and usage'],
                         ['delete_mock_api', 'Delete a mock API'],
-                        ['upload_temporary_file', 'Upload a file up to 64 KiB as Base64'],
+                        ['upload_temporary_file', 'Upload a file up to 64 KiB as Base64; HTTP/SDK/CLI support larger files'],
                         ['inspect_temporary_file', 'Read file metadata and remaining downloads'],
                         [
                             'download_temporary_file',
@@ -1792,7 +1831,7 @@ ssh -T -n -p 2222 socket@your-host socket-help inbox create --visibility public`
                         ['delete_temporary_file', 'Delete a file'],
                         [
                             'resource_request',
-                            'Inspect, update, delete, renew, change sharing or list resources of any kind; create inboxes, mocks and mock MCP servers',
+                            'Manage supported resource lifecycle operations; create webhooks, email inboxes, mocks and mock MCP servers; read calls/deliveries and configure webhook response/forwarding',
                         ],
                     ],
                 },
@@ -1801,8 +1840,8 @@ ssh -T -n -p 2222 socket@your-host socket-help inbox create --visibility public`
                 id: 'credentials',
                 title: 'Credentials inside tool calls',
                 paragraphs: [
-                    'The inspect_* and delete_* tools require id and token: the inspection or management token returned at creation. For workspace resources created with the connection’s API key, resource_request works without a token. download_temporary_file takes the private access token as accessToken, separate from the management token.',
-                    'resource_request takes kind (inboxes, mocks, files or mcp-servers), action (create, inspect, update, delete, renew, sharing or list), and optionally id, token, config, ttlSeconds, persistent and visibility. It calls the same HTTP endpoints, so its results match the HTTP responses.',
+                    'The inspect_*, delete_* and wait tools take a resource id. Anonymous resources also require the inspection or management token returned at creation. Resources owned by the authenticated workspace do not need a separate management token. download_temporary_file takes the private access token as accessToken, separate from the management token.',
+                    'resource_request takes kind (inboxes, mocks, files, mcp-servers or email-inboxes), action (create, inspect, update, delete, renew, sharing, list, reset, calls, response, forward or deliveries), and optionally id, token, config, ttlSeconds, persistent and visibility. It calls the same HTTP endpoints, so its results match the HTTP responses. Email supports create, inspect, delete and renew; its messages always require management access. response and forward accept config; config.reset=true restores defaults. update, calls and reset apply to mocks; response, forward and deliveries apply to webhooks.',
                 ],
                 note: 'Tool results can contain new tokens. Agents should keep management and inspection tokens private and pass only access tokens to the systems that need them.',
             },
@@ -1810,7 +1849,7 @@ ssh -T -n -p 2222 socket@your-host socket-help inbox create --visibility public`
                 id: 'errors',
                 title: 'Errors',
                 paragraphs: [
-                    'Invalid arguments return a JSON-RPC error with code -32602, and unknown methods return -32601. API errors such as quota or permission failures come back as a tool result with isError: true and a JSON body containing error and status.',
+                    'Invalid arguments return a JSON-RPC error with code -32602, and unknown methods return -32601. Quota, permission and resource failures return a tool result with isError: true and an error message. Some failures also include an HTTP status or request ID; clients must not require those fields on every error.',
                 ],
             },
         ],
@@ -1829,7 +1868,7 @@ ssh -T -n -p 2222 socket@your-host socket-help inbox create --visibility public`
             },
             {
                 question: 'How does an agent discover which utilities it can run?',
-                answer: 'Call list_tools for the executable IDs, then describe_tool for a tool’s options, defaults and limits before calling run_tool.',
+                answer: 'Use search_tools with query to find relevant utilities, then describe_tool for options, defaults and limits before run_tool. list_tools returns the full executable list when needed.',
             },
         ],
         related: [

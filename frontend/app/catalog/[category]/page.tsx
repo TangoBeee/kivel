@@ -1,8 +1,9 @@
+import { pageMetadata } from '../../../lib/seo';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { toolGlyphs } from '../../../components/tool-glyphs';
 import { CatalogBrowser } from '../../../components/catalog-browser';
-import { categories } from '../../../lib/catalog';
+import { categories, catalog } from '../../../lib/catalog';
 
 export const dynamicParams = false;
 export function generateStaticParams() {
@@ -15,7 +16,21 @@ export async function generateMetadata({
 }): Promise<Metadata> {
     const { category: id } = await params;
     const category = categories.find((item) => item.id === id);
-    return { title: category?.name ?? 'Tool catalog', description: category?.description };
+    if (!category) return {};
+    const metadata = pageMetadata(
+        `${category.name} tools`,
+        `${category.description} Browse available tools, see examples and limits, or connect your coding agent through MCP. Planned tools are labelled coming soon.`,
+        `/catalog/${category.id}/`,
+    );
+    return {
+        ...metadata,
+        robots: {
+            index: catalog.some(
+                (tool) => tool.categoryId === category.id && tool.status === 'available',
+            ),
+            follow: true,
+        },
+    };
 }
 export default async function CategoryPage({ params }: { params: Promise<{ category: string }> }) {
     const { category } = await params;

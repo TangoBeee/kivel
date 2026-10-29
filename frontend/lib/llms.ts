@@ -1,3 +1,4 @@
+import { useCases } from './use-cases';
 // Plain text views of the site for AI assistants (llmstxt.org) and feed readers, built from the same data as the pages.
 import { articles } from './articles';
 import type { Article } from './articles';
@@ -7,13 +8,13 @@ import type { Comparison } from './comparisons';
 import { docGroups, docPages } from './docs';
 import type { DocPage } from './docs';
 import { siteOrigin } from './site';
+import { paidPlansEnabled, pricing } from './pricing';
 
 const url = (path: string) => `${siteOrigin}${path}`;
 const clean = (text: string) => text.replace(/\s+/g, ' ').trim();
 const available = catalog.filter((tool) => tool.status === 'available');
 
-const SUMMARY =
-    'socket.help gives AI agents and developers everything they need from the internet, over one MCP connection: private webhook inboxes (custom responses, wait_for_webhook, forwarding on Pro), receive-only email inboxes with extracted codes and links (wait_for_email), mock REST APIs (fake data, random failures, call logs, proxy and record on Pro), mock MCP servers, temporary file sharing, and 130+ browser utilities. Tools work without an account; a free account adds a workspace, 7-day retention and scoped API keys. Pro is $2 a month. Every tool is available from the browser, an HTTP API, a CLI, a TypeScript SDK, an SSH gateway, and MCP (setup: https://socket.help/connect/). There are no ads.';
+const SUMMARY = `socket.help is the internet toolkit for AI coding agents: webhook URLs, receive-only email with extracted codes and links, mock REST APIs and MCP servers, temporary files, workspace JSON memory, uptime/SSL/heartbeat monitors and human questions. Connect over MCP or HTTP; start_login/finish_login require browser approval, or start_trial gives a 72-hour anonymous-limit key. Anonymous resource retention is one hour; memory, monitors and human questions require a workspace. Free includes 3 agents and up to 7 days of resource retention. ${paidPlansEnabled ? 'Paid checkout is enabled on this installation.' : 'Paid checkout is disabled during this installation’s free beta.'} Pro is $${pricing.pro.monthly}/month and Team $${pricing.team.monthly}/month when enabled. SDK and CLI are published as @socket-help/sdk@beta and @socket-help/cli@beta; SSH is optional and requires an operator-enabled gateway. Human approvals and billing stay in the browser. Existing browser utilities remain available; planned tools are not executable. Setup: ${url('/connect/')}. There are no ads.`;
 
 export function llmsIndex() {
     const lines = [`# socket.help`, '', `> ${SUMMARY}`, ''];
@@ -23,6 +24,11 @@ export function llmsIndex() {
             lines.push(
                 `- [${page.title}](${url(`/docs/${page.slug}/`)}): ${clean(page.description)}`,
             );
+    lines.push(
+        ...useCases.map(
+            (page) => `- [${page.title}](${url(`/use-cases/${page.slug}/`)}): ${page.description}`,
+        ),
+    );
     lines.push(
         `- [HTTP API reference](${url('/docs/reference/')}): every endpoint with schemas and examples`,
         `- [OpenAPI specification](${url('/api/openapi.json')}): machine readable API description`,
@@ -81,7 +87,9 @@ function docMarkdown(page: DocPage) {
             out.push(
                 `| ${section.table.headers.join(' | ')} |`,
                 `| ${section.table.headers.map(() => '---').join(' | ')} |`,
-                ...section.table.rows.map((row) => `| ${row.join(' | ')} |`),
+                ...section.table.rows.map(
+                    (row) => `| ${row.map((cell) => cell.replaceAll('|', '\\|')).join(' | ')} |`,
+                ),
                 '',
             );
         if (section.code) out.push('```', section.code.value, '```', '');
@@ -145,6 +153,15 @@ export function llmsFull() {
         '',
         `> ${SUMMARY}`,
         '',
+        '# Agent use cases',
+        ...useCases.map((page) =>
+            docMarkdown({
+                ...page,
+                navTitle: page.title,
+                group: 'Get started',
+                updatedAt: '2026-10-30',
+            }).replace(`/docs/${page.slug}/`, `/use-cases/${page.slug}/`),
+        ),
         '# Documentation',
         '',
         ...docPages.map(docMarkdown),

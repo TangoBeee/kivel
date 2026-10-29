@@ -1,8 +1,10 @@
 # socket.help
 
-An internet toolbox with webhook inspection, mock APIs, temporary file sharing,
-MCP servers, and browser-local formatters, converters, and generators. A light, category-led catalog also covers planned tools,
-clearly marked Coming soon. Next.js, Radix UI, Motion, Fastify, and PostgreSQL.
+The internet toolkit for AI coding agents: webhook URLs, receive-only email,
+mock APIs and MCP servers, files, workspace memory, monitors and human approval.
+One MCP connection, with HTTP, a TypeScript SDK, CLI and optional SSH gateway.
+Free browser utilities remain available alongside the agent tools.
+Next.js, Radix UI, Motion, Fastify and PostgreSQL.
 
 ## Development
 
@@ -94,6 +96,12 @@ uses `DOMAIN` automatically.
 ## Clients and billing
 
 `pnpm build:packages` builds the shared engine, TypeScript SDK, and CLI.
+SDK and CLI are published under the beta tag:
+`npm install @socket-help/sdk@beta` and
+`npx --package=@socket-help/cli@beta socket-help --help`.
+Run `pnpm test:packages` to verify standalone installable tarballs in `release/`.
+See [client releases](docs/client-releases.md) for publishing and installation.
+Start with `/docs/agent-workflows/` for device login, email, memory, monitors and human questions.
 Use `pnpm cli --help`; set `SOCKET_HELP_URL` and `SOCKET_HELP_API_KEY` for scripts.
 For file utilities, pipe bytes to `run <id> --file <name>`. PDF merging and image-to-PDF
 accept an ordered file array in SDK/HTTP execution; MCP uses the `files` argument.

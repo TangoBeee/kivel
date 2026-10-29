@@ -4,8 +4,8 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
-import { SocketHelp } from '@socket-help/sdk';
-import { command } from '@socket-help/cli';
+import { SocketHelp, SocketError } from '@socket-help/sdk';
+import { command, needsInput } from '@socket-help/cli';
 import type { IdentityRepository } from './identity.js';
 import type { RateLimitRepository } from './rate-limit.js';
 export function splitCommand(value: string): string[] {
@@ -210,7 +210,7 @@ export function createSshServer(
                             stream.exit(0);
                         } catch (error) {
                             stream.stderr.write(
-                                `${JSON.stringify({ error: error instanceof Error ? error.message : 'Command failed.' })}\n`,
+                                `${JSON.stringify({ error: error instanceof Error ? error.message : 'Command failed.', ...(error instanceof SocketError ? { status: error.status, requestId: error.requestId, retryAfter: error.retryAfter } : {}) })}\n`,
                             );
                             stream.exit(1);
                         } finally {
@@ -231,11 +231,7 @@ export function createSshServer(
                     stream.once('end', () => {
                         void run();
                     });
-                    if (
-                        !['run', 'api', 'upload'].includes(args[0] ?? '') ||
-                        (args[0] === 'api' && ['GET', 'DELETE'].includes(args[1] ?? ''))
-                    )
-                        void run();
+                    if (!needsInput(args)) void run();
                 });
             });
         });

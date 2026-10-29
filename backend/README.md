@@ -4,7 +4,7 @@ Fastify serves the static Next.js export, API, public resource endpoints, and MC
 PostgreSQL provides durable resources, account ownership, atomic quotas, rate
 windows, and billing event deduplication. Migrations run transactionally at startup.
 
-Use `/docs/` for the Scalar API reference and `/api/openapi.json` for schemas.
+Use `/docs/reference/` for the Scalar API reference and `/api/openapi.json` for schemas.
 `/api/tools` lists implemented and planned tools; utilities execute through
 `POST /api/tools/{id}/run`. Formatters, generators and image/PDF tools run in bounded
 workers. Network tools use pinned public addresses and validate every redirect,
@@ -33,4 +33,13 @@ Mock MCP servers at `/mcp/mock/{id}` return configured static responses.
 `pnpm test` runs unit and API checks. From the repository root,
 `pnpm test:integration` creates an isolated PostgreSQL instance and checks
 migration, persistence, replica concurrency, billing lifecycle, and SSH parity.
-See the root README for Docker, secrets, backups, HTTPS, and Stripe setup.
+See the root README for Docker, secrets, backups, HTTPS, and Dodo Payments setup.
+
+
+Agent capabilities are shared by HTTP, MCP, the TypeScript SDK, CLI and optional SSH
+commands: device login/trials, receive-only email, webhooks, mocks, memory, monitors
+and human questions. Agent approval/revocation, answering questions, workspace
+membership and billing require the human browser session. CLI `listen` runs locally;
+SSH uses bounded single commands. See `/docs/sdk/`, `/docs/cli/`, `/docs/ssh/` and
+`/docs/mcp/` for commands and credential handling. SDK and CLI 0.3.0 are published to npm as @socket-help/sdk@beta and
+@socket-help/cli@beta. See docs/client-releases.md for the release process.

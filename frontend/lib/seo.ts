@@ -1,13 +1,27 @@
 import type { Metadata } from 'next';
 import { siteOrigin } from './site';
 
+export const shareImage = {
+    url: `${siteOrigin}/opengraph-image`,
+    width: 1200,
+    height: 630,
+    alt: 'socket.help — webhooks, email and approvals for coding agents',
+};
+
 export function pageMetadata(title: string, description: string, path: string): Metadata {
     return {
         title,
         description,
         alternates: { canonical: path },
-        openGraph: { title, description, url: path, type: 'website', siteName: 'socket.help' },
-        twitter: { card: 'summary_large_image', title, description },
+        openGraph: {
+            title,
+            description,
+            url: path,
+            type: 'website',
+            siteName: 'socket.help',
+            images: [shareImage],
+        },
+        twitter: { card: 'summary_large_image', title, description, images: [shareImage.url] },
     };
 }
 

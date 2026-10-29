@@ -1,3 +1,4 @@
+import { agentInterfaceOpenApi } from './agent-interface-openapi.js';
 import { accountOpenApi } from './account-openapi.js';
 import { API_VERSION } from './version.js';
 import { mcpOpenApi } from './mcp-openapi.js';
@@ -755,6 +756,7 @@ export function openApi(origin: string) {
             },
         },
     };
+    Object.assign(spec.paths, agentInterfaceOpenApi());
     for (const [path, methods] of Object.entries(spec.paths)) {
         for (const [method, definition] of Object.entries(methods)) {
             if (!definition || typeof definition !== 'object') continue;
@@ -776,7 +778,7 @@ export function openApi(origin: string) {
                     { accountKey: [], privateResourceToken: [] },
                     { sessionCookie: [] },
                 ];
-                if (method === 'post' && !path.includes('{id}'))
+                if (method === 'post' && !path.includes('{id}') && !/^\/api\/(memory|monitors)/.test(path))
                     operation.parameters = [
                         ...(operation.parameters ?? []).filter(
                             (parameter) =>
@@ -816,6 +818,8 @@ export function openApi(origin: string) {
                         },
                     ];
             }
+            if (path === '/api/email-inboxes' && operation.parameters)
+                operation.parameters = operation.parameters.filter(parameter => (parameter as { name?: string }).name !== 'visibility');
             if (path === '/api/files' && method === 'post')
                 operation.parameters = [
                     ...(operation.parameters ?? []),

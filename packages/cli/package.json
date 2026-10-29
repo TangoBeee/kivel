@@ -2,21 +2,26 @@
   "name": "@socket-help/cli",
   "version": "0.3.0",
   "type": "module",
-  "private": true,
   "bin": {
     "socket-help": "./bin/socket-help.mjs"
   },
   "exports": {
-    ".": "./dist/commands.js"
+    ".": {
+      "types": "./dist/commands.d.ts",
+      "import": "./dist/commands.js"
+    }
   },
   "files": [
-    "dist",
-    "bin"
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "bin",
+    "CHANGELOG.md"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true,force:true})\" && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --import tsx --test src/listen.test.ts"
+    "test": "node --import tsx --test src/listen.test.ts",
+    "prepack": "pnpm --filter @socket-help/sdk build && pnpm build"
   },
   "dependencies": {
     "@socket-help/sdk": "workspace:*"
@@ -25,5 +30,26 @@
     "@types/node": "^26.6.5",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
-  }
+  },
+  "description": "Command-line client for socket.help: agent workflows, API tools, webhooks, email and files.",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "homepage": "https://socket.help/docs/cli/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TangoBeee/socket.help.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "email": "support@socket.help"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/",
+    "tag": "beta"
+  },
+  "main": "./dist/commands.js",
+  "types": "./dist/commands.d.ts"
 }

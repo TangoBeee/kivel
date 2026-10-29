@@ -1,3 +1,4 @@
+import { useCases } from '../lib/use-cases';
 import type { MetadataRoute } from 'next';
 import { catalog, categories, toolPageHref, categoryHref } from '../lib/catalog';
 import { articles } from '../lib/articles';
@@ -8,6 +9,8 @@ export const dynamic = 'force-static';
 export default function sitemap(): MetadataRoute.Sitemap {
     const pages: { path: string; modified?: string }[] = [
         { path: '/' },
+        { path: '/use-cases/' },
+        ...useCases.map((page) => ({ path: `/use-cases/${page.slug}/` })),
         { path: '/catalog/' },
         { path: '/docs/' },
         ...docPages.map((page) => ({ path: `/docs/${page.slug}/`, modified: page.updatedAt })),
@@ -30,7 +33,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
         { path: '/refunds/' },
         { path: '/contact/' },
         { path: '/beta/' },
-        ...categories.map((category) => ({ path: categoryHref(category.id) })),
+        ...categories
+            .filter((category) =>
+                catalog.some(
+                    (tool) => tool.categoryId === category.id && tool.status === 'available',
+                ),
+            )
+            .map((category) => ({ path: categoryHref(category.id) })),
         ...catalog
             .filter((tool) => tool.status === 'available')
             .map((tool) => ({ path: toolPageHref(tool) })),

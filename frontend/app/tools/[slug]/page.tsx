@@ -21,7 +21,7 @@ import { McpConnect } from '../../../components/mcp-connect';
 import { EmailInboxWorkbench } from '../../../components/email-inbox-workbench';
 import { CodeExample } from '../../../components/code-example';
 import { StructuredData } from '../../../components/content-layout';
-import { breadcrumbs } from '../../../lib/seo';
+import { breadcrumbs, pageMetadata } from '../../../lib/seo';
 import { ToolHeader } from '../../../components/tool-header';
 
 export const dynamicParams = false;
@@ -38,14 +38,12 @@ export async function generateMetadata({
     if (!tool) return {};
     const available = tool.status === 'available';
     const title = `${tool.name}${available ? '' : ' · Coming soon'}`;
-    const description = `${tool.description} ${available ? (tool.local ? 'Free, private, and processed in your browser.' : 'Free temporary tools for testing and sharing.') : 'Planned for socket.help; not available yet.'}`;
+    const description = available
+        ? (toolExample(tool.id)?.useCase ?? tool.description)
+        : `${tool.description} Planned for socket.help; not available yet.`;
     return {
-        title,
-        description,
-        alternates: { canonical: toolPageHref(tool) },
+        ...pageMetadata(title, description, toolPageHref(tool)),
         robots: { index: available, follow: true },
-        openGraph: { title, description, url: toolPageHref(tool), type: 'website' },
-        twitter: { card: 'summary_large_image', title, description },
     };
 }
 export default async function ToolPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -129,8 +127,10 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
                     <aside className="tool-agent" aria-label="Use it from an agent">
                         <p>
                             <strong>Your coding agent can do this too.</strong> Connect socket.help
-                            once and Claude Code, Cursor or any MCP client finds this tool with{' '}
-                            <code>search_tools</code> and runs it for you.
+                            once and Claude Code, Cursor or any MCP client can use the same
+                            capability through its MCP tools. Use <code>search_tools</code> to
+                            discover executable utilities, or the resource tools for inboxes, mocks
+                            and files.
                         </p>
                         <Link className="button" href="/connect/">
                             Set up your agent
@@ -175,7 +175,7 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
                 {tool.status === 'available' && (
                     <p>
                         Use this tool from the{' '}
-                        <Link className="text-link" href="/docs/">
+                        <Link className="text-link" href="/docs/reference/">
                             API reference
                         </Link>{' '}
                         or connect through the{' '}

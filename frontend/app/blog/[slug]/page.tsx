@@ -26,11 +26,25 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     const metadata = pageMetadata(article.title, article.description, `/blog/${slug}/`);
     return {
         ...metadata,
+        twitter: {
+            card: 'summary_large_image',
+            title: article.title,
+            description: article.description,
+            images: [`${siteOrigin}${coverFor(slug)}`],
+        },
         openGraph: {
             ...metadata.openGraph,
             type: 'article',
             publishedTime: article.publishedAt,
             modifiedTime: article.updatedAt ?? article.publishedAt,
+            images: [
+                {
+                    url: `${siteOrigin}${coverFor(slug)}`,
+                    width: 1200,
+                    height: 700,
+                    alt: article.title,
+                },
+            ],
         },
     };
 }

@@ -1,3 +1,4 @@
+import { useCases } from '../lib/use-cases';
 import assert from 'node:assert/strict';
 import { readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -48,13 +49,36 @@ for (const tool of catalog) {
         await assert.doesNotReject(stat(target), `${path}: broken internal link ${pathname}`);
     }
 }
-for (const category of categories) assert.ok(sitemap.includes(`/catalog/${category.id}/`));
+for (const category of categories) {
+    const available = catalog.some(
+        (tool) => tool.categoryId === category.id && tool.status === 'available',
+    );
+    assert.equal(
+        sitemap.includes(`${siteOrigin}/catalog/${category.id}/</loc>`),
+        available,
+        `${category.id}: sitemap requires available tools`,
+    );
+    if (!available)
+        assert.match(
+            await readFile(join('out', 'catalog', category.id, 'index.html'), 'utf8'),
+            /<meta name="robots" content="noindex/,
+            `${category.id}: planned-only category noindex`,
+        );
+}
 console.log(
     `Verified ${catalog.length} tool pages: canonicals, descriptions, headings, guides, indexability, sitemap, and internal links.`,
 );
 
 const contentPaths = [
     '/',
+    '/use-cases/',
+    ...useCases.map((page) => `/use-cases/${page.slug}/`),
+    '/catalog/',
+    ...categories
+        .filter((category) =>
+            catalog.some((tool) => tool.categoryId === category.id && tool.status === 'available'),
+        )
+        .map((category) => `/catalog/${category.id}/`),
     '/docs/',
     '/docs/reference/',
     ...docPages.map((page) => `/docs/${page.slug}/`),
@@ -138,3 +162,29 @@ for (const path of ['contact', 'refunds', 'terms', 'privacy', 'beta']) {
     assert.ok(html.includes('mailto:support@socket.help'), `${path}: public support route`);
 }
 console.log('Verified beta checkout messaging and public contact/refund policies.');
+
+const robotsText = await readFile('out/robots.txt', 'utf8');
+for (const path of ['/account/', '/link/', '/approve/', '/share/', '/webhooks/', '/tools/']) {
+    const html = await readFile(join('out', path, 'index.html'), 'utf8');
+    assert.match(
+        html,
+        /<meta name="robots" content="noindex/,
+        `${path}: private/legacy shell noindex`,
+    );
+    assert.ok(!sitemap.includes(`${siteOrigin}${path}</loc>`), `${path}: excluded from sitemap`);
+    assert.ok(!robotsText.includes(`Disallow: ${path}`), `${path}: crawlers can read noindex`);
+}
+for (const page of useCases) {
+    const html = await readFile(join('out', 'use-cases', page.slug, 'index.html'), 'utf8');
+    for (const section of page.sections)
+        assert.ok(
+            html.includes(`id="${section.id}"`),
+            `${page.slug}: server-rendered workflow content`,
+        );
+    assert.ok(html.includes('property="og:image"'), `${page.slug}: social image`);
+}
+const urls = [...sitemap.matchAll(/<loc>(.*?)<\/loc>/g)].map((match) => match[1]!);
+assert.equal(new Set(urls).size, urls.length, 'Sitemap URLs must be unique');
+console.log(
+    'Verified agent workflow content, category canonicals, private-page noindex and unique sitemap URLs.',
+);

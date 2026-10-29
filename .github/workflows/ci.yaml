@@ -1,5 +1,5 @@
 name: CI
-on: [push, pull_request]
+on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
 concurrency:
@@ -11,6 +11,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: pnpm/action-setup@v4
         with:
           version: 10.30.3
@@ -24,8 +26,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ffmpeg
       - run: pnpm install --frozen-lockfile
+      - name: Require changesets for published client changes
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: node scripts/check-client-changesets.mjs "$BASE_SHA"
       - run: pnpm typecheck
       - run: pnpm test
+      - run: pnpm test:packages
+      - run: pnpm test:releases
       - run: pnpm test:integration
       - run: pnpm build
       - run: pnpm audit --prod --audit-level=high

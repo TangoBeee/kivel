@@ -6,19 +6,7 @@ export default function robots(): MetadataRoute.Robots {
         rules: {
             userAgent: '*',
             allow: '/',
-            disallow: [
-                '/api/',
-                '/hooks/',
-                '/mock/',
-                '/mcp',
-                '/files/',
-                '/webhooks/',
-                '/account/',
-                '/link/',
-                '/approve/',
-                '/share/',
-                '/billing/',
-            ],
+            disallow: ['/api/', '/hooks/', '/mock/', '/mcp', '/files/', '/billing/'],
         },
         sitemap: `${siteOrigin}/sitemap.xml`,
     };

@@ -1,3 +1,4 @@
+import { shareImage } from '../lib/seo';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Plus } from '@phosphor-icons/react/dist/ssr';
@@ -10,7 +11,7 @@ import { setupPrompt } from '../lib/setup-prompt';
 import { siteOrigin } from '../lib/site';
 import './home.css';
 
-const title = 'socket.help | The internet toolkit for AI agents';
+const title = 'Webhooks, Email & Approvals for AI Agents | socket.help';
 const description =
     'Webhook URLs, email inboxes, mock APIs, memory, monitors and human approval for coding agents, over one MCP connection. Agents sign themselves up and you approve them. Free to start, Pro is $2 a month.';
 
@@ -19,8 +20,15 @@ export const metadata: Metadata = {
     title: { absolute: title },
     description,
     alternates: { canonical: '/' },
-    openGraph: { type: 'website', url: '/', siteName: 'socket.help', title, description },
-    twitter: { card: 'summary_large_image', title, description },
+    openGraph: {
+        type: 'website',
+        url: '/',
+        siteName: 'socket.help',
+        title,
+        description,
+        images: [shareImage],
+    },
+    twitter: { card: 'summary_large_image', title, description, images: [shareImage.url] },
 };
 
 // Everything an agent can call. The first six are hosted resources; the utilities sit behind search_tools.
@@ -73,6 +81,22 @@ const faqs = [
 ];
 
 const jsonLd = [
+    {
+        '@context': 'https://schema.org',
+        '@type': 'WebSite',
+        '@id': `${siteOrigin}/#website`,
+        name: 'socket.help',
+        url: `${siteOrigin}/`,
+        publisher: { '@id': `${siteOrigin}/#organization` },
+    },
+    {
+        '@context': 'https://schema.org',
+        '@type': 'Organization',
+        '@id': `${siteOrigin}/#organization`,
+        name: 'socket.help',
+        url: `${siteOrigin}/`,
+        email: 'support@socket.help',
+    },
     {
         '@context': 'https://schema.org',
         '@type': 'SoftwareApplication',
@@ -150,6 +174,10 @@ export default function Home() {
                 browser.{' '}
                 <Link href="/catalog/" className="home-link">
                     Browse every tool
+                </Link>
+                {' · '}
+                <Link href="/use-cases/" className="home-link">
+                    Explore agent workflows
                 </Link>
             </p>
 

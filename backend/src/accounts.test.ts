@@ -863,3 +863,26 @@ test('agent memory stores JSON per workspace within the plan allowance, over HTT
     );
     assert.ok((await mcp('memory_get', { namespace: 'agent', key: 'notes/todo' })).error);
 });
+
+test('temporary inbox domains cannot sign up, and short but valid passwords can', async (t) => {
+    const app = buildApp();
+    t.after(() => app.close());
+    const register = (username: string, email: string, password = 'eightchr') =>
+        app.inject({
+            method: 'POST',
+            url: '/api/auth/register',
+            headers: { origin: 'http://localhost:3000' },
+            payload: { username, email, password },
+        });
+    for (const email of [
+        'someone@mailinator.com',
+        'agent@socketspace.xyz',
+        'x@sub.socketspace.xyz',
+    ]) {
+        const response = await register(`temp-${email.length}`, email);
+        assert.equal(response.statusCode, 400, email);
+        assert.match(response.json().error, /Temporary inbox/);
+    }
+    assert.equal((await register('short-pass', 'short@example.test', 'seven77')).statusCode, 400);
+    assert.equal((await register('eight-pass', 'eight@example.test')).statusCode, 201);
+});

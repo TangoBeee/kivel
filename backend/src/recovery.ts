@@ -1,4 +1,5 @@
 import { clientKey } from './security.js';
+import { isDisposableEmail } from './disposable.js';
 import {
     createCipheriv,
     createDecipheriv,
@@ -25,15 +26,16 @@ export function emailAddress(value: unknown): string {
         )
     )
         throw new HttpError(400, 'Enter a valid email address.');
+    if (isDisposableEmail(email))
+        throw new HttpError(
+            400,
+            'Use an email address you keep. Temporary inbox services are not accepted.',
+        );
     return email;
 }
 export function validPassword(value: unknown): asserts value is string {
-    if (
-        typeof value !== 'string' ||
-        Buffer.byteLength(value) < 12 ||
-        Buffer.byteLength(value) > 256
-    )
-        throw new HttpError(400, 'Use a password between 12 and 256 UTF-8 bytes.');
+    if (typeof value !== 'string' || Buffer.byteLength(value) < 8 || Buffer.byteLength(value) > 256)
+        throw new HttpError(400, 'Use a password between 8 and 256 UTF-8 bytes.');
 }
 const bodyObject = (body: unknown) => {
     if (!body || typeof body !== 'object' || Array.isArray(body))

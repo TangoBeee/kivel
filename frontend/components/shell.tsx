@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { LogoMark } from './logo';
+import { LiveLogo } from './live-logo';
 import { SearchLaunch } from './toolbox-provider';
 import { supportEmail, supportHref } from '../lib/support';
 import { useViewer } from '../lib/viewer';
@@ -134,7 +134,7 @@ export function Header() {
         <>
             <header className={`island ${open ? 'is-open' : ''}`}>
                 <Link href="/" className="island-brand" aria-label="socket.help home">
-                    <LogoMark size={28} />
+                    <LiveLogo size={28} />
                     <span>
                         socket<span className="island-dot">.</span>help
                     </span>
@@ -252,7 +252,7 @@ export function Footer() {
             <div className="footer-inner">
                 <div className="footer-about">
                     <Link href="/" className="footer-brand" aria-label="socket.help home">
-                        <LogoMark size={28} />
+                        <LiveLogo size={28} />
                         <span>
                             socket<span className="island-dot">.</span>help
                         </span>

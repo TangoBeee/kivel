@@ -45,10 +45,10 @@ export function registerAccounts(
             const email = action === 'register' ? emailAddress(body.email) : undefined;
             if (
                 typeof body.password !== 'string' ||
-                Buffer.byteLength(body.password) < 12 ||
+                Buffer.byteLength(body.password) < 8 ||
                 Buffer.byteLength(body.password) > 256
             )
-                throw new HttpError(400, 'Use a password between 12 and 256 UTF-8 bytes.');
+                throw new HttpError(400, 'Use a password between 8 and 256 UTF-8 bytes.');
             // Cap guesses against one account even when they arrive from many addresses.
             const userRetry =
                 action === 'login' &&

@@ -432,7 +432,7 @@ test('upgrading an existing webhook-only database preserves captures and enables
     await pool.query(
         `DROP TRIGGER inbox_quota ON inboxes; DROP FUNCTION enforce_resource_quota() CASCADE;
          ALTER TABLE inboxes DROP COLUMN owner_id, DROP COLUMN quota_key, DROP COLUMN created_at, DROP COLUMN persistent, DROP COLUMN request_limit, DROP COLUMN byte_limit, DROP COLUMN visibility, DROP COLUMN access_token_hash, DROP COLUMN access_version, DROP COLUMN response, DROP COLUMN forward_url;
-         DROP TABLE mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors, approvals, agent_trials, agent_logins, agents, user_contact_emails, auth_mail_outbox, auth_challenges, user_recovery_emails, temporary_resources, resource_usage, account_members, auth_sessions, api_keys, account_invites, users, accounts, usage_plans, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events CASCADE; DELETE FROM schema_migrations WHERE version > 1`,
+         DROP TABLE mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors, cookie_coupons, approvals, agent_trials, agent_logins, agents, user_contact_emails, auth_mail_outbox, auth_challenges, user_recovery_emails, temporary_resources, resource_usage, account_members, auth_sessions, api_keys, account_invites, users, accounts, usage_plans, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events CASCADE; DELETE FROM schema_migrations WHERE version > 1`,
     );
     await Promise.all([migrate(pool), migrate(pool)]);
     assert.equal(
@@ -448,7 +448,7 @@ test('upgrading an existing webhook-only database preserves captures and enables
     );
     assert.equal(
         (await pool.query('SELECT max(version) AS version FROM schema_migrations')).rows[0].version,
-        12,
+        13,
     );
 });
 
@@ -1146,7 +1146,7 @@ test('Dodo migration preserves legacy Stripe data without adopting its customer 
         user.personalAccountId,
     ]);
     await pool.query(
-        'ALTER TABLE accounts DROP COLUMN dodo_customer_id, DROP COLUMN dodo_subscription_id, DROP COLUMN dodo_event_created, DROP COLUMN dodo_checkout_id, DROP COLUMN dodo_checkout_url, DROP COLUMN dodo_checkout_plan; DROP TABLE dodo_events; ALTER TABLE inboxes DROP COLUMN response, DROP COLUMN forward_url; DROP TABLE mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors, approvals, agent_trials, agent_logins, agents; DELETE FROM schema_migrations WHERE version >= 8',
+        'ALTER TABLE accounts DROP COLUMN dodo_customer_id, DROP COLUMN dodo_subscription_id, DROP COLUMN dodo_event_created, DROP COLUMN dodo_checkout_id, DROP COLUMN dodo_checkout_url, DROP COLUMN dodo_checkout_plan; DROP TABLE dodo_events; ALTER TABLE inboxes DROP COLUMN response, DROP COLUMN forward_url; DROP TABLE mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors, cookie_coupons, approvals, agent_trials, agent_logins, agents; DELETE FROM schema_migrations WHERE version >= 8',
     );
     await Promise.all([migrate(pool), migrate(pool)]);
     const row = (
@@ -1457,4 +1457,139 @@ test('approvals are answered once and never after they expire', async () => {
     assert.equal(stored.answeredBy, 'approval-owner');
     assert.ok(stored.answeredAt);
     assert.deepEqual(await store.list(accountId, true), []);
+});
+
+test('the cookie coupon is created once per person, only before a first subscription, and applied to its first checkout', async (t) => {
+    const identities = new PostgresIdentityRepository(pool),
+        recovery = new PostgresRecoveryRepository(pool);
+    let discounts = 0;
+    let discountPayload: Record<string, unknown> = {};
+    let checkoutPayload: Record<string, unknown> = {};
+    const dodo = new DodoPayments({
+        bearerToken: 'test-billing-key',
+        environment: 'test_mode',
+        maxRetries: 0,
+        fetch: async (input, init) => {
+            const url = new URL(String(input));
+            if (url.pathname.startsWith('/products/'))
+                return Response.json({
+                    product_id: url.pathname.split('/').pop(),
+                    is_recurring: true,
+                    price: {
+                        type: 'recurring_price',
+                        price: url.pathname.endsWith('pdt_team') ? 600 : 200,
+                        currency: 'USD',
+                        payment_frequency_count: 1,
+                        payment_frequency_interval: 'Month',
+                        subscription_period_count: 20,
+                        subscription_period_interval: 'Year',
+                        trial_period_days: 0,
+                    },
+                });
+            if (url.pathname === '/discounts') {
+                discounts++;
+                discountPayload = JSON.parse(String(init?.body));
+                // Slow enough that two claims overlap.
+                await new Promise((resolve) => setTimeout(resolve, 50));
+                return Response.json({
+                    discount_id: `dsc_${discounts}`,
+                    code: discountPayload.code,
+                });
+            }
+            if (url.pathname === '/customers') return Response.json({ customer_id: 'cus_cookie' });
+            if (url.pathname === '/subscriptions') return Response.json({ items: [] });
+            if (url.pathname === '/checkouts') {
+                checkoutPayload = JSON.parse(String(init?.body));
+                return Response.json({
+                    session_id: 'cks_cookie',
+                    checkout_url: 'https://checkout.dodopayments.com/session/cookie',
+                });
+            }
+            throw Error(`Unexpected provider path: ${url.pathname}`);
+        },
+    });
+    const app = buildApp({
+        identityStore: identities,
+        recoveryStore: recovery,
+        billingRepository: new BillingRepository(pool),
+        billingConfig: {
+            apiKey: 'test-billing-key',
+            webhookSecret: 'whsec_dGVzdA==',
+            environment: 'test_mode',
+            proProduct: 'pdt_pro',
+            teamProduct: 'pdt_team',
+        },
+        dodoClient: dodo,
+    });
+    t.after(() => app.close());
+    const origin = 'http://localhost:3000';
+    const registered = await app.inject({
+        method: 'POST',
+        url: '/api/auth/register',
+        headers: { origin },
+        payload: {
+            username: 'cookie-eater',
+            email: 'cookie@example.test',
+            password: 'crunchy-cookie-pass',
+        },
+    });
+    const cookie = String(registered.headers['set-cookie']).split(';')[0]!;
+    const identity = (await identities.authenticateSession(cookie.split('=')[1]!))!;
+    const claim = () =>
+        app.inject({ method: 'POST', url: '/api/coupons/cookie', headers: { origin, cookie } });
+
+    assert.equal(
+        (await app.inject({ method: 'POST', url: '/api/coupons/cookie', headers: { origin } }))
+            .statusCode,
+        401,
+    );
+    const [one, two] = await Promise.all([claim(), claim()]);
+    assert.equal(one.statusCode, 200, one.body);
+    assert.equal(two.statusCode, 200, two.body);
+    assert.equal(discounts, 1);
+    assert.equal(one.json().code, two.json().code);
+    assert.match(one.json().code, /^COOKIE[0-9A-F]{8}$/);
+    assert.equal(one.json().percent, 10);
+    assert.equal(discountPayload.amount, 1000);
+    assert.equal(discountPayload.usage_limit, 1);
+    assert.equal(discountPayload.customer_eligibility, 'first_time');
+    assert.deepEqual(discountPayload.restricted_to, ['pdt_pro', 'pdt_team']);
+
+    await pool.query(
+        'INSERT INTO user_recovery_emails (user_id, email, verified_at) VALUES ($1, $2, now())',
+        [identity.userId, 'cookie@example.test'],
+    );
+    const checkout = await app.inject({
+        method: 'POST',
+        url: '/api/billing/checkout',
+        headers: { origin, cookie },
+        payload: { plan: 'pro' },
+    });
+    assert.equal(checkout.statusCode, 200, checkout.body);
+    assert.deepEqual(checkoutPayload.discount_codes, [one.json().code]);
+
+    // Someone else whose workspace already pays cannot claim one.
+    const paid = await app.inject({
+        method: 'POST',
+        url: '/api/auth/register',
+        headers: { origin },
+        payload: {
+            username: 'already-paying',
+            email: 'paid@example.test',
+            password: 'already-paying-pass',
+        },
+    });
+    const paidCookie = String(paid.headers['set-cookie']).split(';')[0]!;
+    const paidIdentity = (await identities.authenticateSession(paidCookie.split('=')[1]!))!;
+    await pool.query(
+        "UPDATE accounts SET plan = 'pro', dodo_subscription_id = 'sub_1' WHERE id = $1",
+        [paidIdentity.account.id],
+    );
+    const refused = await app.inject({
+        method: 'POST',
+        url: '/api/coupons/cookie',
+        headers: { origin, cookie: paidCookie },
+    });
+    assert.equal(refused.statusCode, 409);
+    assert.equal(discounts, 1);
 });

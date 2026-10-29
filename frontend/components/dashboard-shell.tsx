@@ -2,7 +2,7 @@
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { LogoMark } from './logo';
+import { LiveLogo } from './live-logo';
 import { SearchLaunch } from './toolbox-provider';
 import { rememberReturn } from '../lib/return-path';
 import { Button, DropdownMenu, IconButton } from '@radix-ui/themes';
@@ -271,7 +271,7 @@ export function DashboardShell({
             <aside className="dashboard-sidebar" aria-label="Dashboard">
                 <div className="dashboard-sidebar-top">
                     <Link href="/" className="dashboard-brand">
-                        <LogoMark size={28} />
+                        <LiveLogo size={28} />
                         <span>
                             socket<span className="island-dot">.</span>help
                         </span>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowsClockwise, Check, Copy, PaperPlaneTilt } from '@phosphor-icons/react';
 import { api, resourceHeaders } from '../../lib/api';
 
@@ -22,7 +22,7 @@ interface Inbox {
 const STORE = 'socket-help:home-inbox';
 const saved = (): Inbox | null => {
     try {
-        const value = JSON.parse(sessionStorage.getItem(STORE) ?? 'null') as Inbox | null;
+        const value = JSON.parse(localStorage.getItem(STORE) ?? 'null') as Inbox | null;
         return value && Date.parse(value.expiresAt) > Date.now() + 60000 ? value : null;
     } catch {
         return null;
@@ -54,7 +54,6 @@ export function LiveWebhook() {
     const [state, setState] = useState<'idle' | 'creating' | 'ready' | 'error'>('idle');
     const [copied, setCopied] = useState(false);
     const [sending, setSending] = useState(false);
-    const card = useRef<HTMLDivElement>(null);
 
     async function create() {
         setState('creating');
@@ -63,7 +62,7 @@ export function LiveWebhook() {
                 await api('/api/inboxes?visibility=public', { method: 'POST' })
             ).json();
             try {
-                sessionStorage.setItem(STORE, JSON.stringify(created));
+                localStorage.setItem(STORE, JSON.stringify(created));
             } catch {}
             setInbox(created);
             setState('ready');
@@ -72,24 +71,14 @@ export function LiveWebhook() {
         }
     }
 
-    // The inbox is created once the card is on screen and reused for the rest of the session,
-    // so reloading the page does not spend the visitor's anonymous quota.
+    // Nothing is created until the visitor asks; one inbox is then reused in this browser
+    // (across reloads and tabs) until it expires.
     useEffect(() => {
         const existing = saved();
         if (existing) {
             setInbox(existing);
             setState('ready');
-            return;
         }
-        const element = card.current;
-        if (!element) return;
-        const observer = new IntersectionObserver(([entry]) => {
-            if (!entry?.isIntersecting) return;
-            observer.disconnect();
-            void create();
-        });
-        observer.observe(element);
-        return () => observer.disconnect();
     }, []);
 
     useEffect(() => {
@@ -129,7 +118,7 @@ export function LiveWebhook() {
     const curl = inbox ? `curl -X POST ${inbox.webhookUrl} -d '{"hello":"agent"}'` : '';
 
     return (
-        <div ref={card} className="home-live">
+        <div className="home-live">
             <div className="home-live-head">
                 <span>Webhook inbox</span>
                 <span className="home-live-status">

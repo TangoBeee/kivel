@@ -187,3 +187,73 @@ html.is-loading body {
     transform: translateY(10px);
   }
 }
+
+/* The live logo: eyes follow the pointer, close for passwords, smile for upgrades */
+.live-logo-look {
+  transition: transform 120ms linear;
+}
+.live-logo-eyes,
+.live-logo-smile {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition:
+    transform 180ms var(--motion-ease),
+    opacity 180ms var(--motion-ease);
+}
+.live-logo-smile {
+  opacity: 0;
+  transform: scale(0.6);
+}
+body:has(input[type='password']:focus) .live-logo-eyes {
+  transform: scaleY(0.12);
+}
+.live-logo.is-happy .live-logo-eyes {
+  opacity: 0;
+  transform: scale(0.6);
+}
+.live-logo.is-happy .live-logo-smile {
+  opacity: 1;
+  transform: scale(1);
+}
+.live-logo.is-happy {
+  animation: logo-hop 600ms var(--motion-ease);
+}
+@keyframes logo-hop {
+  35% {
+    transform: translateY(-3px) rotate(-8deg);
+  }
+  70% {
+    transform: translateY(0) rotate(4deg);
+  }
+}
+
+.password-toggle {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-right: -6px;
+  border: 0;
+  border-radius: 9999px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background-color 160ms var(--motion-ease),
+    color 160ms var(--motion-ease);
+}
+.password-toggle:hover {
+  background: var(--subtle);
+  color: var(--ink);
+}
+.password-toggle:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+/* Signing in cross-fades the old screen into the new one */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 380ms;
+  animation-timing-function: var(--motion-ease);
+}

@@ -1,4 +1,5 @@
 'use client';
+import { PasswordField } from './password-field';
 import { AppSelect, SelectOption } from './app-select';
 import {
     Button,
@@ -32,7 +33,6 @@ import {
 } from '@phosphor-icons/react';
 import { DashboardShell, isDashboardPanel, Meter, SettingsSection } from './dashboard-shell';
 import { DashboardTools, RecentTools, SavedTools } from './dashboard-tools';
-import { LogoMark } from './logo';
 import { AgentActivity } from './agent-activity';
 import { AgentOverview } from './agent-overview';
 import { MonitorsPanel } from './monitors-panel';
@@ -236,6 +236,23 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
             setRefreshing(false);
         }
     }
+    async function crossfade(update: () => Promise<void>) {
+        const start = (
+            document as Document & {
+                startViewTransition?: (callback: () => Promise<void>) => {
+                    finished: Promise<void>;
+                };
+            }
+        ).startViewTransition;
+        if (!start || matchMedia('(prefers-reduced-motion: reduce)').matches) return update();
+        await start.call(document, async () => {
+            await update();
+            // Let React paint the new screen before the browser captures it.
+            await new Promise((resolve) =>
+                requestAnimationFrame(() => requestAnimationFrame(resolve)),
+            );
+        }).finished;
+    }
     async function action(work: () => Promise<void>) {
         setBusy(true);
         setError('');
@@ -257,7 +274,8 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                 ...(mode === 'register' ? { email: data.get('email') } : {}),
             });
             form.reset();
-            await refresh();
+            // Cross-fade from the sign-in screen to the workspace instead of flashing white.
+            await crossfade(refresh);
             refreshViewer();
             // Pages such as the agent approval page send people here to sign in, then take them back.
             try {
@@ -394,10 +412,7 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
             </div>
         );
     return (
-        <div
-            key={session ? 'workspace' : 'sign-in'}
-            className={`page-width page-enter ${session ? 'dashboard-page' : 'account-page'}`}
-        >
+        <div className={`page-width ${session ? 'dashboard-page' : 'account-page'}`}>
             {!session ? (
                 <>
                     <div className="auth-layout">
@@ -497,23 +512,22 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                         )}
                                         <label>
                                             Password
-                                            <TextField.Root
+                                            <PasswordField
                                                 size="3"
-                                                type="password"
                                                 name="password"
                                                 autoComplete={
                                                     mode === 'login'
                                                         ? 'current-password'
                                                         : 'new-password'
                                                 }
-                                                minLength={12}
+                                                minLength={8}
                                                 maxLength={256}
                                                 required
                                             />
                                         </label>
                                         {mode === 'register' && (
                                             <p className="account-form-note">
-                                                Use at least 12 characters. Usernames are lowercase.
+                                                Use at least 8 characters. Usernames are lowercase.
                                                 {emailEnabled
                                                     ? ' Verify your email after creating your account.'
                                                     : ''}
@@ -1457,6 +1471,7 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                                 billing.prices.map((price) => (
                                                     <button
                                                         className={`button ${price.plan === 'pro' ? 'button-primary' : ''}`}
+                                                        data-upgrade
                                                         key={price.plan}
                                                         disabled={busy}
                                                         onClick={() =>

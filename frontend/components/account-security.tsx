@@ -1,4 +1,5 @@
 'use client';
+import { PasswordField } from './password-field';
 import { Button, TextField } from '@radix-ui/themes';
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
@@ -116,30 +117,28 @@ export function PasswordRecovery({ onBack }: { onBack: () => void }) {
                             </label>
                             <label>
                                 New password
-                                <TextField.Root
+                                <PasswordField
                                     size="3"
-                                    type="password"
                                     name="password"
                                     autoComplete="new-password"
-                                    minLength={12}
+                                    minLength={8}
                                     maxLength={256}
                                     required
                                 />
                             </label>
                             <label>
                                 Confirm password
-                                <TextField.Root
+                                <PasswordField
                                     size="3"
-                                    type="password"
                                     name="confirmation"
                                     autoComplete="new-password"
-                                    minLength={12}
+                                    minLength={8}
                                     maxLength={256}
                                     required
                                 />
                             </label>
                             <p className="account-form-note">
-                                Use at least 12 characters. Resetting signs out every session and
+                                Use at least 8 characters. Resetting signs out every session and
                                 revokes your API keys.
                             </p>
                         </>
@@ -314,12 +313,11 @@ export function AccountSecurity({ onVerified }: { onVerified: () => Promise<void
                                         </label>
                                         <label>
                                             Current password
-                                            <TextField.Root
+                                            <PasswordField
                                                 size="3"
-                                                type="password"
                                                 name="password"
                                                 autoComplete="current-password"
-                                                minLength={12}
+                                                minLength={8}
                                                 maxLength={256}
                                                 required
                                             />

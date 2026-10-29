@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { paidPlans } from '@socket-help/tools/billing-plans';
 import type { RecoveryRepository } from './recovery-store.js';
 import DodoPayments from 'dodopayments';
@@ -53,6 +54,11 @@ export function subscriptionState(
         validUntil: active && plan !== 'free' ? new Date(end).toISOString() : null,
     };
 }
+/** 10% off, for the first 12 monthly payments, claimable for 30 days. */
+const COOKIE_COUPON_BASIS_POINTS = 1000;
+const COOKIE_COUPON_CYCLES = 12;
+const COOKIE_COUPON_DAYS = 30;
+
 export class BillingRepository {
     constructor(private pool: Pool) {}
     async customer(accountId: string, create: () => Promise<string>) {
@@ -105,6 +111,59 @@ export class BillingRepository {
             );
             return { url: session.url };
         });
+    }
+    /**
+     * The cookie easter egg's coupon: one per person, only for a workspace that has never paid.
+     * The Dodo discount is created while the person's row is locked, so double clicks get one code.
+     */
+    async cookieCoupon(
+        userId: string,
+        accountId: string,
+        create: () => Promise<{ code: string; discountId: string; expiresAt: string }>,
+    ) {
+        return transaction(this.pool, async (client) => {
+            await client.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [userId]);
+            const existing = (
+                await client.query(
+                    'SELECT code, expires_at FROM cookie_coupons WHERE user_id = $1',
+                    [userId],
+                )
+            ).rows[0];
+            if (existing)
+                return {
+                    code: existing.code as string,
+                    expiresAt: (existing.expires_at as Date).toISOString(),
+                    created: false,
+                };
+            const account = (
+                await client.query(
+                    'SELECT dodo_subscription_id, plan FROM accounts WHERE id = $1',
+                    [accountId],
+                )
+            ).rows[0];
+            if (!account) throw new HttpError(404, 'Workspace not found.');
+            if (account.dodo_subscription_id || account.plan !== 'free')
+                throw new HttpError(
+                    409,
+                    'The cookie coupon is for workspaces that have not subscribed yet.',
+                );
+            const coupon = await create();
+            await client.query(
+                'INSERT INTO cookie_coupons (user_id, account_id, code, discount_id, expires_at) VALUES ($1, $2, $3, $4, $5)',
+                [userId, accountId, coupon.code, coupon.discountId, coupon.expiresAt],
+            );
+            return { code: coupon.code, expiresAt: coupon.expiresAt, created: true };
+        });
+    }
+    /** An unexpired cookie coupon claimed for this workspace, to apply at its first checkout. */
+    async couponFor(accountId: string) {
+        const row = (
+            await this.pool.query(
+                'SELECT code FROM cookie_coupons WHERE account_id = $1 AND expires_at > clock_timestamp() ORDER BY created_at LIMIT 1',
+                [accountId],
+            )
+        ).rows[0];
+        return row?.code as string | undefined;
     }
     async process(
         eventId: string,
@@ -290,8 +349,13 @@ export function registerBilling(
                 return status === 'succeeded' && historical ? 'cancelled' : status;
             },
             async () => {
-                await subscriptions();
+                const historical = await subscriptions();
+                // A cookie coupon only ever applies to a workspace's very first subscription.
+                const coupon = historical
+                    ? undefined
+                    : await repository.couponFor(identity.account.id);
                 const session = await dodo.checkoutSessions.create({
+                    ...(coupon ? { discount_codes: [coupon] } : {}),
                     product_cart: [
                         {
                             product_id: plan === 'pro' ? config.proProduct : config.teamProduct,
@@ -315,6 +379,42 @@ export function registerBilling(
                 return { id: session.session_id, url: session.checkout_url };
             },
         );
+    });
+    // Twenty cookies on the homepage earn 10% off. The clicks are counted in the browser, so every
+    // rule that matters is enforced here: signed in, workspace owner, never subscribed, once each.
+    app.post('/api/coupons/cookie', async (request) => {
+        const identity = await access.require(request, 'account:read', true);
+        if (identity.role !== 'owner')
+            throw new HttpError(403, 'Ask your workspace owner to claim the cookie coupon.');
+        if (!enabled || !dodo || !config || !repository)
+            throw new HttpError(503, 'The cookie coupon opens when paid plans do.');
+        const expiresAt = new Date(Date.now() + COOKIE_COUPON_DAYS * 86400000).toISOString();
+        const coupon = await repository.cookieCoupon(
+            identity.userId,
+            identity.account.id,
+            async () => {
+                const code = `COOKIE${randomBytes(4).toString('hex').toUpperCase()}`;
+                const discount = await dodo.discounts.create({
+                    code,
+                    name: 'Cookie coupon',
+                    type: 'percentage',
+                    amount: COOKIE_COUPON_BASIS_POINTS,
+                    usage_limit: 1,
+                    per_customer_usage_limit: 1,
+                    customer_eligibility: 'first_time',
+                    restricted_to: [config.proProduct, config.teamProduct],
+                    subscription_cycles: COOKIE_COUPON_CYCLES,
+                    expires_at: expiresAt,
+                    metadata: { accountId: identity.account.id, userId: identity.userId },
+                });
+                return { code: discount.code ?? code, discountId: discount.discount_id, expiresAt };
+            },
+        );
+        return {
+            ...coupon,
+            percent: COOKIE_COUPON_BASIS_POINTS / 100,
+            months: COOKIE_COUPON_CYCLES,
+        };
     });
     app.post('/api/billing/portal', async (request) => {
         const identity = await access.require(request, 'account:read', true);

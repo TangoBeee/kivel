@@ -32,6 +32,9 @@ importers:
       cheerio:
         specifier: 1.2.0
         version: 1.2.0
+      disposable-email-domains:
+        specifier: 1.0.62
+        version: 1.0.62
       dodopayments:
         specifier: 2.57.0
         version: 2.57.0
@@ -2470,6 +2473,9 @@ packages:
   diff@9.0.0:
     resolution: {integrity: sha512-svtcdpS8CgJyqAjEQIXdb3OjhFVVYjzGAPO8WGCmRbrml64SPw/jJD4GoE98aR7r25A0XcgrK3F02yw9R/vhQw==}
     engines: {node: '>=0.3.1'}
+
+  disposable-email-domains@1.0.62:
+    resolution: {integrity: sha512-LBQvhRw7mznQTPoyZbsmYeNOZt1pN5aCsx4BAU/3siVFuiM9f2oyKzUaB8v1jbxFjE3aYqYiMo63kAL4pHgfWQ==}
 
   dodopayments@2.57.0:
     resolution: {integrity: sha512-VProGqf1OOHN8UeZ/PiUBxDE/NXYrUIiwIsC+qCVd+fJtWkhC2jdM1i+Emzof+PHGD9tL0VE1ybd+zfQy+Q3rg==}
@@ -6359,6 +6365,8 @@ snapshots:
       dequal: 2.0.3
 
   diff@9.0.0: {}
+
+  disposable-email-domains@1.0.62: {}
 
   dodopayments@2.57.0:
     dependencies:

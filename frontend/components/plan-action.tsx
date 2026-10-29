@@ -54,7 +54,7 @@ export function PlanAction({
             );
         // Paid subscribers change plans in the billing portal, not through a second checkout.
         return (
-            <Link className="button button-primary" href="/account/#billing">
+            <Link className="button button-primary" href="/account/#billing" data-upgrade>
                 {current === 'pro' || current === 'team'
                     ? `Switch to ${name}`
                     : `Upgrade to ${name}`}
@@ -71,6 +71,7 @@ export function PlanAction({
         <Link
             className={`button ${id === 'free' ? 'button-primary' : 'button-secondary'}`}
             href={id === 'anonymous' ? '/catalog/' : '/account/'}
+            data-upgrade={id === 'pro' || id === 'team' ? '' : undefined}
         >
             {id === 'anonymous'
                 ? 'Use the tools'

@@ -25,6 +25,7 @@
     "@socket-help/sdk": "workspace:*",
     "@socket-help/tools": "workspace:*",
     "cheerio": "1.2.0",
+    "disposable-email-domains": "1.0.62",
     "dodopayments": "2.57.0",
     "fastify": "^5.12.7",
     "ipaddr.js": "2.5.0",

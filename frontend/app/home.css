@@ -670,3 +670,36 @@
     transform: scale(1.1) rotate(-6deg);
   }
 }
+
+.cookie-coupon {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--subtle);
+  animation: cookie-pop 360ms var(--home-ease) backwards;
+}
+.cookie-coupon > span {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.cookie-coupon button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+}
+.cookie-coupon code {
+  font-family: var(--home-mono);
+  font-size: 0.875rem;
+  letter-spacing: 0.04em;
+}
+.cookie-card a {
+  color: var(--ink);
+  text-decoration: underline;
+}

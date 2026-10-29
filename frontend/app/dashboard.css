@@ -408,7 +408,7 @@ body:has(.dashboard-layout) main::after {
   display: flex;
   align-items: center;
   gap: 16px;
-  margin-bottom: 16px;
+  margin-block: 16px;
   padding: 16px 20px;
   border: 1px solid #f0d49a;
   border-radius: var(--radius-card);

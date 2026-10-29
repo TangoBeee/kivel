@@ -45,7 +45,7 @@ export function accountOpenApi() {
     const credentials = body(
         object({
             username: { ...string, pattern: '^[a-z0-9][a-z0-9_.-]{2,31}$' },
-            password: { ...string, minLength: 12, maxLength: 256, writeOnly: true },
+            password: { ...string, minLength: 8, maxLength: 256, writeOnly: true },
         }),
     );
     const paths: Record<string, Record<string, unknown>> = {
@@ -178,7 +178,7 @@ export function accountOpenApi() {
                     object(
                         {
                             username: { ...string, pattern: '^[a-z0-9][a-z0-9_.-]{2,31}$' },
-                            password: { ...string, minLength: 12, maxLength: 256, writeOnly: true },
+                            password: { ...string, minLength: 8, maxLength: 256, writeOnly: true },
                             email: { ...string, format: 'email', maxLength: 254 },
                         },
                         ['username', 'password', 'email'],
@@ -424,7 +424,7 @@ export function accountOpenApi() {
         };
     const code = { type: 'string', pattern: '^[0-9]{8}$', writeOnly: true };
     const email = { type: 'string', format: 'email', maxLength: 254 };
-    const password = { type: 'string', minLength: 12, maxLength: 256, writeOnly: true };
+    const password = { type: 'string', minLength: 8, maxLength: 256, writeOnly: true };
     paths['/api/auth/recovery'] = {
         get: operation(
             'recoveryAvailability',

@@ -1314,3 +1314,27 @@ body:has(.dashboard-layout) main::after {
 .monitor-form .button-row {
   justify-content: flex-end;
 }
+.agent-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.agent-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-row);
+}
+.agent-list strong {
+  display: block;
+  font-size: 0.9375rem;
+}
+.agent-list small {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}

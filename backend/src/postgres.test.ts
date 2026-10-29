@@ -447,7 +447,7 @@ test('upgrading an existing webhook-only database preserves captures and enables
     );
     assert.equal(
         (await pool.query('SELECT max(version) AS version FROM schema_migrations')).rows[0].version,
-        9,
+        10,
     );
 });
 

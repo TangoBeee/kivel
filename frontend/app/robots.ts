@@ -14,6 +14,7 @@ export default function robots(): MetadataRoute.Robots {
                 '/files/',
                 '/webhooks/',
                 '/account/',
+                '/link/',
                 '/share/',
                 '/billing/',
             ],

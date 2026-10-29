@@ -1695,3 +1695,102 @@ a brand dot pattern with its icon in a raised tile */
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Agent approval page */
+.agent-link {
+  display: grid;
+  place-items: center;
+  min-height: 70vh;
+  padding: 48px 16px;
+}
+.agent-link-card {
+  display: grid;
+  gap: 16px;
+  width: min(100%, 520px);
+  padding: 32px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+.agent-link-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-card);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.agent-link-card h1 {
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.agent-link-card h1 em {
+  font-style: normal;
+  color: var(--accent);
+}
+.agent-link-card p {
+  font-size: 0.9375rem;
+  color: var(--muted);
+}
+.agent-link-code {
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  background: var(--subtle);
+  font-size: 0.8125rem;
+}
+.agent-link-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.agent-link-form {
+  display: grid;
+  gap: 12px;
+}
+.agent-link-form input {
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 1.125rem;
+  letter-spacing: 0.12em;
+}
+.agent-link-full {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+}
+.agent-link-full legend {
+  margin-bottom: 8px;
+  font-size: 0.875rem;
+  font-weight: 550;
+}
+.agent-link-full label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+}
+.agent-link-full label span {
+  display: grid;
+}
+.agent-link-full small {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.agent-link-error {
+  color: var(--danger) !important;
+}
+.agent-link-muted {
+  font-size: 0.875rem;
+}

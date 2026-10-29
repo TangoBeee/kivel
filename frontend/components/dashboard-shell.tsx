@@ -70,8 +70,8 @@ export const dashboardPanels = [
     {
         id: 'agents',
         group: 'Build',
-        label: 'Agent activity',
-        description: 'Every tool call your agents made, by key.',
+        label: 'Agents',
+        description: 'The agents connected to this workspace and what they did.',
         icon: Robot,
     },
     {

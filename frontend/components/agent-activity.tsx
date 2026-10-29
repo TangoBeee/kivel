@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { Badge } from '@radix-ui/themes';
 import { api } from '../lib/api';
 
 interface Entry {
@@ -13,8 +14,36 @@ interface Entry {
 }
 
 /** What the workspace's agents have been doing over MCP: tool, key, result and time. */
+interface Agent {
+    id: string;
+    name: string;
+    client?: string;
+    lastUsedAt: string | null;
+}
+
 export function AgentActivity({ keys }: { keys: { id: string; name: string }[] }) {
     const [entries, setEntries] = useState<Entry[] | null>(null);
+    const [agents, setAgents] = useState<Agent[] | null>(null);
+    const [limit, setLimit] = useState(0);
+    async function loadAgents() {
+        try {
+            const value = await (await api('/api/agents')).json();
+            setAgents(value.agents);
+            setLimit(value.limit);
+        } catch {
+            setAgents((current) => current ?? []);
+        }
+    }
+    useEffect(() => {
+        void loadAgents();
+    }, []);
+    async function remove(agent: Agent) {
+        if (!confirm(`Disconnect ${agent.name}? Its key stops working right away.`)) return;
+        try {
+            await api(`/api/agents/${agent.id}`, { method: 'DELETE' });
+            await loadAgents();
+        } catch {}
+    }
     const [key, setKey] = useState('all');
     useEffect(() => {
         let live = true;
@@ -34,11 +63,61 @@ export function AgentActivity({ keys }: { keys: { id: string; name: string }[] }
             clearTimeout(timer);
         };
     }, []);
-    const names = new Map(keys.map((item) => [item.id, item.name]));
+    const names = new Map([
+        ...keys.map((item) => [item.id, item.name] as const),
+        ...(agents ?? []).map((item) => [item.id, item.name] as const),
+    ]);
     const shown = (entries ?? []).filter((entry) => key === 'all' || entry.keyId === key);
     const failures = shown.filter((entry) => !entry.ok).length;
     return (
         <div className="settings-stack">
+            <section className="settings-card agent-activity">
+                <div className="agent-activity-heading">
+                    <div>
+                        <h2>
+                            Connected agents{' '}
+                            <Badge variant="soft" color="gray">
+                                {agents?.length ?? 0} / {limit}
+                            </Badge>
+                        </h2>
+                        <p>
+                            Each agent joined after you approved it and has its own key. Remove one
+                            and its key stops working right away.
+                        </p>
+                    </div>
+                    <Link className="button button-primary button-small" href="/connect/">
+                        Connect an agent
+                    </Link>
+                </div>
+                {agents?.length ? (
+                    <ul className="agent-list">
+                        {agents.map((agent) => (
+                            <li key={agent.id}>
+                                <div>
+                                    <strong>{agent.name}</strong>
+                                    <small>
+                                        {agent.client ? `${agent.client} · ` : ''}
+                                        {agent.lastUsedAt
+                                            ? `last active ${new Date(agent.lastUsedAt).toLocaleString()}`
+                                            : 'not used yet'}
+                                    </small>
+                                </div>
+                                <button
+                                    className="button button-small"
+                                    onClick={() => void remove(agent)}
+                                >
+                                    Disconnect
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                ) : (
+                    <p className="tool-notice">
+                        No agents yet. Ask your agent to connect to socket.help; you will get a link
+                        to approve it.
+                    </p>
+                )}
+            </section>
             <section className="settings-card agent-activity">
                 <div className="agent-activity-heading">
                     <div>
@@ -48,9 +127,6 @@ export function AgentActivity({ keys }: { keys: { id: string; name: string }[] }
                             result and timing are kept, never arguments or results.
                         </p>
                     </div>
-                    <Link className="button button-primary button-small" href="/connect/">
-                        Connect an agent
-                    </Link>
                 </div>
                 {keys.length > 1 && (
                     <label className="agent-activity-filter">
@@ -106,8 +182,8 @@ export function AgentActivity({ keys }: { keys: { id: string; name: string }[] }
                     </>
                 ) : (
                     <p className="tool-notice">
-                        No agent activity yet. Create an API key, add socket.help to your agent and
-                        ask it to create a webhook inbox.
+                        No activity yet. Once an agent is connected, every tool it calls shows up
+                        here.
                     </p>
                 )}
             </section>

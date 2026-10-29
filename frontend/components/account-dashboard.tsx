@@ -248,6 +248,15 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
             form.reset();
             await refresh();
             refreshViewer();
+            // Pages such as the agent approval page send people here to sign in, then take them back.
+            try {
+                const next = sessionStorage.getItem('socket-help:after-signin');
+                sessionStorage.removeItem('socket-help:after-signin');
+                if (next?.startsWith('/') && !next.startsWith('//')) {
+                    location.assign(next);
+                    return;
+                }
+            } catch {}
             if (mode === 'register')
                 setNotice(
                     emailEnabled

@@ -626,7 +626,7 @@ textarea::placeholder {
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
-  margin: 10px 0 0;
+  margin: 10px 0 10px;
   padding: 10px 14px;
   border: 1px solid var(--accent-line);
   border-radius: var(--radius-control);

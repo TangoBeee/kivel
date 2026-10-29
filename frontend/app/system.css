@@ -33,18 +33,19 @@ sentence case label above a page heading */
   color: var(--ink);
 }
 
-/* Content and marketing page headings */
+/* Content and marketing page headings: the display serif */
 .content-intro h1,
 .not-found h1 {
-  font-size: 3.75rem;
+  font-family: var(--display);
+  font-size: 4rem;
   line-height: 1;
-  font-weight: 600;
-  letter-spacing: -0.04em;
+  font-weight: 400;
+  letter-spacing: -0.005em;
   text-wrap: balance;
   color: var(--ink);
 }
 .content-intro h1 {
-  margin: 20px 0 20px;
+  margin: 0 0 20px;
 }
 .content-intro > p,
 .not-found > p:not(.eyebrow) {
@@ -55,15 +56,16 @@ sentence case label above a page heading */
   text-wrap: pretty;
 }
 
-/* App page headings */
+/* App page headings: the display serif at a working size */
 .tool-header-copy h1,
 .catalog-title h1,
 .account-heading h1,
 .dashboard-heading h1 {
-  font-size: 2.25rem;
-  line-height: 2.5rem;
-  font-weight: 600;
-  letter-spacing: -0.03em;
+  font-family: var(--display);
+  font-size: 2.75rem;
+  line-height: 1;
+  font-weight: 400;
+  letter-spacing: -0.005em;
   text-wrap: balance;
   color: var(--ink);
 }
@@ -170,7 +172,6 @@ and depth on every page */
 .docs-start,
 .featured-article,
 .comparison-directory > a,
-.dashboard-metrics > div,
 .dashboard-plan-summary,
 .resource-result,
 .resource-editor,
@@ -301,15 +302,15 @@ and depth on every page */
 @media (max-width: 720px) {
   .content-intro h1,
   .not-found h1 {
-    font-size: 2.5rem;
-    line-height: 1.05;
+    font-size: 2.75rem;
+    line-height: 1;
   }
   .tool-header-copy h1,
   .catalog-title h1,
   .account-heading h1,
   .dashboard-heading h1 {
-    font-size: 1.875rem;
-    line-height: 2.25rem;
+    font-size: 2.25rem;
+    line-height: 1;
   }
   .content-intro > p,
   .not-found > p:not(.eyebrow) {

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowsClockwise, Check, Copy, PaperPlaneTilt } from '@phosphor-icons/react';
 import { api, resourceHeaders } from '../../lib/api';
-import { SIGNAL_EVENT } from './ridge-field';
+import { SIGNAL_EVENT } from '../lamp-field';
 
 interface Captured {
     id: string;

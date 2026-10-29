@@ -86,43 +86,169 @@
   gap: 12px;
 }
 
-/* Hero */
+/* Hero: the switchboard, full bleed, with the headline set over it */
 .home-hero {
   position: relative;
   isolation: isolate;
-  min-height: min(calc(100dvh - 160px), 760px);
-  padding: 96px 0 128px;
-  border-bottom: 1px solid var(--line);
-}
-.home-ridges {
-  --ridge-ink: 107 220 154;
-  --ridge-fill: #0b0c0c;
-  position: absolute;
-  inset: auto 0 0;
-  z-index: -1;
-  width: 100%;
-  height: 40%;
-  mask-image: linear-gradient(to bottom, transparent, #000 35%);
-}
-.home-hero-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
   align-items: center;
-  gap: 56px;
+  min-height: min(calc(100dvh - 64px), 920px);
+  padding: 120px 0 160px;
+  overflow: hidden;
+  text-align: center;
+}
+.home-hero-art {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+.home-hero-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.62;
+}
+.home-hero-art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(60% 55% at 50% 48%, rgb(11 12 12 / 0.72), rgb(11 12 12 / 0.2) 70%, transparent),
+    linear-gradient(to bottom, rgb(11 12 12 / 0.55), transparent 22%, transparent 70%, var(--bg));
+}
+@media (prefers-reduced-motion: no-preference) {
+  .home-hero-art img {
+    animation: home-drift 28s ease-in-out infinite alternate;
+  }
+  @supports (animation-timeline: scroll()) {
+    .home-hero-art {
+      animation: home-parallax linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0 100vh;
+    }
+  }
+}
+@keyframes home-drift {
+  from {
+    transform: scale(1.06) translate3d(-1%, 0, 0);
+  }
+  to {
+    transform: scale(1.02) translate3d(1%, -1%, 0);
+  }
+}
+@keyframes home-parallax {
+  to {
+    transform: translateY(18vh);
+  }
 }
 .home-hero-copy h1 {
-  margin: 0;
-  max-width: 680px;
-  font-size: 3.75rem;
-  line-height: 1;
-  letter-spacing: -0.04em;
+  max-width: 900px;
+  margin: 0 auto;
+  font-family: var(--display);
+  font-size: 6rem;
+  font-weight: 400;
+  line-height: 0.95;
+  letter-spacing: -0.005em;
+  color: #f3f5f2;
+}
+.home-hero-copy h1 em {
+  font-style: italic;
+  padding-right: 0.04em;
 }
 .home-hero-copy > p {
-  max-width: 520px;
-  margin: 24px 0 32px;
+  max-width: 540px;
+  margin: 28px auto 36px;
   font-size: 1.125rem;
   line-height: 1.75rem;
+  color: #c3c8c4;
+}
+.home-hero-copy .home-actions {
+  justify-content: center;
+}
+
+/* Try it: the live inbox, pulled up over the hero's edge */
+.home-try {
+  position: relative;
+  margin-top: -96px;
+}
+.home-try-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  align-items: end;
+  gap: 56px;
+}
+.home-try-copy {
+  padding-bottom: 24px;
+}
+.home-try-copy h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 2.75rem;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -0.005em;
+}
+.home-try-copy p {
+  max-width: 420px;
+  margin: 16px 0 0;
+  font-size: 1rem;
+  line-height: 1.5rem;
   color: var(--muted);
+}
+
+/* Art band: the operator, and the line the product rests on */
+.home-band {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  align-items: center;
+  min-height: 560px;
+  margin-top: 144px;
+  overflow: hidden;
+}
+.home-band img {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 70% 30%;
+  opacity: 0.55;
+}
+.home-band::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(90deg, var(--bg) 8%, rgb(11 12 12 / 0.6) 45%, transparent 75%),
+    linear-gradient(to bottom, var(--bg), transparent 18%, transparent 82%, var(--bg));
+}
+.home-band h2 {
+  max-width: 640px;
+  margin: 0;
+  font-family: var(--display);
+  font-size: 4rem;
+  font-weight: 400;
+  line-height: 1.02;
+  letter-spacing: -0.005em;
+}
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .home-band img {
+      animation: home-band-pan linear both;
+      animation-timeline: view();
+    }
+  }
+}
+@keyframes home-band-pan {
+  from {
+    transform: scale(1.12) translateY(-4%);
+  }
+  to {
+    transform: scale(1.12) translateY(4%);
+  }
 }
 
 /* Live webhook */
@@ -373,10 +499,12 @@
 }
 .home-heading {
   margin: 0;
-  max-width: 680px;
-  font-size: 3rem;
+  max-width: 720px;
+  font-family: var(--display);
+  font-size: 3.5rem;
+  font-weight: 400;
   line-height: 1;
-  letter-spacing: -0.035em;
+  letter-spacing: -0.005em;
 }
 .home-lede {
   max-width: 560px;
@@ -649,11 +777,13 @@
 
 /* Closing: the tagline over the real setup prompt */
 .home .lp-tagline {
-  max-width: 880px;
+  max-width: 900px;
   margin: 0 auto;
-  font-size: 3.75rem;
+  font-family: var(--display);
+  font-size: 4.5rem;
+  font-weight: 400;
   line-height: 1;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.005em;
   text-align: center;
 }
 .home .lp-tagline-line {
@@ -746,12 +876,29 @@
   color: var(--muted);
 }
 
-/* Final call to action */
+/* Final call to action, over the exchange floor */
 .home-final {
+  position: relative;
+  isolation: isolate;
   margin-top: 160px;
-  padding: 96px 0;
-  border-top: 1px solid var(--line);
+  padding: 160px 0 96px;
+  overflow: hidden;
   text-align: center;
+}
+.home-final-art {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.28;
+  mask-image: linear-gradient(to bottom, transparent, #000 30%, #000 60%, transparent);
+}
+.home-credits {
+  margin-top: 48px !important;
+  font-size: 0.75rem !important;
+  color: var(--muted);
 }
 
 /* Reveal on scroll (shared Reveal component) */
@@ -785,7 +932,7 @@
   .home-hero {
     padding: 64px 0 160px;
   }
-  .home-hero-grid,
+  .home-try-grid,
   .home-join,
   .home-faq {
     grid-template-columns: 1fr;
@@ -806,20 +953,27 @@
   .home-container {
     padding: 0 16px;
   }
-  .home-hero-copy h1 {
-    font-size: 2.25rem;
-    line-height: 2.5rem;
+  .home-hero {
+    padding: 72px 0 128px;
   }
-  .home-hero-copy h1 br {
+  .home-hero-copy h1 {
+    font-size: 3rem;
+    line-height: 1;
+  }
+  .home-hero-copy h1 br,
+  .home-band h2 br {
     display: none;
   }
-  .home-heading {
-    font-size: 2.25rem;
-    line-height: 2.5rem;
+  .home-heading,
+  .home-try-copy h2 {
+    font-size: 2.5rem;
   }
+  .home-band {
+    min-height: 420px;
+  }
+  .home-band h2,
   .home .lp-tagline {
-    font-size: 2.25rem;
-    line-height: 2.5rem;
+    font-size: 2.75rem;
   }
   .home-section {
     padding-top: 96px;

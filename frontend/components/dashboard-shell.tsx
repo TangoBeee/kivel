@@ -1,4 +1,5 @@
 'use client';
+import { LampField } from './lamp-field';
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -437,6 +438,12 @@ export function DashboardShell({
                 </div>
                 <div className="dashboard-content">
                     <header className="dashboard-heading">
+                        <LampField
+                            grid
+                            region={[0.45, 0, 1, 1]}
+                            every={600}
+                            className="dashboard-lamps"
+                        />
                         <div>
                             <h1>{title ?? current.label}</h1>
                             <p>{current.description}</p>

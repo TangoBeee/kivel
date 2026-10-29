@@ -12,6 +12,19 @@ interface Agent {
     name: string;
     lastUsedAt: string | null;
 }
+interface Activity {
+    at: string;
+    tool: string;
+    ok: boolean;
+    keyId?: string;
+}
+const since = (value: string) => {
+    const seconds = Math.max(1, Math.round((Date.now() - Date.parse(value)) / 1000));
+    if (seconds < 60) return `${seconds}s ago`;
+    if (seconds < 3600) return `${Math.round(seconds / 60)}m ago`;
+    if (seconds < 86400) return `${Math.round(seconds / 3600)}h ago`;
+    return `${Math.round(seconds / 86400)}d ago`;
+};
 interface Question {
     id: string;
     agentName: string;
@@ -42,20 +55,23 @@ export function AgentOverview({ onOpenAgents }: { onOpenAgents: () => void }) {
     const [agents, setAgents] = useState<Agent[] | null>(null);
     const [limit, setLimit] = useState(0);
     const [questions, setQuestions] = useState<Question[]>([]);
+    const [activity, setActivity] = useState<Activity[]>([]);
 
     useEffect(() => {
         let live = true;
         let timer: ReturnType<typeof setTimeout>;
         async function load() {
             try {
-                const [list, asked] = await Promise.all([
+                const [list, asked, log] = await Promise.all([
                     api('/api/agents').then((response) => response.json()),
                     api('/api/approvals?status=pending').then((response) => response.json()),
+                    api('/api/account/activity').then((response) => response.json()),
                 ]);
                 if (!live) return;
                 setAgents(list.agents);
                 setLimit(list.limit);
                 setQuestions(asked.approvals);
+                setActivity(log.activity.slice(0, 6));
             } catch {
                 if (live) setAgents((current) => current ?? []);
             }
@@ -156,6 +172,31 @@ export function AgentOverview({ onOpenAgents }: { onOpenAgents: () => void }) {
                     <CopySetup label="Connect another agent" />
                 </div>
             )}
+            <div className="agent-overview-feed">
+                <span className="agent-overview-feed-title">Recent agent activity</span>
+                {activity.length ? (
+                    <ol>
+                        {activity.map((entry, index) => (
+                            <li key={`${entry.at}-${index}`}>
+                                <span
+                                    className={`agent-overview-dot ${entry.ok ? '' : 'is-failed'}`}
+                                />
+                                <code>{entry.tool}</code>
+                                <span>
+                                    {agents.find((agent) => agent.id === entry.keyId)?.name ??
+                                        'API key'}
+                                </span>
+                                <time dateTime={entry.at}>{since(entry.at)}</time>
+                            </li>
+                        ))}
+                    </ol>
+                ) : (
+                    <p>
+                        Nothing yet. Every tool your agents call over MCP shows up here, with its
+                        result and time.
+                    </p>
+                )}
+            </div>
         </section>
     );
 }

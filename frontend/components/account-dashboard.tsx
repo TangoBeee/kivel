@@ -31,7 +31,7 @@ import {
     WarningCircle,
 } from '@phosphor-icons/react';
 import { DashboardShell, isDashboardPanel, Meter, SettingsSection } from './dashboard-shell';
-import { DashboardTools, QuickCreate, RecentTools, SavedTools } from './dashboard-tools';
+import { DashboardTools, RecentTools, SavedTools } from './dashboard-tools';
 import { LogoMark } from './logo';
 import { AgentActivity } from './agent-activity';
 import { AgentOverview } from './agent-overview';
@@ -637,7 +637,6 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                             )}
                             <SavedTools />
                             <RecentTools />
-                            <QuickCreate />
                         </>
                     )}
                     {panel === 'tools' && <DashboardTools glyphs={glyphs} />}

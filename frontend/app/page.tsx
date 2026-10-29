@@ -4,7 +4,7 @@ import { ArrowRight, Plus } from '@phosphor-icons/react/dist/ssr';
 import { Capabilities } from '../components/home/capabilities';
 import { CopyPrompt } from '../components/home/copy-prompt';
 import { LiveWebhook } from '../components/home/live-webhook';
-import { RidgeField } from '../components/home/ridge-field';
+import { LampField } from '../components/lamp-field';
 import { Reveal } from '../components/landing/reveal';
 import { TaglineReveal } from '../components/landing/tagline-reveal';
 import { paidPlansEnabled } from '../lib/pricing';
@@ -24,6 +24,10 @@ export const metadata: Metadata = {
     openGraph: { type: 'website', url: '/', siteName: 'socket.help', title, description },
     twitter: { card: 'summary_large_image', title, description },
 };
+
+// The switchboard photograph and the part of it where the lamps sit, in image coordinates.
+const HERO_ART = { width: 2400, height: 1906 };
+const HERO_BOARD: [number, number, number, number] = [0.02, 0.3, 0.68, 0.6];
 
 const clients = [
     { file: 'claude', name: 'Claude Code' },
@@ -124,24 +128,43 @@ export default function Home() {
             />
 
             <section className="home-hero" aria-labelledby="hero-heading">
-                <RidgeField />
-                <div className="home-container home-hero-grid">
-                    <div className="home-hero-copy">
-                        <h1 id="hero-heading">
-                            Give your coding agent <br />
-                            the internet.
-                        </h1>
+                <div className="home-hero-art">
+                    <img
+                        src="/art/switchboard.webp"
+                        alt=""
+                        width={2400}
+                        height={1906}
+                        fetchPriority="high"
+                    />
+                    <LampField cover={HERO_ART} region={HERO_BOARD} spacing={20} every={200} />
+                </div>
+                <div className="home-container home-hero-copy">
+                    <h1 id="hero-heading">
+                        Give your coding agent <br />
+                        the <em>internet</em>.
+                    </h1>
+                    <p>
+                        Webhook URLs, email inboxes, mock APIs, memory and human approval over one
+                        MCP connection. Agents sign themselves up.
+                    </p>
+                    <div className="home-actions">
+                        <CopyPrompt prompt={setupPrompt} />
+                        <Link href="/connect/" className="home-button home-button-ghost">
+                            Setup guide
+                            <ArrowRight size={16} weight="bold" />
+                        </Link>
+                    </div>
+                </div>
+            </section>
+
+            <section className="home-try" aria-labelledby="try-heading">
+                <div className="home-container home-try-grid">
+                    <div className="home-try-copy">
+                        <h2 id="try-heading">This URL is live.</h2>
                         <p>
-                            Webhook URLs, email inboxes, mock APIs, memory and human approval over
-                            one MCP connection. Agents sign themselves up.
+                            It is the same webhook inbox your agent gets over MCP. Send it a request
+                            and watch it land, with every header and the full body.
                         </p>
-                        <div className="home-actions">
-                            <CopyPrompt prompt={setupPrompt} />
-                            <Link href="/connect/" className="home-button home-button-ghost">
-                                Setup guide
-                                <ArrowRight size={16} weight="bold" />
-                            </Link>
-                        </div>
                     </div>
                     <LiveWebhook />
                 </div>
@@ -204,6 +227,17 @@ export default function Home() {
                         loading="lazy"
                     />
                 </Reveal>
+            </section>
+
+            <section className="home-band" aria-labelledby="band-heading">
+                <img src="/art/operator.webp" alt="" width={1600} height={1295} loading="lazy" />
+                <div className="home-container">
+                    <h2 id="band-heading">
+                        Your agent places the call.
+                        <br />
+                        You pick up when it matters.
+                    </h2>
+                </div>
             </section>
 
             <section
@@ -284,6 +318,14 @@ export default function Home() {
             </section>
 
             <section className="home-final" aria-label="Get started">
+                <img
+                    className="home-final-art"
+                    src="/art/exchange.webp"
+                    alt=""
+                    width={2000}
+                    height={1276}
+                    loading="lazy"
+                />
                 <div className="home-container">
                     <TaglineReveal
                         lines={['Your agent does the work.', 'You approve what matters.']}
@@ -295,6 +337,10 @@ export default function Home() {
                         </div>
                         <pre translate="no">{setupPrompt}</pre>
                     </div>
+                    <p className="home-credits">
+                        Photographs: U.S. National Archives and Bell Telephone Magazine, via the
+                        Internet Archive. No known copyright restrictions.
+                    </p>
                 </div>
             </section>
         </div>

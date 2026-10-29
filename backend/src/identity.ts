@@ -63,6 +63,10 @@ export interface IdentityRepository {
     ): MaybePromise<{ key: string; info: KeyInfo }>;
     listKeys(identity: Identity): MaybePromise<KeyInfo[]>;
     revokeKey(identity: Identity, id: string): MaybePromise<boolean>;
+    /** Active keys of every member in a workspace; used to manage agents. */
+    accountKeys(accountId: string): MaybePromise<(KeyInfo & { userId: string })[]>;
+    /** Revokes any key in a workspace; callers check the actor may manage it. */
+    revokeAccountKey(accountId: string, id: string): MaybePromise<boolean>;
     workspaces(userId: string): MaybePromise<{ account: Account; role: Role }[]>;
     switchWorkspace(token: string, userId: string, accountId: string): MaybePromise<boolean>;
     renameWorkspace(accountId: string, name: string): MaybePromise<void>;
@@ -264,6 +268,18 @@ export class MemoryIdentityRepository implements IdentityRepository {
                 key.accountId === identity.account.id
             )
                 return this.keys.delete(hash);
+        return false;
+    }
+    accountKeys(accountId: string) {
+        return [...this.keys.values()]
+            .filter(
+                (key) => key.accountId === accountId && Date.parse(key.info.expiresAt) > Date.now(),
+            )
+            .map((key) => ({ ...key.info, userId: key.userId }));
+    }
+    revokeAccountKey(accountId: string, id: string) {
+        for (const [hash, key] of this.keys)
+            if (key.info.id === id && key.accountId === accountId) return this.keys.delete(hash);
         return false;
     }
     workspaces(userId: string) {
@@ -571,6 +587,31 @@ export class PostgresIdentityRepository implements IdentityRepository {
             expiresAt: row.expires_at.toISOString(),
             lastUsedAt: row.last_used_at?.toISOString() ?? null,
         }));
+    }
+    async accountKeys(accountId: string) {
+        const result = await this.pool.query(
+            'SELECT * FROM api_keys WHERE account_id = $1 AND revoked_at IS NULL AND expires_at > clock_timestamp() ORDER BY created_at DESC',
+            [accountId],
+        );
+        return result.rows.map((row) => ({
+            id: row.id,
+            userId: row.user_id,
+            name: row.name,
+            prefix: row.prefix,
+            scopes: row.scopes,
+            createdAt: row.created_at.toISOString(),
+            expiresAt: row.expires_at.toISOString(),
+            lastUsedAt: row.last_used_at?.toISOString() ?? null,
+        }));
+    }
+    async revokeAccountKey(accountId: string, id: string) {
+        if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id))
+            return false;
+        const result = await this.pool.query(
+            'UPDATE api_keys SET revoked_at = clock_timestamp() WHERE id = $1 AND account_id = $2 AND revoked_at IS NULL RETURNING id',
+            [id, accountId],
+        );
+        return !!result.rowCount;
     }
     async revokeKey(identity: Identity, id: string) {
         if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id))

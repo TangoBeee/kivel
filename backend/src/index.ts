@@ -3,6 +3,7 @@ import { PostgresMockCalls } from './mock-calls.js';
 import { PostgresEmailMessages } from './email.js';
 import { PostgresActivity } from './activity.js';
 import { PostgresKv } from './kv.js';
+import { PostgresAgents } from './agents.js';
 import { PostgresMonitors } from './monitors.js';
 import { smtpSender } from './mail.js';
 import { buildApp } from './app.js';
@@ -45,6 +46,7 @@ try {
         ...(pool ? { emailMessages: new PostgresEmailMessages(pool) } : {}),
         ...(pool ? { activity: new PostgresActivity(pool) } : {}),
         ...(pool ? { memory: new PostgresKv(pool) } : {}),
+        ...(pool ? { agentStore: new PostgresAgents(pool) } : {}),
         ...(pool ? { monitorStore: new PostgresMonitors(pool) } : {}),
         ...(config.mailDomain && config.emailIngestSecret
             ? { mailDomain: config.mailDomain, emailIngestSecret: config.emailIngestSecret }

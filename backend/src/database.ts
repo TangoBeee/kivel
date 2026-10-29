@@ -192,6 +192,26 @@ export async function migrate(pool: Pool): Promise<void> {
                     event jsonb NOT NULL
                 );
                 CREATE INDEX monitor_events_monitor ON monitor_events (monitor_id, sequence);
+                CREATE TABLE agent_logins (
+                    id uuid PRIMARY KEY,
+                    device_hash text NOT NULL UNIQUE,
+                    user_code text NOT NULL UNIQUE,
+                    name text NOT NULL,
+                    client text,
+                    status text NOT NULL CHECK (status IN ('pending', 'approved', 'denied', 'delivered')),
+                    account_id uuid REFERENCES accounts(id) ON DELETE CASCADE,
+                    sealed_key text,
+                    created_at timestamptz NOT NULL,
+                    expires_at timestamptz NOT NULL
+                );
+                CREATE TABLE agents (
+                    key_id uuid PRIMARY KEY REFERENCES api_keys(id) ON DELETE CASCADE,
+                    account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                    name text NOT NULL,
+                    client text,
+                    created_at timestamptz NOT NULL
+                );
+                CREATE INDEX agents_account ON agents (account_id);
                 INSERT INTO schema_migrations (version) VALUES (9);`);
         }
     });

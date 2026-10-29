@@ -166,6 +166,28 @@ export const platformTools = [
         annotations: readonly,
     },
     {
+        name: 'start_login',
+        description:
+            'Connect this agent to its human’s socket.help workspace (no API key needed). Returns a link and code for the human to approve in their browser, and a deviceCode for finish_login. Never ask the human to paste an API key into the chat.',
+        inputSchema: schema(
+            {
+                name: stringProperty(
+                    'How the human will recognise you, e.g. "Claude Code on MacBook".',
+                ),
+                client: stringProperty('Your client, e.g. "Claude Code".'),
+            },
+            [],
+        ),
+        annotations: creates,
+    },
+    {
+        name: 'finish_login',
+        description:
+            'Wait (up to 25 seconds per call) for the human to approve the login from start_login. Returns status pending, denied, expired, or approved with the API key and MCP settings to save in your client config.',
+        inputSchema: schema({ deviceCode: stringProperty('deviceCode from start_login.') }),
+        annotations: readonly,
+    },
+    {
         name: 'create_monitor',
         description:
             'Watch something on a schedule and alert the workspace owner by email (and optionally a webhook) when it goes down or recovers. kind "http" checks a public URL (expectStatus, expectText), "ssl" warns before a certificate expires (sslDays), "heartbeat" returns a pingUrl your job calls when it finishes. Needs an API key; Free allows 20 monitors every 5 minutes or slower.',
@@ -952,6 +974,40 @@ export function registerMcp({
             response.statusCode >= 400,
         );
     }
+    // Login tools reuse the device-login routes; finish_login polls briefly so agents wait less.
+    async function loginRequest(
+        name: string,
+        value: Record<string, unknown>,
+        request: FastifyRequest,
+    ) {
+        if (name === 'start_login') {
+            const response = await app.inject({
+                method: 'POST',
+                url: '/api/agents/login',
+                headers: { 'content-type': 'application/json' },
+                remoteAddress: request.ip,
+                payload: { name: value.name, client: value.client },
+            });
+            return result(response.json(), response.statusCode >= 400);
+        }
+        uploads.delete(request);
+        const deadline = Date.now() + 25000;
+        for (;;) {
+            const response = await app.inject({
+                method: 'POST',
+                url: '/api/agents/token',
+                headers: { 'content-type': 'application/json' },
+                remoteAddress: request.ip,
+                payload: { deviceCode: value.deviceCode },
+            });
+            if (response.statusCode !== 202 || Date.now() + 3000 > deadline)
+                return result(
+                    response.json(),
+                    response.statusCode >= 400 && response.statusCode !== 202,
+                );
+            await new Promise((resolve) => setTimeout(resolve, 3000));
+        }
+    }
     // Monitor tools reuse the HTTP routes so plan limits and validation stay identical.
     async function monitorRequest(
         name: string,
@@ -1206,53 +1262,61 @@ export function registerMcp({
                                 ? await callMock(values, request)
                                 : params.name === 'resource_request'
                                   ? await resourceRequest(values, request)
-                                  : ['create_monitor', 'list_monitors', 'delete_monitor'].includes(
-                                          params.name,
-                                      )
-                                    ? await monitorRequest(params.name, values, request)
-                                    : params.name.startsWith('memory_')
-                                      ? await memoryRequest(params.name, values, request)
-                                      : [
-                                              'create_email_inbox',
-                                              'wait_for_email',
-                                              'list_emails',
-                                          ].includes(params.name)
-                                        ? await emailRequest(params.name, values, request)
-                                        : params.name === 'describe_tool'
-                                          ? result({
-                                                toolId: values.toolId,
-                                                guide:
-                                                    executionGuide(String(values.toolId)) ?? null,
-                                            })
-                                          : params.name === 'search_tools'
+                                  : ['start_login', 'finish_login'].includes(params.name)
+                                    ? await loginRequest(params.name, values, request)
+                                    : [
+                                            'create_monitor',
+                                            'list_monitors',
+                                            'delete_monitor',
+                                        ].includes(params.name)
+                                      ? await monitorRequest(params.name, values, request)
+                                      : params.name.startsWith('memory_')
+                                        ? await memoryRequest(params.name, values, request)
+                                        : [
+                                                'create_email_inbox',
+                                                'wait_for_email',
+                                                'list_emails',
+                                            ].includes(params.name)
+                                          ? await emailRequest(params.name, values, request)
+                                          : params.name === 'describe_tool'
                                             ? result({
-                                                  tools: searchExecutable(
-                                                      typeof values.query === 'string'
-                                                          ? values.query
-                                                          : '',
-                                                  ),
+                                                  toolId: values.toolId,
+                                                  guide:
+                                                      executionGuide(String(values.toolId)) ?? null,
                                               })
-                                            : params.name === 'list_tools'
-                                              ? result({ tools: executableIds })
-                                              : params.name === 'run_tool'
-                                                ? result(
-                                                      await tools.run(
-                                                          request,
-                                                          String(values.toolId),
-                                                          {
-                                                              input: values.input ?? '',
-                                                              options: values.options ?? {},
-                                                              ...(values.files || values.file
-                                                                  ? {
-                                                                        file:
-                                                                            values.files ??
-                                                                            values.file,
-                                                                    }
-                                                                  : {}),
-                                                          },
-                                                      ),
-                                                  )
-                                                : await callPlatform(params.name, values, request);
+                                            : params.name === 'search_tools'
+                                              ? result({
+                                                    tools: searchExecutable(
+                                                        typeof values.query === 'string'
+                                                            ? values.query
+                                                            : '',
+                                                    ),
+                                                })
+                                              : params.name === 'list_tools'
+                                                ? result({ tools: executableIds })
+                                                : params.name === 'run_tool'
+                                                  ? result(
+                                                        await tools.run(
+                                                            request,
+                                                            String(values.toolId),
+                                                            {
+                                                                input: values.input ?? '',
+                                                                options: values.options ?? {},
+                                                                ...(values.files || values.file
+                                                                    ? {
+                                                                          file:
+                                                                              values.files ??
+                                                                              values.file,
+                                                                      }
+                                                                    : {}),
+                                                            },
+                                                        ),
+                                                    )
+                                                  : await callPlatform(
+                                                        params.name,
+                                                        values,
+                                                        request,
+                                                    );
                     }
                     break;
                 }

@@ -10,6 +10,7 @@ export const plans = {
         inputBytes: 64 * 1024,
         fileBytes: 10 * 1024 * 1024,
         memoryBytes: 0,
+        agents: 0,
         persistent: false,
     },
     free: {
@@ -23,6 +24,7 @@ export const plans = {
         inputBytes: 256 * 1024,
         fileBytes: 10 * 1024 * 1024,
         memoryBytes: 5 * 1024 * 1024,
+        agents: 3,
         persistent: false,
     },
     pro: {
@@ -36,6 +38,7 @@ export const plans = {
         inputBytes: 1024 * 1024,
         fileBytes: 10 * 1024 * 1024,
         memoryBytes: 100 * 1024 * 1024,
+        agents: 25,
         persistent: true,
     },
     team: {
@@ -49,6 +52,7 @@ export const plans = {
         inputBytes: 1024 * 1024,
         fileBytes: 10 * 1024 * 1024,
         memoryBytes: 1024 * 1024 * 1024,
+        agents: 100,
         persistent: true,
     },
 } as const;

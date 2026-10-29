@@ -12,6 +12,7 @@ import { PostgresEmailMessages } from './email.js';
 import { PostgresActivity } from './activity.js';
 import { PostgresKv } from './kv.js';
 import { PostgresMonitors } from './monitors.js';
+import { PostgresAgents } from './agents.js';
 import type { CrudState } from '@socket-help/tools/mock-crud';
 import { PostgresRecoveryRepository } from './recovery-store.js';
 import { passwordHash, PostgresIdentityRepository } from './identity.js';
@@ -430,7 +431,7 @@ test('upgrading an existing webhook-only database preserves captures and enables
     await pool.query(
         `DROP TRIGGER inbox_quota ON inboxes; DROP FUNCTION enforce_resource_quota() CASCADE;
          ALTER TABLE inboxes DROP COLUMN owner_id, DROP COLUMN quota_key, DROP COLUMN created_at, DROP COLUMN persistent, DROP COLUMN request_limit, DROP COLUMN byte_limit, DROP COLUMN visibility, DROP COLUMN access_token_hash, DROP COLUMN access_version, DROP COLUMN response, DROP COLUMN forward_url;
-         DROP TABLE mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors, user_contact_emails, auth_mail_outbox, auth_challenges, user_recovery_emails, temporary_resources, resource_usage, account_members, auth_sessions, api_keys, account_invites, users, accounts, usage_plans, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events CASCADE; DELETE FROM schema_migrations WHERE version > 1`,
+         DROP TABLE mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors, agent_logins, agents, user_contact_emails, auth_mail_outbox, auth_challenges, user_recovery_emails, temporary_resources, resource_usage, account_members, auth_sessions, api_keys, account_invites, users, accounts, usage_plans, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events CASCADE; DELETE FROM schema_migrations WHERE version > 1`,
     );
     await Promise.all([migrate(pool), migrate(pool)]);
     assert.equal(
@@ -1144,7 +1145,7 @@ test('Dodo migration preserves legacy Stripe data without adopting its customer 
         user.personalAccountId,
     ]);
     await pool.query(
-        'ALTER TABLE accounts DROP COLUMN dodo_customer_id, DROP COLUMN dodo_subscription_id, DROP COLUMN dodo_event_created, DROP COLUMN dodo_checkout_id, DROP COLUMN dodo_checkout_url, DROP COLUMN dodo_checkout_plan; DROP TABLE dodo_events; ALTER TABLE inboxes DROP COLUMN response, DROP COLUMN forward_url; DROP TABLE mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors; DELETE FROM schema_migrations WHERE version >= 8',
+        'ALTER TABLE accounts DROP COLUMN dodo_customer_id, DROP COLUMN dodo_subscription_id, DROP COLUMN dodo_event_created, DROP COLUMN dodo_checkout_id, DROP COLUMN dodo_checkout_url, DROP COLUMN dodo_checkout_plan; DROP TABLE dodo_events; ALTER TABLE inboxes DROP COLUMN response, DROP COLUMN forward_url; DROP TABLE mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors, agent_logins, agents; DELETE FROM schema_migrations WHERE version >= 8',
     );
     await Promise.all([migrate(pool), migrate(pool)]);
     const row = (
@@ -1352,4 +1353,32 @@ test('monitors are claimed once when due, found by ping hash and keep 50 events'
     assert.equal(await store.count(user.personalAccountId), 1);
     assert.equal(await store.delete(user.personalAccountId, id), true);
     assert.equal((await store.events(id)).length, 0);
+});
+
+test('agent logins are found by code or device and can be answered only once', async () => {
+    const store = new PostgresAgents(pool);
+    const now = Date.now();
+    const login = {
+        id: crypto.randomUUID(),
+        deviceHash: 'd'.repeat(64),
+        userCode: 'BCDF-2345',
+        name: 'Claude Code',
+        client: 'cli',
+        status: 'pending' as const,
+        createdAt: new Date(now).toISOString(),
+        expiresAt: new Date(now + 900000).toISOString(),
+    };
+    await store.createLogin(login);
+    assert.equal((await store.loginByCode('BCDF-2345'))?.name, 'Claude Code');
+    assert.equal((await store.loginByDevice('d'.repeat(64)))?.id, login.id);
+    const [first, second] = await Promise.all([
+        store.settle(login.id, { status: 'denied' }),
+        store.settle(login.id, { status: 'denied' }),
+    ]);
+    assert.equal(Number(first) + Number(second), 1);
+    assert.equal((await store.loginByCode('BCDF-2345'))?.status, 'denied');
+    assert.equal(
+        await store.settle(login.id, { status: 'delivered', sealedKey: undefined }, 'approved'),
+        false,
+    );
 });

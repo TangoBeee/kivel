@@ -23,6 +23,8 @@ import { Waiters, waitForRequests, waitSeconds } from './waiting.js';
 import { MemoryMockCalls } from './mock-calls.js';
 import { MemoryActivity } from './activity.js';
 import { MemoryKv, registerKv } from './kv.js';
+import { MemoryAgents, registerAgents, setAgentPepper } from './agents.js';
+import type { AgentRepository } from './agents.js';
 import { MemoryMonitors, registerMonitors } from './monitors.js';
 import type { MonitorChecks, MonitorRepository } from './monitors.js';
 import type { MemoryRepository } from './kv.js';
@@ -73,6 +75,7 @@ interface AppOptions {
     memory?: MemoryRepository;
     monitorStore?: MonitorRepository;
     monitorChecks?: MonitorChecks;
+    agentStore?: AgentRepository;
 }
 
 interface InboxRoute {
@@ -122,6 +125,7 @@ export function buildApp({
     memory = new MemoryKv(),
     monitorStore = new MemoryMonitors(),
     monitorChecks,
+    agentStore = new MemoryAgents(),
 }: AppOptions = {}) {
     const ledger = new MemoryAllocations();
     const inboxStore = providedInboxes ?? new InboxStore({ quotaLedger: ledger });
@@ -177,6 +181,7 @@ export function buildApp({
             rateLimiter.deleteExpired(),
             identityStore.cleanup(),
             memory.deleteExpired(),
+            agentStore.deleteExpired(),
         ])
             .catch(() => app.log.error('Resource cleanup failed'))
             .finally(() => {
@@ -658,6 +663,14 @@ export function buildApp({
     registerTools(app, access, tools);
     registerMusic(app, frontendDir);
     registerLifecycle(app, access, inboxStore, resourceStore);
+    if (authSecret) setAgentPepper(authSecret);
+    registerAgents({
+        app,
+        access,
+        identities: identityStore,
+        agents: agentStore,
+        origin: baseUrl.origin,
+    });
     registerKv(app, access, memory);
     registerEmail({
         app,

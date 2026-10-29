@@ -293,6 +293,65 @@ export function openApi(origin: string) {
                     responses: { '204': { description: 'Reset' }, ...unavailable, ...limited },
                 },
             },
+            '/api/agents/login': {
+                post: {
+                    operationId: 'startAgentLogin',
+                    tags: ['Agents'],
+                    summary: 'Ask a human to connect this agent (no key needed)',
+                    description:
+                        'Returns a userCode and verificationUrl for the human, and a secret deviceCode for the agent. Codes expire in 15 minutes. Then poll POST /api/agents/token.',
+                    requestBody: {
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    properties: {
+                                        name: { type: 'string', maxLength: 60 },
+                                        client: { type: 'string', maxLength: 60 },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    responses: { '201': { description: 'Login started' }, ...limited },
+                },
+            },
+            '/api/agents/token': {
+                post: {
+                    operationId: 'finishAgentLogin',
+                    tags: ['Agents'],
+                    summary: 'Poll for the API key after the human approves',
+                    description:
+                        '202 while pending, 403 if denied, 410 if expired or already delivered, 200 with apiKey once approved. The key is returned exactly once.',
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    required: ['deviceCode'],
+                                    properties: { deviceCode: { type: 'string' } },
+                                },
+                            },
+                        },
+                    },
+                    responses: {
+                        '200': { description: 'Approved; apiKey and MCP settings' },
+                        '202': { description: 'Waiting for the human' },
+                        '403': { description: 'Denied' },
+                        '410': { description: 'Expired or already delivered' },
+                    },
+                },
+            },
+            '/api/agents': {
+                get: {
+                    operationId: 'listAgents',
+                    tags: ['Agents'],
+                    summary: 'List the workspace’s agents and the plan limit',
+                    security: secured,
+                    responses: { '200': { description: 'Agents with last use' }, ...limited },
+                },
+            },
             '/api/monitors': {
                 post: {
                     operationId: 'createMonitor',

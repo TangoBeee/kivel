@@ -1607,101 +1607,90 @@ a brand dot pattern with its icon in a raised tile */
   background: var(--accent-soft);
 }
 
-/* Connect your agent */
+/* Connect your agent: three plain steps, one client at a time */
 .connect-steps {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-  margin: 40px 0 0;
+  gap: 40px;
+  margin: 48px 0 0;
   padding: 0;
   list-style: none;
+  counter-reset: step;
 }
 .connect-steps li {
-  display: flex;
-  gap: 14px;
-  padding: 20px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card);
-  background: var(--surface);
-}
-.connect-steps li > span {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 9999px;
-  background: var(--accent);
-  color: var(--accent-ink);
-  font-weight: 600;
-  font-size: 0.875rem;
+  padding-top: 16px;
+  border-top: 1px solid var(--ink);
+  counter-increment: step;
 }
 .connect-steps strong {
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.connect-steps strong::before {
+  content: counter(step) '. ';
 }
 .connect-steps p {
+  font-size: 0.9375rem;
+  line-height: 1.5rem;
+  color: var(--muted);
+}
+.client-tabs [role='tablist'] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 20px 0 16px;
+  border-bottom: 1px solid var(--line);
+}
+.client-tabs [role='tab'] {
+  padding: 10px 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+}
+.client-tabs [role='tab']:hover {
+  color: var(--ink);
+}
+.client-tabs [role='tab'][aria-selected='true'] {
+  border-bottom-color: var(--ink);
+  color: var(--ink);
+}
+.client-tabs [role='tab']:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+.client-tabs [role='tabpanel'] > p {
+  margin-top: 12px;
   font-size: 0.875rem;
   color: var(--muted);
 }
-.connect-clients {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 16px 0 24px;
-}
-.connect-clients a {
-  padding: 6px 14px;
-  border: 1px solid var(--line-strong);
-  border-radius: 9999px;
-  background: var(--surface);
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--ink);
-}
-.connect-clients a:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-.connect-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24px;
-}
-.connect-client {
-  scroll-margin-top: 96px;
-  min-width: 0;
-}
-.connect-client h3 {
-  margin-bottom: 10px;
-  font-size: 1.125rem;
-}
 .connect-prompts {
-  display: grid;
-  gap: 10px;
   margin: 16px 0 0;
   padding: 0;
   list-style: none;
+  border-top: 1px solid var(--line);
 }
 .connect-prompts li {
   display: flex;
-  gap: 10px;
-  padding: 14px 16px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-row);
-  background: var(--subtle);
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
   font-size: 0.9375rem;
 }
 .connect-prompts svg {
   flex: none;
   margin-top: 3px;
-  color: var(--accent);
+  color: var(--muted);
 }
 @media (max-width: 800px) {
-  .connect-steps,
-  .connect-grid {
+  .connect-steps {
     grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
   }
 }
 

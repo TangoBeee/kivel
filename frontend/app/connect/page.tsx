@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { PageIntro, StructuredData } from '../../components/content-layout';
-import { CodeExample } from '../../components/code-example';
+import { ClientTabs } from '../../components/client-tabs';
 import { CopyPrompt } from '../../components/home/copy-prompt';
 import { Icon } from '../../components/icons';
 import { pageMetadata } from '../../lib/seo';
@@ -133,13 +133,12 @@ export default function Connect() {
             >
                 <CopyPrompt prompt={setupPrompt} className="button button-primary" />
                 <Link className="button button-secondary" href="#clients">
-                    Set it up by hand
+                    Set up by hand
                 </Link>
             </PageIntro>
 
             <ol className="connect-steps">
                 <li>
-                    <span>1</span>
                     <div>
                         <strong>Paste the prompt</strong>
                         <p>
@@ -149,7 +148,6 @@ export default function Connect() {
                     </div>
                 </li>
                 <li>
-                    <span>2</span>
                     <div>
                         <strong>Approve it</strong>
                         <p>
@@ -159,7 +157,6 @@ export default function Connect() {
                     </div>
                 </li>
                 <li>
-                    <span>3</span>
                     <div>
                         <strong>Ask your agent</strong>
                         <p>It discovers the tools by itself. Try a prompt from the list below.</p>
@@ -168,23 +165,8 @@ export default function Connect() {
             </ol>
 
             <section id="clients" className="content-section">
-                <h2>Choose your client</h2>
-                <nav className="connect-clients" aria-label="MCP clients">
-                    {clients.map((client) => (
-                        <a key={client.id} href={`#${client.id}`}>
-                            {client.name}
-                        </a>
-                    ))}
-                </nav>
-                <div className="connect-grid">
-                    {clients.map((client) => (
-                        <section key={client.id} id={client.id} className="connect-client">
-                            <h3>{client.name}</h3>
-                            <CodeExample title={client.where} code={client.code} />
-                            {client.note && <p className="tool-notice">{client.note}</p>}
-                        </section>
-                    ))}
-                </div>
+                <h2>Or set it up by hand</h2>
+                <ClientTabs clients={clients} />
             </section>
 
             <section className="content-section">

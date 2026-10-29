@@ -87,36 +87,38 @@ export default function Home() {
                 }}
             />
 
-            <section className="home-wrap home-hero" aria-labelledby="hero-heading">
-                <h1 id="hero-heading">Webhooks, email and approvals for your coding agent.</h1>
-                <div className="home-hero-side">
-                    <p>
-                        Your agent can&apos;t catch a Stripe webhook or read a signup email on its
-                        own. socket.help gives it both, and asks you before risky steps.
-                    </p>
-                    <div className="home-actions">
-                        <CopyPrompt prompt={setupPrompt} />
-                        <Link href="/docs/" className="home-link">
-                            Read the docs
-                        </Link>
+            <div className="home-first">
+                <section className="home-wrap home-hero" aria-labelledby="hero-heading">
+                    <h1 id="hero-heading">Webhooks, email and approvals for your coding agent.</h1>
+                    <div className="home-hero-side">
+                        <p>
+                            Your agent can&apos;t catch a Stripe webhook or read a signup email on
+                            its own. socket.help gives it both, and asks you before risky steps.
+                        </p>
+                        <div className="home-actions">
+                            <CopyPrompt prompt={setupPrompt} />
+                            <Link href="/docs/" className="home-link">
+                                Read the docs
+                            </Link>
+                        </div>
+                        <p className="home-hero-facts">
+                            {paidPlansEnabled ? 'Free to start' : 'Free during the beta'} · Pro $2 a
+                            month · Works with Claude Code, Cursor and Codex
+                        </p>
                     </div>
-                    <p className="home-hero-facts">
-                        {paidPlansEnabled ? 'Free to start' : 'Free during the beta'} · Pro $2 a
-                        month · Works with Claude Code, Cursor and Codex
-                    </p>
-                </div>
-            </section>
+                </section>
 
-            <figure className="home-wrap home-art">
-                <img
-                    src="/art/klint-youth.webp"
-                    alt="Hilma af Klint, The Ten Largest, No. 3, Youth, 1907: spirals and circles in yellow, blue and pink on orange."
-                    width={1600}
-                    height={895}
-                    fetchPriority="high"
-                />
-                <figcaption>Hilma af Klint, The Ten Largest, No. 3, 1907</figcaption>
-            </figure>
+                <figure className="home-wrap home-art">
+                    <img
+                        src="/art/klint-youth.webp"
+                        alt="Hilma af Klint, The Ten Largest, No. 3, Youth, 1907: spirals and circles in yellow, blue and pink on orange."
+                        width={1600}
+                        height={895}
+                        fetchPriority="high"
+                    />
+                    <figcaption>Hilma af Klint, The Ten Largest, No. 3, 1907</figcaption>
+                </figure>
+            </div>
 
             <section className="home-wrap home-features" aria-label="What your agent gets">
                 {features.map((feature) => (

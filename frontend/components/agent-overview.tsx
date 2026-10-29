@@ -2,14 +2,15 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Badge, Button } from '@radix-ui/themes';
-import { ArrowRight, ChatCircleDots, Check, Copy, Robot } from '@phosphor-icons/react';
+import { Button } from '@radix-ui/themes';
+import { Check, Copy } from '@phosphor-icons/react';
 import { api } from '../lib/api';
 import { setupPrompt } from '../lib/setup-prompt';
 
 interface Agent {
     id: string;
     name: string;
+    client?: string;
     lastUsedAt: string | null;
 }
 interface Activity {
@@ -31,11 +32,19 @@ interface Question {
     question: string;
 }
 
-function CopySetup({ label = 'Copy setup prompt' }: { label?: string }) {
+function CopySetup({
+    label = 'Copy setup prompt',
+    quiet = false,
+}: {
+    label?: string;
+    quiet?: boolean;
+}) {
     const [copied, setCopied] = useState(false);
     return (
         <Button
-            size="3"
+            size={quiet ? '2' : '3'}
+            variant={quiet ? 'soft' : 'solid'}
+            color={quiet ? 'gray' : undefined}
             onClick={async () => {
                 try {
                     await navigator.clipboard.writeText(setupPrompt);
@@ -84,80 +93,37 @@ export function AgentOverview({ onOpenAgents }: { onOpenAgents: () => void }) {
         };
     }, []);
 
-    if (agents === null) return <div className="agent-overview is-loading" aria-hidden="true" />;
+    if (agents === null) return <div className="home-panel is-loading" aria-hidden="true" />;
     if (agents.length === 0)
         return (
-            <section
-                className="agent-overview agent-overview-empty"
-                aria-labelledby="connect-heading"
-            >
-                <div>
-                    <h2 id="connect-heading">Connect your first agent</h2>
-                    <p>
-                        Paste the setup prompt into Claude Code, Cursor or any MCP client. Your
-                        agent adds socket.help, asks to join this workspace and waits for you to
-                        approve it here.
-                    </p>
-                    <div className="agent-overview-actions">
-                        <CopySetup />
-                        <Link href="/connect/" className="agent-overview-link">
-                            Manual setup
-                            <ArrowRight size={14} />
-                        </Link>
-                    </div>
+            <section className="home-panel home-panel-empty" aria-labelledby="connect-heading">
+                <h2 id="connect-heading">Connect your first agent</h2>
+                <p>
+                    Paste the setup prompt into Claude Code, Cursor or Codex. Your agent asks to
+                    join, and you approve it here.
+                </p>
+                <div className="home-panel-actions">
+                    <CopySetup />
+                    <Link href="/connect/" className="home-panel-link">
+                        Set it up by hand
+                    </Link>
                 </div>
-                <ol className="agent-overview-steps">
-                    <li>
-                        <strong>Paste the prompt</strong>
-                        <span>Your agent adds the MCP server.</span>
-                    </li>
-                    <li>
-                        <strong>Approve it</strong>
-                        <span>You get a link and a code to confirm.</span>
-                    </li>
-                    <li>
-                        <strong>Let it work</strong>
-                        <span>Inboxes, mocks, memory and questions for you.</span>
-                    </li>
-                </ol>
             </section>
         );
     return (
-        <section className="agent-overview" aria-label="Your agents">
-            <button type="button" className="agent-overview-stat" onClick={onOpenAgents}>
-                <Robot size={20} />
-                <span>
-                    <strong>
-                        {agents.length} of {limit} agents connected
-                    </strong>
-                    <small>
-                        {agents
-                            .slice(0, 3)
-                            .map((agent) => agent.name)
-                            .join(', ')}
-                        {agents.length > 3 ? ` and ${agents.length - 3} more` : ''}
-                    </small>
-                </span>
-                <ArrowRight size={16} className="agent-overview-arrow" />
-            </button>
-            {questions.length > 0 ? (
-                <div className="agent-overview-questions">
-                    <span className="agent-overview-waiting">
-                        <ChatCircleDots size={20} />
-                        Waiting on you
-                        <Badge color="amber" variant="soft">
-                            {questions.length}
-                        </Badge>
-                    </span>
+        <div className="home-panels">
+            {questions.length > 0 && (
+                <section className="home-panel" aria-labelledby="waiting-heading">
+                    <h2 id="waiting-heading">Waiting on you</h2>
                     <ul>
-                        {questions.slice(0, 3).map((item) => (
+                        {questions.map((item) => (
                             <li key={item.id}>
                                 <span>
                                     <strong>{item.question}</strong>
                                     <small>{item.agentName}</small>
                                 </span>
                                 <Link
-                                    className="button button-primary button-small"
+                                    className="button button-primary"
                                     href={`/approve/?id=${item.id}`}
                                 >
                                     Answer
@@ -165,38 +131,60 @@ export function AgentOverview({ onOpenAgents }: { onOpenAgents: () => void }) {
                             </li>
                         ))}
                     </ul>
-                </div>
-            ) : (
-                <div className="agent-overview-quiet">
-                    <span>No questions waiting. Your agents ask here before risky steps.</span>
-                    <CopySetup label="Connect another agent" />
-                </div>
+                </section>
             )}
-            <div className="agent-overview-feed">
-                <span className="agent-overview-feed-title">Recent agent activity</span>
+            <section className="home-panel" aria-labelledby="agents-heading">
+                <div className="home-panel-head">
+                    <h2 id="agents-heading">
+                        Agents{' '}
+                        <span>
+                            {agents.length} of {limit}
+                        </span>
+                    </h2>
+                    <button type="button" className="home-panel-link" onClick={onOpenAgents}>
+                        Manage
+                    </button>
+                </div>
+                <ul>
+                    {agents.map((agent) => (
+                        <li key={agent.id}>
+                            <span>
+                                <strong>{agent.name}</strong>
+                                <small>
+                                    {agent.lastUsedAt
+                                        ? `Active ${since(agent.lastUsedAt)}`
+                                        : 'Not used yet'}
+                                </small>
+                            </span>
+                        </li>
+                    ))}
+                </ul>
+                {agents.length < limit && <CopySetup label="Connect another agent" quiet />}
+            </section>
+            <section className="home-panel" aria-labelledby="activity-heading">
+                <h2 id="activity-heading">Recent activity</h2>
                 {activity.length ? (
-                    <ol>
+                    <ul>
                         {activity.map((entry, index) => (
                             <li key={`${entry.at}-${index}`}>
-                                <span
-                                    className={`agent-overview-dot ${entry.ok ? '' : 'is-failed'}`}
-                                />
-                                <code>{entry.tool}</code>
                                 <span>
-                                    {agents.find((agent) => agent.id === entry.keyId)?.name ??
-                                        'API key'}
+                                    <strong>
+                                        <code>{entry.tool}</code>
+                                        {!entry.ok && <em> failed</em>}
+                                    </strong>
+                                    <small>
+                                        {agents.find((agent) => agent.id === entry.keyId)?.name ??
+                                            'API key'}
+                                    </small>
                                 </span>
                                 <time dateTime={entry.at}>{since(entry.at)}</time>
                             </li>
                         ))}
-                    </ol>
+                    </ul>
                 ) : (
-                    <p>
-                        Nothing yet. Every tool your agents call over MCP shows up here, with its
-                        result and time.
-                    </p>
+                    <p>Every tool your agents call shows up here.</p>
                 )}
-            </div>
-        </section>
+            </section>
+        </div>
     );
 }

@@ -352,26 +352,31 @@ and depth on every page */
 }
 
 /* Code: always on a dark surface */
-/* Code stays a dark block on the light page, with its own light-on-dark text */
+/* Code: a quiet light block, the same family as the page */
 .code-example {
-  border-color: #1d201e;
-  background: #121514;
+  border-color: var(--line);
+  background: #fafaf9;
   box-shadow: none;
 }
 .code-example-bar {
-  border-bottom-color: #262a28;
-  color: #b4b9b5;
+  min-height: 40px;
+  padding: 6px 8px 6px 16px;
+  border-bottom-color: var(--line);
+  color: var(--muted);
 }
 .code-example pre {
-  color: #e8eae8;
+  color: var(--ink);
+  font-size: 0.8125rem;
+  line-height: 1.6;
 }
 .code-example .rt-Button {
-  color: #d3d6d3;
+  color: var(--muted);
 }
 .code-example .rt-Button:hover {
-  background: #262a28;
-  color: #ffffff;
+  background: var(--subtle);
+  color: var(--ink);
 }
+
 /* Visible to screen readers only */
 .sr-only {
   position: absolute;

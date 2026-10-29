@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { LogoMark } from './logo';
 import { SearchLaunch } from './toolbox-provider';
 import { rememberReturn } from '../lib/return-path';
-import { Badge, Button, DropdownMenu, IconButton } from '@radix-ui/themes';
+import { Button, DropdownMenu, IconButton } from '@radix-ui/themes';
 import {
     SquaresFour,
     Toolbox,
@@ -29,14 +29,15 @@ import {
     Robot,
     Pulse,
     X,
+    GearSix,
 } from '@phosphor-icons/react';
 
 export const dashboardPanels = [
     {
         id: 'overview',
         group: 'Build',
-        label: 'Overview',
-        description: 'Your agents, what they need from you, and your usage.',
+        label: 'Home',
+        description: 'What needs you, and what your agents did.',
         icon: SquaresFour,
     },
     {
@@ -50,53 +51,63 @@ export const dashboardPanels = [
         id: 'resources',
         group: 'Build',
         label: 'Resources',
-        description: 'Manage the endpoints and files you create.',
+        description: 'Webhook inboxes, email inboxes, mocks and files your agents made.',
         icon: FolderSimple,
     },
     {
         id: 'keys',
         group: 'Build',
         label: 'API keys',
-        description: 'Connect your scripts, CLI, SDK, and agents.',
+        description:
+            'Keys for scripts and the CLI. Agents get their own keys when you approve them.',
         icon: Key,
     },
     {
         id: 'monitors',
         group: 'Build',
         label: 'Monitors',
-        description: 'Uptime, SSL and cron job heartbeats with alerts.',
+        description: 'Checks that email you when a site, certificate or cron job breaks.',
         icon: Pulse,
     },
     {
         id: 'agents',
         group: 'Build',
         label: 'Agents',
-        description: 'The agents connected to this workspace and what they did.',
+        description: 'Connect, review and disconnect your agents.',
         icon: Robot,
     },
     {
         id: 'workspace',
         group: 'Settings',
         label: 'Workspace',
-        description: 'Name, members, and invitations.',
+        description: 'Name, members and invitations.',
         icon: UsersThree,
     },
     {
         id: 'security',
         group: 'Settings',
         label: 'Security',
-        description: 'Recovery email, password reset, and sign in.',
+        description: 'Recovery email and password.',
         icon: ShieldCheck,
     },
     {
         id: 'billing',
         group: 'Settings',
-        label: 'Plan & billing',
-        description: 'Your plan, allowances, and subscriptions.',
+        label: 'Plan',
+        description: 'Your plan and what it includes.',
         icon: CreditCard,
     },
 ] as const;
 export type DashboardPanel = (typeof dashboardPanels)[number]['id'];
+const settingsPanels: DashboardPanel[] = ['workspace', 'keys', 'billing', 'security'];
+// Five places in the sidebar; the settings pages share one entry and a tab row.
+const navItems = [
+    { id: 'overview', label: 'Home', icon: House },
+    { id: 'agents', label: 'Agents', icon: Robot },
+    { id: 'resources', label: 'Resources', icon: FolderSimple },
+    { id: 'monitors', label: 'Monitors', icon: Pulse },
+    { id: 'workspace', label: 'Settings', icon: GearSix },
+] as const;
 export const isDashboardPanel = (value: string): value is DashboardPanel =>
     dashboardPanels.some((item) => item.id === value);
 
@@ -214,7 +225,6 @@ export function DashboardShell({
     username,
     plan,
     role,
-    usage,
     onSignOut,
     busy,
     title,
@@ -228,13 +238,6 @@ export function DashboardShell({
     username: string;
     plan: string;
     role: string;
-    usage: {
-        resources: number;
-        maxResources: number;
-        storedLabel: string;
-        storedBytes: number;
-        storageBytes: number;
-    };
     onSignOut: () => void;
     busy: boolean;
     title?: string;
@@ -259,7 +262,6 @@ export function DashboardShell({
         onPanelChange(next);
         setNavOpen(false);
     };
-    const groups = ['Build', 'Settings'] as const;
     return (
         <div
             className={`dashboard-layout ${navOpen ? 'is-nav-open' : ''}`}
@@ -323,47 +325,23 @@ export function DashboardShell({
                     </DropdownMenu.Content>
                 </DropdownMenu.Root>
                 <nav className="dashboard-nav" aria-label="Workspace sections">
-                    {groups.map((group) => (
-                        <div key={group} className="dashboard-nav-group">
-                            <span className="dashboard-nav-label">{group}</span>
-                            {dashboardPanels
-                                .filter((item) => item.group === group)
-                                .map((item) => (
-                                    <button
-                                        key={item.id}
-                                        aria-current={panel === item.id ? 'page' : undefined}
-                                        onClick={() => go(item.id)}
-                                    >
-                                        <item.icon
-                                            size={18}
-                                            weight={panel === item.id ? 'fill' : 'regular'}
-                                        />
-                                        {item.label}
-                                    </button>
-                                ))}
-                        </div>
-                    ))}
+                    {navItems.map((item) => {
+                        const active =
+                            item.id === 'workspace'
+                                ? settingsPanels.includes(panel)
+                                : panel === item.id;
+                        return (
+                            <button
+                                key={item.id}
+                                aria-current={active ? 'page' : undefined}
+                                onClick={() => go(item.id)}
+                            >
+                                <item.icon size={18} weight={active ? 'fill' : 'regular'} />
+                                {item.label}
+                            </button>
+                        );
+                    })}
                 </nav>
-                <div className="dashboard-usage">
-                    <div className="dashboard-usage-head">
-                        <Badge color="green" variant="soft">
-                            {plan} plan
-                        </Badge>
-                        <button onClick={() => go('billing')}>Compare plans</button>
-                    </div>
-                    <Meter
-                        label="Resources"
-                        value={usage.resources}
-                        max={usage.maxResources}
-                        display={`${usage.resources} / ${usage.maxResources || '-'}`}
-                    />
-                    <Meter
-                        label="Storage"
-                        value={usage.storedBytes}
-                        max={usage.storageBytes}
-                        display={usage.storedLabel}
-                    />
-                </div>
                 <DropdownMenu.Root>
                     <DropdownMenu.Trigger>
                         <button className="dashboard-user" aria-label="Account menu">
@@ -438,13 +416,27 @@ export function DashboardShell({
                 <div className="dashboard-content">
                     <header className="dashboard-heading">
                         <div>
-                            <h1>{title ?? current.label}</h1>
+                            <h1>
+                                {title ??
+                                    (settingsPanels.includes(panel) ? 'Settings' : current.label)}
+                            </h1>
                             <p>{current.description}</p>
                         </div>
-                        {(panel === 'overview' || panel === 'resources' || panel === 'tools') && (
-                            <NewResourceMenu />
-                        )}
+                        {panel === 'resources' && <NewResourceMenu />}
                     </header>
+                    {settingsPanels.includes(panel) && (
+                        <nav className="dashboard-tabs" aria-label="Settings">
+                            {settingsPanels.map((id) => (
+                                <button
+                                    key={id}
+                                    aria-current={panel === id ? 'page' : undefined}
+                                    onClick={() => go(id)}
+                                >
+                                    {dashboardPanels.find((item) => item.id === id)!.label}
+                                </button>
+                            ))}
+                        </nav>
+                    )}
                     {children}
                 </div>
             </div>

@@ -11,10 +11,10 @@
   --line: #e8e8e8;
   --line-strong: #d4d4d4;
   /* Brand */
-  --accent: #286747;
-  --accent-hover: #1f5239;
-  --accent-soft: #edf5ef;
-  --accent-line: #b6dbc3;
+  --accent: #141414;
+  --accent-hover: #444444;
+  --accent-soft: #f5f5f4;
+  --accent-line: #d4d4d4;
   --accent-ink: #ffffff;
   --brand: #286747;
   --danger: #ad3f3b;
@@ -37,7 +37,7 @@ body {
   --display: var(--font-sans), -apple-system, sans-serif;
 }
 ::selection {
-  background: #cfe7d8;
+  background: #e5e5e5;
   color: var(--ink);
 }
 html {

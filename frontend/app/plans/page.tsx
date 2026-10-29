@@ -17,12 +17,20 @@ const retention = (seconds: number) =>
     seconds < 86400 ? '1 hour' : `${seconds / 86400} ${seconds === 86400 ? 'day' : 'days'}`;
 const number = (value: number) => value.toLocaleString('en-US');
 const descriptions = {
-    anonymous: 'A quick task. No sign-up.',
-    free: 'A workspace and API keys for you and your agents.',
-    pro: 'For daily use: forwarding, proxy mocks and 30-day retention.',
-    team: 'Pro for the whole workspace, up to 20 members.',
+    anonymous: 'Try it from an agent or the browser. No sign-up.',
+    free: 'A workspace for you and up to 3 agents.',
+    pro: 'For agents you use every day: 25 agents, forwarding and 30-day history.',
+    team: 'One shared workspace for the whole team and its agents.',
 };
+const agents = (id: PlanId) =>
+    plans[id].agents ? `${number(plans[id].agents)} connected agents` : '72 hour agent trials';
+const questions = { anonymous: 'Not included', free: '20', pro: '200', team: '1,000' } as const;
 const rows: { name: string; value: (id: PlanId) => string }[] = [
+    {
+        name: 'Connected agents',
+        value: (id) => (plans[id].agents ? number(plans[id].agents) : 'Trials only'),
+    },
+    { name: 'Questions to you (ask_human) / day', value: (id) => questions[id] },
     { name: 'Active resources', value: (id) => number(plans[id].maxResources) },
     {
         name: 'Total storage',
@@ -138,12 +146,11 @@ export default function Plans() {
                 }}
             />
             <PageIntro
-                label={paidPlansEnabled ? 'Plans & allowances' : 'Free open beta'}
-                title="Start free. Add room when you need it."
+                title="Start with 3 agents free. $2 when you need more."
                 description={
                     paidPlansEnabled
-                        ? 'Use the tools for free, with clear storage, retention and usage limits. Upgrade to a monthly plan when you need more room, and cancel anytime.'
-                        : 'Use the available tools for free, with clear storage, retention and usage limits. Planned monthly subscriptions are shown separately.'
+                        ? 'Every limit is listed below. Nothing is charged or blocked silently, and you can cancel anytime.'
+                        : 'Every limit is listed below. Nothing is charged or blocked silently. Planned monthly subscriptions are shown separately.'
                 }
             />
             {!paidPlansEnabled && (
@@ -200,8 +207,9 @@ export default function Plans() {
                         <PlanAction id={id} name={plans[id].name} checkoutOpen={paidPlansEnabled} />
                         <ul>
                             {[
+                                agents(id),
                                 `${number(plans[id].maxResources)} active resources`,
-                                rows[1]!.value(id) + ' storage',
+                                rows[3]!.value(id) + ' storage',
                                 `Up to ${retention(plans[id].maxRetentionSeconds)} retention`,
                                 `${number(plans[id].runsPerDay)} hosted runs / day`,
                                 id === 'team'

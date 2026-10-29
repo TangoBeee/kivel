@@ -13,7 +13,6 @@ export default function Integrations() {
     return (
         <div className="content-page integrations-page">
             <PageIntro
-                label="Integrations"
                 title="Your workflow. The same toolbox."
                 description="Connect from a terminal, application, or agent with the same resources, permissions, and hosted allowances."
             >

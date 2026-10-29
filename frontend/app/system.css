@@ -39,7 +39,7 @@ sentence case label above a page heading */
   font-size: 3.75rem;
   line-height: 1;
   font-weight: 600;
-  letter-spacing: -0.05em;
+  letter-spacing: -0.04em;
   text-wrap: balance;
   color: var(--ink);
 }
@@ -123,15 +123,14 @@ sentence case label above a page heading */
 .button-primary:hover {
   border-color: var(--ink);
   background: var(--ink);
-  color: #ffffff;
+  color: var(--bg);
   filter: none;
 }
 .button-primary:hover {
-  border-color: #2b2f2d;
-  background: #2b2f2d;
+  border-color: #ffffff;
+  background: #ffffff;
 }
-.button:active,
-.lp-button:active {
+.button:active {
   transform: scale(0.98);
 }
 .content-page .button,
@@ -139,18 +138,6 @@ sentence case label above a page heading */
   min-height: 40px;
   border-radius: var(--radius-control);
   font-weight: 600;
-}
-.lp-button {
-  min-height: 44px;
-  padding: 10px 18px;
-  border-radius: var(--radius-control);
-  background: var(--ink);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.12),
-    0 1px 2px rgb(11 13 12 / 0.2);
-}
-.lp-button:hover {
-  background: #2b2f2d;
 }
 .radix-themes .rt-Button {
   font-weight: 600;
@@ -160,8 +147,8 @@ with green kept for soft accents */
 .radix-themes[data-accent-color='green'],
 .radix-themes [data-accent-color='green'] {
   --accent-9: var(--ink);
-  --accent-10: #2b2f2d;
-  --accent-contrast: #ffffff;
+  --accent-10: #ffffff;
+  --accent-contrast: var(--bg);
 }
 .text-link {
   font-weight: 600;
@@ -187,16 +174,14 @@ and depth on every page */
 .dashboard-plan-summary,
 .resource-result,
 .resource-editor,
-.editor-panel,
-.lp-card {
+.editor-panel {
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
   background: var(--surface);
   box-shadow: none;
 }
 .featured-article,
-.comparison-directory > a,
-.lp-card {
+.comparison-directory > a {
   transition:
     border-color 300ms var(--ease),
     box-shadow 300ms var(--ease),
@@ -231,7 +216,7 @@ and depth on every page */
 .site-footer {
   margin-top: 96px;
   border-top: 1px solid var(--line);
-  background: var(--subtle);
+  background: var(--bg);
 }
 .footer-inner {
   display: grid;
@@ -257,6 +242,10 @@ and depth on every page */
   line-height: 1.75rem;
   font-weight: 600;
   letter-spacing: -0.03em;
+  color: var(--ink);
+}
+.footer-about > a:not(.footer-brand) {
+  font-size: 0.875rem;
   color: var(--ink);
 }
 .footer-about p {
@@ -337,16 +326,6 @@ and depth on every page */
   }
 }
 
-/* Small labels inside the landing page follow the same sentence case rule */
-.lp-eyebrow,
-.lp-label,
-.lp-command-label {
-  font-size: 0.875rem;
-  line-height: 1.25rem;
-  letter-spacing: 0;
-  text-transform: none;
-}
-
 /* Messages: one look for errors and notices everywhere */
 .alert,
 .account-message {
@@ -372,142 +351,24 @@ and depth on every page */
 
 /* Code: always on a dark surface */
 .code-example {
-  border-color: #1d201e;
-  background: #0f1110;
+  border-color: var(--line);
+  background: #0e1010;
   box-shadow: none;
 }
 .code-example-bar {
-  border-bottom-color: #232725;
-  color: #a3a7a4;
+  border-bottom-color: var(--line);
+  color: var(--muted);
 }
 .code-example pre {
   color: #e8eae8;
 }
 .code-example .rt-Button {
-  color: #d3d6d3;
+  color: var(--muted);
 }
 .code-example .rt-Button:hover {
-  background: #232725;
-  color: #ffffff;
-}
-
-/* The landing stylesheet loads after this file,
-so its shared pieces are scoped under .lp */
-.lp .lp-button {
-  background: var(--ink);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.12),
-    0 1px 2px rgb(11 13 12 / 0.2);
-}
-.lp .lp-button:hover {
-  background: #2b2f2d;
-}
-.lp .lp-eyebrow,
-.lp .lp-label,
-.lp .lp-command-label {
-  font-size: 0.875rem;
-  line-height: 1.25rem;
-  letter-spacing: 0;
-  text-transform: none;
-}
-.lp .lp-hero-heading {
-  max-width: 820px;
-  font-size: 4.5rem;
-  line-height: 1;
-  letter-spacing: -0.055em;
-}
-@media (max-width: 720px) {
-  .lp .lp-hero-heading {
-    font-size: 2.75rem;
-    line-height: 1;
-  }
-}
-@media (max-width: 420px) {
-  .lp .lp-hero-heading {
-    font-size: 2.25rem;
-    line-height: 2.5rem;
-  }
-}
-
-/* Landing signature moments: bigger section headings,
-mono metadata,
-dark code examples,
-a dark closing card */
-.lp .lp-section-head h2 {
-  font-size: 3rem;
-  line-height: 1;
-  letter-spacing: -0.045em;
-}
-.lp .lp-tagline {
-  font-size: 3.75rem;
-  letter-spacing: -0.05em;
-}
-.lp .lp-pill {
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  line-height: 1rem;
+  background: var(--subtle);
   color: var(--ink);
 }
-.lp .lp-example {
-  border-color: #1d201e;
-  background: #0f1110;
-}
-.lp .lp-example > span {
-  font-family: var(--mono);
-  color: #22c55e;
-}
-.lp .lp-example pre {
-  color: #e8eae8;
-}
-.lp .lp-final {
-  border-color: var(--ink);
-  background: var(--ink);
-  color: #ffffff;
-}
-.lp .lp-final h2 {
-  color: #ffffff;
-}
-.lp .lp-final p {
-  color: #a3a7a4;
-}
-.lp .lp-final .lp-button {
-  background: #ffffff;
-  color: var(--ink);
-  box-shadow: none;
-}
-.lp .lp-final .lp-button:hover {
-  background: #e8eae8;
-}
-.lp .lp-final-sockets span {
-  border-color: #262a28;
-  background: #151816;
-  color: #8a8f8b;
-  animation-name: lp-socket-dark;
-}
-@keyframes lp-socket-dark {
-  0%,
-  100% {
-    border-color: #262a28;
-    background: #151816;
-    color: #8a8f8b;
-  }
-  24% {
-    border-color: #22c55e;
-    background: #10251a;
-    color: #22c55e;
-  }
-}
-@media (max-width: 720px) {
-  .lp .lp-section-head h2 {
-    font-size: 2.25rem;
-    line-height: 2.5rem;
-  }
-  .lp .lp-tagline {
-    font-size: 2.25rem;
-    line-height: 2.5rem;
-  }
-}
-
 /* Visible to screen readers only */
 .sr-only {
   position: absolute;

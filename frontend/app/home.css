@@ -118,12 +118,7 @@
   max-width: 680px;
   font-size: 3.75rem;
   line-height: 1;
-  letter-spacing: -0.045em;
-  background: linear-gradient(90deg, #ffffff, #9b9b9b);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  padding-bottom: 4px;
+  letter-spacing: -0.04em;
 }
 .home-hero-copy > p {
   max-width: 520px;
@@ -418,6 +413,21 @@
   line-height: 1.5rem;
   color: #c9ccca;
 }
+.home-code .is-pending {
+  opacity: 0;
+}
+.home-code > code > span {
+  transition: opacity 200ms var(--home-ease);
+}
+.home-code-wait {
+  color: var(--muted);
+  animation: home-blink 1s steps(2, start) infinite;
+}
+@keyframes home-blink {
+  to {
+    opacity: 0.3;
+  }
+}
 .home-code .is-call {
   color: var(--accent);
 }
@@ -449,6 +459,22 @@
   padding-top: 24px;
   font-size: 0.875rem;
   color: var(--ink);
+}
+
+/* Dashboard showcase */
+.home-desk {
+  margin-top: 48px;
+  padding: 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: 0 40px 120px rgb(0 0 0 / 0.55);
+}
+.home-desk img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
 }
 
 /* Join */
@@ -513,7 +539,7 @@
 .home-shot-back {
   top: 0;
   left: 0;
-  opacity: 0.55;
+  opacity: 0.8;
 }
 .home-shot-front {
   right: 0;

@@ -39,7 +39,6 @@ export default function Docs() {
             <StructuredData value={breadcrumbs([{ name: 'Documentation', path: '/docs/' }])} />
             <StructuredData value={faqSchema(faqs)} />
             <PageIntro
-                label="Developer documentation"
                 title="From a quick test to your workflow."
                 description="Run a utility, create a temporary endpoint, or connect an agent. Start with one HTTP request, no account needed."
             >

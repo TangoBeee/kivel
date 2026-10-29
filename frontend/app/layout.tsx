@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import { Header, Footer } from '../components/shell';
-import { PointerGlow } from '../components/pointer-glow';
 import { ToolboxProvider } from '../components/toolbox-provider';
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
@@ -20,7 +19,7 @@ export const metadata: Metadata = {
 
 export default function Layout({ children }: { children: React.ReactNode }) {
     return (
-        <html lang="en" data-theme="light" data-scroll-behavior="smooth">
+        <html lang="en" data-theme="dark" data-scroll-behavior="smooth">
             <body className={`${GeistSans.variable} ${GeistMono.variable}`}>
                 <ToolboxProvider>
                     <a className="skip-link" href="#main">
@@ -29,7 +28,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     <Header />
                     <main id="main">{children}</main>
                     <Footer />
-                    <PointerGlow />
                 </ToolboxProvider>
             </body>
         </html>

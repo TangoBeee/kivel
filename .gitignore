@@ -26,3 +26,7 @@ docs/deploy-open-beta.md
 __pycache__/
 *.pyc
 .DS_Store
+
+# Impeccable review captures and mocks (local only)
+frontend/.impeccable/review/
+frontend/.impeccable/mocks/

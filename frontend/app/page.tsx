@@ -181,6 +181,27 @@ export default function Home() {
                 </Reveal>
             </section>
 
+            <section className="home-section home-container" aria-labelledby="desk-heading">
+                <Reveal>
+                    <h2 id="desk-heading" className="home-heading">
+                        One place to see what they did.
+                    </h2>
+                    <p className="home-lede">
+                        Your agents, the questions waiting for you, every resource they created and
+                        every tool they called. Disconnect an agent and its key stops at once.
+                    </p>
+                </Reveal>
+                <Reveal className="home-desk">
+                    <img
+                        src="/home/dashboard.webp"
+                        alt="The socket.help dashboard: two of three agents connected, one question waiting for an answer, usage and recent resources."
+                        width={2560}
+                        height={1600}
+                        loading="lazy"
+                    />
+                </Reveal>
+            </section>
+
             <section
                 className="home-section home-container home-join"
                 aria-labelledby="join-heading"
@@ -203,7 +224,7 @@ export default function Home() {
                 <Reveal className="home-shots">
                     <img
                         className="home-shot home-shot-back"
-                        src="/home/approve-agent.png"
+                        src="/home/approve-agent.webp"
                         alt="The approval page, where you connect an agent to your workspace."
                         width={1040}
                         height={765}
@@ -211,7 +232,7 @@ export default function Home() {
                     />
                     <img
                         className="home-shot home-shot-front"
-                        src="/home/answer-question.png"
+                        src="/home/answer-question.webp"
                         alt="An agent asking whether to deploy build 412, with answer buttons."
                         width={1040}
                         height={958}

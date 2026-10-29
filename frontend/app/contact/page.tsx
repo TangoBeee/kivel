@@ -10,7 +10,6 @@ export const metadata = pageMetadata(
 export default function Contact() {
     return (
         <ReadingLayout
-            label="Contact & support"
             title="A direct line to socket.help."
             description="Questions, something broken, or feedback from the beta? Email us and include enough context to reproduce the problem."
             path="/contact/"

@@ -124,9 +124,22 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
                     }
                 />
             )}
+            {tool.status === 'available' && (
+                <div className="page-width">
+                    <aside className="tool-agent" aria-label="Use it from an agent">
+                        <p>
+                            <strong>Your coding agent can do this too.</strong> Connect socket.help
+                            once and Claude Code, Cursor or any MCP client finds this tool with{' '}
+                            <code>search_tools</code> and runs it for you.
+                        </p>
+                        <Link className="button" href="/connect/">
+                            Set up your agent
+                        </Link>
+                    </aside>
+                </div>
+            )}
             <section className="page-width tool-guide" aria-label={`About ${tool.name}`}>
                 <header className="tool-guide-intro">
-                    <span className="content-label">Guide & examples</span>
                     <h2>About {tool.name}</h2>
                     <p>{guide.intro}</p>
                 </header>

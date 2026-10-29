@@ -7,7 +7,6 @@ const popular = catalog.filter((tool) => tool.status === 'available' && tool.hre
 export default function NotFound() {
     return (
         <div className="page-width not-found">
-            <p className="eyebrow">Error 404</p>
             <h1>A loose connection.</h1>
             <p>We couldn’t find that page. Head back home, or pick up one of these tools.</p>
             <div className="not-found-actions">

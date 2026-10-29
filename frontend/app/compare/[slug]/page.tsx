@@ -34,7 +34,7 @@ export default async function Comparison({ params }: { params: Promise<{ slug: s
     const others = comparisons.filter((entry) => entry.slug !== slug);
     return (
         <ReadingLayout
-            label={`${item.focus} · Reviewed ${formatDate(item.reviewedAt)}`}
+            meta={`${item.focus} · Reviewed ${formatDate(item.reviewedAt)}`}
             title={`socket.help vs ${item.name}`}
             description={item.summary}
             path={`/compare/${slug}/`}

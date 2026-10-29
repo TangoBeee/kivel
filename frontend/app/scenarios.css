@@ -341,8 +341,8 @@
   color: var(--accent);
 }
 .is-failed .scenario-outcome {
-  background: #fff2e5;
-  color: #8c4d16;
+  background: var(--warning-bg);
+  color: var(--warning);
 }
 .scenario-result-body {
   padding: 0 18px 20px;

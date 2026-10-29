@@ -10,7 +10,7 @@ export const metadata = pageMetadata(
 export default function Refunds() {
     return (
         <ReadingLayout
-            label={`Policy · Updated ${policyUpdated}`}
+            meta={`Updated ${policyUpdated}`}
             title="Refunds and cancellation, clearly."
             description="The open beta is free. These rules explain how refunds and cancellation work if you later choose a paid subscription."
             path="/refunds/"

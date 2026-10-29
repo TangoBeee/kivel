@@ -20,7 +20,7 @@ const sections = [
 export default function Terms() {
     return (
         <ReadingLayout
-            label={`Terms · Updated ${policyUpdated}`}
+            meta={`Updated ${policyUpdated}`}
             title="Terms of use, in plain words."
             description="These terms cover the tools, hosted interfaces, and temporary resources. By using socket.help, you agree to them."
             path="/terms/"

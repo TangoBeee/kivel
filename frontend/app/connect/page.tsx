@@ -128,7 +128,6 @@ export default function Connect() {
                 }}
             />
             <PageIntro
-                label="For AI agents"
                 title="Give your agent the internet in one minute."
                 description="Paste one prompt into Claude Code, Cursor, Codex or any MCP client. Your agent adds the server, asks to join your workspace and waits for you to approve it."
             >

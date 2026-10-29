@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { clearPrivateSession, sessionSource } from '../lib/private-session';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import {
     createContext,
     useCallback,
@@ -48,12 +48,7 @@ export function useToolbox() {
     return value;
 }
 
-// The homepage, agent setup and the dashboard use the dark theme; content and tool pages stay light.
-const darkRoute = (path: string) =>
-    path === '/' || path.startsWith('/account') || path.startsWith('/connect');
-
 export function ToolboxProvider({ children }: { children: React.ReactNode }) {
-    const dark = darkRoute(usePathname());
     const router = useRouter();
     const [searchOpen, setSearchOpen] = useState(false);
     const [query, setQuery] = useState('');
@@ -140,7 +135,7 @@ export function ToolboxProvider({ children }: { children: React.ReactNode }) {
 
     return (
         <Theme
-            appearance={dark ? 'dark' : 'light'}
+            appearance="dark"
             accentColor="green"
             grayColor="gray"
             radius="large"

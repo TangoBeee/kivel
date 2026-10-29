@@ -35,13 +35,13 @@ body {
   padding: 0 18px;
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: #fff;
+  background: var(--surface);
   color: var(--muted);
   font-size: 0.875rem;
   text-align: left;
   box-shadow:
-    0 2px 6px #20332804,
-    0 1px 2px #20332804;
+    0 2px 6px rgb(0 0 0 / 0.3),
+    0 1px 2px rgb(0 0 0 / 0.3);
   transition:
     border-color 0.18s,
     box-shadow 0.18s;
@@ -52,7 +52,7 @@ body {
 }
 .search-launch:hover {
   border-color: var(--line-strong);
-  box-shadow: 0 3px 12px #20332808;
+  box-shadow: 0 3px 12px rgb(0 0 0 / 0.4);
 }
 .availability-badge {
   white-space: nowrap;
@@ -96,7 +96,7 @@ body {
 [cmdk-group-heading] {
   font-size: 0.75rem;
   font-weight: 500;
-  color: #76837a;
+  color: var(--muted);
   padding: 10px 10px 7px;
 }
 [cmdk-item] {
@@ -114,7 +114,7 @@ body {
   background: var(--subtle);
 }
 .search-result-icon {
-  color: #63786a;
+  color: var(--muted);
   display: grid;
   place-items: center;
   width: 32px;
@@ -129,7 +129,7 @@ body {
   gap: 3px;
 }
 .search-result-copy strong {
-  color: #26342b;
+  color: var(--ink);
   font-size: 0.875rem;
   font-weight: 500;
 }
@@ -252,7 +252,7 @@ body {
   padding: 15px;
   border-radius: 8px;
   background: var(--subtle);
-  color: #6a776d;
+  color: var(--muted);
   font-size: 0.875rem;
   line-height: 1.8;
 }
@@ -318,7 +318,7 @@ body {
 }
 .sidebar-label {
   display: block;
-  color: #7e8b82;
+  color: var(--muted);
   font-size: 0.75rem;
   font-weight: 500;
   margin: 2px 12px 11px;
@@ -333,7 +333,7 @@ body {
   align-items: center;
   gap: 10px;
   font-size: 0.875rem;
-  color: #65756a;
+  color: var(--muted);
   padding: 10px 12px;
   min-height: 40px;
   border-radius: 8px;
@@ -343,20 +343,20 @@ body {
 }
 .catalog-sidebar nav > a.selected {
   background: var(--accent-soft);
-  color: #2f633d;
+  color: var(--ink);
   font-weight: 500;
 }
 .catalog-sidebar nav > a > span {
   margin-left: auto;
   font-family: var(--mono);
   font-size: 0.75rem;
-  color: #758579;
+  color: var(--muted);
 }
 .sidebar-note {
   border-top: 1px solid var(--line);
   margin: 20px 12px 0;
   padding-top: 21px;
-  color: #8a988f;
+  color: var(--muted);
 }
 .sidebar-note p {
   font-size: 0.75rem;
@@ -416,11 +416,11 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #607667;
+  color: var(--muted);
 }
 .catalog-group-heading h2 {
   font-size: 0.875rem;
-  color: #344c3d;
+  color: var(--ink);
   font-weight: 550;
 }
 .catalog-group-heading > span {
@@ -455,7 +455,7 @@ body {
   flex-shrink: 0;
   display: grid;
   place-items: center;
-  color: #708276;
+  color: var(--muted);
   border-radius: 10px;
   background: var(--subtle);
 }
@@ -473,7 +473,7 @@ body {
 .catalog-tool-copy strong {
   font-size: 0.875rem;
   font-weight: 500;
-  color: #304136;
+  color: var(--ink);
 }
 .catalog-tool-copy > span {
   font-size: 0.75rem;
@@ -484,7 +484,7 @@ body {
   display: flex;
   align-items: center;
   gap: 17px;
-  color: #91a095;
+  color: var(--muted);
   padding-left: 7px;
 }
 .category-roadmap {
@@ -501,7 +501,7 @@ body {
   align-items: center;
   gap: 14px;
   font-size: 0.875rem;
-  color: #5c6f63;
+  color: var(--muted);
   padding: 16px 0;
 }
 .category-roadmap summary::-webkit-details-marker {
@@ -523,7 +523,7 @@ body {
   gap: 11px 25px;
   padding: 0 0 20px;
   font-size: 0.75rem;
-  color: #65786b;
+  color: var(--muted);
   line-height: 1.7;
 }
 .category-roadmap li {
@@ -535,7 +535,7 @@ body {
   align-items: flex-start;
   gap: 9px;
   padding: 17px 0 0;
-  color: #7c8d81;
+  color: var(--muted);
   font-size: 0.75rem;
   line-height: 1.8;
   border-top: 1px solid var(--line);

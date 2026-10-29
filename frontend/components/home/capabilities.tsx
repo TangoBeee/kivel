@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import {
     Brain,
@@ -129,30 +129,82 @@ const capabilities: Capability[] = [
     },
 ];
 
-const highlight = (code: string) =>
-    code.split('\n').map((line, index) => (
-        <span
-            key={index}
-            className={
-                line.startsWith('→')
-                    ? 'is-call'
-                    : line.startsWith('←')
-                      ? 'is-return'
-                      : line.startsWith('//')
-                        ? 'is-comment'
-                        : undefined
+const lineClass = (line: string) =>
+    line.startsWith('→')
+        ? 'is-call'
+        : line.startsWith('←')
+          ? 'is-return'
+          : line.startsWith('//')
+            ? 'is-comment'
+            : undefined;
+
+// Plays a tool call the way an agent sees it: the call goes out, the agent waits, the result lands.
+// Every line is always rendered, so the panel never changes height; hidden lines are only transparent.
+function Transcript({ code, play }: { code: string; play: boolean }) {
+    const lines = code.split('\n');
+    const [shown, setShown] = useState(play ? 0 : lines.length);
+    const [waiting, setWaiting] = useState(-1);
+    useEffect(() => {
+        if (!play) {
+            setShown(lines.length);
+            return;
+        }
+        setShown(0);
+        setWaiting(-1);
+        const timers: ReturnType<typeof setTimeout>[] = [];
+        let at = 150;
+        lines.forEach((line, index) => {
+            if (line.startsWith('←')) {
+                const call = index - 1;
+                timers.push(setTimeout(() => setWaiting(call), at));
+                at += 900;
+                timers.push(setTimeout(() => setWaiting(-1), at));
             }
-        >
-            {line}
-            {'\n'}
-        </span>
-    ));
+            at += line.trim() ? 70 : 140;
+            timers.push(setTimeout(() => setShown(index + 1), at));
+        });
+        return () => timers.forEach(clearTimeout);
+        // The transcript restarts whenever a different capability is shown; `lines` derives from `code`.
+    }, [code, play]);
+    return (
+        <pre className="home-code" translate="no">
+            <code>
+                {lines.map((line, index) => (
+                    <span
+                        key={index}
+                        className={`${lineClass(line) ?? ''} ${index < shown ? '' : 'is-pending'}`}
+                    >
+                        {line}
+                        {index === waiting && <span className="home-code-wait"> waiting…</span>}
+                        {'\n'}
+                    </span>
+                ))}
+            </code>
+        </pre>
+    );
+}
 
 /** What an agent can do, as the real tool calls it makes. */
 export function Capabilities() {
     const [active, setActive] = useState(capabilities[0]!.id);
     const reduce = useReducedMotion();
     const current = capabilities.find((item) => item.id === active)!;
+    const box = useRef<HTMLDivElement>(null);
+    const [seen, setSeen] = useState(false);
+    useEffect(() => {
+        const element = box.current;
+        if (!element) return;
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (!entry?.isIntersecting) return;
+                setSeen(true);
+                observer.disconnect();
+            },
+            { threshold: 0.4 },
+        );
+        observer.observe(element);
+        return () => observer.disconnect();
+    }, []);
     // Arrow keys move between tabs; only the selected tab is in the Tab order.
     function onKey(event: React.KeyboardEvent<HTMLDivElement>) {
         const index = capabilities.findIndex((item) => item.id === active);
@@ -173,7 +225,7 @@ export function Capabilities() {
         document.getElementById(`cap-tab-${id}`)?.focus();
     }
     return (
-        <div className="home-caps">
+        <div ref={box} className="home-caps">
             <div
                 className="home-caps-tabs"
                 role="tablist"
@@ -210,9 +262,7 @@ export function Capabilities() {
                         exit={reduce ? { opacity: 0 } : { opacity: 0, y: -8 }}
                         transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
                     >
-                        <pre className="home-code" translate="no">
-                            <code>{highlight(current.code)}</code>
-                        </pre>
+                        <Transcript code={current.code} play={seen && !reduce} />
                         <div className="home-caps-copy">
                             <h3>{current.title}</h3>
                             <p>{current.body}</p>

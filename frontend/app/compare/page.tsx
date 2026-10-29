@@ -47,7 +47,7 @@ export default function Compare() {
             />
             <StructuredData value={faqSchema(faqs)} />
             <PageIntro
-                label={`Compare tools · Last reviewed ${formatDate(latest)}`}
+                meta={`Last reviewed ${formatDate(latest)}`}
                 title="Pick the right tool for the job."
                 description="Honest, sourced comparisons with tools you may already use. Each one says when socket.help fits, and when another option suits you better."
             />

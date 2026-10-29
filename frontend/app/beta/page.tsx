@@ -10,7 +10,6 @@ export const metadata = pageMetadata(
 export default function Beta() {
     return (
         <ReadingLayout
-            label="Free open beta"
             title="Useful now. Improving with your feedback."
             description="Use the available tools, try the APIs, and tell us what gets in your way. No card is required for the free beta."
             path="/beta/"

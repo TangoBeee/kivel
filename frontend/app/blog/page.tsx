@@ -52,7 +52,6 @@ export default function Blog() {
                 }}
             />
             <PageIntro
-                label="The socket.help blog"
                 title="Less setup. Better understanding."
                 description="Practical guides for the small tasks between an idea and a working integration, each with examples you can run."
             >

@@ -2,9 +2,9 @@
 brand green for Radix controls,
 and calmer editors. Loaded last. */
 .radix-themes {
-  --green-9: #286747;
-  --green-10: #1f5239;
-  --green-11: #286747;
+  --green-9: #6bdc9a;
+  --green-10: #8be6b1;
+  --green-11: #6bdc9a;
 }
 .work-page {
   padding-top: 48px;
@@ -853,7 +853,7 @@ and calmer editors. Loaded last. */
 }
 .payment-validation.is-failing {
   background: var(--danger-bg);
-  border-color: #e8c4bf;
+  border-color: rgb(240 140 132 / 0.4);
 }
 .payment-validation.is-failing > svg {
   color: var(--danger);
@@ -1076,12 +1076,12 @@ and calmer editors. Loaded last. */
   color: var(--muted);
 }
 .result-chip.is-good {
-  background: #e9f4ec;
-  color: #226340;
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 .result-chip.is-attention {
-  background: #fff2df;
-  color: #855313;
+  background: var(--warning-bg);
+  color: var(--warning);
 }
 .result-status-row {
   display: flex;
@@ -1196,7 +1196,7 @@ and calmer editors. Loaded last. */
   padding: 24px;
   border-radius: 10px;
   border: 1px solid var(--line);
-  border-left: 3px solid #3d7450;
+  border: 1px solid var(--accent-line);
   background: var(--subtle);
   overflow-wrap: anywhere;
 }
@@ -1373,12 +1373,12 @@ and calmer editors. Loaded last. */
   padding: 1px 12px;
 }
 .diff-added {
-  background: #e9f4ec;
-  color: #22583b;
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 .diff-removed {
-  background: #fff0ee;
-  color: #96423c;
+  background: var(--danger-bg);
+  color: var(--danger);
 }
 @media (max-width: 600px) {
   .tool-result-panel {
@@ -1508,16 +1508,16 @@ and calmer editors. Loaded last. */
   font-size: 12px;
 }
 .json-token-key {
-  color: #286747;
+  color: #6bdc9a;
 }
 .json-token-string {
-  color: #8d5a28;
+  color: #e8b07a;
 }
 .json-token-number {
-  color: #355e9b;
+  color: #8fb4ff;
 }
 .json-token-literal {
-  color: #8b4a80;
+  color: #e0a0d4;
 }
 .editor-panel .tool-single-input {
   display: block;
@@ -1572,7 +1572,7 @@ and calmer editors. Loaded last. */
   display: flex;
   justify-content: center;
   padding: 20px;
-  background: #edf0ed;
+  background: var(--subtle);
   min-height: 220px;
   max-height: 620px;
   overflow: auto;
@@ -1583,7 +1583,7 @@ and calmer editors. Loaded last. */
   height: auto;
   object-fit: contain;
   align-self: flex-start;
-  box-shadow: 0 2px 12px #18291c12;
+  box-shadow: 0 2px 12px rgb(0 0 0 / 0.4);
   background: white;
 }
 .pdf-loading {
@@ -1706,11 +1706,11 @@ and calmer editors. Loaded last. */
   overflow: auto;
 }
 .result-regex-context mark {
-  background: #d8eedf;
-  color: #174e30;
+  background: rgb(107 220 154 / 0.22);
+  color: var(--ink);
   padding: 2px 0;
   border-radius: 2px;
-  box-shadow: 0 1px 0 #85b898;
+  box-shadow: 0 1px 0 var(--accent-line);
 }
 @media (prefers-reduced-motion: no-preference) {
   .tool-result-panel,
@@ -1794,11 +1794,11 @@ and calmer editors. Loaded last. */
   flex: 1;
   max-width: 8px;
   min-height: 4px;
-  background: #bad5c1;
+  background: rgb(107 220 154 / 0.3);
   border-radius: 3px;
 }
 .audio-waveform span[data-played='true'] {
-  background: #286747;
+  background: var(--accent);
 }
 .audio-controls {
   display: flex;
@@ -1855,7 +1855,7 @@ and calmer editors. Loaded last. */
   display: block;
   width: 100%;
   max-height: 480px;
-  background: #101714;
+  background: #000000;
   border-radius: 12px;
 }
 .document-preview {
@@ -2030,7 +2030,7 @@ and calmer editors. Loaded last. */
 }
 .music-intro h2 {
   font-size: clamp(23px, 3vw, 34px);
-  letter-spacing: -0.045em;
+  letter-spacing: -0.04em;
   max-width: 600px;
 }
 .music-player {
@@ -2291,7 +2291,7 @@ and calmer editors. Loaded last. */
   border-radius: 50%;
   background: var(--surface);
   border: 1px solid var(--accent-line);
-  box-shadow: 0 1px 3px #0002;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.4);
 }
 .app-slider-thumb:focus-visible {
   outline: 2px solid var(--accent);
@@ -2308,7 +2308,7 @@ and calmer editors. Loaded last. */
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--surface);
-  box-shadow: 0 4px 20px #00000008;
+  box-shadow: 0 4px 20px rgb(0 0 0 / 0.3);
 }
 
 .music-filters input {
@@ -2753,4 +2753,31 @@ and calmer editors. Loaded last. */
   font-weight: 600;
   color: var(--accent);
   cursor: pointer;
+}
+
+/* Free tool pages point to doing the same task from a coding agent */
+.tool-agent {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 32px;
+  padding: 16px 20px;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius-card);
+  background: var(--accent-soft);
+}
+.tool-agent p {
+  flex: 1 1 420px;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  color: var(--muted);
+}
+.tool-agent strong {
+  color: var(--ink);
+}
+.tool-agent code {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  color: var(--accent);
 }

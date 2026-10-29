@@ -20,7 +20,7 @@ const sections = [
 export default function Privacy() {
     return (
         <ReadingLayout
-            label={`Privacy · Updated ${policyUpdated}`}
+            meta={`Updated ${policyUpdated}`}
             title="Know what happens to your data."
             description="No advertising or tracking analytics. Here is what stays on your device, what we store, and when it expires."
             path="/privacy/"

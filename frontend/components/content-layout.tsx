@@ -12,28 +12,28 @@ export function StructuredData({ value }: { value: unknown }) {
 }
 
 export function PageIntro({
-    label,
+    meta,
     title,
     description,
     children,
 }: {
-    label: string;
+    meta?: string;
     title: string;
     description: string;
     children?: ReactNode;
 }) {
     return (
         <header className="content-intro">
-            <span className="content-label">{label}</span>
             <h1>{title}</h1>
             <p>{description}</p>
+            {meta && <p className="content-meta">{meta}</p>}
             {children && <div className="content-actions">{children}</div>}
         </header>
     );
 }
 
 export function ReadingLayout({
-    label,
+    meta,
     title,
     description,
     path,
@@ -41,7 +41,7 @@ export function ReadingLayout({
     children,
     parent,
 }: {
-    label: string;
+    meta?: string;
     title: string;
     description: string;
     path: string;
@@ -59,7 +59,7 @@ export function ReadingLayout({
                     ← {parent.name}
                 </Link>
             )}
-            <PageIntro label={label} title={title} description={description} />
+            <PageIntro meta={meta} title={title} description={description} />
             <div className="reading-layout">
                 <nav className="content-toc" aria-label="On this page">
                     <span>On this page</span>

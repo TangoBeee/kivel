@@ -49,7 +49,7 @@ export default async function BlogArticle({ params }: { params: Promise<{ slug: 
     ];
     return (
         <ReadingLayout
-            label={`${article.category} · ${updated !== article.publishedAt ? `Updated ${formatDate(updated)}` : formatDate(article.publishedAt)} · ${readingMinutes(article)} min read`}
+            meta={`${article.category} · ${updated !== article.publishedAt ? `Updated ${formatDate(updated)}` : formatDate(article.publishedAt)} · ${readingMinutes(article)} min read`}
             title={article.title}
             description={article.description}
             path={`/blog/${slug}/`}

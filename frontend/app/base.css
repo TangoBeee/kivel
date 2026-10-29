@@ -1,33 +1,46 @@
 :root {
-  color-scheme: light;
-  /* Crisp product: white surfaces, near-black ink, green as the single accent */
+  color-scheme: dark;
+  /* One dark product: near-black ground, raised panels, off-white ink, mint from the brand green */
   /* Surfaces */
-  --bg: #ffffff;
-  --surface: #ffffff;
-  --subtle: #f6f6f5;
+  --bg: #0b0c0c;
+  --surface: #121414;
+  --subtle: #181a1a;
   /* Text: muted stays above 4.5:1 on every surface */
-  --ink: #0b0d0c;
-  --muted: #5c605d;
-  --line: #e8e8e5;
-  --line-strong: #d3d4d0;
+  --ink: #ecedeb;
+  --muted: #9a9e9b;
+  --line: rgb(255 255 255 / 0.08);
+  --line-strong: rgb(255 255 255 / 0.16);
   /* Brand */
-  --accent: #286747;
-  --accent-hover: #1f5239;
-  --accent-soft: #ebf5ee;
-  --accent-line: #b6dbc3;
-  --danger: #ad3f3b;
-  --danger-bg: #fff2ef;
+  --accent: #6bdc9a;
+  --accent-hover: #8be6b1;
+  --accent-soft: rgb(107 220 154 / 0.1);
+  --accent-line: rgb(107 220 154 / 0.35);
+  --accent-ink: #04170c;
+  --brand: #286747;
+  --danger: #f08c84;
+  --danger-bg: rgb(240 140 132 / 0.1);
+  --warning: #f5b544;
+  --warning-bg: rgb(245 181 68 / 0.08);
   /* Shape: 8 small parts, 10 controls, 12 rows, 16 cards, 24 panels, full for pills */
   --radius-sm: 8px;
   --radius-control: 10px;
   --radius-row: 12px;
   --radius-card: 16px;
   --radius-panel: 24px;
-  /* Depth: shadows tinted to the green-grey canvas */
-  --shadow-sm: 0 1px 2px rgb(11 13 12 / 0.05);
-  --shadow-md: 0 1px 2px rgb(11 13 12 / 0.04), 0 8px 24px rgb(11 13 12 / 0.08);
+  /* Depth: dark shadows, offset and soft */
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.4);
   --ease: cubic-bezier(0.32, 0.72, 0, 1);
   --mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+::selection {
+  background: rgb(107 220 154 / 0.3);
+  color: var(--ink);
+}
+html {
+  scrollbar-color: #2c302e var(--bg);
+  accent-color: var(--accent);
+  caret-color: var(--accent);
 }
 * {
   box-sizing: border-box;
@@ -497,7 +510,7 @@ textarea::placeholder {
   letter-spacing: 0.3px;
 }
 .method-post {
-  color: #577d37;
+  color: var(--accent);
 }
 .method-delete {
   color: var(--danger);

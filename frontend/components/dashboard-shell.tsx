@@ -44,7 +44,7 @@ export const dashboardPanels = [
         id: 'tools',
         group: 'Build',
         label: 'Tools',
-        description: 'Launch any available tool or create a resource.',
+        description: 'Every tool your agents can call, and the ones you can run here yourself.',
         icon: Toolbox,
     },
     {

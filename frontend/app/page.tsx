@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { Plus } from '@phosphor-icons/react/dist/ssr';
 import { CopyPrompt } from '../components/home/copy-prompt';
 import { LiveWebhook } from '../components/home/live-webhook';
+import { catalog } from '../lib/catalog';
 import { paidPlansEnabled } from '../lib/pricing';
 import { setupPrompt } from '../lib/setup-prompt';
 import { siteOrigin } from '../lib/site';
@@ -21,11 +22,25 @@ export const metadata: Metadata = {
     twitter: { card: 'summary_large_image', title, description },
 };
 
+// Everything an agent can call. The first six are hosted resources; the utilities sit behind search_tools.
 const features = [
-    { title: 'Catch webhooks', body: 'A private URL your agent waits on.' },
-    { title: 'Read signup emails', body: 'Codes and links come back extracted.' },
-    { title: 'Ask you first', body: 'Risky steps wait for your yes.' },
+    {
+        title: 'Webhook inboxes',
+        body: 'A private URL your agent waits on until Stripe or GitHub calls.',
+    },
+    { title: 'Email inboxes', body: 'Signup codes and verification links, extracted.' },
+    { title: 'Ask you first', body: 'Risky steps wait until you answer.' },
+    {
+        title: 'Mock APIs and MCP servers',
+        body: 'Fake services with real routes, data and failures.',
+    },
+    {
+        title: 'Files and memory',
+        body: 'Share files by link and remember results between sessions.',
+    },
+    { title: 'Monitors', body: 'Uptime, certificate and cron checks that email you.' },
 ];
+const available = catalog.filter((tool) => tool.status === 'available').length;
 
 const plans = [
     { name: 'Free', price: '$0', note: '3 agents and 7 days of history. No card.' },
@@ -128,6 +143,14 @@ export default function Home() {
                     </div>
                 ))}
             </section>
+            <p className="home-wrap home-more">
+                That is {available} tools in all: your agent finds the rest with search_tools, from
+                JSON, JWT, DNS and SSL to regex, images and PDFs. Most also work free in your
+                browser.{' '}
+                <Link href="/catalog/" className="home-link">
+                    Browse every tool
+                </Link>
+            </p>
 
             <section className="home-wrap home-split" aria-labelledby="try-heading">
                 <div>

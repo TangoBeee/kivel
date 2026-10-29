@@ -1,0 +1,120 @@
+/*
+  Motion: one easing curve and short durations, so every action answers at once.
+  base.css switches all of it off for people who ask for reduced motion.
+*/
+:root {
+  --motion-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  interpolate-size: allow-keywords;
+}
+
+/* Buttons, tabs and nav items respond to hover and to the press itself */
+.button,
+.home-pill,
+.home-button,
+.island-cta,
+.island-signin,
+.island-nav a,
+.rt-Button,
+.rt-IconButton,
+.dashboard-nav button,
+.dashboard-tabs button,
+.client-tabs [role='tab'],
+.home-summary button,
+.home-panel-link {
+  transition:
+    background-color 180ms var(--motion-ease),
+    border-color 180ms var(--motion-ease),
+    color 180ms var(--motion-ease),
+    box-shadow 180ms var(--motion-ease),
+    transform 140ms var(--motion-ease);
+}
+.button:active:not(:disabled),
+.home-pill:active:not(:disabled),
+.home-button:active:not(:disabled),
+.island-cta:active,
+.rt-Button:active:not(:disabled),
+.rt-IconButton:active:not(:disabled),
+.dashboard-nav button:active,
+.home-summary button:active {
+  transform: scale(0.97);
+}
+a {
+  transition:
+    color 160ms var(--motion-ease),
+    text-decoration-color 160ms var(--motion-ease),
+    opacity 160ms var(--motion-ease);
+}
+
+/* Menus and popovers open with a short slide and close with a fade */
+.rt-PopperContent[data-state='open'] {
+  animation-duration: 220ms;
+}
+.rt-PopperContent[data-state='closed'] {
+  animation: motion-fade-out 140ms ease-in forwards;
+}
+.rt-BaseMenuItem {
+  transition: background-color 120ms var(--motion-ease);
+}
+
+/* Questions and other disclosures expand instead of jumping */
+details::details-content {
+  block-size: 0;
+  overflow: clip;
+  transition:
+    block-size 320ms var(--motion-ease),
+    content-visibility 320ms allow-discrete;
+}
+details[open]::details-content {
+  block-size: auto;
+}
+
+/* Working indicators */
+.spin {
+  animation: motion-spin 900ms linear infinite;
+}
+.skeleton {
+  display: block;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, #f1f1f0 25%, #e6e6e4 50%, #f1f1f0 75%);
+  background-size: 200% 100%;
+  animation: motion-shimmer 1.3s ease-in-out infinite;
+}
+
+/* Page changes: a thin bar while the next page loads, then the page eases in */
+.nav-progress {
+  position: fixed;
+  inset: 0 auto auto 0;
+  z-index: 100;
+  height: 2px;
+  background: var(--ink);
+  transition:
+    width 400ms var(--motion-ease),
+    opacity 300ms ease 200ms;
+  pointer-events: none;
+}
+main {
+  animation: motion-enter 320ms var(--motion-ease) both;
+}
+
+@keyframes motion-fade-out {
+  to {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+@keyframes motion-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes motion-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+@keyframes motion-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}

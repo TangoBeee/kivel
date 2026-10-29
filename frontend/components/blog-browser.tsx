@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { ArticleCover } from './article-cover';
 import { useState } from 'react';
 import { Icon } from './icons';
 import type { IconName } from './icons';
@@ -34,11 +35,7 @@ export function BlogBrowser({ cards, categories }: { cards: BlogCard[]; categori
             <div className="article-grid">
                 {visible.map((card) => (
                     <Link className="article-card" key={card.slug} href={`/blog/${card.slug}/`}>
-                        <div className="article-cover" aria-hidden="true">
-                            <span className="article-cover-tile">
-                                <Icon name={card.icon ?? 'code'} size={24} />
-                            </span>
-                        </div>
+                        <ArticleCover slug={card.slug} />
                         <div className="article-card-body">
                             <span className="content-label">{card.category}</span>
                             <h3>{card.title}</h3>

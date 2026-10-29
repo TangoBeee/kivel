@@ -4,6 +4,8 @@
   On phones the sidebar becomes a drawer.
 */
 body:has(.dashboard-layout) .island,
+body:has(.dashboard-skeleton) .island,
+body:has(.dashboard-skeleton) > .site-footer,
 body:has(.dashboard-layout) > .site-footer,
 .radix-themes:has(.dashboard-layout) .site-footer {
   display: none;
@@ -1548,6 +1550,42 @@ body:has(.dashboard-layout) main::after {
 /* The top bar only exists on small screens, where it holds the menu button */
 @media (min-width: 901px) {
   .dashboard-topbar {
+    display: none;
+  }
+}
+
+/* Loading: the layout's shape, shimmering, until the workspace arrives */
+.dashboard-skeleton {
+  display: grid;
+  grid-template-columns: 264px minmax(0, 1fr);
+  min-height: 100dvh;
+}
+.dashboard-skeleton-side {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 20px 12px;
+  border-right: 1px solid var(--line);
+}
+.dashboard-skeleton-main {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 48px 40px;
+  box-sizing: border-box;
+}
+.activity-skeleton {
+  display: grid;
+  gap: 8px;
+}
+@media (max-width: 900px) {
+  .dashboard-skeleton {
+    grid-template-columns: 1fr;
+  }
+  .dashboard-skeleton-side {
     display: none;
   }
 }

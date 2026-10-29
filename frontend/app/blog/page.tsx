@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ArticleCover } from '../../components/article-cover';
 import { PageIntro, StructuredData } from '../../components/content-layout';
 import { BlogBrowser } from '../../components/blog-browser';
 import { absolute, formatDate } from '../../components/content-blocks';
@@ -60,11 +61,7 @@ export default function Blog() {
                 </a>
             </PageIntro>
             <Link className="featured-article" href={`/blog/${featured!.slug}/`}>
-                <div className="article-cover is-large" aria-hidden="true">
-                    <span className="article-cover-tile">
-                        <Icon name={featured!.icon ?? 'webhook'} size={40} />
-                    </span>
-                </div>
+                <ArticleCover slug={featured!.slug} large />
                 <div className="featured-article-body">
                     <span className="content-label">Latest · {featured!.category}</span>
                     <h2>{featured!.title}</h2>

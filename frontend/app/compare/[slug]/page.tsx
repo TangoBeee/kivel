@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { catalog } from '../../../lib/catalog';
 import { notFound } from 'next/navigation';
 import { ReadingLayout } from '../../../components/content-layout';
 import { comparisons } from '../../../lib/comparisons';
@@ -32,6 +33,7 @@ export default async function Comparison({ params }: { params: Promise<{ slug: s
         { id: 'sources', title: 'Sources & review date' },
     ];
     const others = comparisons.filter((entry) => entry.slug !== slug);
+    const available = catalog.filter((tool) => tool.status === 'available').length;
     return (
         <ReadingLayout
             meta={`${item.focus} · Reviewed ${formatDate(item.reviewedAt)}`}
@@ -42,10 +44,10 @@ export default async function Comparison({ params }: { params: Promise<{ slug: s
             parent={{ name: 'All comparisons', path: '/compare/' }}
         >
             <section id="fit">
-                <h2>Choose by your workflow.</h2>
+                <h2>Why teams pick socket.help.</h2>
                 <div className="comparison-fit">
-                    <div>
-                        <span className="content-label">socket.help</span>
+                    <div className="is-ours">
+                        <span className="content-label">Pick socket.help when</span>
                         <p>{item.socketFit}</p>
                         <ul className="fit-list">
                             {item.bestFor.socket.map((point) => (
@@ -53,8 +55,8 @@ export default async function Comparison({ params }: { params: Promise<{ slug: s
                             ))}
                         </ul>
                     </div>
-                    <div>
-                        <span className="content-label">{item.name}</span>
+                    <div className="is-theirs">
+                        <span className="content-label">When {item.name} fits better</span>
                         <p>{item.otherFit}</p>
                         <ul className="fit-list">
                             {item.bestFor.other.map((point) => (
@@ -64,6 +66,11 @@ export default async function Comparison({ params }: { params: Promise<{ slug: s
                     </div>
                 </div>
             </section>
+            <p className="comparison-included">
+                Every socket.help plan includes webhook and email inboxes, mock APIs and MCP
+                servers, files, memory, monitors and approvals for AI agents over one MCP
+                connection, plus {available} tools in all. Free to start; Pro is $2 a month.
+            </p>
             <section id="differences">
                 <h2>The differences that matter.</h2>
                 <div className="content-table-wrap">
@@ -72,7 +79,9 @@ export default async function Comparison({ params }: { params: Promise<{ slug: s
                         <thead>
                             <tr>
                                 <th scope="col">Area</th>
-                                <th scope="col">socket.help</th>
+                                <th scope="col" className="is-ours">
+                                    socket.help
+                                </th>
                                 <th scope="col">{item.name}</th>
                             </tr>
                         </thead>
@@ -80,8 +89,8 @@ export default async function Comparison({ params }: { params: Promise<{ slug: s
                             {item.rows.map((row) => (
                                 <tr key={row.topic}>
                                     <th scope="row">{row.topic}</th>
-                                    <td>{row.socket}</td>
-                                    <td>{row.other}</td>
+                                    <td className="is-ours">{row.socket}</td>
+                                    <td className="is-theirs">{row.other}</td>
                                 </tr>
                             ))}
                         </tbody>

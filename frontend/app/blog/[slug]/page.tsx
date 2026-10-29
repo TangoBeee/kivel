@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ArticleCover, coverFor } from '../../../components/article-cover';
 import { notFound } from 'next/navigation';
 import { ReadingLayout, StructuredData } from '../../../components/content-layout';
 import { CodeExample } from '../../../components/code-example';
@@ -66,12 +67,13 @@ export default async function BlogArticle({ params }: { params: Promise<{ slug: 
                     dateModified: updated,
                     articleSection: article.category,
                     wordCount: words(article),
-                    image: `${siteOrigin}/opengraph-image`,
+                    image: `${siteOrigin}${coverFor(slug)}`,
                     author: { '@type': 'Organization', name: 'socket.help', url: siteOrigin },
                     publisher: { '@type': 'Organization', name: 'socket.help', url: siteOrigin },
                     mainEntityOfPage: `${siteOrigin}/blog/${slug}/`,
                 }}
             />
+            <ArticleCover slug={slug} large />
             {article.sections.map((section) => (
                 <section id={section.id} key={section.id}>
                     <h2>{section.title}</h2>

@@ -226,6 +226,16 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
         }, 2000);
         return () => clearInterval(timer);
     }, [checkout, signedIn, subscribed]);
+    // Refreshing updates the data in place; only the refresh icon shows that it is working.
+    const [refreshing, setRefreshing] = useState(false);
+    async function reload() {
+        setRefreshing(true);
+        try {
+            await refresh();
+        } finally {
+            setRefreshing(false);
+        }
+    }
     async function action(work: () => Promise<void>) {
         setBusy(true);
         setError('');
@@ -366,8 +376,21 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
     );
     if (loading)
         return (
-            <div className="page-width account-page dashboard-loading" role="status">
-                Loading your workspace…
+            <div className="dashboard-skeleton" role="status" aria-label="Loading your workspace">
+                <div className="dashboard-skeleton-side">
+                    <span className="skeleton" style={{ width: 140, height: 24 }} />
+                    <span className="skeleton" style={{ height: 52 }} />
+                    {[0, 1, 2, 3, 4].map((item) => (
+                        <span key={item} className="skeleton" style={{ height: 32 }} />
+                    ))}
+                </div>
+                <div className="dashboard-skeleton-main">
+                    <span className="skeleton" style={{ width: 160, height: 36 }} />
+                    <span className="skeleton" style={{ width: 320, height: 16 }} />
+                    <span className="skeleton" style={{ height: 76 }} />
+                    <span className="skeleton" style={{ height: 180 }} />
+                    <span className="skeleton" style={{ height: 220 }} />
+                </div>
             </div>
         );
     return (
@@ -498,8 +521,11 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                             disabled={busy}
                                             type="submit"
                                         >
+                                            {busy && <ArrowsClockwise size={16} className="spin" />}
                                             {busy
-                                                ? 'One moment…'
+                                                ? mode === 'login'
+                                                    ? 'Signing in…'
+                                                    : 'Creating your account…'
                                                 : mode === 'login'
                                                   ? 'Sign in'
                                                   : 'Create free account'}
@@ -595,13 +621,20 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                         </Button>
                                     )}
                                     <IconButton
-                                        aria-label="Refresh resources"
+                                        aria-label={
+                                            refreshing
+                                                ? 'Refreshing resources'
+                                                : 'Refresh resources'
+                                        }
                                         variant="ghost"
                                         color="gray"
-                                        disabled={busy}
-                                        onClick={() => void action(refresh)}
+                                        disabled={refreshing}
+                                        onClick={() => void reload()}
                                     >
-                                        <ArrowsClockwise size={18} />
+                                        <ArrowsClockwise
+                                            size={18}
+                                            className={refreshing ? 'spin' : undefined}
+                                        />
                                     </IconButton>
                                 </div>
                             </div>

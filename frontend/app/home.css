@@ -148,11 +148,18 @@
 .home-features {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 48px;
+  gap: 40px 48px;
   padding-top: 72px;
+}
+.home-more {
+  margin: 40px auto 0 !important;
+  font-size: 0.9375rem;
+  line-height: 1.5rem;
+  color: var(--muted);
 }
 .home-features > div {
   display: grid;
+  align-content: start;
   gap: 8px;
   padding-top: 18px;
   border-top: 1px solid var(--ink);

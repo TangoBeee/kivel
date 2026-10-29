@@ -13,6 +13,7 @@ export const metadata = pageMetadata(
     '/plans/',
 );
 const ids = Object.keys(plans) as PlanId[];
+const cardIds = ids.filter((id) => id !== 'anonymous');
 const retention = (seconds: number) =>
     seconds < 86400 ? '1 hour' : `${seconds / 86400} ${seconds === 86400 ? 'day' : 'days'}`;
 const number = (value: number) => value.toLocaleString('en-US');
@@ -150,24 +151,14 @@ export default function Plans() {
                 description={
                     paidPlansEnabled
                         ? 'Every limit is listed below. Nothing is charged or blocked silently, and you can cancel anytime.'
-                        : 'Every limit is listed below. Nothing is charged or blocked silently. Planned monthly subscriptions are shown separately.'
+                        : 'Every limit is listed below. During the open beta everything is free; Pro and Team open after it, and no account is ever charged automatically.'
                 }
             />
-            {!paidPlansEnabled && (
-                <aside className="content-note beta-launch-note">
-                    <Icon name="info" size={20} />
-                    <p>
-                        <strong>Free open beta.</strong> No card required. Pro and Team prices are a
-                        preview; paid checkout is closed and beta accounts will never be upgraded or
-                        charged automatically. <Link href="/beta/">What to expect →</Link>
-                    </p>
-                </aside>
-            )}
             <div className="pricing-grid">
-                {ids.map((id) => (
+                {cardIds.map((id) => (
                     <section
                         key={id}
-                        className={`pricing-card ${id === 'free' ? 'is-featured' : ''}`}
+                        className={`pricing-card ${id === 'pro' ? 'is-featured' : ''}`}
                     >
                         <div className="pricing-card-top">
                             <h2>{plans[id].name}</h2>
@@ -185,7 +176,7 @@ export default function Plans() {
                         </div>
                         <p>{descriptions[id]}</p>
                         <div className="pricing-price">
-                            {id === 'anonymous' || id === 'free' ? (
+                            {id === 'free' ? (
                                 <>
                                     <strong>$0</strong>
                                     <span>No payment required</span>
@@ -228,28 +219,12 @@ export default function Plans() {
                     </section>
                 ))}
             </div>
-            <aside className="content-note">
-                <Icon name="info" size={20} />
-                <p>
-                    {paidPlansEnabled ? (
-                        <>
-                            <strong>Monthly subscriptions, cancel anytime.</strong> Paid plans are
-                            billed through Dodo Payments. Prices are in US dollars; checkout may
-                            show your local currency and any applicable tax before you confirm. Read
-                            the{' '}
-                        </>
-                    ) : (
-                        <>
-                            <strong>Monthly subscriptions, when available.</strong> Paid plans are
-                            billed through Dodo Payments in US dollars after checkout is enabled.
-                            Your workspace shows the exact price and billing period before you
-                            confirm. Read the{' '}
-                        </>
-                    )}
-                    <Link href="/refunds/">refund and cancellation policy</Link> or contact{' '}
-                    <a href="mailto:support@socket.help">support@socket.help</a>.
-                </p>
-            </aside>
+            <p className="pricing-after">
+                No account? Agents can start a 72 hour trial, and the browser tools work without
+                signing up.{' '}
+                {paidPlansEnabled ? 'Paid plans are billed monthly through Dodo Payments.' : ''}{' '}
+                <Link href="/refunds/">Refunds and cancellation</Link>
+            </p>
             <section className="content-section">
                 <h2>The details, side by side.</h2>
                 <p>Allowances apply across the API, SDK, CLI, SSH, and MCP.</p>
@@ -322,9 +297,9 @@ export default function Plans() {
             </section>
             <FaqSection faqs={faqs} title="Pricing questions" />
             <div className="content-end">
-                <h2>Just need to get something done?</h2>
-                <Link className="button button-primary" href="/catalog/">
-                    Find a tool →
+                <h2>Start free with your agent.</h2>
+                <Link className="button button-primary" href="/connect/">
+                    Connect your agent
                 </Link>
             </div>
         </div>

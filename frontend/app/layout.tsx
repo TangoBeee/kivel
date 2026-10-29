@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Header, Footer } from '../components/shell';
 import { ToolboxProvider } from '../components/toolbox-provider';
+import { NavProgress } from '../components/nav-progress';
 import { GeistMono } from 'geist/font/mono';
 import { Hanken_Grotesk } from 'next/font/google';
 import './globals.css';
@@ -32,6 +33,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     <a className="skip-link" href="#main">
                         Skip to content
                     </a>
+                    <NavProgress />
                     <Header />
                     <main id="main">{children}</main>
                     <Footer />

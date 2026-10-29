@@ -195,7 +195,11 @@ export function AgentActivity({ keys }: { keys: { id: string; name: string }[] }
                     </label>
                 )}
                 {entries === null ? (
-                    <p className="tool-notice">Loading…</p>
+                    <div className="activity-skeleton" role="status" aria-label="Loading activity">
+                        {[0, 1, 2, 3].map((item) => (
+                            <span key={item} className="skeleton" style={{ height: 44 }} />
+                        ))}
+                    </div>
                 ) : shown.length ? (
                     <>
                         <p className="tool-notice">

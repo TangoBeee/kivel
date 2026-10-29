@@ -104,7 +104,13 @@ export function AgentOverview({
         };
     }, []);
 
-    if (agents === null) return <div className="home-panel is-loading" aria-hidden="true" />;
+    if (agents === null)
+        return (
+            <div className="home-panels" role="status" aria-label="Loading your agents">
+                <span className="skeleton" style={{ height: 76 }} />
+                <span className="skeleton" style={{ height: 200 }} />
+            </div>
+        );
     if (agents.length === 0)
         return (
             <section className="home-panel home-panel-empty" aria-labelledby="connect-heading">

@@ -80,6 +80,14 @@ details[open]::details-content {
   animation: motion-shimmer 1.3s ease-in-out infinite;
 }
 
+/* First load: nothing shows until the page is ready, then it all fades in together */
+body {
+  transition: opacity 450ms var(--motion-ease);
+}
+html.is-loading body {
+  opacity: 0;
+}
+
 /* Page changes: a thin bar while the next page loads, then the page eases in */
 .nav-progress {
   position: fixed;

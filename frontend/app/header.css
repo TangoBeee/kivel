@@ -288,7 +288,7 @@ html.menu-open {
   height: 20px;
   margin-left: -4px;
   border-radius: 9999px;
-  background: var(--accent);
+  background: #ffffff;
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--ink);

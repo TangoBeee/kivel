@@ -42,14 +42,26 @@
   margin-bottom: 24px;
 }
 .account-tabs button {
+  position: relative;
   font-size: 0.875rem;
   padding: 0 0 12px;
   color: var(--muted);
-  border-bottom: 2px solid transparent;
+  transition: color 200ms var(--motion-ease, ease);
+}
+.account-tabs button::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 -1px;
+  height: 2px;
+  background: var(--ink);
+  transform: scaleX(0);
+  transition: transform 300ms var(--motion-ease, ease);
 }
 .account-tabs button[aria-pressed='true'] {
   color: var(--ink);
-  border-bottom-color: var(--accent);
+}
+.account-tabs button[aria-pressed='true']::after {
+  transform: scaleX(1);
 }
 .account-card label:not(:where(.sharing-control label)) {
   display: flex;

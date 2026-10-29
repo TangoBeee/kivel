@@ -394,7 +394,10 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
             </div>
         );
     return (
-        <div className={`page-width ${session ? 'dashboard-page' : 'account-page'}`}>
+        <div
+            key={session ? 'workspace' : 'sign-in'}
+            className={`page-width page-enter ${session ? 'dashboard-page' : 'account-page'}`}
+        >
             {!session ? (
                 <>
                     <div className="auth-layout">
@@ -407,7 +410,7 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                             />
                         </figure>
                         <div className="auth-main">
-                            <header className="auth-heading">
+                            <header key={`head-${mode}`} className="auth-heading page-enter">
                                 <h1>
                                     {recovering
                                         ? 'Let’s get you back in.'
@@ -460,7 +463,7 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                         </button>
                                     </div>
                                     <form
-                                        className="account-form"
+                                        className="account-form page-enter"
                                         key={mode}
                                         onSubmit={(event) => {
                                             event.preventDefault();

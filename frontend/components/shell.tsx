@@ -42,6 +42,10 @@ const menuLinks = [
 // Signed out: sign in and create account. Signed in: a way back to the dashboard.
 function HeaderAccount() {
     const viewer = useViewer();
+    // Tells the first-load reveal (app/layout.tsx) that the header knows who is signed in.
+    useEffect(() => {
+        if (viewer.status !== 'loading') dispatchEvent(new Event('socket-help:viewer'));
+    }, [viewer.status]);
     if (viewer.status === 'loading')
         return <span className="island-account is-loading" aria-hidden="true" />;
     if (viewer.status === 'user')
@@ -60,10 +64,20 @@ function HeaderAccount() {
             <Link href="/account/" className="island-signin">
                 Sign in
             </Link>
-            {/* A plain link, so the fragment change reaches the sign in page when you are already on it */}
-            <a href="/account/#register" className="island-cta">
+            <Link
+                href="/account/#register"
+                className="island-cta"
+                onClick={(event) => {
+                    // Already on the account page: change the hash so the page switches to the
+                    // create account tab itself, without a reload.
+                    if (location.pathname.replace(/\/$/, '') === '/account') {
+                        event.preventDefault();
+                        location.hash = 'register';
+                    }
+                }}
+            >
                 Create account
-            </a>
+            </Link>
         </div>
     );
 }
@@ -164,13 +178,23 @@ export function Header() {
                                 style={{ transitionDelay: `${100 + index * 50}ms` }}
                             >
                                 {link.href.includes('#') ? (
-                                    <a
+                                    <Link
                                         ref={index === 0 ? firstLink : undefined}
                                         href={link.href}
-                                        onClick={() => setOpen(false)}
+                                        onClick={(event) => {
+                                            setOpen(false);
+                                            const hash = link.href.split('#')[1]!;
+                                            if (
+                                                location.pathname.replace(/\/$/, '') ===
+                                                link.href.split('#')[0]!.replace(/\/$/, '')
+                                            ) {
+                                                event.preventDefault();
+                                                location.hash = hash;
+                                            }
+                                        }}
                                     >
                                         {link.label}
-                                    </a>
+                                    </Link>
                                 ) : (
                                     <Link
                                         ref={index === 0 ? firstLink : undefined}

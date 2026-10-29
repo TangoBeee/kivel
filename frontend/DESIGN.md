@@ -119,6 +119,9 @@ Pill buttons; 14px cards; 10px inputs and code; 6px on the painting.
 
 ## Components
 
+### Logo
+An outline wall socket (a circle and two centred slots) in the text colour, beside the wordmark "socket.help" in Hanken Grotesk 600. The favicon is the same socket in white on an ink tile. Source: components/logo.tsx and app/icon.svg.
+
 ### Buttons
 Black pill, 46px, 15px medium text. Secondary actions are underlined text links.
 

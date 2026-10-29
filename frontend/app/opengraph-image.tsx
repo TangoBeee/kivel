@@ -2,9 +2,8 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ImageResponse } from 'next/og';
 import { LogoMark } from '../components/logo';
-import { catalog } from '../lib/catalog';
 
-export const alt = 'socket.help: one toolbox for the whole internet';
+export const alt = 'socket.help: webhooks, email and approvals for your coding agent';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 export const dynamic = 'force-static';
@@ -25,60 +24,32 @@ export default async function Image() {
                 justifyContent: 'space-between',
                 padding: 80,
                 background: '#ffffff',
+                color: '#141414',
                 fontFamily: 'Geist',
             }}
         >
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                <LogoMark size={56} />
-                <div
-                    style={{
-                        display: 'flex',
-                        fontSize: 40,
-                        fontWeight: 600,
-                        letterSpacing: '-0.03em',
-                        color: '#1c2220',
-                    }}
-                >
-                    <span>socket</span>
-                    <span style={{ color: '#286747', marginLeft: -6 }}>.</span>
-                    <span>help</span>
-                </div>
+                <LogoMark size={52} color="#141414" />
+                <span style={{ fontSize: 40, fontWeight: 600, letterSpacing: '-0.03em' }}>
+                    socket.help
+                </span>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 36 }}>
                 <div
                     style={{
                         display: 'flex',
                         flexDirection: 'column',
-                        fontSize: 96,
+                        fontSize: 72,
                         fontWeight: 600,
-                        lineHeight: 1,
-                        letterSpacing: '-0.035em',
-                        backgroundImage: 'linear-gradient(90deg, #000000, #666666)',
-                        backgroundClip: 'text',
-                        color: 'transparent',
+                        lineHeight: 1.02,
+                        letterSpacing: '-0.04em',
                     }}
                 >
-                    <span>One toolbox</span>
-                    <span>for the whole internet.</span>
+                    <span>Webhooks, email and approvals</span>
+                    <span>for your coding agent.</span>
                 </div>
-                <div style={{ display: 'flex', gap: 16, fontSize: 30, fontWeight: 500 }}>
-                    {[
-                        `${catalog.filter((tool) => tool.status === 'available').length} tools ready`,
-                        'No account',
-                        'No ads',
-                    ].map((label) => (
-                        <span
-                            key={label}
-                            style={{
-                                padding: '8px 24px',
-                                borderRadius: 9999,
-                                background: '#edf5ed',
-                                color: '#286747',
-                            }}
-                        >
-                            {label}
-                        </span>
-                    ))}
+                <div style={{ display: 'flex', fontSize: 28, fontWeight: 500, color: '#5b5b5b' }}>
+                    Free to start · Pro $2 a month · Claude Code, Cursor and Codex
                 </div>
             </div>
         </div>,

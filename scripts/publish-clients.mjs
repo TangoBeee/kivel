@@ -31,12 +31,14 @@ try {
             'Publish plan contains a non-client package or wrong version',
         );
         assert.ok(['publish', 'tag-only'].includes(entry.kind));
-        if (entry.kind === 'publish') assert.equal(entry.tag, tag);
+        if (entry.kind === 'publish')
+            assert.ok(['latest', tag].includes(entry.tag), 'Unexpected planner channel');
     }
 } catch (error) {
     if (error.code !== 'ENOENT') throw error;
 }
-if (process.env.GITHUB_ACTIONS === 'true' && !plan) throw new Error('GitHub publication requires the reviewed Changesets publish plan.');
+if (process.env.GITHUB_ACTIONS === 'true' && !plan)
+    throw new Error('GitHub publication requires the reviewed Changesets publish plan.');
 const prepared = [];
 for (const pkg of packages) {
     const expectedVersion = pkg.version;
@@ -47,6 +49,11 @@ for (const pkg of packages) {
     assert.equal(pkg.file, `socket-help-${name}-${expectedVersion}.tgz`);
     const current = JSON.parse(
         await readFile(join(root, 'packages', name, 'package.json'), 'utf8'),
+    );
+    assert.equal(
+        current.publishConfig?.tag ?? 'latest',
+        tag,
+        'The workflow and package release channel must agree',
     );
     assert.equal(
         current.version,

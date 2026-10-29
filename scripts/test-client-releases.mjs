@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { chmod } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -103,8 +105,97 @@ try {
         [join(root, 'scripts/check-client-changesets.mjs'), releaseBase],
         { cwd, stdio: 'pipe' },
     );
+    const publisher = join(temporary, 'publisher');
+    for (const directory of ['scripts', 'release', 'packages/sdk', 'packages/cli', 'bin'])
+        await mkdir(join(publisher, directory), { recursive: true });
+    await writeFile(
+        join(publisher, 'scripts/publish-clients.mjs'),
+        await readFile(join(root, 'scripts/publish-clients.mjs')),
+    );
+    await writeFile(
+        join(publisher, 'offline.mjs'),
+        "globalThis.fetch = async () => new Response('{}', { status: 404 });\n",
+    );
+    const log = join(publisher, 'npm-calls.jsonl');
+    await writeFile(
+        join(publisher, 'bin/npm'),
+        '#!/usr/bin/env node\nrequire("node:fs").appendFileSync(process.env.NPM_TEST_LOG, JSON.stringify(process.argv.slice(2))+"\\n");\n',
+    );
+    await chmod(join(publisher, 'bin/npm'), 0o755);
+    const artifacts = [];
+    for (const name of ['sdk', 'cli']) {
+        const data = Buffer.from(`test ${name}`);
+        const file = `socket-help-${name}-1.0.0.tgz`;
+        await writeFile(join(publisher, 'release', file), data);
+        artifacts.push({
+            name: `@socket-help/${name}`,
+            version: '1.0.0',
+            file,
+            sha512: createHash('sha512').update(data).digest('base64'),
+        });
+        await json(join(publisher, 'packages', name, 'package.json'), {
+            version: '1.0.0',
+            publishConfig: { tag: 'beta' },
+        });
+    }
+    await json(join(publisher, 'release/manifest.json'), { packages: artifacts });
+    const plan = {
+        version: 1,
+        plan: [
+            artifacts.map((pkg) => ({
+                name: pkg.name,
+                version: pkg.version,
+                kind: 'publish',
+                tag: 'latest',
+            })),
+        ],
+    };
+    await json(join(publisher, 'release/publish-plan.json'), plan);
+    const publish = () =>
+        execFileSync(
+            process.execPath,
+            [
+                '--import',
+                join(publisher, 'offline.mjs'),
+                join(publisher, 'scripts/publish-clients.mjs'),
+                '--publish',
+                'beta',
+            ],
+            {
+                env: {
+                    ...process.env,
+                    GITHUB_ACTIONS: 'true',
+                    PATH: `${join(publisher, 'bin')}:${process.env.PATH}`,
+                    NPM_TEST_LOG: log,
+                },
+                stdio: 'pipe',
+            },
+        );
+    publish();
+    const calls = (await readFile(log, 'utf8'))
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line));
+    assert.equal(calls.length, 2);
+    assert.ok(calls[0][1].includes('sdk'));
+    assert.ok(calls[1][1].includes('cli'));
+    for (const args of calls) assert.equal(args[args.indexOf('--tag') + 1], 'beta');
+    await json(join(publisher, 'packages/sdk/package.json'), {
+        version: '1.0.0',
+        publishConfig: { tag: 'latest' },
+    });
+    assert.throws(publish, /Command failed/);
+    await json(join(publisher, 'packages/sdk/package.json'), {
+        version: '1.0.0',
+        publishConfig: { tag: 'beta' },
+    });
+    await rm(log);
+    plan.plan[0] = [plan.plan[0][1]];
+    await json(join(publisher, 'release/publish-plan.json'), plan);
+    publish();
+    assert.equal((await readFile(log, 'utf8')).trim().split('\n').length, 1);
     console.log(
-        'Verified CLI-only releases, SDK dependency propagation, private-package exclusion, changelogs, missing-note rejection and generated release PR coverage.',
+        'Verified CLI-only releases, SDK dependency propagation, private-package exclusion, changelogs, missing-note rejection and generated release PR coverage, beta publishing arguments and planned-package selection.',
     );
 } finally {
     await rm(temporary, { recursive: true, force: true });

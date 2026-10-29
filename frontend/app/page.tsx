@@ -1,10 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowRight, Plus } from '@phosphor-icons/react/dist/ssr';
+import { Plus } from '@phosphor-icons/react/dist/ssr';
 import { CopyPrompt } from '../components/home/copy-prompt';
 import { LiveWebhook } from '../components/home/live-webhook';
-import { LampField } from '../components/lamp-field';
-import { Reveal } from '../components/landing/reveal';
 import { paidPlansEnabled } from '../lib/pricing';
 import { setupPrompt } from '../lib/setup-prompt';
 import { siteOrigin } from '../lib/site';
@@ -23,46 +21,16 @@ export const metadata: Metadata = {
     twitter: { card: 'summary_large_image', title, description },
 };
 
-// The switchboard photograph and the part of it where the lamps sit, in image coordinates.
-const HERO_ART = { width: 2400, height: 1906 };
-const HERO_BOARD: [number, number, number, number] = [0.02, 0.3, 0.68, 0.6];
-
-const clients = [
-    'Claude Code',
-    'Cursor',
-    'Codex',
-    'GitHub Copilot',
-    'Windsurf',
-    'Zed',
-    'Gemini CLI',
-];
-
-// Each card shows the real tool call an agent makes and the shape of what comes back.
-const tools = [
-    {
-        title: 'Catch the webhook.',
-        body: 'A private URL that records every request. Your agent waits until Stripe or GitHub calls it, then reads the body.',
-        call: 'wait_for_webhook()',
-        result: '{ "type": "checkout.session.completed" }',
-    },
-    {
-        title: 'Read the signup email.',
-        body: 'A receive only inbox for sign up and reset tests. Codes and verification links come back extracted.',
-        call: 'wait_for_email()',
-        result: '{ "codes": ["482913"] }',
-    },
-    {
-        title: 'Ask before it acts.',
-        body: 'Before a deploy or a payment, your agent asks. You answer from a link; only you can approve.',
-        call: 'ask_human("Deploy build 412?")',
-        result: '{ "answer": "Deploy" }',
-    },
+const features = [
+    { title: 'Catch webhooks', body: 'A private URL your agent waits on.' },
+    { title: 'Read signup emails', body: 'Codes and links come back extracted.' },
+    { title: 'Ask you first', body: 'Risky steps wait for your yes.' },
 ];
 
 const plans = [
-    { name: 'Free', price: '$0', note: '3 agents, 7 days of history, hard limits, no card.' },
-    { name: 'Pro', price: '$2', note: '25 agents, 30 days, forwarding and recorded mocks.' },
-    { name: 'Team', price: '$6', note: '100 agents and one shared workspace for the team.' },
+    { name: 'Free', price: '$0', note: '3 agents and 7 days of history. No card.' },
+    { name: 'Pro', price: '$2', note: '25 agents, 30 days, forwarding.' },
+    { name: 'Team', price: '$6', note: '100 agents in one shared workspace.' },
 ];
 
 const faqs = [
@@ -83,16 +51,8 @@ const faqs = [
         answer: 'The approval page lists your agents with when each was last active. Replace one, upgrade to Pro for 25 agents, or say no. Nothing is blocked or charged silently.',
     },
     {
-        question: 'Does the email inbox send email?',
-        answer: 'No. Inboxes are receive only, built for sign up and password reset tests. That keeps them out of spam fights and lets agents create them without a human.',
-    },
-    {
         question: 'How long does data stay?',
         answer: 'Anonymous resources last one hour. Free workspaces keep data up to 7 days, Pro 30 days and Team 90 days. Every resource can be deleted early.',
-    },
-    {
-        question: 'I just want to format some JSON.',
-        answer: 'The free browser tools are still here, with no account and no ads. Open Free tools in the menu.',
     },
 ];
 
@@ -127,156 +87,85 @@ export default function Home() {
                 }}
             />
 
-            <section className="home-hero" aria-labelledby="hero-heading">
-                <div className="home-hero-art">
-                    <img
-                        src="/art/switchboard.webp"
-                        alt=""
-                        width={2400}
-                        height={1906}
-                        fetchPriority="high"
-                    />
-                    <LampField cover={HERO_ART} region={HERO_BOARD} spacing={20} every={240} />
-                </div>
-                <div className="home-container home-hero-copy">
-                    <h1 id="hero-heading">
-                        Give your coding agent <br />
-                        the <em>internet</em>.
-                    </h1>
+            <section className="home-wrap home-hero" aria-labelledby="hero-heading">
+                <h1 id="hero-heading">Webhooks, email and approvals for your coding agent.</h1>
+                <div className="home-hero-side">
                     <p>
-                        Webhooks, email inboxes, mock APIs, memory and your approval, over one MCP
-                        connection.
+                        Your agent can&apos;t catch a Stripe webhook or read a signup email on its
+                        own. socket.help gives it both, and asks you before risky steps.
                     </p>
                     <div className="home-actions">
-                        <CopyPrompt prompt={setupPrompt} className="home-pill home-pill-light" />
-                        <Link href="/connect/" className="home-link home-link-light">
-                            Read the setup guide
-                        </Link>
-                    </div>
-                </div>
-            </section>
-
-            <section className="home-container home-problem" aria-labelledby="problem-heading">
-                <Reveal className="home-problem-art">
-                    <img
-                        src="/art/operator-print.webp"
-                        alt="A telephone operator at her switchboard console, 1943."
-                        width={1400}
-                        height={1133}
-                        loading="lazy"
-                    />
-                </Reveal>
-                <Reveal className="home-problem-copy">
-                    <h2 id="problem-heading">
-                        Your agent can write the code. It can&apos;t take the call.
-                    </h2>
-                    <p>
-                        It cannot receive the Stripe webhook, open the verification email or ask you
-                        before it deploys. So it stops, and waits for you.
-                    </p>
-                </Reveal>
-            </section>
-
-            <section className="home-container home-statement" aria-label="The idea">
-                <Reveal>
-                    <p>
-                        socket.help is the <em>switchboard</em>.
-                    </p>
-                </Reveal>
-            </section>
-
-            <section className="home-tools" aria-labelledby="tools-heading">
-                <div className="home-container">
-                    <Reveal>
-                        <h2 id="tools-heading">Everything it needs, over one connection.</h2>
-                    </Reveal>
-                    <div className="home-tool-grid">
-                        {tools.map((tool) => (
-                            <Reveal key={tool.title} className="home-tool">
-                                <div className="home-tool-call" translate="no">
-                                    <span>→ {tool.call}</span>
-                                    <span>← {tool.result}</span>
-                                </div>
-                                <h3>{tool.title}</h3>
-                                <p>{tool.body}</p>
-                            </Reveal>
-                        ))}
-                    </div>
-                    <p className="home-tools-more">
-                        Also mock APIs, memory and uptime monitors.{' '}
+                        <CopyPrompt prompt={setupPrompt} />
                         <Link href="/docs/" className="home-link">
-                            See every tool
+                            Read the docs
                         </Link>
+                    </div>
+                    <p className="home-hero-facts">
+                        {paidPlansEnabled ? 'Free to start' : 'Free during the beta'} · Pro $2 a
+                        month · Works with Claude Code, Cursor and Codex
                     </p>
                 </div>
             </section>
 
-            <section className="home-container home-try" aria-labelledby="try-heading">
-                <Reveal className="home-try-copy">
-                    <h2 id="try-heading">
-                        Try it. This URL is <em>live</em>.
-                    </h2>
+            <figure className="home-wrap home-art">
+                <img
+                    src="/art/klint-youth.webp"
+                    alt="Hilma af Klint, The Ten Largest, No. 3, Youth, 1907: spirals and circles in yellow, blue and pink on orange."
+                    width={1600}
+                    height={895}
+                    fetchPriority="high"
+                />
+                <figcaption>Hilma af Klint, The Ten Largest, No. 3, 1907</figcaption>
+            </figure>
+
+            <section className="home-wrap home-features" aria-label="What your agent gets">
+                {features.map((feature) => (
+                    <div key={feature.title}>
+                        <h2>{feature.title}</h2>
+                        <p>{feature.body}</p>
+                    </div>
+                ))}
+            </section>
+
+            <section className="home-wrap home-split" aria-labelledby="try-heading">
+                <div>
+                    <h2 id="try-heading">Try it now.</h2>
                     <p>
-                        The same webhook inbox your agent gets. Send it a request and watch it
-                        arrive.
+                        This is a real webhook inbox, the same one your agent gets. Send it a
+                        request.
                     </p>
-                </Reveal>
+                </div>
                 <LiveWebhook />
             </section>
 
-            <section className="home-container home-charge" aria-labelledby="charge-heading">
-                <Reveal className="home-charge-copy">
-                    <h2 id="charge-heading">Agents sign up. You stay in charge.</h2>
-                    <ol>
-                        <li>Your agent asks to join and shows you a short code.</li>
-                        <li>You approve it in your browser, once.</li>
-                        <li>It gets its own key. Disconnect it any time.</li>
-                    </ol>
-                </Reveal>
-                <Reveal className="home-charge-shot">
-                    <img
-                        src="/home/dashboard.webp"
-                        alt="The socket.help dashboard: three agents connected, one question waiting for an answer, and recent agent activity."
-                        width={2560}
-                        height={1600}
-                        loading="lazy"
-                    />
-                </Reveal>
-            </section>
-
-            <section className="home-container home-pricing" aria-labelledby="pricing-heading">
-                <Reveal>
-                    <h2 id="pricing-heading">
+            <section className="home-wrap home-split" aria-labelledby="pricing-heading">
+                <div>
+                    <h2 id="pricing-heading">Pricing</h2>
+                    <p>
                         {paidPlansEnabled
-                            ? 'Free to start. $2 when you grow.'
-                            : 'Free in beta. $2 when you grow.'}
-                    </h2>
-                </Reveal>
+                            ? 'Start free. Upgrade when you need more agents.'
+                            : 'Free during the beta. Paid plans open after it.'}{' '}
+                        <Link href="/plans/" className="home-link">
+                            See every limit
+                        </Link>
+                    </p>
+                </div>
                 <div className="home-plans">
                     {plans.map((plan) => (
-                        <div key={plan.name} className="home-plan">
+                        <div key={plan.name}>
                             <span>{plan.name}</span>
-                            <strong>
-                                {plan.price}
-                                <small>/month</small>
-                            </strong>
+                            <strong>{plan.price}</strong>
                             <p>{plan.note}</p>
                         </div>
                     ))}
                 </div>
-                <p className="home-pricing-note">
-                    {paidPlansEnabled
-                        ? 'Comparable agent email products start at $20 a month.'
-                        : 'Paid plans open after the beta. Comparable agent email products start at $20 a month.'}{' '}
-                    <Link href="/plans/" className="home-link">
-                        Compare plans
-                    </Link>
-                </p>
             </section>
 
-            <section className="home-container home-faq" aria-labelledby="faq-heading">
-                <h2 id="faq-heading">Questions</h2>
+            <section className="home-wrap home-split" aria-labelledby="faq-heading">
                 <div>
+                    <h2 id="faq-heading">Questions</h2>
+                </div>
+                <div className="home-faq">
                     {faqs.map((faq) => (
                         <details key={faq.question}>
                             <summary>
@@ -289,33 +178,9 @@ export default function Home() {
                 </div>
             </section>
 
-            <section className="home-container home-final" aria-labelledby="final-heading">
-                <div className="home-final-copy">
-                    <h2 id="final-heading">
-                        Ready to give your agent the <em>internet</em>?
-                    </h2>
-                    <p>Paste one prompt into Claude Code, Cursor or Codex, and approve once.</p>
-                    <div className="home-actions">
-                        <CopyPrompt prompt={setupPrompt} className="home-pill" />
-                        <Link href="/connect/" className="home-link">
-                            Read the setup guide
-                        </Link>
-                    </div>
-                    <p className="home-clients">Works with {clients.join(', ')}.</p>
-                </div>
-                <figure className="home-final-art">
-                    <img
-                        src="/art/exchange-print.webp"
-                        alt="An international telephone exchange in 1938."
-                        width={1600}
-                        height={1020}
-                        loading="lazy"
-                    />
-                    <figcaption>
-                        Photographs: U.S. National Archives and Bell Telephone Magazine, via the
-                        Internet Archive.
-                    </figcaption>
-                </figure>
+            <section className="home-wrap home-close" aria-labelledby="close-heading">
+                <h2 id="close-heading">Give your agent the internet.</h2>
+                <CopyPrompt prompt={setupPrompt} />
             </section>
         </div>
     );

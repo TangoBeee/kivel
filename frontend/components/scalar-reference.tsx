@@ -21,7 +21,7 @@ export default function ScalarReference() {
             proxyUrl: '',
             searchHotKey: 'j',
             customCss:
-                '.scalar-app { --scalar-font: var(--font-geist-sans), sans-serif; --scalar-font-code: var(--font-geist-mono), monospace; --scalar-color-accent: #286747; --scalar-custom-header-height: 96px; }',
+                '.scalar-app { --scalar-font: var(--font-sans), sans-serif; --scalar-font-code: var(--font-geist-mono), monospace; --scalar-color-accent: #286747; --scalar-custom-header-height: 96px; }',
         }),
         [],
     );

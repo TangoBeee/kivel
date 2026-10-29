@@ -1,19 +1,16 @@
 import type { Metadata } from 'next';
 import { Header, Footer } from '../components/shell';
 import { ToolboxProvider } from '../components/toolbox-provider';
-import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
-import { Instrument_Serif } from 'next/font/google';
+import { Hanken_Grotesk } from 'next/font/google';
 import './globals.css';
 import { siteOrigin } from '../lib/site';
 
-// Display headlines: a light, high-contrast serif that sits well over the archive photographs.
-const display = Instrument_Serif({
-    weight: '400',
-    style: ['normal', 'italic'],
+// One typeface for the whole site: headlines and text alike.
+const sans = Hanken_Grotesk({
     subsets: ['latin'],
     display: 'swap',
-    variable: '--font-display',
+    variable: '--font-sans',
 });
 
 export const metadata: Metadata = {
@@ -30,7 +27,7 @@ export const metadata: Metadata = {
 export default function Layout({ children }: { children: React.ReactNode }) {
     return (
         <html lang="en" data-theme="light" data-scroll-behavior="smooth">
-            <body className={`${GeistSans.variable} ${GeistMono.variable} ${display.variable}`}>
+            <body className={`${sans.variable} ${GeistMono.variable}`}>
                 <ToolboxProvider>
                     <a className="skip-link" href="#main">
                         Skip to content

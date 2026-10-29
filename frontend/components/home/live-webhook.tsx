@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowsClockwise, Check, Copy, PaperPlaneTilt } from '@phosphor-icons/react';
 import { api, resourceHeaders } from '../../lib/api';
-import { SIGNAL_EVENT } from '../lamp-field';
 
 interface Captured {
     id: string;
@@ -55,7 +54,6 @@ export function LiveWebhook() {
     const [state, setState] = useState<'idle' | 'creating' | 'ready' | 'error'>('idle');
     const [copied, setCopied] = useState(false);
     const [sending, setSending] = useState(false);
-    const seen = useRef(new Set<string>());
     const card = useRef<HTMLDivElement>(null);
 
     async function create() {
@@ -105,11 +103,6 @@ export function LiveWebhook() {
                 });
                 const result: { requests: Captured[] } = await response.json();
                 if (!live) return;
-                for (const request of result.requests)
-                    if (!seen.current.has(request.id)) {
-                        seen.current.add(request.id);
-                        dispatchEvent(new Event(SIGNAL_EVENT));
-                    }
                 setRequests(result.requests.slice(-3).reverse());
             } catch {}
             if (live) timer = setTimeout(poll, document.hidden ? 6000 : 2000);

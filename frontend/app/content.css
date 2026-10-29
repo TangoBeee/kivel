@@ -22,9 +22,9 @@
   margin: 0 0 20px;
   font-family: var(--display);
   font-size: clamp(40px, 5vw, 64px);
-  font-weight: 400;
+  font-weight: 500;
   line-height: 1.02;
-  letter-spacing: -0.005em;
+  letter-spacing: -0.035em;
   text-wrap: balance;
 }
 .content-intro > p {

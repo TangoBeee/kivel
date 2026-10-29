@@ -4,12 +4,12 @@
   /* Surfaces */
   --bg: #ffffff;
   --surface: #ffffff;
-  --subtle: #f4f4f1;
+  --subtle: #f5f5f4;
   /* Text: muted stays above 4.5:1 on every surface */
-  --ink: #111312;
-  --muted: #5d615e;
-  --line: #e7e7e3;
-  --line-strong: #d3d4d0;
+  --ink: #141414;
+  --muted: #5b5b5b;
+  --line: #e8e8e8;
+  --line-strong: #d4d4d4;
   /* Brand */
   --accent: #286747;
   --accent-hover: #1f5239;
@@ -34,7 +34,7 @@
   --mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 body {
-  --display: var(--font-display), 'Iowan Old Style', Georgia, serif;
+  --display: var(--font-sans), -apple-system, sans-serif;
 }
 ::selection {
   background: #cfe7d8;
@@ -56,7 +56,7 @@ body {
   background: var(--bg);
   color: var(--ink);
   font-family:
-    var(--font-geist-sans),
+    var(--font-sans),
     -apple-system,
     BlinkMacSystemFont,
     sans-serif;
@@ -1124,11 +1124,3 @@ textarea::placeholder {
   }
 }
 
-/* Switchboard lamps (components/lamp-field.tsx): a canvas laid over its positioned parent */
-.lamp-field {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}

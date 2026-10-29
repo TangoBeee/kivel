@@ -1,6 +1,6 @@
 ---
 name: socket.help
-description: The internet toolkit for AI coding agents. A calm, light editorial site with one archive-photograph hero, large serif headlines and the product shown working.
+description: The internet toolkit for AI coding agents. A white, minimal site with one colourful painting, one typeface and few words.
 colors:
   ground: "#ffffff"
   surface: "#ffffff"
@@ -20,30 +20,30 @@ colors:
   danger: "#ad3f3b"
 typography:
   display:
-    fontFamily: "Instrument Serif, Georgia, serif"
-    fontSize: "5.75rem"
-    fontWeight: 400
-    lineHeight: 0.95
-    letterSpacing: "-0.01em"
+    fontFamily: "Hanken Grotesk, -apple-system, sans-serif"
+    fontSize: "3.75rem"
+    fontWeight: 500
+    lineHeight: 1.02
+    letterSpacing: "-0.035em"
   heading:
-    fontFamily: "Instrument Serif, Georgia, serif"
-    fontSize: "3.5rem"
-    fontWeight: 400
+    fontFamily: "Hanken Grotesk, -apple-system, sans-serif"
+    fontSize: "2.75rem"
+    fontWeight: 500
     lineHeight: 1
-    letterSpacing: "-0.01em"
+    letterSpacing: "-0.035em"
   page-title:
-    fontFamily: "Geist, -apple-system, sans-serif"
+    fontFamily: "Hanken Grotesk, -apple-system, sans-serif"
     fontSize: "clamp(36px, 4.5vw, 56px)"
     fontWeight: 600
     lineHeight: 1.05
     letterSpacing: "-0.04em"
   lede:
-    fontFamily: "Geist, -apple-system, sans-serif"
+    fontFamily: "Hanken Grotesk, -apple-system, sans-serif"
     fontSize: "1.125rem"
     fontWeight: 400
     lineHeight: 1.75rem
   body:
-    fontFamily: "Geist, -apple-system, sans-serif"
+    fontFamily: "Hanken Grotesk, -apple-system, sans-serif"
     fontSize: "1rem"
     fontWeight: 400
     lineHeight: 1.5rem
@@ -95,60 +95,44 @@ components:
 
 ## Overview
 
-A calm, light editorial site in the spirit of different.ai. The homepage opens on one full-bleed archive photograph of a 1940s telephone switchboard, toned into the palette, with small switchboard lamps glowing across the board and a large serif headline over it. Everything after the hero is a white page: large Instrument Serif headlines, small quiet Geist text, framed archive photographs, black pill buttons and generous space. The product is shown working (a live webhook inbox, real tool calls, a real dashboard screenshot); there is no decoration layer.
-
-The switchboard is the metaphor: operators connected every call by hand, and socket.help connects agents to the internet while the human picks up when it matters. Photographs are U.S. National Archives and Bell Telephone Magazine (Internet Archive), no known copyright restrictions, credited on the page.
+Option A, "Gallery": a white, minimal page in the spirit of different.ai. The homepage says what the product is in the first screen (headline, one sentence, price and compatibility line), then shows one colourful painting, Hilma af Klint's The Ten Largest, No. 3 (1907, public domain), as a framed image. Few sections, few words, lots of space. The dashboard, docs, pricing and tool pages share the same type, colours and pill buttons, without art.
 
 ## Colors
 
-### Primary
-Near-black ink `#111312` on white. Brand green `#286747` is a small accent only: links on hover, tool calls in code, success states and the logo.
-
-### Neutral
-White page and surfaces, a warm grey band `#f4f4f1` for one section at a time, muted text `#5d615e` (above 4.5:1), hairlines `#e7e7e3`. Code blocks stay dark (`#121514`) with light text.
-
-### Named Rules
-- **Ink on paper.** Primary buttons are black pills with white text; on the hero they invert to white pills.
-- **One art moment per screen.** Only the hero is full bleed; other photographs are framed inside the layout.
+White page, ink `#141414`, muted `#5b5b5b` (above 4.5:1), hairlines `#e8e8e8`, a light grey `#f5f5f4` for small fills. Brand green `#286747` only in the logo and small success states. Colour comes from the painting, never from the interface.
 
 ## Typography
 
-Instrument Serif (400, with italic for one emphasised word) for display and section headlines; Geist for everything else; Geist Mono only for code, payloads and URLs.
-
-### Hierarchy
-- Hero 92px over 0.95, white on the photograph.
-- Section headlines 56px, statement lines up to 96px.
-- Page titles 64px on content pages, 44px in the app.
-- Body 15 to 17px, muted, never more than about 460px wide beside a headline.
+Hanken Grotesk for everything; Geist Mono only for code, URLs and payloads. Headlines weight 500 with -0.035em tracking: hero 60px, section 44px, page titles 56 to 64px. Body 15 to 18px in muted ink.
 
 ## Layout
 
-1200px container, 24px gutters (16px on phones), 160px between homepage sections. Sections alternate: split image and text, a single centred line, a grey band of three cards, split demo, split screenshot, a three-column plain price row, two-column questions, and a split close with a framed photograph.
+1104px content width (matches the header), 24px gutters (16px on phones), 160px between homepage sections. Homepage: hero (headline left, sentence, buttons and facts right), the painting, three short lines with a rule above each, then split sections (short heading left, content right) for the live demo, pricing and questions, and a one-line close.
 
 ## Elevation & Depth
 
-Flat white. Only the live inbox and the dashboard screenshot carry a soft, offset shadow.
+Flat. Hairline borders only; no shadows on the homepage.
 
 ## Shapes
 
-Pills for every button; 16px cards; 10px inputs and code; 4px on photographs.
+Pill buttons; 14px cards; 10px inputs and code; 6px on the painting.
 
 ## Components
 
 ### Buttons
-Black pill, 44px tall, 15px medium text; white pill on the hero; underlined text links as the secondary action.
+Black pill, 46px, 15px medium text. Secondary actions are underlined text links.
 
-### Live webhook inbox (signature)
-A real anonymous inbox created when it scrolls into view, with the URL, a test button, the last three requests and the latest request's headers and body. A new request flashes a row of lamps in the hero.
+### Live webhook inbox
+A real anonymous inbox created when it scrolls into view: URL, test button, the last three requests and the latest request's headers and body.
 
 ## Do's and Don'ts
 
 ### Do:
-- Keep pages light, quiet and spacious; let one headline and one image carry each section.
-- Show the real product and real calls; mark planned prices as planned.
-- Honour reduced motion: lamps static, no drift, reveals instant.
+- Say what the product is, who it is for and what it costs in the first screen.
+- Keep each section to one heading and one idea.
+- Mark planned prices as planned.
 
 ### Don't:
-- Don't use dark full-page themes, glows, grids, eyebrows or gradient text.
-- Don't put text over photographs except in the hero.
+- Don't add dark themes, background animation, glows, grids, eyebrows or gradient text.
+- Don't add a second typeface for headlines.
 - Don't invent customers, logos or numbers.

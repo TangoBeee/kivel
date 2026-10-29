@@ -2,141 +2,118 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Icon } from '../components/icons';
 import type { IconName } from '../components/icons';
+import { CommandBar } from '../components/landing/command-bar';
+import { Interfaces } from '../components/landing/interfaces';
 import { Reveal } from '../components/landing/reveal';
+import { SignalTraces } from '../components/landing/signal-traces';
 import { HeroPill } from '../components/landing/hero-pill';
-import { AgentTerminal } from '../components/landing/agent-terminal';
+import { SocketBoard } from '../components/landing/socket-board';
 import { TaglineReveal } from '../components/landing/tagline-reveal';
+import { toolGlyphs } from '../components/tool-glyphs';
 import { siteOrigin } from '../lib/site';
-import { catalog } from '../lib/catalog';
+import { catalog, categories } from '../lib/catalog';
 import './landing.css';
 
+const total = catalog.length;
 const available = catalog.filter((tool) => tool.status === 'available').length;
-// Rounded down so the copy reads "130+" rather than an exact count that changes every release.
-const roundedAvailable = Math.floor(available / 10) * 10;
-const description = `Give your AI agent a webhook inbox, an email address, mock APIs, monitors, memory and ${roundedAvailable}+ tools over one MCP connection. Free to start; Pro is $2 a month.`;
+const glyphs = toolGlyphs();
+const description = `${available} working tools for formatting, conversion, webhooks, mock APIs, file sharing, and MCP. Explore ${total} tools in the catalog, with planned features clearly marked. No account or ads.`;
 
 export const metadata: Metadata = {
     metadataBase: new URL(siteOrigin),
-    title: { absolute: 'socket.help | Everything your AI agent needs from the internet' },
+    title: { absolute: 'socket.help | One toolbox for the whole internet' },
     description,
     alternates: { canonical: '/' },
     openGraph: {
         type: 'website',
         url: '/',
         siteName: 'socket.help',
-        title: 'Everything your AI agent needs from the internet',
+        title: 'One toolbox for the whole internet',
         description,
     },
     twitter: {
         card: 'summary_large_image',
-        title: 'Everything your AI agent needs from the internet',
+        title: 'One toolbox for the whole internet',
         description,
     },
 };
 
-// Only what works today. Planned features live on the roadmap, not on the homepage.
-const benefits: { icon: IconName; title: string; body: string; href: string }[] = [
+const audiences: { icon: IconName; label: string; title: string; body: string }[] = [
     {
-        icon: 'webhook',
-        title: 'Webhook inboxes',
-        body: 'A private URL that catches Stripe, GitHub or any callback, and waits for it so your agent can check the result.',
-        href: '/webhooks/',
+        icon: 'shapes',
+        label: 'For everyone',
+        title: 'The everyday essentials',
+        body: 'Format text, convert data, generate a password, or send a file to another computer. Process images and PDFs with bounded previews and downloads.',
     },
     {
-        icon: 'mail',
-        title: 'Email inboxes',
-        body: 'A real address for signup tests. Codes and magic links come back already pulled out.',
-        href: '/tools/temporary-email-inbox/',
+        icon: 'code',
+        label: 'For developers',
+        title: 'Test infrastructure on tap',
+        body: 'Mock APIs and webhook inboxes that appear in a second and clean up after themselves. Temporary databases and tunnels are on the roadmap.',
     },
     {
-        icon: 'cube',
-        title: 'Mock APIs',
-        body: 'Fake any endpoint in seconds, with realistic data, random failures and a log of every call.',
-        href: '/tools/mock-rest-api/',
-    },
-    {
-        icon: 'pulse',
-        title: 'Monitors',
-        body: 'Uptime, SSL expiry and cron job checks that email you when something breaks.',
-        href: '/account/#monitors',
-    },
-    {
-        icon: 'database',
-        title: 'Memory',
-        body: 'Your agent saves notes and results, and finds them again in its next session.',
-        href: '/connect/',
-    },
-    {
-        icon: 'grid',
-        title: `${roundedAvailable}+ tools`,
-        body: 'JSON, JWT, DNS, SSL, PDFs and images. Your agent finds the right one by searching.',
-        href: '/catalog/',
+        icon: 'robot',
+        label: 'For AI agents',
+        title: 'A sandbox your agent can drive',
+        body: 'Claude Code, Cursor, and your own agents can create, inspect, and tear down resources over MCP.',
     },
 ];
 
-const steps = [
+const promises: { icon: IconName; title: string; body: string }[] = [
     {
-        title: 'Create a free account',
-        body: 'Get an API key in your dashboard. No card needed.',
+        icon: 'coffee',
+        title: 'Free for everyone',
+        body: 'Every available tool has a useful free allowance. The basics never sit behind a paywall.',
     },
     {
-        title: 'Add one line to your agent',
-        body: 'Claude Code, Cursor, Codex, ChatGPT or any MCP client.',
+        icon: 'eye-off',
+        title: 'No ads, ever',
+        body: 'No banners, popups, sponsored results, or tracking analytics. Useful tools without advertising.',
     },
     {
-        title: 'Ask for what you need',
-        body: '“Test my signup flow” or “Watch my site and tell me if it goes down.”',
-    },
-];
-
-// Competitor figures come from their public pricing pages as of October 2026.
-const comparison: { need: string; others: string; ours: string }[] = [
-    {
-        need: 'Webhook inbox',
-        others: 'webhook.site, from $7.50 a month',
-        ours: 'Included, with forwarding on Pro',
+        icon: 'code',
+        title: 'Self-hostable',
+        body: 'Run your own copy with the portable Docker setup. Keep your tools and temporary data on infrastructure you control.',
     },
     {
-        need: 'Mock API',
-        others: 'Beeceptor, 50 free requests a day',
-        ours: '120 requests a minute, free',
-    },
-    {
-        need: 'Email inbox for tests',
-        others: 'MailSlurp, about $20 a month',
-        ours: 'Included',
-    },
-    {
-        need: 'Cron and uptime monitors',
-        others: 'Healthchecks.io, about $20 a month',
-        ours: '20 free, 100 on Pro',
+        icon: 'receipt',
+        title: 'Limits in plain sight',
+        body: 'Quotas, retention, and expiry are written down before you click, not discovered afterwards.',
     },
 ];
 
 const faqs: { question: string; answer: string }[] = [
     {
-        question: 'What does socket.help do?',
-        answer: 'It gives AI agents the things they cannot do from a laptop: receive webhooks and email, host a mock API, watch a site around the clock and remember results between sessions. You can use every tool in the browser too.',
+        question: 'Is socket.help free?',
+        answer: 'Yes. Available tools are free within the published limits, with no account required. Planned tools are marked Coming soon; free accounts add a workspace and larger allowances. Pro and Team checkout opens only when billing is configured.',
     },
     {
-        question: 'Is it free?',
-        answer: 'Yes. The free plan needs no card and includes webhook and email inboxes, mock APIs, 20 monitors and 5 MiB of agent memory. Pro is $2 a month for longer retention, forwarding, proxy mocks and higher limits.',
+        question: 'Do I need an account?',
+        answer: 'No. All currently available tools work without an account. Resources default to private, with separate access and management credentials. Public sharing is an explicit choice.',
     },
     {
-        question: 'Which agents work with it?',
-        answer: 'Any client that speaks MCP over HTTP, including Claude Code, Cursor, Codex, ChatGPT and VS Code. There is also a plain HTTP API, a CLI and a TypeScript SDK.',
+        question: 'What happens to my files and data?',
+        answer: 'Browser-local tools keep input on your device. Hosted resources start with a one-hour lifetime, with longer retention available within plan limits. Each tool explains what it stores and how to delete it.',
     },
     {
-        question: 'Is my data private?',
-        answer: 'Yes. Inboxes, mocks and files are private by default, with separate tokens to use and to manage them. Agent activity logs keep only the tool name and result, never your data.',
+        question: 'What does a workspace include?',
+        answer: 'A free account gives you a personal workspace for resources, API keys, usage, and recovery settings. Team plans support shared membership when billing is configured. Grouped Socket Spaces remain on the roadmap.',
     },
     {
-        question: 'Can my agent send email from it?',
-        answer: 'No. Email inboxes are receive only, so they cannot be used for spam. Alerts from monitors go only to your own verified address.',
+        question: 'Can AI agents use socket.help?',
+        answer: 'Yes. socket.help speaks MCP, so agents like Claude Code and Cursor can create mock services, capture callbacks, inspect results, and clean up, using the same resources you see in the browser.',
     },
     {
-        question: 'Can I cancel anytime?',
-        answer: 'Yes. Pro is monthly and you can cancel from your dashboard. Your account drops back to the free plan.',
+        question: 'Is there an API and a CLI?',
+        answer: 'Server tools have a documented HTTP API, and you can use cURL in your terminal or CI. MCP exposes agent-friendly tools over the same resources and quotas. A TypeScript SDK and CLI are included as repository packages. An optional SSH gateway is available for self-hosted installs; see Integrations for setup.',
+    },
+    {
+        question: 'How do you prevent abuse?',
+        answer: 'Short default lifetimes, per tool rate limits, redaction of sensitive headers, and no anonymous outbound email. Hosted resources enforce access controls, size limits, and usage quotas.',
+    },
+    {
+        question: 'Can I host socket.help myself?',
+        answer: 'Yes. The portable Docker setup runs the application with PostgreSQL on your infrastructure. Optional HTTPS and SSH profiles support deployment workflows.',
     },
 ];
 
@@ -161,10 +138,25 @@ const jsonLd = [
 
 function PrimaryAction() {
     return (
-        <Link href="/connect/" className="lp-button">
-            Connect your agent free
+        <Link href="/catalog/" className="lp-button">
+            Browse all {total} tools
             <Icon name="arrow" size={16} />
         </Link>
+    );
+}
+
+function AudienceVisual({ index }: { index: number }) {
+    const examples = [
+        { label: 'Format JSON', code: '{"ready":true} → {\n  "ready": true\n}' },
+        { label: 'Mock a response', code: 'GET /orders → 200\n[{ "id": "test-001" }]' },
+        { label: 'Connect an agent', code: 'tools/list → discover\ntools/call → run_tool' },
+    ];
+    const example = examples[index]!;
+    return (
+        <div className="lp-mini lp-example">
+            <span>{example.label} · Example</span>
+            <pre>{example.code}</pre>
+        </div>
     );
 }
 
@@ -179,108 +171,176 @@ export default function Home() {
             />
 
             <section className="lp-hero" aria-labelledby="hero-heading">
+                <SignalTraces />
                 <div className="lp-container lp-hero-inner">
-                    <HeroPill stats="Works with Claude Code, Cursor, Codex and ChatGPT" />
+                    <HeroPill
+                        stats={`${available} ready · ${total} in the catalog · ${categories.length} categories`}
+                    />
                     <h1 id="hero-heading" className="lp-hero-heading">
-                        Everything your AI agent
+                        One toolbox
                         <br />
-                        needs from the internet.
+                        for the whole internet.
                     </h1>
                     <p className="lp-hero-sub">
-                        Webhooks, email, mock APIs, monitors and memory for your agent, through one
-                        MCP connection.
+                        Free open beta. Format data, test APIs, catch webhooks, and share files.
+                        Free allowances, no ads, and no account needed to start.
                     </p>
+                    <CommandBar total={total} />
                     <div className="lp-hero-action">
                         <PrimaryAction />
                     </div>
-                    <p className="lp-hero-proof">
-                        Free plan, no card. Or <Link href="/webhooks/">try a webhook inbox</Link>{' '}
-                        right now.
-                    </p>
-                    <AgentTerminal />
                 </div>
             </section>
 
-            <section className="lp-section lp-container" aria-label="Why socket.help">
+            <section className="lp-section lp-container" aria-labelledby="board-heading">
+                <Reveal className="lp-section-head">
+                    <span className="lp-eyebrow">The board</span>
+                    <h2 id="board-heading">{total} tools, one panel</h2>
+                    <p>Every socket is a tool. Pick a category to see what lives there.</p>
+                </Reveal>
+                <Reveal>
+                    <SocketBoard glyphs={glyphs} />
+                </Reveal>
+            </section>
+
+            <section className="lp-section lp-container" aria-label="What socket.help is for">
                 <TaglineReveal
                     lines={[
-                        'Your agent can write the code.',
-                        'It cannot receive a webhook,',
-                        'read an email or stay online.',
-                        'That part is us.',
+                        'Format some data, mock an API,',
+                        'hand your agent a sandbox.',
+                        'Same place. Same simplicity.',
                     ]}
                 />
             </section>
 
-            <section className="lp-section lp-container" aria-labelledby="kit-heading">
+            <section className="lp-section lp-container" aria-labelledby="audience-heading">
                 <Reveal className="lp-section-head">
-                    <h2 id="kit-heading">What your agent gets</h2>
-                    <p>Six things that work today. You can use each one in the browser too.</p>
+                    <h2 id="audience-heading">
+                        Simple enough for anyone, deep enough for engineers
+                    </h2>
                 </Reveal>
-                <div className="lp-kit">
-                    {benefits.map((item, index) => (
-                        <Reveal key={item.title} delay={(index % 3) * 80}>
-                            <Link href={item.href} className="lp-kit-card">
-                                <span className="lp-icon">
-                                    <Icon name={item.icon} size={20} />
-                                </span>
-                                <h3>{item.title}</h3>
-                                <p>{item.body}</p>
-                            </Link>
+                <div className="lp-audiences">
+                    {audiences.map((audience, index) => (
+                        <Reveal
+                            key={audience.label}
+                            className="lp-card lp-audience"
+                            delay={index * 120}
+                        >
+                            <AudienceVisual index={index} />
+                            <span className="lp-label">
+                                <Icon name={audience.icon} size={14} /> {audience.label}
+                            </span>
+                            <h3>{audience.title}</h3>
+                            <p>{audience.body}</p>
                         </Reveal>
                     ))}
                 </div>
             </section>
 
-            <section className="lp-section lp-container" aria-labelledby="steps-heading">
-                <Reveal className="lp-section-head">
-                    <h2 id="steps-heading">Ready in one minute</h2>
+            <section className="lp-section lp-container" aria-labelledby="workspace-heading">
+                <Reveal className="lp-workflow">
+                    <div>
+                        <h2 id="workspace-heading">Temporary tools. A workspace that remembers.</h2>
+                        <p>
+                            Create resources, see their expiry, rotate access, and clean up from one
+                            place. A free account keeps your resources and API keys together.
+                        </p>
+                        <Link className="lp-button" href="/account/">
+                            Open your workspace <Icon name="arrow" size={16} />
+                        </Link>
+                    </div>
+                    <ol>
+                        <li>
+                            <span aria-hidden="true">
+                                <Icon name="plus" size={18} />
+                            </span>
+                            <div>
+                                <strong>Create what you need</strong>
+                                <p>A webhook inbox, mock API, MCP server, or file share.</p>
+                            </div>
+                        </li>
+                        <li>
+                            <span aria-hidden="true">
+                                <Icon name="shield" size={18} />
+                            </span>
+                            <div>
+                                <strong>Choose who can use it</strong>
+                                <p>Private access by default. Public sharing when you choose.</p>
+                            </div>
+                        </li>
+                        <li>
+                            <span aria-hidden="true">
+                                <Icon name="timer" size={18} />
+                            </span>
+                            <div>
+                                <strong>Keep track of the lifetime</strong>
+                                <p>Inspect, renew within plan limits, or delete when finished.</p>
+                            </div>
+                        </li>
+                    </ol>
                 </Reveal>
-                <ol className="lp-steps">
-                    {steps.map((step, index) => (
-                        <Reveal key={step.title} delay={index * 100}>
-                            <li>
-                                <span className="lp-step-number">{index + 1}</span>
-                                <h3>{step.title}</h3>
-                                <p>{step.body}</p>
-                            </li>
-                        </Reveal>
-                    ))}
-                </ol>
             </section>
 
-            <section className="lp-section lp-container" aria-labelledby="compare-heading">
+            <section className="lp-interface-section" aria-labelledby="interfaces-heading">
+                <div className="lp-container lp-section">
+                    <Reveal className="lp-section-head">
+                        <h2 id="interfaces-heading">
+                            Click it, curl it, script it, or ask an agent
+                        </h2>
+                        <p>
+                            Try JSON in the browser, then use the same toolbox from your code,
+                            terminal, or agent.
+                        </p>
+                    </Reveal>
+                    <Reveal>
+                        <Interfaces />
+                    </Reveal>
+                </div>
+            </section>
+
+            <section className="lp-section lp-container" aria-labelledby="promises-heading">
                 <Reveal className="lp-section-head">
-                    <h2 id="compare-heading">One account instead of four tools</h2>
-                    <p>Pro is $2 a month. Prices of other tools as listed in October 2026.</p>
+                    <h2 id="promises-heading">Useful first. Everything else second.</h2>
                 </Reveal>
-                <Reveal className="lp-compare">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th scope="col">You need</th>
-                                <th scope="col">Usually</th>
-                                <th scope="col">socket.help</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {comparison.map((row) => (
-                                <tr key={row.need}>
-                                    <th scope="row">{row.need}</th>
-                                    <td>{row.others}</td>
-                                    <td>
-                                        <Icon name="check" size={15} /> {row.ours}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                <div className="lp-promises">
+                    {promises.map((promise, index) => (
+                        <Reveal key={promise.title} className="lp-promise" delay={index * 100}>
+                            <span className="lp-icon">
+                                <Icon name={promise.icon} size={20} />
+                            </span>
+                            <h3>{promise.title}</h3>
+                            <p>{promise.body}</p>
+                        </Reveal>
+                    ))}
+                </div>
+            </section>
+
+            <section className="lp-section lp-container" aria-labelledby="learn-heading">
+                <Reveal className="lp-learning">
+                    <h2 id="learn-heading">A little context goes a long way.</h2>
+                    <div>
+                        <Link href="/blog/">
+                            <strong>Practical guides</strong>
+                            <span>Webhooks, file access, and better API tests.</span>
+                            <Icon name="arrow" size={18} />
+                        </Link>
+                        <Link href="/compare/">
+                            <strong>Compare your options</strong>
+                            <span>Where socket.help fits alongside other tools.</span>
+                            <Icon name="arrow" size={18} />
+                        </Link>
+                        <Link href="/docs/">
+                            <strong>Build with the API</strong>
+                            <span>Authentication, examples, and endpoint schemas.</span>
+                            <Icon name="arrow" size={18} />
+                        </Link>
+                    </div>
                 </Reveal>
             </section>
 
             <section className="lp-section lp-container" aria-labelledby="faq-heading">
                 <Reveal className="lp-section-head">
-                    <h2 id="faq-heading">Questions</h2>
+                    <h2 id="faq-heading">Questions, answered plainly</h2>
                 </Reveal>
                 <div className="lp-faq">
                     {faqs.map((faq) => (
@@ -299,8 +359,19 @@ export default function Home() {
 
             <section className="lp-section lp-container" aria-labelledby="final-heading">
                 <Reveal className="lp-final">
-                    <h2 id="final-heading">Give your agent the internet.</h2>
-                    <p>Free plan, no card, cancel anytime.</p>
+                    <div className="lp-final-sockets" aria-hidden="true">
+                        {categories.map((category) => (
+                            <span key={category.id}>
+                                <Icon name={category.icon} size={18} />
+                            </span>
+                        ))}
+                    </div>
+                    <h2 id="final-heading">
+                        Whatever the job,
+                        <br />
+                        there is a socket for it.
+                    </h2>
+                    <p>Free to start, nothing to install, and nothing to cancel.</p>
                     <PrimaryAction />
                 </Reveal>
             </section>

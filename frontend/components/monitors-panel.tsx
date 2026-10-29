@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Button } from '@radix-ui/themes';
+import { Badge, Button, Dialog, DropdownMenu, IconButton } from '@radix-ui/themes';
+import { DotsThree, Plus, Pulse } from '@phosphor-icons/react';
 import { api } from '../lib/api';
 import { CopyButton } from './copy-button';
 
@@ -24,12 +25,21 @@ const intervals = [
     [3600, 'Every hour'],
     [86400, 'Every day'],
 ] as const;
+const kinds = {
+    http: 'Website',
+    ssl: 'SSL certificate',
+    heartbeat: 'Cron job',
+} as const;
+const every = (seconds: number) =>
+    intervals.find(([value]) => value === seconds)?.[1].toLowerCase() ??
+    `every ${Math.round(seconds / 60)} min`;
 
-/** Uptime, SSL and heartbeat monitors for the workspace, with alerts on change. */
+/** Uptime, SSL and heartbeat monitors for the workspace, with alerts when status changes. */
 export function MonitorsPanel({ verifiedEmail }: { verifiedEmail: boolean }) {
     const [monitors, setMonitors] = useState<Monitor[] | null>(null);
     const [limit, setLimit] = useState(0);
     const [minInterval, setMinInterval] = useState(300);
+    const [open, setOpen] = useState(false);
     const [kind, setKind] = useState<Monitor['kind']>('http');
     const [name, setName] = useState('');
     const [target, setTarget] = useState('');
@@ -57,11 +67,21 @@ export function MonitorsPanel({ verifiedEmail }: { verifiedEmail: boolean }) {
         return () => clearInterval(timer);
     }, []);
 
+    function start() {
+        setKind('http');
+        setName('');
+        setTarget('');
+        setExpectText('');
+        setWebhook('');
+        setIntervalSeconds(Math.max(300, minInterval));
+        setPingUrl('');
+        setError('');
+        setOpen(true);
+    }
     async function create(event: React.FormEvent) {
         event.preventDefault();
         setBusy(true);
         setError('');
-        setPingUrl('');
         try {
             const created = await (
                 await api('/api/monitors', {
@@ -71,25 +91,23 @@ export function MonitorsPanel({ verifiedEmail }: { verifiedEmail: boolean }) {
                         kind,
                         name,
                         ...(kind !== 'heartbeat' ? { target } : {}),
-                        intervalSeconds: kind === 'ssl' ? Math.max(interval, 3600) : interval,
+                        intervalSeconds: kind === 'ssl' ? 86400 : interval,
                         ...(kind === 'http' && expectText ? { expectText } : {}),
                         ...(webhook ? { alertWebhook: webhook } : {}),
                     }),
                 })
             ).json();
-            if (created.pingUrl) setPingUrl(created.pingUrl);
-            setName('');
-            setTarget('');
-            setExpectText('');
             await load();
+            // Heartbeats show their ping URL once; everything else is done.
+            if (created.pingUrl) setPingUrl(created.pingUrl);
+            else setOpen(false);
         } catch (failure) {
-            setError(failure instanceof Error ? failure.message : 'Unable to create the monitor.');
+            setError(failure instanceof Error ? failure.message : 'Unable to add the monitor.');
         } finally {
             setBusy(false);
         }
     }
     async function change(monitor: Monitor, action: 'pause' | 'resume' | 'delete') {
-        setError('');
         try {
             await api(`/api/monitors/${monitor.id}`, {
                 method: action === 'delete' ? 'DELETE' : 'PATCH',
@@ -101,186 +119,267 @@ export function MonitorsPanel({ verifiedEmail }: { verifiedEmail: boolean }) {
                       }),
             });
             await load();
-        } catch (failure) {
-            setError(failure instanceof Error ? failure.message : 'Unable to update the monitor.');
-        }
+        } catch {}
     }
 
+    const full = !!monitors && monitors.length >= limit;
     return (
-        <div className="settings-stack">
-            <section className="settings-card">
-                <h2>Monitors</h2>
-                <p className="tool-notice">
-                    Uptime checks, SSL expiry warnings and heartbeats for scheduled jobs. You are
-                    alerted when something goes down and when it recovers.
-                    {!verifiedEmail && (
-                        <>
-                            {' '}
-                            <a href="#security">Verify your email</a> to receive alert emails.
-                        </>
-                    )}
-                </p>
-                {error && (
-                    <div className="alert" role="alert">
-                        {error}
-                    </div>
-                )}
-                {monitors === null ? (
-                    <p className="tool-notice">Loading…</p>
-                ) : monitors.length ? (
-                    <ul className="monitor-list">
-                        {monitors.map((monitor) => (
-                            <li key={monitor.id}>
-                                <span
-                                    className={`monitor-status is-${monitor.paused ? 'paused' : monitor.status}`}
-                                >
-                                    {monitor.paused
-                                        ? 'Paused'
-                                        : monitor.status === 'up'
-                                          ? 'Up'
-                                          : monitor.status === 'down'
-                                            ? 'Down'
-                                            : 'Waiting'}
-                                </span>
-                                <div>
-                                    <strong>{monitor.name}</strong>
-                                    <small>
-                                        {monitor.kind === 'heartbeat'
-                                            ? 'Heartbeat'
-                                            : monitor.kind === 'ssl'
-                                              ? `SSL · ${monitor.target}`
-                                              : monitor.target}
-                                        {monitor.lastMessage ? ` · ${monitor.lastMessage}` : ''}
-                                    </small>
-                                </div>
-                                <div className="button-row">
-                                    <button
-                                        className="button button-small"
-                                        onClick={() =>
-                                            void change(
-                                                monitor,
-                                                monitor.paused ? 'resume' : 'pause',
-                                            )
-                                        }
-                                    >
-                                        {monitor.paused ? 'Resume' : 'Pause'}
-                                    </button>
-                                    <button
-                                        className="button button-small button-danger"
-                                        onClick={() => void change(monitor, 'delete')}
-                                    >
-                                        Delete
-                                    </button>
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
-                ) : (
-                    <p className="tool-notice">No monitors yet. Add your first one below.</p>
-                )}
-            </section>
-            {pingUrl && (
-                <div className="account-secret" role="status">
-                    <strong>Add this to the end of your job</strong>
-                    <code>{`curl -fsS -m 10 ${pingUrl}`}</code>
-                    <div>
-                        <CopyButton text={`curl -fsS -m 10 ${pingUrl}`} label="Copy command" />
-                    </div>
+        <section className="account-card dashboard-resources">
+            <div className="account-section-heading">
+                <div>
+                    <h2>
+                        Monitors
+                        <Badge variant="soft" color="gray">
+                            {monitors?.length ?? 0} / {limit}
+                        </Badge>
+                    </h2>
                     <p>
-                        It is shown once. Call <code>{pingUrl}/fail</code> to report a failure right
-                        away.
+                        We check on a schedule and email you when something goes down or comes back.
                     </p>
                 </div>
+                <Button color="green" disabled={full} onClick={start}>
+                    <Plus size={16} /> Add monitor
+                </Button>
+            </div>
+            {!verifiedEmail && !!monitors?.length && (
+                <p className="monitor-hint">
+                    <a href="#security">Verify your email</a> to get alert emails.
+                </p>
             )}
-            <section className="settings-card">
-                <h2>
-                    Add a monitor{' '}
-                    <small className="tool-notice">
-                        {monitors?.length ?? 0} of {limit}
-                    </small>
-                </h2>
-                <form
-                    className="monitor-form inbox-response-form"
-                    onSubmit={(event) => void create(event)}
-                >
-                    <div className="inbox-response-row">
-                        <label>
-                            Type
-                            <select
-                                value={kind}
-                                onChange={(event) => setKind(event.target.value as Monitor['kind'])}
+            {monitors === null ? null : monitors.length ? (
+                <div className="account-table-wrap">
+                    <table className="account-table">
+                        <thead>
+                            <tr>
+                                <th>Monitor</th>
+                                <th>Status</th>
+                                <th>Last check</th>
+                                <th>
+                                    <span className="sr-only">Actions</span>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {monitors.map((monitor) => (
+                                <tr key={monitor.id}>
+                                    <td>
+                                        <div className="monitor-name">
+                                            <strong>{monitor.name}</strong>
+                                            <small>
+                                                {kinds[monitor.kind]}
+                                                {monitor.target
+                                                    ? ` · ${new URL(monitor.target).host}`
+                                                    : ''}{' '}
+                                                ·{' '}
+                                                {monitor.kind === 'ssl'
+                                                    ? 'daily'
+                                                    : every(monitor.intervalSeconds)}
+                                            </small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <Badge
+                                            variant="soft"
+                                            color={
+                                                monitor.paused
+                                                    ? 'gray'
+                                                    : monitor.status === 'up'
+                                                      ? 'green'
+                                                      : monitor.status === 'down'
+                                                        ? 'red'
+                                                        : 'gray'
+                                            }
+                                        >
+                                            {monitor.paused
+                                                ? 'Paused'
+                                                : monitor.status === 'up'
+                                                  ? 'Up'
+                                                  : monitor.status === 'down'
+                                                    ? 'Down'
+                                                    : 'Waiting'}
+                                        </Badge>
+                                    </td>
+                                    <td className="monitor-last">{monitor.lastMessage ?? '—'}</td>
+                                    <td>
+                                        <DropdownMenu.Root>
+                                            <DropdownMenu.Trigger>
+                                                <IconButton
+                                                    aria-label={`Actions for ${monitor.name}`}
+                                                    variant="ghost"
+                                                    color="gray"
+                                                    size="2"
+                                                >
+                                                    <DotsThree size={20} />
+                                                </IconButton>
+                                            </DropdownMenu.Trigger>
+                                            <DropdownMenu.Content align="end">
+                                                <DropdownMenu.Item
+                                                    onSelect={() =>
+                                                        void change(
+                                                            monitor,
+                                                            monitor.paused ? 'resume' : 'pause',
+                                                        )
+                                                    }
+                                                >
+                                                    {monitor.paused ? 'Resume' : 'Pause'}
+                                                </DropdownMenu.Item>
+                                                <DropdownMenu.Item
+                                                    color="red"
+                                                    onSelect={() => void change(monitor, 'delete')}
+                                                >
+                                                    Delete
+                                                </DropdownMenu.Item>
+                                            </DropdownMenu.Content>
+                                        </DropdownMenu.Root>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            ) : (
+                <div className="monitor-empty">
+                    <Pulse size={28} />
+                    <strong>Nothing is being watched yet.</strong>
+                    <p>Add a website, an SSL certificate or a cron job. It takes ten seconds.</p>
+                    <Button color="green" onClick={start}>
+                        <Plus size={16} /> Add your first monitor
+                    </Button>
+                </div>
+            )}
+
+            <Dialog.Root open={open} onOpenChange={setOpen}>
+                <Dialog.Content maxWidth="480px">
+                    <Dialog.Title>
+                        {pingUrl ? 'Ping this URL from your job' : 'Add a monitor'}
+                    </Dialog.Title>
+                    {pingUrl ? (
+                        <div className="monitor-form">
+                            <p>Add this as the last line of your job. We alert you if it stops.</p>
+                            <div className="code-row">
+                                <code>{`curl -fsS -m 10 ${pingUrl}`}</code>
+                                <CopyButton
+                                    text={`curl -fsS -m 10 ${pingUrl}`}
+                                    label="Copy command"
+                                    compact
+                                />
+                            </div>
+                            <p className="monitor-hint">
+                                Shown once. To report a failure, call the same URL with /fail.
+                            </p>
+                            <div className="button-row">
+                                <Button color="green" onClick={() => setOpen(false)}>
+                                    Done
+                                </Button>
+                            </div>
+                        </div>
+                    ) : (
+                        <form className="monitor-form" onSubmit={(event) => void create(event)}>
+                            <div
+                                className="monitor-kinds"
+                                role="radiogroup"
+                                aria-label="What to watch"
                             >
-                                <option value="http">Website or API</option>
-                                <option value="ssl">SSL certificate</option>
-                                <option value="heartbeat">Cron job heartbeat</option>
-                            </select>
-                        </label>
-                        <label>
-                            Name
-                            <input
-                                required
-                                maxLength={80}
-                                value={name}
-                                placeholder={kind === 'heartbeat' ? 'Nightly backup' : 'Homepage'}
-                                onChange={(event) => setName(event.target.value)}
-                            />
-                        </label>
-                        <label>
-                            {kind === 'heartbeat' ? 'Expected every' : 'Check'}
-                            <select
-                                value={interval}
-                                onChange={(event) => setIntervalSeconds(Number(event.target.value))}
-                            >
-                                {intervals
-                                    .filter(([seconds]) => seconds >= minInterval)
-                                    .map(([seconds, label]) => (
-                                        <option key={seconds} value={seconds}>
-                                            {label}
-                                        </option>
-                                    ))}
-                            </select>
-                        </label>
-                    </div>
-                    {kind !== 'heartbeat' && (
-                        <label>
-                            {kind === 'ssl' ? 'Hostname' : 'URL'}
-                            <input
-                                required
-                                value={target}
-                                placeholder={
-                                    kind === 'ssl' ? 'example.com' : 'https://example.com/health'
-                                }
-                                onChange={(event) => setTarget(event.target.value)}
-                            />
-                        </label>
+                                {(Object.keys(kinds) as Monitor['kind'][]).map((value) => (
+                                    <button
+                                        key={value}
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={kind === value}
+                                        className={kind === value ? 'is-active' : ''}
+                                        onClick={() => setKind(value)}
+                                    >
+                                        {kinds[value]}
+                                    </button>
+                                ))}
+                            </div>
+                            {kind !== 'heartbeat' && (
+                                <label>
+                                    {kind === 'ssl' ? 'Domain' : 'URL'}
+                                    <input
+                                        required
+                                        autoFocus
+                                        value={target}
+                                        placeholder={
+                                            kind === 'ssl' ? 'example.com' : 'https://example.com'
+                                        }
+                                        onChange={(event) => setTarget(event.target.value)}
+                                    />
+                                </label>
+                            )}
+                            <label>
+                                Name
+                                <input
+                                    required
+                                    maxLength={80}
+                                    value={name}
+                                    placeholder={
+                                        kind === 'heartbeat' ? 'Nightly backup' : 'My website'
+                                    }
+                                    onChange={(event) => setName(event.target.value)}
+                                />
+                            </label>
+                            {kind !== 'ssl' && (
+                                <label>
+                                    {kind === 'heartbeat' ? 'Runs' : 'Check'}
+                                    <select
+                                        value={interval}
+                                        onChange={(event) =>
+                                            setIntervalSeconds(Number(event.target.value))
+                                        }
+                                    >
+                                        {intervals
+                                            .filter(([seconds]) => seconds >= minInterval)
+                                            .map(([seconds, label]) => (
+                                                <option key={seconds} value={seconds}>
+                                                    {label}
+                                                </option>
+                                            ))}
+                                    </select>
+                                </label>
+                            )}
+                            <details className="monitor-more">
+                                <summary>More options</summary>
+                                {kind === 'http' && (
+                                    <label>
+                                        Page must contain
+                                        <input
+                                            maxLength={200}
+                                            value={expectText}
+                                            placeholder="Optional, e.g. ok"
+                                            onChange={(event) => setExpectText(event.target.value)}
+                                        />
+                                    </label>
+                                )}
+                                <label>
+                                    Also alert this webhook
+                                    <input
+                                        type="url"
+                                        value={webhook}
+                                        placeholder="Optional, e.g. a Slack webhook"
+                                        onChange={(event) => setWebhook(event.target.value)}
+                                    />
+                                </label>
+                            </details>
+                            {error && (
+                                <p className="monitor-error" role="alert">
+                                    {error}
+                                </p>
+                            )}
+                            <div className="button-row">
+                                <Dialog.Close>
+                                    <Button variant="soft" color="gray" type="button">
+                                        Cancel
+                                    </Button>
+                                </Dialog.Close>
+                                <Button color="green" type="submit" disabled={busy}>
+                                    {busy ? 'Adding…' : 'Add monitor'}
+                                </Button>
+                            </div>
+                        </form>
                     )}
-                    {kind === 'http' && (
-                        <label>
-                            Must contain (optional)
-                            <input
-                                maxLength={200}
-                                value={expectText}
-                                placeholder="ok"
-                                onChange={(event) => setExpectText(event.target.value)}
-                            />
-                        </label>
-                    )}
-                    <label>
-                        Alert webhook (optional)
-                        <input
-                            type="url"
-                            value={webhook}
-                            placeholder="https://hooks.slack.com/…"
-                            onChange={(event) => setWebhook(event.target.value)}
-                        />
-                    </label>
-                    <div className="button-row">
-                        <Button size="2" color="green" type="submit" disabled={busy}>
-                            {busy ? 'Adding…' : 'Add monitor'}
-                        </Button>
-                    </div>
-                </form>
-            </section>
-        </div>
+                </Dialog.Content>
+            </Dialog.Root>
+        </section>
     );
 }

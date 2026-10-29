@@ -2,15 +2,12 @@
 import process from 'node:process';
 import { Buffer } from 'node:buffer';
 import { SocketHelp, SocketError } from '@socket-help/sdk';
-import { command } from './commands.js';
+import { command, needsInput as commandNeedsInput } from './commands.js';
 import { listen } from './listen.js';
 import type { ListenOptions } from './listen.js';
 try {
     const args = process.argv.slice(2);
-    const needsInput =
-        args[0] === 'run' ||
-        args[0] === 'upload' ||
-        (args[0] === 'api' && !['GET', 'DELETE'].includes(args[1] ?? ''));
+    const needsInput = commandNeedsInput(args);
     const chunks: Buffer[] = [];
     let size = 0;
     if (needsInput && !process.stdin.isTTY)
@@ -52,6 +49,8 @@ try {
     const result = await command(client, args, Buffer.concat(chunks));
     if (!args.length || ['--help', 'help'].includes(args[0]!))
         process.stdout.write(`${(result as { help: string }).help}\n`);
+    else if (args.length === 1 && args[0] === '--version')
+        process.stdout.write(`${(result as { version: string }).version}\n`);
     else if (result instanceof Uint8Array) process.stdout.write(result);
     else if (result !== undefined) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 } catch (error) {

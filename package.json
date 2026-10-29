@@ -20,9 +20,14 @@
     "cli": "node packages/cli/dist/cli.js",
     "backup": "node scripts/backup.mjs",
     "test:backup": "node scripts/verify-backup.mjs",
-    "check:production": "node scripts/production-check.mjs"
+    "check:production": "node scripts/production-check.mjs",
+    "test:packages": "node scripts/test-packages.mjs",
+    "changeset": "changeset",
+    "release:version": "changeset version && pnpm install --lockfile-only --ignore-scripts && pnpm test:packages",
+    "test:releases": "node scripts/test-client-releases.mjs"
   },
   "devDependencies": {
+    "@changesets/cli": "3.0.3",
     "embedded-postgres": "18.4.0-beta.17",
     "prettier": "3.9.10"
   }

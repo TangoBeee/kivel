@@ -1,3 +1,17 @@
+export * from './types.js';
+import type {
+    AgentLogin,
+    AgentToken,
+    AgentTrial,
+    Approval,
+    ApprovalInput,
+    EmailInbox,
+    EmailMessage,
+    MemoryEntry,
+    Monitor,
+    MonitorInput,
+    WaitOptions,
+} from './types.js';
 export interface ClientOptions {
     baseUrl?: string | undefined;
     apiKey?: string | undefined;
@@ -86,12 +100,20 @@ export class SocketHelp {
         resourceToken?: string,
         headers: Record<string, string> = {},
     ): Promise<T> {
+        const pathname = path.split('?')[0]!;
         if (
-            !/^\/(?:api|mock)\/[a-zA-Z0-9_/?=&%.,:-]+$/.test(path) ||
-            path.includes('..') ||
-            /%2f|%5c|%2e/i.test(path)
+            (!/^\/(?:api|mock)\//.test(path) &&
+                !/^\/ping\/[A-Za-z0-9_-]{32}(?:\/fail)?$/.test(path)) ||
+            /[\\#\x00-\x20]/.test(path) ||
+            pathname.split('/').some((part) => {
+                try {
+                    return ['.', '..'].includes(decodeURIComponent(part)) || /%2f|%5c/i.test(part);
+                } catch {
+                    return true;
+                }
+            })
         )
-            throw new Error('Use a relative /api/ or /mock/ path.');
+            throw new Error('Use a relative /api/ or /mock/ path without traversal.');
         const requestHeaders = new Headers(headers);
         requestHeaders.set('Accept', 'application/json');
         if (this.options.apiKey)
@@ -117,12 +139,18 @@ export class SocketHelp {
             credentials: 'omit',
             signal: AbortSignal.timeout(this.timeoutMs),
         });
-        if (response.status === 204 || response.status === 304) return undefined as T;
+        if (
+            response.status === 204 ||
+            response.status === 304 ||
+            (method.toUpperCase() === 'HEAD' && response.ok)
+        )
+            return undefined as T;
         const text = await response.text();
         let value: unknown;
         try {
             value = JSON.parse(text);
         } catch {
+            if (response.ok && path.startsWith('/mock/')) return text as T;
             throw new SocketError(
                 'The server returned an invalid response.',
                 response.status,
@@ -191,6 +219,157 @@ export class SocketHelp {
             ...(file ? { file } : {}),
         });
     }
+    plans() {
+        return this.request('GET', '/api/plans');
+    }
+    activity() {
+        return this.request('GET', '/api/account/activity');
+    }
+    startLogin(name: string, client?: string) {
+        return this.request<AgentLogin>('POST', '/api/agents/login', { name, client });
+    }
+    finishLogin(deviceCode: string) {
+        return this.request<AgentToken>('POST', '/api/agents/token', { deviceCode });
+    }
+    startTrial(name: string, humanEmail?: string, client?: string) {
+        return this.request<AgentTrial>('POST', '/api/agents/trial', { name, humanEmail, client });
+    }
+    agents() {
+        return this.request('GET', '/api/agents');
+    }
+    createEmailInbox(settings: Omit<ResourceSettings, 'visibility'> = {}) {
+        return this.request<EmailInbox>('POST', `/api/email-inboxes${query(settings)}`);
+    }
+    emailInbox(id: string, token?: string) {
+        return this.request<EmailInbox>(
+            'GET',
+            `/api/email-inboxes/${encodeURIComponent(id)}`,
+            undefined,
+            token,
+        );
+    }
+    emails(id: string, token?: string) {
+        return this.request<{ messages: EmailMessage[] }>(
+            'GET',
+            `/api/email-inboxes/${encodeURIComponent(id)}/messages`,
+            undefined,
+            token,
+        );
+    }
+    waitForEmail(id: string, options: WaitOptions = {}) {
+        return this.request<{ timedOut: boolean; messages: EmailMessage[] }>(
+            'GET',
+            `/api/email-inboxes/${encodeURIComponent(id)}/wait${this.waitQuery(options)}`,
+            undefined,
+            options.token,
+        );
+    }
+    memorySet<T>(namespace: string, key: string, value: T, ttlSeconds?: number) {
+        return this.request<Omit<MemoryEntry<T>, 'value'>>('PUT', memoryPath(namespace, key), {
+            value,
+            ttlSeconds,
+        });
+    }
+    memoryGet<T = unknown>(namespace: string, key: string) {
+        return this.request<MemoryEntry<T>>('GET', memoryPath(namespace, key));
+    }
+    memoryList(namespace: string, prefix = '') {
+        return this.request<{
+            keys: Omit<MemoryEntry, 'value'>[];
+            usedBytes: number;
+            limitBytes: number;
+        }>('GET', `${memoryPath(namespace)}${query({ prefix })}`);
+    }
+    memoryDelete(namespace: string, key: string) {
+        return this.request<void>('DELETE', memoryPath(namespace, key));
+    }
+    createMonitor(settings: MonitorInput) {
+        return this.request<Monitor>('POST', '/api/monitors', settings);
+    }
+    monitors() {
+        return this.request<{ monitors: Monitor[]; limit: number; minIntervalSeconds: number }>(
+            'GET',
+            '/api/monitors',
+        );
+    }
+    monitor(id: string) {
+        return this.request<Monitor>('GET', `/api/monitors/${encodeURIComponent(id)}`);
+    }
+    pingMonitor(token: string, failed = false) {
+        if (!/^[A-Za-z0-9_-]{32}$/.test(token))
+            throw new Error('Provide the token from the monitor pingUrl.');
+        return this.request<{ ok: true; status: 'up' | 'down' }>(
+            'POST',
+            `/ping/${token}${failed ? '/fail' : ''}`,
+        );
+    }
+    pauseMonitor(id: string, paused = true) {
+        return this.request<{ paused: boolean }>(
+            'PATCH',
+            `/api/monitors/${encodeURIComponent(id)}`,
+            { paused },
+        );
+    }
+    deleteMonitor(id: string) {
+        return this.request<void>('DELETE', `/api/monitors/${encodeURIComponent(id)}`);
+    }
+    askHuman(input: ApprovalInput) {
+        return this.request<Approval>('POST', '/api/approvals', input);
+    }
+    approvals(pendingOnly = false) {
+        return this.request<{ approvals: Approval[] }>(
+            'GET',
+            `/api/approvals${pendingOnly ? '?status=pending' : ''}`,
+        );
+    }
+    approval(id: string) {
+        return this.request<Approval>('GET', `/api/approvals/${encodeURIComponent(id)}`);
+    }
+    waitForApproval(id: string, timeoutSeconds?: number) {
+        return this.request<Approval & { timedOut: boolean }>(
+            'GET',
+            `/api/approvals/${encodeURIComponent(id)}/wait${this.waitQuery({ timeoutSeconds })}`,
+        );
+    }
+    inspectResource(
+        kind: 'inboxes' | 'mocks' | 'files' | 'mcp-servers' | 'email-inboxes',
+        id: string,
+        token?: string,
+    ) {
+        return this.request('GET', `/api/${kind}/${encodeURIComponent(id)}`, undefined, token);
+    }
+    updateMock(id: string, config: unknown, token?: string) {
+        return this.request('PUT', `/api/mocks/${encodeURIComponent(id)}`, config, token);
+    }
+    resetMock(id: string, token?: string) {
+        return this.request('POST', `/api/mocks/${encodeURIComponent(id)}/reset`, {}, token);
+    }
+    mockCalls(id: string, token?: string) {
+        return this.request('GET', `/api/mocks/${encodeURIComponent(id)}/calls`, undefined, token);
+    }
+    setInboxForward(id: string, url: string | null, token?: string) {
+        return this.request(
+            url === null ? 'DELETE' : 'PUT',
+            `/api/inboxes/${encodeURIComponent(id)}/forward`,
+            url === null ? undefined : { url },
+            token,
+        );
+    }
+    inboxDeliveries(id: string, token?: string) {
+        return this.request(
+            'GET',
+            `/api/inboxes/${encodeURIComponent(id)}/deliveries`,
+            undefined,
+            token,
+        );
+    }
+    private waitQuery(options: WaitOptions) {
+        const ceiling = Math.max(1, Math.floor(this.timeoutMs / 1000) - 5);
+        return query({
+            after: options.after,
+            timeoutSeconds: Math.min(options.timeoutSeconds ?? 20, ceiling, 30),
+        });
+    }
     usage() {
         return this.request('GET', '/api/usage');
     }
@@ -233,8 +412,13 @@ export class SocketHelp {
         );
     }
     setInboxResponse(id: string, response: InboxResponse | null, token?: string) {
+        if (
+            response !== null &&
+            (!response || typeof response !== 'object' || Array.isArray(response))
+        )
+            throw new Error('Provide response settings as an object, or null to reset.');
         return this.request(
-            response ? 'PUT' : 'DELETE',
+            response === null ? 'DELETE' : 'PUT',
             `/api/inboxes/${encodeURIComponent(id)}/response`,
             response ?? undefined,
             token,
@@ -296,7 +480,11 @@ export class SocketHelp {
             );
         return new Uint8Array(await response.arrayBuffer());
     }
-    remove(kind: 'inboxes' | 'mocks' | 'files' | 'mcp-servers', id: string, token?: string) {
+    remove(
+        kind: 'inboxes' | 'mocks' | 'files' | 'mcp-servers' | 'email-inboxes',
+        id: string,
+        token?: string,
+    ) {
         return this.request<void>(
             'DELETE',
             `/api/${kind}/${encodeURIComponent(id)}`,
@@ -305,7 +493,7 @@ export class SocketHelp {
         );
     }
     renew(
-        kind: 'inboxes' | 'mocks' | 'files' | 'mcp-servers',
+        kind: 'inboxes' | 'mocks' | 'files' | 'mcp-servers' | 'email-inboxes',
         id: string,
         settings: { persistent?: boolean } = {},
         token?: string,
@@ -329,4 +517,16 @@ function query(settings: object) {
 
 function creationQuery(settings: ResourceSettings) {
     return query({ ...settings, visibility: settings.visibility ?? 'private' });
+}
+
+function memoryPath(namespace: string, key?: string) {
+    if (!/^[a-zA-Z0-9_.:-]{1,64}$/.test(namespace) || ['.', '..'].includes(namespace))
+        throw new Error('Provide a valid memory namespace.');
+    if (
+        key !== undefined &&
+        (!/^[a-zA-Z0-9_./:-]{1,200}$/.test(key) ||
+            key.split('/').some((part) => ['.', '..'].includes(part)))
+    )
+        throw new Error('Provide a valid memory key without traversal.');
+    return `/api/memory/${encodeURIComponent(namespace)}${key === undefined ? '' : '/' + key.split('/').map(encodeURIComponent).join('/')}`;
 }

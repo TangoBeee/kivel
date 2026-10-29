@@ -2,19 +2,45 @@
   "name": "@socket-help/sdk",
   "version": "0.3.0",
   "type": "module",
-  "private": true,
   "exports": {
-    ".": "./dist/index.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
   },
   "files": [
-    "dist"
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "CHANGELOG.md"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true,force:true})\" && tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepack": "pnpm build"
   },
   "devDependencies": {
     "typescript": "^7.0.2",
     "@types/node": "^26.6.5"
-  }
+  },
+  "description": "TypeScript client for socket.help: agent login, webhooks, email, memory, monitors and approvals.",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "homepage": "https://socket.help/docs/sdk/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TangoBeee/socket.help.git",
+    "directory": "packages/sdk"
+  },
+  "bugs": {
+    "email": "support@socket.help"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/",
+    "tag": "beta"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts"
 }

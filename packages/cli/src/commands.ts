@@ -1,10 +1,36 @@
+import { VERSION } from './version.js';
+import { agentCommand } from './agent-commands.js';
+export { needsInput } from './agent-commands.js';
 import type { SocketHelp } from '@socket-help/sdk';
 export const help = `socket-help tools | usage | resources
+socket-help --version
+socket-help plans | activity
+socket-help agent login <name> [--client <client>]
+socket-help agent token < login.json
+socket-help agent trial <name> [--human-email <email>] [--client <client>]
+socket-help agent list
+socket-help email create [--ttl-seconds <n>] [--persistent]
+socket-help email messages|wait <id> [--token <token>] [--after <id>] [--timeout-seconds <n>]
+socket-help memory set <namespace> <key> [--ttl-seconds <n>] < value.json
+socket-help memory get|delete <namespace> <key>
+socket-help memory list <namespace> [--prefix <prefix>]
+socket-help monitor create < monitor.json
+socket-help monitor list|inspect|pause|resume|delete [id]
+socket-help monitor ping|fail <ping-token>
+socket-help approval ask < question.json
+socket-help approval list|pending|inspect|wait [id] [--timeout-seconds <n>]
+socket-help inbox requests|wait|deliveries <id> [--token <token>]
+socket-help inbox response|forward <id> [--token <token>] < settings.json
+socket-help mock create|update [id] < config.json
+socket-help mock calls|reset <id> [--token <token>]
+socket-help mcp-server create < config.json
+socket-help inbox|email|mock|mcp-server|file inspect|delete|renew <id> [--token <token>]
+socket-help inbox|mock|mcp-server|file sharing <id> --visibility private|public [--token <token>]
 socket-help describe <tool-id>
 socket-help run <tool-id> [--file <filename>] [--options '{"action":"minify"}'] < input.txt
 socket-help inbox create [--visibility private|public]
 socket-help listen <inbox-id> [--token <inspection-token>] [--forward http://localhost:3000] [--all]
-socket-help api <GET|POST|PUT|PATCH|DELETE> /api/path-or-/mock/path [--token <resource-token>] < body.json
+socket-help api <GET|HEAD|OPTIONS|POST|PUT|PATCH|DELETE> /api/path-or-/mock/path [--token <resource-token>] < body.json
 socket-help upload <filename> [--visibility private|public] [--max-downloads 1] < file.bin
 socket-help download <file-id> [--access-token token] > file.bin
 
@@ -56,10 +82,13 @@ export async function command(
     args: string[],
     input: Uint8Array = new Uint8Array(),
 ) {
+    if (args.length === 1 && args[0] === '--version') return { version: VERSION };
     if (!args.length || args[0] === '--help' || args[0] === 'help') return { help };
     const text = () => new TextDecoder('utf-8', { fatal: true }).decode(input);
     if (args.length === 1 && args[0] === 'tools') return client.tools();
     if (args.length === 2 && args[0] === 'describe') return client.tool(args[1]!);
+    if (args.length === 1 && args[0] === 'plans') return client.plans();
+    if (args.length === 1 && args[0] === 'activity') return client.activity();
     if (args.length === 1 && args[0] === 'usage') return client.usage();
     if (args.length === 1 && args[0] === 'resources') return client.resources();
     if (args[0] === 'run' && args[1]) {
@@ -106,7 +135,7 @@ export async function command(
         args[0] === 'api' &&
         args[1] &&
         args[2] &&
-        /^(GET|POST|PUT|PATCH|DELETE)$/.test(args[1]) &&
+        /^(GET|HEAD|OPTIONS|POST|PUT|PATCH|DELETE)$/.test(args[1]) &&
         (args.length === 3 || (args.length === 5 && args[3] === '--token'))
     )
         return client.request(
@@ -115,5 +144,5 @@ export async function command(
             input.length ? JSON.parse(text()) : undefined,
             args[4],
         );
-    throw new Error('Unknown command. Run socket-help --help.');
+    return agentCommand(client, args, input);
 }

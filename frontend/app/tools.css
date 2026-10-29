@@ -2,9 +2,9 @@
 brand green for Radix controls,
 and calmer editors. Loaded last. */
 .radix-themes {
-  --green-9: #6bdc9a;
-  --green-10: #8be6b1;
-  --green-11: #6bdc9a;
+  --green-9: #286747;
+  --green-10: #1f5239;
+  --green-11: #286747;
 }
 .work-page {
   padding-top: 48px;
@@ -853,7 +853,7 @@ and calmer editors. Loaded last. */
 }
 .payment-validation.is-failing {
   background: var(--danger-bg);
-  border-color: rgb(240 140 132 / 0.4);
+  border-color: #e8c4bf;
 }
 .payment-validation.is-failing > svg {
   color: var(--danger);
@@ -1508,16 +1508,16 @@ and calmer editors. Loaded last. */
   font-size: 12px;
 }
 .json-token-key {
-  color: #6bdc9a;
+  color: #286747;
 }
 .json-token-string {
-  color: #e8b07a;
+  color: #8d5a28;
 }
 .json-token-number {
-  color: #8fb4ff;
+  color: #355e9b;
 }
 .json-token-literal {
-  color: #e0a0d4;
+  color: #8b4a80;
 }
 .editor-panel .tool-single-input {
   display: block;
@@ -1583,7 +1583,7 @@ and calmer editors. Loaded last. */
   height: auto;
   object-fit: contain;
   align-self: flex-start;
-  box-shadow: 0 2px 12px rgb(0 0 0 / 0.4);
+  box-shadow: 0 2px 12px rgb(17 19 18 / 0.08);
   background: white;
 }
 .pdf-loading {
@@ -1706,7 +1706,7 @@ and calmer editors. Loaded last. */
   overflow: auto;
 }
 .result-regex-context mark {
-  background: rgb(107 220 154 / 0.22);
+  background: #d8eedf;
   color: var(--ink);
   padding: 2px 0;
   border-radius: 2px;
@@ -1794,7 +1794,7 @@ and calmer editors. Loaded last. */
   flex: 1;
   max-width: 8px;
   min-height: 4px;
-  background: rgb(107 220 154 / 0.3);
+  background: #bad5c1;
   border-radius: 3px;
 }
 .audio-waveform span[data-played='true'] {
@@ -2291,7 +2291,7 @@ and calmer editors. Loaded last. */
   border-radius: 50%;
   background: var(--surface);
   border: 1px solid var(--accent-line);
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.4);
+  box-shadow: 0 1px 3px rgb(17 19 18 / 0.08);
 }
 .app-slider-thumb:focus-visible {
   outline: 2px solid var(--accent);
@@ -2308,7 +2308,7 @@ and calmer editors. Loaded last. */
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--surface);
-  box-shadow: 0 4px 20px rgb(0 0 0 / 0.3);
+  box-shadow: 0 4px 20px rgb(17 19 18 / 0.05);
 }
 
 .music-filters input {

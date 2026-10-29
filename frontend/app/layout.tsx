@@ -29,7 +29,7 @@ export const metadata: Metadata = {
 
 export default function Layout({ children }: { children: React.ReactNode }) {
     return (
-        <html lang="en" data-theme="dark" data-scroll-behavior="smooth">
+        <html lang="en" data-theme="light" data-scroll-behavior="smooth">
             <body className={`${GeistSans.variable} ${GeistMono.variable} ${display.variable}`}>
                 <ToolboxProvider>
                     <a className="skip-link" href="#main">

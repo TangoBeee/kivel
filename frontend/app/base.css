@@ -1,35 +1,35 @@
 :root {
-  color-scheme: dark;
-  /* One dark product: near-black ground, raised panels, off-white ink, mint from the brand green */
+  color-scheme: light;
+  /* Editorial light: white page, near-black ink, the brand green kept for small accents */
   /* Surfaces */
-  --bg: #0b0c0c;
-  --surface: #121414;
-  --subtle: #181a1a;
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --subtle: #f4f4f1;
   /* Text: muted stays above 4.5:1 on every surface */
-  --ink: #ecedeb;
-  --muted: #9a9e9b;
-  --line: rgb(255 255 255 / 0.08);
-  --line-strong: rgb(255 255 255 / 0.16);
+  --ink: #111312;
+  --muted: #5d615e;
+  --line: #e7e7e3;
+  --line-strong: #d3d4d0;
   /* Brand */
-  --accent: #6bdc9a;
-  --accent-hover: #8be6b1;
-  --accent-soft: rgb(107 220 154 / 0.1);
-  --accent-line: rgb(107 220 154 / 0.35);
-  --accent-ink: #04170c;
+  --accent: #286747;
+  --accent-hover: #1f5239;
+  --accent-soft: #edf5ef;
+  --accent-line: #b6dbc3;
+  --accent-ink: #ffffff;
   --brand: #286747;
-  --danger: #f08c84;
-  --danger-bg: rgb(240 140 132 / 0.1);
-  --warning: #f5b544;
-  --warning-bg: rgb(245 181 68 / 0.08);
+  --danger: #ad3f3b;
+  --danger-bg: #fff2ef;
+  --warning: #9a5a0c;
+  --warning-bg: #fff7e8;
   /* Shape: 8 small parts, 10 controls, 12 rows, 16 cards, 24 panels, full for pills */
   --radius-sm: 8px;
   --radius-control: 10px;
   --radius-row: 12px;
   --radius-card: 16px;
   --radius-panel: 24px;
-  /* Depth: dark shadows, offset and soft */
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
-  --shadow-md: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.4);
+  /* Depth: shadows tinted to the ink */
+  --shadow-sm: 0 1px 2px rgb(17 19 18 / 0.05);
+  --shadow-md: 0 1px 2px rgb(17 19 18 / 0.04), 0 8px 24px rgb(17 19 18 / 0.08);
   --ease: cubic-bezier(0.32, 0.72, 0, 1);
   --mono: var(--font-geist-mono), ui-monospace, monospace;
 }
@@ -37,11 +37,10 @@ body {
   --display: var(--font-display), 'Iowan Old Style', Georgia, serif;
 }
 ::selection {
-  background: rgb(107 220 154 / 0.3);
+  background: #cfe7d8;
   color: var(--ink);
 }
 html {
-  scrollbar-color: #2c302e var(--bg);
   accent-color: var(--accent);
   caret-color: var(--accent);
 }

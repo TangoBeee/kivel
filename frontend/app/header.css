@@ -11,7 +11,7 @@
   height: 64px;
   padding: 0 max(24px, calc((100% - 1180px) / 2 + 32px));
   border-bottom: 1px solid var(--line);
-  background: rgb(11 12 12 / 0.72);
+  background: rgb(255 255 255 / 0.86);
   -webkit-backdrop-filter: blur(16px) saturate(1.8);
   backdrop-filter: blur(16px) saturate(1.8);
 }
@@ -129,7 +129,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgb(11 12 12 / 0.92);
+  background: rgb(255 255 255 / 0.92);
   -webkit-backdrop-filter: blur(64px);
   backdrop-filter: blur(64px);
   opacity: 0;
@@ -265,7 +265,7 @@ html.menu-open {
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
-  border-radius: var(--radius-control);
+  border-radius: 9999px;
   background: var(--ink);
   font-size: 0.875rem;
   line-height: 1.25rem;
@@ -276,7 +276,7 @@ html.menu-open {
     transform 300ms var(--island-ease);
 }
 .island-cta:hover {
-  background: #ffffff;
+  background: #2b2f2d;
 }
 .island-cta:active {
   transform: scale(0.98);

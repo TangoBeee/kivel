@@ -103,9 +103,9 @@ sentence case label above a page heading */
 /* Buttons: one shape and weight everywhere */
 .button {
   min-height: 40px;
-  padding: 8px 16px;
+  padding: 8px 18px;
   border: 1px solid var(--line-strong);
-  border-radius: var(--radius-control);
+  border-radius: 9999px;
   background: var(--surface);
   font-size: 0.875rem;
   line-height: 1.25rem;
@@ -129,8 +129,8 @@ sentence case label above a page heading */
   filter: none;
 }
 .button-primary:hover {
-  border-color: #ffffff;
-  background: #ffffff;
+  border-color: #2b2f2d;
+  background: #2b2f2d;
 }
 .button:active {
   transform: scale(0.98);
@@ -138,18 +138,19 @@ sentence case label above a page heading */
 .content-page .button,
 .reference-page .button {
   min-height: 40px;
-  border-radius: var(--radius-control);
+  border-radius: 9999px;
   font-weight: 600;
 }
 .radix-themes .rt-Button {
-  font-weight: 600;
+  border-radius: 9999px;
+  font-weight: 500;
 }
 /* Radix solid buttons follow the same rule: near-black,
 with green kept for soft accents */
 .radix-themes[data-accent-color='green'],
 .radix-themes [data-accent-color='green'] {
   --accent-9: var(--ink);
-  --accent-10: #ffffff;
+  --accent-10: #2b2f2d;
   --accent-contrast: var(--bg);
 }
 .text-link {
@@ -351,24 +352,25 @@ and depth on every page */
 }
 
 /* Code: always on a dark surface */
+/* Code stays a dark block on the light page, with its own light-on-dark text */
 .code-example {
-  border-color: var(--line);
-  background: #0e1010;
+  border-color: #1d201e;
+  background: #121514;
   box-shadow: none;
 }
 .code-example-bar {
-  border-bottom-color: var(--line);
-  color: var(--muted);
+  border-bottom-color: #262a28;
+  color: #b4b9b5;
 }
 .code-example pre {
   color: #e8eae8;
 }
 .code-example .rt-Button {
-  color: var(--muted);
+  color: #d3d6d3;
 }
 .code-example .rt-Button:hover {
-  background: var(--subtle);
-  color: var(--ink);
+  background: #262a28;
+  color: #ffffff;
 }
 /* Visible to screen readers only */
 .sr-only {

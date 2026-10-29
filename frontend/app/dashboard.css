@@ -278,7 +278,7 @@ body:has(.dashboard-layout) main::after {
   height: 56px;
   padding: 0 32px;
   border-bottom: 1px solid var(--line);
-  background: rgb(11 12 12 / 0.8);
+  background: rgb(255 255 255 / 0.85);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
 }
@@ -331,10 +331,6 @@ body:has(.dashboard-layout) main::after {
   justify-content: space-between;
   gap: 24px;
   margin-bottom: 24px;
-}
-.dashboard-lamps {
-  z-index: -1;
-  mask-image: linear-gradient(to right, transparent 40%, #000 80%);
 }
 .dashboard-heading p {
   margin-top: 4px;
@@ -408,7 +404,7 @@ body:has(.dashboard-layout) main::after {
   gap: 16px;
   margin-bottom: 16px;
   padding: 16px 20px;
-  border: 1px solid rgb(245 181 68 / 0.3);
+  border: 1px solid #f0d49a;
   border-radius: var(--radius-card);
   background: var(--warning-bg);
 }
@@ -985,7 +981,7 @@ body:has(.dashboard-layout) main::after {
     position: fixed;
     inset: 0 auto 0 0;
     width: min(300px, 86vw);
-    box-shadow: 0 0 48px rgb(0 0 0 / 0.5);
+    box-shadow: 0 0 48px rgb(17 19 18 / 0.16);
     transform: translateX(-104%);
     transition: transform 300ms var(--ease);
   }
@@ -1002,7 +998,7 @@ body:has(.dashboard-layout) main::after {
     z-index: 25;
     display: block;
     border: 0;
-    background: rgb(0 0 0 / 0.6);
+    background: rgb(17 19 18 / 0.32);
     opacity: 0;
     pointer-events: none;
     transition: opacity 300ms var(--ease);
@@ -1466,7 +1462,7 @@ body:has(.dashboard-layout) main::after {
   background: var(--surface);
 }
 .agent-overview-questions {
-  border-color: rgb(245 158 11 / 0.35);
+  border-color: #f0d49a;
 }
 .agent-overview-waiting {
   display: flex;

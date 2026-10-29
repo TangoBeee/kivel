@@ -135,7 +135,7 @@ export function ToolboxProvider({ children }: { children: React.ReactNode }) {
 
     return (
         <Theme
-            appearance="dark"
+            appearance="light"
             accentColor="green"
             grayColor="gray"
             radius="large"

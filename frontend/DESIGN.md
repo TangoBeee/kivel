@@ -1,36 +1,36 @@
 ---
 name: socket.help
-description: The internet toolkit for AI coding agents. One dark, precise devtool site where the product is shown working.
+description: The internet toolkit for AI coding agents. A calm, light editorial site with one archive-photograph hero, large serif headlines and the product shown working.
 colors:
-  ground: "#0b0c0c"
-  surface: "#121414"
-  subtle: "#181a1a"
-  code-ground: "#0e1010"
-  ink: "#ecedeb"
-  muted: "#9a9e9b"
-  line: "rgb(255 255 255 / 0.08)"
-  line-strong: "rgb(255 255 255 / 0.16)"
-  mint: "#6bdc9a"
-  mint-hover: "#8be6b1"
-  mint-soft: "rgb(107 220 154 / 0.1)"
-  mint-line: "rgb(107 220 154 / 0.35)"
-  mint-ink: "#04170c"
+  ground: "#ffffff"
+  surface: "#ffffff"
+  subtle: "#f4f4f1"
+  code-ground: "#121514"
+  ink: "#111312"
+  muted: "#5d615e"
+  line: "#e7e7e3"
+  line-strong: "#d3d4d0"
+  green: "#286747"
+  green-hover: "#1f5239"
+  green-soft: "#edf5ef"
+  green-line: "#b6dbc3"
+  green-ink: "#ffffff"
   brand: "#286747"
-  warning: "#f5b544"
-  danger: "#f08c84"
+  warning: "#9a5a0c"
+  danger: "#ad3f3b"
 typography:
   display:
-    fontFamily: "Geist, -apple-system, sans-serif"
-    fontSize: "3.75rem"
-    fontWeight: 600
-    lineHeight: 1
-    letterSpacing: "-0.04em"
+    fontFamily: "Instrument Serif, Georgia, serif"
+    fontSize: "5.75rem"
+    fontWeight: 400
+    lineHeight: 0.95
+    letterSpacing: "-0.01em"
   heading:
-    fontFamily: "Geist, -apple-system, sans-serif"
-    fontSize: "3rem"
-    fontWeight: 600
+    fontFamily: "Instrument Serif, Georgia, serif"
+    fontSize: "3.5rem"
+    fontWeight: 400
     lineHeight: 1
-    letterSpacing: "-0.035em"
+    letterSpacing: "-0.01em"
   page-title:
     fontFamily: "Geist, -apple-system, sans-serif"
     fontSize: "clamp(36px, 4.5vw, 56px)"
@@ -67,13 +67,13 @@ spacing:
   section: "128px"
 components:
   button-primary:
-    backgroundColor: "{colors.mint}"
-    textColor: "{colors.mint-ink}"
-    rounded: "{rounded.control}"
+    backgroundColor: "{colors.ink}"
+    textColor: "{colors.ground}"
+    rounded: "9999px"
     height: "44px"
-    padding: "0 16px"
+    padding: "0 22px"
   button-primary-hover:
-    backgroundColor: "{colors.mint-hover}"
+    backgroundColor: "#2b2f2d"
   button-solid:
     backgroundColor: "{colors.ink}"
     textColor: "{colors.ground}"
@@ -95,78 +95,60 @@ components:
 
 ## Overview
 
-A dark developer-tool site in the tradition of Resend, AgentMail and Trigger.dev, where every page shows the product working instead of describing it. The homepage leads with a live webhook inbox that really receives requests, over ridgelines that pulse when one arrives. Elsewhere the brand is carried by real tool calls, real code and real product screenshots. There is no decoration layer: no glows, aurora, grids, pointer lights or eyebrow labels.
+A calm, light editorial site in the spirit of different.ai. The homepage opens on one full-bleed archive photograph of a 1940s telephone switchboard, toned into the palette, with small switchboard lamps glowing across the board and a large serif headline over it. Everything after the hero is a white page: large Instrument Serif headlines, small quiet Geist text, framed archive photographs, black pill buttons and generous space. The product is shown working (a live webhook inbox, real tool calls, a real dashboard screenshot); there is no decoration layer.
 
-The whole site, including the dashboard, tool pages, docs and the Scalar API reference, uses the same tokens from `app/base.css`. Light mode does not exist.
+The switchboard is the metaphor: operators connected every call by hand, and socket.help connects agents to the internet while the human picks up when it matters. Photographs are U.S. National Archives and Bell Telephone Magazine (Internet Archive), no known copyright restrictions, credited on the page.
 
 ## Colors
 
 ### Primary
-**Mint** `#6bdc9a` is the single accent, lifted from the brand green `#286747` so it reads on near-black. Use it for the primary action, active states, code calls and success. **Brand green** `#286747` stays only in the logo mark.
+Near-black ink `#111312` on white. Brand green `#286747` is a small accent only: links on hover, tool calls in code, success states and the logo.
 
 ### Neutral
-Near-black ground `#0b0c0c`, raised surface `#121414`, subtle fill `#181a1a`, off-white ink `#ecedeb`, muted text `#9a9e9b`, which stays above 4.5:1 on every surface. Hairlines are 8% white, strong lines 16% white.
+White page and surfaces, a warm grey band `#f4f4f1` for one section at a time, muted text `#5d615e` (above 4.5:1), hairlines `#e7e7e3`. Code blocks stay dark (`#121514`) with light text.
 
 ### Named Rules
-- **One accent.** Mint is the only hue doing brand work. Amber (`#f5b544`) appears only for "waiting on you" and warnings, and coral (`#f08c84`) only for errors.
-- **Ink on paper.** Solid neutral buttons are light with dark text (`--ink` on `--bg`), never white text on a light fill.
+- **Ink on paper.** Primary buttons are black pills with white text; on the hero they invert to white pills.
+- **One art moment per screen.** Only the hero is full bleed; other photographs are framed inside the layout.
 
 ## Typography
 
-Geist for everything, Geist Mono only for code, payloads, URLs and tabular numbers.
+Instrument Serif (400, with italic for one emphasised word) for display and section headlines; Geist for everything else; Geist Mono only for code, payloads and URLs.
 
 ### Hierarchy
-- Display 60px, 600, line height 1, tracking -0.04em: the homepage hero only.
-- Section heading 48px, tracking -0.035em.
-- Page title clamp(36px, 4.5vw, 56px) for content pages.
-- Lede 18px over 28px in muted ink, at most about 560px wide.
-- Body 16px over 24px.
-- Code 13px Geist Mono over 24px.
-
-Headings use `text-wrap: balance`, paragraphs `text-wrap: pretty`. Tracking never goes below -0.04em.
+- Hero 92px over 0.95, white on the photograph.
+- Section headlines 56px, statement lines up to 96px.
+- Page titles 64px on content pages, 44px in the app.
+- Body 15 to 17px, muted, never more than about 460px wide beside a headline.
 
 ## Layout
 
-Content sits in a 1200px container (1104px for the shared header) with 24px gutters, 16px under 640px. Homepage sections are separated by 128px (96px on phones). Composition varies by section: split hero, full-width tool panel, one centred section wider than the text column for the dashboard shot, split copy and screenshot, price row, two-column questions, and a centred close over the setup prompt. Docs use a 220px left navigation, the article, and a 200px on-page table of contents.
+1200px container, 24px gutters (16px on phones), 160px between homepage sections. Sections alternate: split image and text, a single centred line, a grey band of three cards, split demo, split screenshot, a three-column plain price row, two-column questions, and a split close with a framed photograph.
 
 ## Elevation & Depth
 
-Elevation is a border, not a shadow: panels are `--surface` with a 1px `--line` border. Only floating product imagery and the live inbox carry a soft, offset dark shadow (`0 32px 80px rgb(0 0 0 / 0.5)`).
+Flat white. Only the live inbox and the dashboard screenshot carry a soft, offset shadow.
 
 ## Shapes
 
-8px for small parts, 10px for controls, 12px for rows, 16px for cards and panels, 24px for large panels. Pills only for small status chips.
+Pills for every button; 16px cards; 10px inputs and code; 4px on photographs.
 
 ## Components
 
 ### Buttons
-- Primary: mint fill with dark mint ink, 44px tall on marketing pages, 10px radius.
-- Solid neutral: light ink fill with dark text.
-- Ghost: transparent with a strong hairline.
-- Press: scale(0.98).
-- Focus: a 2px mint outline, offset 3px.
-
-### Cards / Containers
-Raised surface, 1px hairline, 16px radius. Never nest cards. Lists of more than a few pages are rows with hairline dividers, not card grids.
-
-### Navigation
-The header is a 64px translucent bar over the ground. The active link gets a subtle fill. The dashboard and docs navigation mark the active item with a fill and bold ink, never a side stripe.
-
-### Code and transcripts
-Code blocks sit on `#0e1010` with Geist Mono. Tool transcripts mark calls (→) in mint, results (←) in ink and comments in grey. On the homepage they play in sequence: the call, a "waiting…" pause, then the result.
+Black pill, 44px tall, 15px medium text; white pill on the hero; underlined text links as the secondary action.
 
 ### Live webhook inbox (signature)
-A real anonymous inbox, created when the card scrolls into view and reused for the browser session. It shows the URL, a test-request button, the last three requests, and the latest request's key headers and pretty body. A new request sends a pulse along one ridgeline.
+A real anonymous inbox created when it scrolls into view, with the URL, a test button, the last three requests and the latest request's headers and body. A new request flashes a row of lamps in the hero.
 
 ## Do's and Don'ts
 
 ### Do:
-- Show the product working: live components, real tool calls, real screenshots from a demo workspace.
-- Write limits and prices exactly as they are, and mark planned plans as planned.
-- Honour reduced motion: ridgelines stop, transcripts render complete, reveals are instant.
+- Keep pages light, quiet and spacious; let one headline and one image carry each section.
+- Show the real product and real calls; mark planned prices as planned.
+- Honour reduced motion: lamps static, no drift, reveals instant.
 
 ### Don't:
-- Don't add eyebrow labels above headings, gradient text, glows, grids or pointer effects.
-- Don't put company logos or customer claims on the site without real, permitted evidence.
-- Don't use side stripes thicker than 1px for active or callout states.
-- Don't introduce a light theme on individual pages.
+- Don't use dark full-page themes, glows, grids, eyebrows or gradient text.
+- Don't put text over photographs except in the hero.
+- Don't invent customers, logos or numbers.

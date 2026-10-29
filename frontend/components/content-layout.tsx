@@ -1,4 +1,3 @@
-import { LampField } from './lamp-field';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { breadcrumbs } from '../lib/seo';
@@ -25,7 +24,6 @@ export function PageIntro({
 }) {
     return (
         <header className="content-intro">
-            <LampField grid region={[0.55, 0, 1, 1]} every={420} className="content-lamps" />
             <h1>{title}</h1>
             <p>{description}</p>
             {meta && <p className="content-meta">{meta}</p>}

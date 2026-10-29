@@ -6,7 +6,7 @@ import { Check, Copy } from '@phosphor-icons/react';
 /** Copies the setup prompt a human pastes into their agent. */
 export function CopyPrompt({
     prompt,
-    className = 'home-button home-button-primary',
+    className = 'home-pill',
 }: {
     prompt: string;
     className?: string;

@@ -1,8 +1,10 @@
 import Link from 'next/link';
 import { PageIntro, StructuredData } from '../../components/content-layout';
 import { CodeExample } from '../../components/code-example';
+import { CopyPrompt } from '../../components/home/copy-prompt';
 import { Icon } from '../../components/icons';
 import { pageMetadata } from '../../lib/seo';
+import { setupPrompt } from '../../lib/setup-prompt';
 import { siteOrigin } from '../../lib/site';
 
 export const metadata = pageMetadata(
@@ -119,25 +121,20 @@ export default function Connect() {
                     '@type': 'HowTo',
                     name: 'Connect an AI agent to socket.help',
                     step: [
-                        { '@type': 'HowToStep', name: 'Create a free API key (optional)' },
-                        {
-                            '@type': 'HowToStep',
-                            name: 'Add the socket.help MCP server to your client',
-                        },
-                        { '@type': 'HowToStep', name: 'Ask your agent to use it' },
+                        { '@type': 'HowToStep', name: 'Paste the setup prompt into your agent' },
+                        { '@type': 'HowToStep', name: 'Approve the agent in your browser' },
+                        { '@type': 'HowToStep', name: 'Ask your agent to use socket.help' },
                     ],
                 }}
             />
             <PageIntro
                 label="For AI agents"
                 title="Give your agent the internet in one minute."
-                description="One MCP connection gives Claude Code, Cursor, Codex, ChatGPT or any MCP client webhook inboxes, mock APIs, file drops, MCP testing and 130+ tools."
+                description="Paste one prompt into Claude Code, Cursor, Codex or any MCP client. Your agent adds the server, asks to join your workspace and waits for you to approve it."
             >
-                <Link className="button button-primary" href="/account/#register">
-                    Get a free API key →
-                </Link>
+                <CopyPrompt prompt={setupPrompt} className="button button-primary" />
                 <Link className="button button-secondary" href="#clients">
-                    Skip: try without a key
+                    Set it up by hand
                 </Link>
             </PageIntro>
 
@@ -145,19 +142,21 @@ export default function Connect() {
                 <li>
                     <span>1</span>
                     <div>
-                        <strong>Get a key (optional)</strong>
+                        <strong>Paste the prompt</strong>
                         <p>
-                            A free account keeps resources for 7 days. Create a key under{' '}
-                            <Link href="/account/#keys">Dashboard › API keys</Link> and export it as{' '}
-                            <code>SOCKET_HELP_API_KEY</code>.
+                            Your agent adds the MCP server and calls <code>start_login</code>. No
+                            API key goes through the chat.
                         </p>
                     </div>
                 </li>
                 <li>
                     <span>2</span>
                     <div>
-                        <strong>Add the server</strong>
-                        <p>Pick your client below and paste one snippet.</p>
+                        <strong>Approve it</strong>
+                        <p>
+                            Open the link it shows you and check the code. The free plan includes 3
+                            agents.
+                        </p>
                     </div>
                 </li>
                 <li>

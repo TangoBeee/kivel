@@ -36,7 +36,7 @@ export const dashboardPanels = [
         id: 'overview',
         group: 'Build',
         label: 'Overview',
-        description: 'Your usage, recent resources, and quick starts.',
+        description: 'Your agents, what they need from you, and your usage.',
         icon: SquaresFour,
     },
     {

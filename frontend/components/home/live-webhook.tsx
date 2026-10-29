@@ -1,0 +1,215 @@
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+import { ArrowsClockwise, Check, Copy, PaperPlaneTilt } from '@phosphor-icons/react';
+import { api, resourceHeaders } from '../../lib/api';
+import { SIGNAL_EVENT } from './ridge-field';
+
+interface Captured {
+    id: string;
+    method: string;
+    query: Record<string, string>;
+    body: string;
+    timestamp: string;
+    headers: Record<string, string>;
+}
+interface Inbox {
+    id: string;
+    inspectionToken: string;
+    webhookUrl: string;
+    expiresAt: string;
+}
+
+const STORE = 'socket-help:home-inbox';
+const saved = (): Inbox | null => {
+    try {
+        const value = JSON.parse(sessionStorage.getItem(STORE) ?? 'null') as Inbox | null;
+        return value && Date.parse(value.expiresAt) > Date.now() + 60000 ? value : null;
+    } catch {
+        return null;
+    }
+};
+
+const preview = (body: string) => {
+    try {
+        return JSON.stringify(JSON.parse(body));
+    } catch {
+        return body || 'No body';
+    }
+};
+
+/** A real, anonymous webhook inbox: create it, send it something, watch it arrive. */
+export function LiveWebhook() {
+    const [inbox, setInbox] = useState<Inbox | null>(null);
+    const [requests, setRequests] = useState<Captured[]>([]);
+    const [state, setState] = useState<'idle' | 'creating' | 'ready' | 'error'>('idle');
+    const [copied, setCopied] = useState(false);
+    const [sending, setSending] = useState(false);
+    const seen = useRef(new Set<string>());
+    const card = useRef<HTMLDivElement>(null);
+
+    async function create() {
+        setState('creating');
+        try {
+            const created: Inbox = await (
+                await api('/api/inboxes?visibility=public', { method: 'POST' })
+            ).json();
+            try {
+                sessionStorage.setItem(STORE, JSON.stringify(created));
+            } catch {}
+            setInbox(created);
+            setState('ready');
+        } catch {
+            setState('error');
+        }
+    }
+
+    // The inbox is created once the card is on screen and reused for the rest of the session,
+    // so reloading the page does not spend the visitor's anonymous quota.
+    useEffect(() => {
+        const existing = saved();
+        if (existing) {
+            setInbox(existing);
+            setState('ready');
+            return;
+        }
+        const element = card.current;
+        if (!element) return;
+        const observer = new IntersectionObserver(([entry]) => {
+            if (!entry?.isIntersecting) return;
+            observer.disconnect();
+            void create();
+        });
+        observer.observe(element);
+        return () => observer.disconnect();
+    }, []);
+
+    useEffect(() => {
+        if (!inbox) return;
+        let live = true;
+        let timer: ReturnType<typeof setTimeout>;
+        async function poll() {
+            try {
+                const response = await api(`/api/inboxes/${inbox!.id}/requests`, {
+                    headers: resourceHeaders(inbox!.inspectionToken),
+                });
+                const result: { requests: Captured[] } = await response.json();
+                if (!live) return;
+                for (const request of result.requests)
+                    if (!seen.current.has(request.id)) {
+                        seen.current.add(request.id);
+                        dispatchEvent(new Event(SIGNAL_EVENT));
+                    }
+                setRequests(result.requests.slice(-4).reverse());
+            } catch {}
+            if (live) timer = setTimeout(poll, document.hidden ? 6000 : 2000);
+        }
+        void poll();
+        return () => {
+            live = false;
+            clearTimeout(timer);
+        };
+    }, [inbox]);
+
+    async function send() {
+        if (!inbox) return;
+        setSending(true);
+        try {
+            await fetch(`${inbox.webhookUrl}?source=socket.help`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'payment.succeeded', amount: 4200, currency: 'usd' }),
+            });
+        } catch {}
+        setSending(false);
+    }
+    const curl = inbox ? `curl -X POST ${inbox.webhookUrl} -d '{"hello":"agent"}'` : '';
+
+    return (
+        <div ref={card} className="home-live" aria-live="polite">
+            <div className="home-live-head">
+                <span>Webhook inbox</span>
+                <span className="home-live-status">
+                    {inbox ? 'Live, deletes itself in 1 hour' : 'Real, not a recording'}
+                </span>
+            </div>
+            {!inbox ? (
+                <div className="home-live-empty">
+                    <p>
+                        A working webhook URL, the same one an agent gets over MCP. No account
+                        needed.
+                    </p>
+                    {state === 'creating' ? (
+                        <span className="home-live-skeleton" aria-label="Creating a live URL…" />
+                    ) : (
+                        <button
+                            type="button"
+                            className="home-button home-button-light"
+                            onClick={create}
+                        >
+                            Create a live URL
+                        </button>
+                    )}
+                    {state === 'error' && (
+                        <p className="home-live-error" role="alert">
+                            Could not create an inbox. Try again in a minute.
+                        </p>
+                    )}
+                </div>
+            ) : (
+                <>
+                    <div className="home-live-url">
+                        <code translate="no">{inbox.webhookUrl}</code>
+                        <button
+                            type="button"
+                            aria-label="Copy cURL command"
+                            onClick={async () => {
+                                try {
+                                    await navigator.clipboard.writeText(curl);
+                                    setCopied(true);
+                                    setTimeout(() => setCopied(false), 1800);
+                                } catch {}
+                            }}
+                        >
+                            {copied ? <Check size={16} /> : <Copy size={16} />}
+                        </button>
+                    </div>
+                    <div className="home-live-actions">
+                        <button
+                            type="button"
+                            className="home-button home-button-light"
+                            onClick={send}
+                            disabled={sending}
+                        >
+                            <PaperPlaneTilt size={16} weight="bold" />
+                            Send a test request
+                        </button>
+                        <span>or curl it from your terminal</span>
+                    </div>
+                    <ol className="home-live-feed">
+                        {requests.length === 0 ? (
+                            <li className="home-live-waiting">
+                                <ArrowsClockwise size={16} className="home-spin" />
+                                Waiting for the first request…
+                            </li>
+                        ) : (
+                            requests.map((request) => (
+                                <li key={request.id}>
+                                    <span className="home-method">{request.method}</span>
+                                    <code>{preview(request.body)}</code>
+                                    <time dateTime={request.timestamp}>
+                                        {new Date(request.timestamp).toLocaleTimeString([], {
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                            second: '2-digit',
+                                        })}
+                                    </time>
+                                </li>
+                            ))
+                        )}
+                    </ol>
+                </>
+            )}
+        </div>
+    );
+}

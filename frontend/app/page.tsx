@@ -1,129 +1,105 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Icon } from '../components/icons';
-import type { IconName } from '../components/icons';
-import { CommandBar } from '../components/landing/command-bar';
-import { Interfaces } from '../components/landing/interfaces';
+import { ArrowRight, Plus } from '@phosphor-icons/react/dist/ssr';
+import { Capabilities } from '../components/home/capabilities';
+import { CopyPrompt } from '../components/home/copy-prompt';
+import { LiveWebhook } from '../components/home/live-webhook';
+import { RidgeField } from '../components/home/ridge-field';
 import { Reveal } from '../components/landing/reveal';
-import { SignalTraces } from '../components/landing/signal-traces';
-import { HeroPill } from '../components/landing/hero-pill';
-import { SocketBoard } from '../components/landing/socket-board';
 import { TaglineReveal } from '../components/landing/tagline-reveal';
-import { toolGlyphs } from '../components/tool-glyphs';
+import { setupPrompt } from '../lib/setup-prompt';
 import { siteOrigin } from '../lib/site';
-import { catalog, categories } from '../lib/catalog';
-import './landing.css';
+import './home.css';
 
-const total = catalog.length;
-const available = catalog.filter((tool) => tool.status === 'available').length;
-const glyphs = toolGlyphs();
-const description = `${available} working tools for formatting, conversion, webhooks, mock APIs, file sharing, and MCP. Explore ${total} tools in the catalog, with planned features clearly marked. No account or ads.`;
+const title = 'socket.help | The internet toolkit for AI agents';
+const description =
+    'Webhook URLs, email inboxes, mock APIs, memory, monitors and human approval for coding agents, over one MCP connection. Agents sign themselves up and you approve them. Free to start, Pro is $2 a month.';
 
 export const metadata: Metadata = {
     metadataBase: new URL(siteOrigin),
-    title: { absolute: 'socket.help | One toolbox for the whole internet' },
+    title: { absolute: title },
     description,
     alternates: { canonical: '/' },
-    openGraph: {
-        type: 'website',
-        url: '/',
-        siteName: 'socket.help',
-        title: 'One toolbox for the whole internet',
-        description,
-    },
-    twitter: {
-        card: 'summary_large_image',
-        title: 'One toolbox for the whole internet',
-        description,
-    },
+    openGraph: { type: 'website', url: '/', siteName: 'socket.help', title, description },
+    twitter: { card: 'summary_large_image', title, description },
 };
 
-const audiences: { icon: IconName; label: string; title: string; body: string }[] = [
+const clients = [
+    { file: 'claude', name: 'Claude Code' },
+    { file: 'cursor', name: 'Cursor' },
+    { file: 'githubcopilot', name: 'GitHub Copilot' },
+    { file: 'windsurf', name: 'Windsurf' },
+    { file: 'zedindustries', name: 'Zed' },
+    { file: 'cline', name: 'Cline' },
+    { file: 'googlegemini', name: 'Gemini CLI' },
+];
+
+const joinSteps = [
     {
-        icon: 'shapes',
-        label: 'For everyone',
-        title: 'The everyday essentials',
-        body: 'Format text, convert data, generate a password, or send a file to another computer. Process images and PDFs with bounded previews and downloads.',
+        title: 'Your agent asks to join',
+        body: 'It calls start_login and shows you a link and a short code. Nothing is created yet.',
     },
     {
-        icon: 'code',
-        label: 'For developers',
-        title: 'Test infrastructure on tap',
-        body: 'Mock APIs and webhook inboxes that appear in a second and clean up after themselves. Temporary databases and tunnels are on the roadmap.',
+        title: 'You approve in your browser',
+        body: 'You see its name and how many agents your plan allows. On a full plan, replace one or upgrade.',
     },
     {
-        icon: 'robot',
-        label: 'For AI agents',
-        title: 'A sandbox your agent can drive',
-        body: 'Claude Code, Cursor, and your own agents can create, inspect, and tear down resources over MCP.',
+        title: 'It gets its own key',
+        body: 'The key goes straight to the agent, never through the chat. Disconnect it and it stops at once.',
     },
 ];
 
-const promises: { icon: IconName; title: string; body: string }[] = [
+const pricing = [
     {
-        icon: 'coffee',
-        title: 'Free for everyone',
-        body: 'Every available tool has a useful free allowance. The basics never sit behind a paywall.',
+        name: 'socket.help Pro',
+        price: '$2',
+        note: 'Webhooks, email, mocks, memory, monitors and approvals',
+        ours: true,
     },
-    {
-        icon: 'eye-off',
-        title: 'No ads, ever',
-        body: 'No banners, popups, sponsored results, or tracking analytics. Useful tools without advertising.',
-    },
-    {
-        icon: 'code',
-        title: 'Self-hostable',
-        body: 'Run your own copy with the portable Docker setup. Keep your tools and temporary data on infrastructure you control.',
-    },
-    {
-        icon: 'receipt',
-        title: 'Limits in plain sight',
-        body: 'Quotas, retention, and expiry are written down before you click, not discovered afterwards.',
-    },
+    { name: 'AgentMail', price: '$20', note: 'Email inboxes' },
+    { name: 'Inkbox', price: '$25', note: 'Email and phone identity' },
 ];
 
-const faqs: { question: string; answer: string }[] = [
+const faqs = [
     {
-        question: 'Is socket.help free?',
-        answer: 'Yes. Available tools are free within the published limits, with no account required. Planned tools are marked Coming soon; free accounts add a workspace and larger allowances. Pro and Team checkout opens only when billing is configured.',
+        question: 'What does my agent need to get started?',
+        answer: 'Only the MCP address. Paste the setup prompt into Claude Code, Cursor or any MCP client and the agent adds the server, asks to join your workspace and waits for you to approve it.',
     },
     {
-        question: 'Do I need an account?',
-        answer: 'No. All currently available tools work without an account. Resources default to private, with separate access and management credentials. Public sharing is an explicit choice.',
+        question: 'Can an agent sign up without me?',
+        answer: 'Yes, with a 72 hour trial key that has anonymous limits and a claim link for you. It joins your workspace, and counts against your plan, only after you approve it.',
     },
     {
-        question: 'What happens to my files and data?',
-        answer: 'Browser-local tools keep input on your device. Hosted resources start with a one-hour lifetime, with longer retention available within plan limits. Each tool explains what it stores and how to delete it.',
+        question: 'Can an agent approve its own request?',
+        answer: 'No. Questions from ask_human can only be answered by a signed in owner or admin in a browser. API keys are refused, and opening the email link does not answer anything by itself.',
     },
     {
-        question: 'What does a workspace include?',
-        answer: 'A free account gives you a personal workspace for resources, API keys, usage, and recovery settings. Team plans support shared membership when billing is configured. Grouped Socket Spaces remain on the roadmap.',
+        question: 'What happens when I reach the free limit of 3 agents?',
+        answer: 'The approval page lists your agents with when each was last active. Replace one, upgrade to Pro for 25 agents, or say no. Nothing is blocked or charged silently.',
     },
     {
-        question: 'Can AI agents use socket.help?',
-        answer: 'Yes. socket.help speaks MCP, so agents like Claude Code and Cursor can create mock services, capture callbacks, inspect results, and clean up, using the same resources you see in the browser.',
+        question: 'Does the email inbox send email?',
+        answer: 'No. Inboxes are receive only, built for sign up and password reset tests. That keeps them out of spam fights and lets agents create them without a human.',
     },
     {
-        question: 'Is there an API and a CLI?',
-        answer: 'Server tools have a documented HTTP API, and you can use cURL in your terminal or CI. MCP exposes agent-friendly tools over the same resources and quotas. A TypeScript SDK and CLI are included as repository packages. An optional SSH gateway is available for self-hosted installs; see Integrations for setup.',
+        question: 'How long does data stay?',
+        answer: 'Anonymous resources last one hour. Free workspaces keep data up to 7 days, Pro 30 days and Team 90 days. Every resource can be deleted early.',
     },
     {
-        question: 'How do you prevent abuse?',
-        answer: 'Short default lifetimes, per tool rate limits, redaction of sensitive headers, and no anonymous outbound email. Hosted resources enforce access controls, size limits, and usage quotas.',
-    },
-    {
-        question: 'Can I host socket.help myself?',
-        answer: 'Yes. The portable Docker setup runs the application with PostgreSQL on your infrastructure. Optional HTTPS and SSH profiles support deployment workflows.',
+        question: 'I just want to format some JSON.',
+        answer: 'The free browser tools are still here, with no account and no ads. Open Free tools in the menu.',
     },
 ];
 
 const jsonLd = [
     {
         '@context': 'https://schema.org',
-        '@type': 'WebSite',
+        '@type': 'SoftwareApplication',
         name: 'socket.help',
         url: `${siteOrigin}/`,
+        applicationCategory: 'DeveloperApplication',
         description,
+        offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
     },
     {
         '@context': 'https://schema.org',
@@ -136,33 +112,9 @@ const jsonLd = [
     },
 ];
 
-function PrimaryAction() {
-    return (
-        <Link href="/catalog/" className="lp-button">
-            Browse all {total} tools
-            <Icon name="arrow" size={16} />
-        </Link>
-    );
-}
-
-function AudienceVisual({ index }: { index: number }) {
-    const examples = [
-        { label: 'Format JSON', code: '{"ready":true} → {\n  "ready": true\n}' },
-        { label: 'Mock a response', code: 'GET /orders → 200\n[{ "id": "test-001" }]' },
-        { label: 'Connect an agent', code: 'tools/list → discover\ntools/call → run_tool' },
-    ];
-    const example = examples[index]!;
-    return (
-        <div className="lp-mini lp-example">
-            <span>{example.label} · Example</span>
-            <pre>{example.code}</pre>
-        </div>
-    );
-}
-
 export default function Home() {
     return (
-        <div className="lp">
+        <div className="home">
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{
@@ -170,210 +122,161 @@ export default function Home() {
                 }}
             />
 
-            <section className="lp-hero" aria-labelledby="hero-heading">
-                <SignalTraces />
-                <div className="lp-container lp-hero-inner">
-                    <HeroPill
-                        stats={`${available} ready · ${total} in the catalog · ${categories.length} categories`}
-                    />
-                    <h1 id="hero-heading" className="lp-hero-heading">
-                        One toolbox
-                        <br />
-                        for the whole internet.
-                    </h1>
-                    <p className="lp-hero-sub">
-                        Free open beta. Format data, test APIs, catch webhooks, and share files.
-                        Free allowances, no ads, and no account needed to start.
-                    </p>
-                    <CommandBar total={total} />
-                    <div className="lp-hero-action">
-                        <PrimaryAction />
+            <section className="home-hero" aria-labelledby="hero-heading">
+                <RidgeField />
+                <div className="home-container home-hero-grid">
+                    <div className="home-hero-copy">
+                        <h1 id="hero-heading">
+                            Give your coding agent <br />
+                            the internet.
+                        </h1>
+                        <p>
+                            Webhook URLs, email inboxes, mock APIs, memory and human approval over
+                            one MCP connection. Agents sign themselves up.
+                        </p>
+                        <div className="home-actions">
+                            <CopyPrompt prompt={setupPrompt} />
+                            <Link href="/connect/" className="home-button home-button-ghost">
+                                Setup guide
+                                <ArrowRight size={16} weight="bold" />
+                            </Link>
+                        </div>
                     </div>
+                    <LiveWebhook />
                 </div>
             </section>
 
-            <section className="lp-section lp-container" aria-labelledby="board-heading">
-                <Reveal className="lp-section-head">
-                    <span className="lp-eyebrow">The board</span>
-                    <h2 id="board-heading">{total} tools, one panel</h2>
-                    <p>Every socket is a tool. Pick a category to see what lives there.</p>
+            <section className="home-clients" aria-label="Works with">
+                <div className="home-container">
+                    <p>Works with any MCP client</p>
+                    <ul>
+                        {clients.map((client) => (
+                            <li key={client.file}>
+                                <img
+                                    src={`/logos/${client.file}.svg`}
+                                    alt=""
+                                    width={20}
+                                    height={20}
+                                    loading="lazy"
+                                />
+                                <span>{client.name}</span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            </section>
+
+            <section className="home-section home-container" aria-labelledby="caps-heading">
+                <Reveal>
+                    <h2 id="caps-heading" className="home-heading">
+                        Everything it cannot do from a laptop.
+                    </h2>
+                    <p className="home-lede">
+                        Six tools your agent calls directly. Each one returns what the agent needs
+                        next, not a page to read.
+                    </p>
                 </Reveal>
                 <Reveal>
-                    <SocketBoard glyphs={glyphs} />
+                    <Capabilities />
                 </Reveal>
             </section>
 
-            <section className="lp-section lp-container" aria-label="What socket.help is for">
-                <TaglineReveal
-                    lines={[
-                        'Format some data, mock an API,',
-                        'hand your agent a sandbox.',
-                        'Same place. Same simplicity.',
-                    ]}
-                />
-            </section>
-
-            <section className="lp-section lp-container" aria-labelledby="audience-heading">
-                <Reveal className="lp-section-head">
-                    <h2 id="audience-heading">
-                        Simple enough for anyone, deep enough for engineers
+            <section
+                className="home-section home-container home-join"
+                aria-labelledby="join-heading"
+            >
+                <Reveal className="home-join-copy">
+                    <h2 id="join-heading" className="home-heading">
+                        Agents sign up.
+                        <br />
+                        You stay in charge.
                     </h2>
-                </Reveal>
-                <div className="lp-audiences">
-                    {audiences.map((audience, index) => (
-                        <Reveal
-                            key={audience.label}
-                            className="lp-card lp-audience"
-                            delay={index * 120}
-                        >
-                            <AudienceVisual index={index} />
-                            <span className="lp-label">
-                                <Icon name={audience.icon} size={14} /> {audience.label}
-                            </span>
-                            <h3>{audience.title}</h3>
-                            <p>{audience.body}</p>
-                        </Reveal>
-                    ))}
-                </div>
-            </section>
-
-            <section className="lp-section lp-container" aria-labelledby="workspace-heading">
-                <Reveal className="lp-workflow">
-                    <div>
-                        <h2 id="workspace-heading">Temporary tools. A workspace that remembers.</h2>
-                        <p>
-                            Create resources, see their expiry, rotate access, and clean up from one
-                            place. A free account keeps your resources and API keys together.
-                        </p>
-                        <Link className="lp-button" href="/account/">
-                            Open your workspace <Icon name="arrow" size={16} />
-                        </Link>
-                    </div>
-                    <ol>
-                        <li>
-                            <span aria-hidden="true">
-                                <Icon name="plus" size={18} />
-                            </span>
-                            <div>
-                                <strong>Create what you need</strong>
-                                <p>A webhook inbox, mock API, MCP server, or file share.</p>
-                            </div>
-                        </li>
-                        <li>
-                            <span aria-hidden="true">
-                                <Icon name="shield" size={18} />
-                            </span>
-                            <div>
-                                <strong>Choose who can use it</strong>
-                                <p>Private access by default. Public sharing when you choose.</p>
-                            </div>
-                        </li>
-                        <li>
-                            <span aria-hidden="true">
-                                <Icon name="timer" size={18} />
-                            </span>
-                            <div>
-                                <strong>Keep track of the lifetime</strong>
-                                <p>Inspect, renew within plan limits, or delete when finished.</p>
-                            </div>
-                        </li>
+                    <ol className="home-steps">
+                        {joinSteps.map((step) => (
+                            <li key={step.title}>
+                                <h3>{step.title}</h3>
+                                <p>{step.body}</p>
+                            </li>
+                        ))}
                     </ol>
                 </Reveal>
-            </section>
-
-            <section className="lp-interface-section" aria-labelledby="interfaces-heading">
-                <div className="lp-container lp-section">
-                    <Reveal className="lp-section-head">
-                        <h2 id="interfaces-heading">
-                            Click it, curl it, script it, or ask an agent
-                        </h2>
-                        <p>
-                            Try JSON in the browser, then use the same toolbox from your code,
-                            terminal, or agent.
-                        </p>
-                    </Reveal>
-                    <Reveal>
-                        <Interfaces />
-                    </Reveal>
-                </div>
-            </section>
-
-            <section className="lp-section lp-container" aria-labelledby="promises-heading">
-                <Reveal className="lp-section-head">
-                    <h2 id="promises-heading">Useful first. Everything else second.</h2>
-                </Reveal>
-                <div className="lp-promises">
-                    {promises.map((promise, index) => (
-                        <Reveal key={promise.title} className="lp-promise" delay={index * 100}>
-                            <span className="lp-icon">
-                                <Icon name={promise.icon} size={20} />
-                            </span>
-                            <h3>{promise.title}</h3>
-                            <p>{promise.body}</p>
-                        </Reveal>
-                    ))}
-                </div>
-            </section>
-
-            <section className="lp-section lp-container" aria-labelledby="learn-heading">
-                <Reveal className="lp-learning">
-                    <h2 id="learn-heading">A little context goes a long way.</h2>
-                    <div>
-                        <Link href="/blog/">
-                            <strong>Practical guides</strong>
-                            <span>Webhooks, file access, and better API tests.</span>
-                            <Icon name="arrow" size={18} />
-                        </Link>
-                        <Link href="/compare/">
-                            <strong>Compare your options</strong>
-                            <span>Where socket.help fits alongside other tools.</span>
-                            <Icon name="arrow" size={18} />
-                        </Link>
-                        <Link href="/docs/">
-                            <strong>Build with the API</strong>
-                            <span>Authentication, examples, and endpoint schemas.</span>
-                            <Icon name="arrow" size={18} />
-                        </Link>
-                    </div>
+                <Reveal className="home-shots">
+                    <img
+                        className="home-shot home-shot-back"
+                        src="/home/approve-agent.png"
+                        alt="The approval page, where you connect an agent to your workspace."
+                        width={1040}
+                        height={765}
+                        loading="lazy"
+                    />
+                    <img
+                        className="home-shot home-shot-front"
+                        src="/home/answer-question.png"
+                        alt="An agent asking whether to deploy build 412, with answer buttons."
+                        width={1040}
+                        height={958}
+                        loading="lazy"
+                    />
                 </Reveal>
             </section>
 
-            <section className="lp-section lp-container" aria-labelledby="faq-heading">
-                <Reveal className="lp-section-head">
-                    <h2 id="faq-heading">Questions, answered plainly</h2>
-                </Reveal>
-                <div className="lp-faq">
-                    {faqs.map((faq) => (
-                        <Reveal key={faq.question}>
-                            <details className="lp-faq-item">
-                                <summary>
-                                    {faq.question}
-                                    <Icon name="caret-down" size={18} />
-                                </summary>
-                                <p>{faq.answer}</p>
-                            </details>
-                        </Reveal>
-                    ))}
-                </div>
-            </section>
-
-            <section className="lp-section lp-container" aria-labelledby="final-heading">
-                <Reveal className="lp-final">
-                    <div className="lp-final-sockets" aria-hidden="true">
-                        {categories.map((category) => (
-                            <span key={category.id}>
-                                <Icon name={category.icon} size={18} />
-                            </span>
-                        ))}
-                    </div>
-                    <h2 id="final-heading">
-                        Whatever the job,
-                        <br />
-                        there is a socket for it.
+            <section className="home-section home-container" aria-labelledby="price-heading">
+                <Reveal>
+                    <h2 id="price-heading" className="home-heading">
+                        $2 a month. Not $20.
                     </h2>
-                    <p>Free to start, nothing to install, and nothing to cancel.</p>
-                    <PrimaryAction />
+                    <p className="home-lede">
+                        Free covers 3 agents with hard caps and no card. Pro adds 25 agents, 30 day
+                        history, forwarding and recorded mocks.
+                    </p>
                 </Reveal>
+                <Reveal className="home-prices">
+                    {pricing.map((plan) => (
+                        <div key={plan.name} className={`home-price ${plan.ours ? 'is-ours' : ''}`}>
+                            <span className="home-price-name">{plan.name}</span>
+                            <span className="home-price-value">
+                                {plan.price}
+                                <small>/month</small>
+                            </span>
+                            <span className="home-price-note">{plan.note}</span>
+                        </div>
+                    ))}
+                </Reveal>
+                <p className="home-footnote">
+                    Entry paid plans from each vendor&apos;s pricing page, October 2026.{' '}
+                    <Link href="/plans/">Compare our plans</Link>
+                </p>
+            </section>
+
+            <section className="home-tagline home-container" aria-label="Summary">
+                <TaglineReveal lines={['Your agent does the work.', 'You approve what matters.']} />
+            </section>
+
+            <section className="home-section home-container home-faq" aria-labelledby="faq-heading">
+                <h2 id="faq-heading" className="home-heading">
+                    Questions
+                </h2>
+                <div>
+                    {faqs.map((faq) => (
+                        <details key={faq.question}>
+                            <summary>
+                                {faq.question}
+                                <Plus size={18} aria-hidden="true" />
+                            </summary>
+                            <p>{faq.answer}</p>
+                        </details>
+                    ))}
+                </div>
+            </section>
+
+            <section className="home-final" aria-labelledby="final-heading">
+                <div className="home-container">
+                    <h2 id="final-heading">Paste one prompt. Approve once.</h2>
+                    <p>Your agent handles the rest.</p>
+                    <div className="home-actions home-actions-center">
+                        <CopyPrompt prompt={setupPrompt} />
+                    </div>
+                </div>
             </section>
         </div>
     );

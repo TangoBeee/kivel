@@ -10,20 +10,20 @@ import { useViewer } from '../lib/viewer';
 
 const links = [
     {
-        href: '/catalog/',
-        label: 'Explore tools',
-        match: (path: string) => path.startsWith('/catalog'),
-    },
-    {
         href: '/connect/',
-        label: 'For agents',
+        label: 'Setup',
         match: (path: string) => path.startsWith('/connect'),
     },
-    { href: '/docs/', label: 'API', match: (path: string) => path.startsWith('/docs') },
-    { href: '/plans/', label: 'Plans', match: (path: string) => path === '/plans' },
+    { href: '/docs/', label: 'Docs', match: (path: string) => path.startsWith('/docs') },
+    { href: '/plans/', label: 'Pricing', match: (path: string) => path === '/plans' },
+    {
+        href: '/catalog/',
+        label: 'Free tools',
+        match: (path: string) => path.startsWith('/catalog') || path.startsWith('/tools'),
+    },
 ];
 const menuLinks = [
-    ...links.map((link) => (link.href === '/docs/' ? { ...link, label: 'API reference' } : link)),
+    ...links,
     { href: '/blog/', label: 'Blog', match: (path: string) => path.startsWith('/blog') },
     {
         href: '/compare/',
@@ -194,7 +194,8 @@ const footerColumns = [
     {
         title: 'Product',
         links: [
-            { href: '/catalog/', label: 'All tools' },
+            { href: '/connect/', label: 'Connect an agent' },
+            { href: '/catalog/', label: 'Free tools' },
             { href: '/integrations/', label: 'Integrations' },
             { href: '/plans/', label: 'Plans' },
             { href: '/account/', label: 'Workspace' },
@@ -232,7 +233,7 @@ export function Footer() {
                             socket<span className="island-dot">.</span>help
                         </span>
                     </Link>
-                    <p>Useful tools for the internet. No ads, and no account needed to start.</p>
+                    <p>The internet toolkit for AI agents, and free tools for everyone else.</p>
                     <a href={supportHref}>{supportEmail}</a>
                 </div>
                 {footerColumns.map((column) => (
@@ -248,7 +249,7 @@ export function Footer() {
             </div>
             <div className="footer-bottom">
                 <span>© {new Date().getFullYear()} socket.help</span>
-                <span>Made for people, scripts, and agents.</span>
+                <span>Made for agents and the people who run them.</span>
             </div>
         </footer>
     );

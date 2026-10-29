@@ -21,6 +21,17 @@ interface Agent {
     lastUsedAt: string | null;
 }
 
+interface Question {
+    id: string;
+    agentName: string;
+    question: string;
+    status: 'pending' | 'answered' | 'expired';
+    answer?: string;
+    answeredBy?: string;
+    createdAt: string;
+    answerUrl: string;
+}
+
 export function AgentActivity({ keys }: { keys: { id: string; name: string }[] }) {
     const [entries, setEntries] = useState<Entry[] | null>(null);
     const [agents, setAgents] = useState<Agent[] | null>(null);
@@ -44,6 +55,7 @@ export function AgentActivity({ keys }: { keys: { id: string; name: string }[] }
             await loadAgents();
         } catch {}
     }
+    const [questions, setQuestions] = useState<Question[]>([]);
     const [key, setKey] = useState('all');
     useEffect(() => {
         let live = true;
@@ -52,6 +64,8 @@ export function AgentActivity({ keys }: { keys: { id: string; name: string }[] }
             try {
                 const value = await (await api('/api/account/activity')).json();
                 if (live) setEntries(value.activity);
+                const asked = await (await api('/api/approvals')).json();
+                if (live) setQuestions(asked.approvals);
             } catch {
                 if (live) setEntries((current) => current ?? []);
             }
@@ -118,6 +132,45 @@ export function AgentActivity({ keys }: { keys: { id: string; name: string }[] }
                     </p>
                 )}
             </section>
+            {questions.length > 0 && (
+                <section className="settings-card agent-activity">
+                    <div className="agent-activity-heading">
+                        <div>
+                            <h2>Agent questions</h2>
+                            <p>
+                                Agents ask before risky steps. Only owners and admins can answer,
+                                and every answer is kept here.
+                            </p>
+                        </div>
+                    </div>
+                    <ul className="agent-list">
+                        {questions.map((item) => (
+                            <li key={item.id}>
+                                <div>
+                                    <strong>{item.question}</strong>
+                                    <small>
+                                        {item.agentName} ·{' '}
+                                        {new Date(item.createdAt).toLocaleString()}
+                                        {item.status === 'answered'
+                                            ? ` · ${item.answer}${item.answeredBy ? ` by ${item.answeredBy}` : ''}`
+                                            : item.status === 'expired'
+                                              ? ' · expired'
+                                              : ''}
+                                    </small>
+                                </div>
+                                {item.status === 'pending' && (
+                                    <Link
+                                        className="button button-primary button-small"
+                                        href={`/approve/?id=${item.id}`}
+                                    >
+                                        Answer
+                                    </Link>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
+                </section>
+            )}
             <section className="settings-card agent-activity">
                 <div className="agent-activity-heading">
                     <div>

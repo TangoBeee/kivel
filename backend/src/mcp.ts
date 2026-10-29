@@ -201,6 +201,36 @@ export const platformTools = [
         annotations: readonly,
     },
     {
+        name: 'ask_human',
+        description:
+            'Ask your human before a risky or irreversible step (deploying, paying, deleting, emailing real people). Emails the workspace owner a link; only they can answer, signed in. Returns an id and answerUrl (show it in chat too), then call wait_for_approval. Needs a connected agent.',
+        inputSchema: schema(
+            {
+                question: stringProperty('One clear question, up to 500 characters.'),
+                details: stringProperty('Optional context: what will happen, diff summary, cost.'),
+                options: {
+                    type: 'array',
+                    minItems: 2,
+                    maxItems: 5,
+                    items: { type: 'string' },
+                    description: 'Answer choices; defaults to ["Approve", "Deny"].',
+                },
+                timeoutMinutes: { type: 'number' },
+            },
+            ['question'],
+        ),
+        annotations: creates,
+    },
+    {
+        name: 'wait_for_approval',
+        description: `Block until your human answers an ask_human request. Returns status answered (with answer and optional note), expired, or timedOut: true after timeoutSeconds (default 25, max ${WAIT_MAX_SECONDS}); call again to keep waiting. Do not proceed without an answer.`,
+        inputSchema: schema(
+            { id: stringProperty('id from ask_human.'), timeoutSeconds: { type: 'number' } },
+            ['id'],
+        ),
+        annotations: readonly,
+    },
+    {
         name: 'create_monitor',
         description:
             'Watch something on a schedule and alert the workspace owner by email (and optionally a webhook) when it goes down or recovers. kind "http" checks a public URL (expectStatus, expectText), "ssl" warns before a certificate expires (sslDays), "heartbeat" returns a pingUrl your job calls when it finishes. Needs an API key; Free allows 20 monitors every 5 minutes or slower.',
@@ -1021,6 +1051,32 @@ export function registerMcp({
             await new Promise((resolve) => setTimeout(resolve, 3000));
         }
     }
+    // Approval tools reuse the HTTP routes; answering is left to the human's signed-in browser.
+    async function approvalRequest(
+        name: string,
+        value: Record<string, unknown>,
+        request: FastifyRequest,
+    ) {
+        const headers: Record<string, string> =
+            name === 'ask_human' ? { 'content-type': 'application/json' } : {};
+        for (const key of ['authorization', 'cookie', 'origin'])
+            if (typeof request.headers[key] === 'string') headers[key] = request.headers[key];
+        if (name === 'wait_for_approval') {
+            if (!isUuid(String(value.id))) throw new RpcError(-32602, 'Provide an approval UUID.');
+            uploads.delete(request);
+        }
+        const response = await app.inject({
+            method: name === 'ask_human' ? 'POST' : 'GET',
+            url:
+                name === 'ask_human'
+                    ? '/api/approvals'
+                    : `/api/approvals/${value.id}/wait${value.timeoutSeconds !== undefined ? `?timeoutSeconds=${Number(value.timeoutSeconds)}` : ''}`,
+            headers,
+            remoteAddress: request.ip,
+            ...(name === 'ask_human' ? { payload: value } : {}),
+        });
+        return result(response.json(), response.statusCode >= 400);
+    }
     // Monitor tools reuse the HTTP routes so plan limits and validation stay identical.
     async function monitorRequest(
         name: string,
@@ -1279,59 +1335,62 @@ export function registerMcp({
                                           params.name,
                                       )
                                     ? await loginRequest(params.name, values, request)
-                                    : [
-                                            'create_monitor',
-                                            'list_monitors',
-                                            'delete_monitor',
-                                        ].includes(params.name)
-                                      ? await monitorRequest(params.name, values, request)
-                                      : params.name.startsWith('memory_')
-                                        ? await memoryRequest(params.name, values, request)
-                                        : [
-                                                'create_email_inbox',
-                                                'wait_for_email',
-                                                'list_emails',
-                                            ].includes(params.name)
-                                          ? await emailRequest(params.name, values, request)
-                                          : params.name === 'describe_tool'
-                                            ? result({
-                                                  toolId: values.toolId,
-                                                  guide:
-                                                      executionGuide(String(values.toolId)) ?? null,
-                                              })
-                                            : params.name === 'search_tools'
+                                    : ['ask_human', 'wait_for_approval'].includes(params.name)
+                                      ? await approvalRequest(params.name, values, request)
+                                      : [
+                                              'create_monitor',
+                                              'list_monitors',
+                                              'delete_monitor',
+                                          ].includes(params.name)
+                                        ? await monitorRequest(params.name, values, request)
+                                        : params.name.startsWith('memory_')
+                                          ? await memoryRequest(params.name, values, request)
+                                          : [
+                                                  'create_email_inbox',
+                                                  'wait_for_email',
+                                                  'list_emails',
+                                              ].includes(params.name)
+                                            ? await emailRequest(params.name, values, request)
+                                            : params.name === 'describe_tool'
                                               ? result({
-                                                    tools: searchExecutable(
-                                                        typeof values.query === 'string'
-                                                            ? values.query
-                                                            : '',
-                                                    ),
+                                                    toolId: values.toolId,
+                                                    guide:
+                                                        executionGuide(String(values.toolId)) ??
+                                                        null,
                                                 })
-                                              : params.name === 'list_tools'
-                                                ? result({ tools: executableIds })
-                                                : params.name === 'run_tool'
-                                                  ? result(
-                                                        await tools.run(
-                                                            request,
-                                                            String(values.toolId),
-                                                            {
-                                                                input: values.input ?? '',
-                                                                options: values.options ?? {},
-                                                                ...(values.files || values.file
-                                                                    ? {
-                                                                          file:
-                                                                              values.files ??
-                                                                              values.file,
-                                                                      }
-                                                                    : {}),
-                                                            },
-                                                        ),
-                                                    )
-                                                  : await callPlatform(
-                                                        params.name,
-                                                        values,
-                                                        request,
-                                                    );
+                                              : params.name === 'search_tools'
+                                                ? result({
+                                                      tools: searchExecutable(
+                                                          typeof values.query === 'string'
+                                                              ? values.query
+                                                              : '',
+                                                      ),
+                                                  })
+                                                : params.name === 'list_tools'
+                                                  ? result({ tools: executableIds })
+                                                  : params.name === 'run_tool'
+                                                    ? result(
+                                                          await tools.run(
+                                                              request,
+                                                              String(values.toolId),
+                                                              {
+                                                                  input: values.input ?? '',
+                                                                  options: values.options ?? {},
+                                                                  ...(values.files || values.file
+                                                                      ? {
+                                                                            file:
+                                                                                values.files ??
+                                                                                values.file,
+                                                                        }
+                                                                      : {}),
+                                                              },
+                                                          ),
+                                                      )
+                                                    : await callPlatform(
+                                                          params.name,
+                                                          values,
+                                                          request,
+                                                      );
                     }
                     break;
                 }

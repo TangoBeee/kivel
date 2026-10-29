@@ -94,6 +94,8 @@ const tools: { name: string; does: string }[] = [
     { name: 'call_mock_api', does: 'Call a mock or change its CRUD data.' },
     { name: 'upload_temporary_file', does: 'Share a file through a private, expiring link.' },
     { name: 'memory_set / memory_get', does: 'Remember JSON between sessions (needs an API key).' },
+    { name: 'ask_human', does: 'Ask you before a risky step; you answer from a link.' },
+    { name: 'wait_for_approval', does: 'Block until you answer, then act on it.' },
     { name: 'create_monitor', does: 'Watch a URL, a certificate or a cron job, with alerts.' },
     { name: 'search_tools', does: 'Find one of 130+ utilities by keyword.' },
     { name: 'run_tool', does: 'Run a utility: JSON, JWT, DNS, SSL, PDF, images and more.' },
@@ -103,6 +105,7 @@ const tools: { name: string; does: string }[] = [
 const prompts = [
     'Create a socket.help webhook inbox, wait for the first request, and explain what it contains.',
     'Create a socket.help email inbox, sign up at my staging site with it, and finish verification.',
+    'Before you deploy, use socket.help ask_human to get my approval and wait for my answer.',
     'Mock GET /users/:id with three realistic users, then call it to check the response.',
     'Look up the DNS records and SSL certificate for example.com and summarize any problems.',
 ];

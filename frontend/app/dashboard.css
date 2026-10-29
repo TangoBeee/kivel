@@ -1178,6 +1178,9 @@ body:has(.dashboard-layout) main::after {
 }
 
 /* Agent activity */
+.settings-stack > .agent-activity + .agent-activity {
+  margin-top: 16px;
+}
 .agent-activity-heading {
   display: flex;
   flex-wrap: wrap;

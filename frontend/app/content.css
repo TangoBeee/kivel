@@ -1794,3 +1794,27 @@ a brand dot pattern with its icon in a raised tile */
 .agent-link-muted {
   font-size: 0.875rem;
 }
+.agent-question-eyebrow {
+  font-size: 0.875rem;
+  font-weight: 550;
+}
+.agent-question-details {
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  background: var(--subtle);
+  font-size: 0.875rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.agent-question-note {
+  display: grid;
+  gap: 6px;
+  font-size: 0.875rem;
+}
+.agent-question-note textarea {
+  padding: 8px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  font: inherit;
+  resize: vertical;
+}

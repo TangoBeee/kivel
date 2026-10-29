@@ -79,7 +79,7 @@ export async function migrate(pool: Pool): Promise<void> {
             'SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1',
         );
         const version = result.rows[0]?.version ?? 0;
-        if (version > 11) throw new Error('Database schema is newer than this application.');
+        if (version > 12) throw new Error('Database schema is newer than this application.');
         if (version < 1) {
             await client.query(schema);
             await client.query('INSERT INTO schema_migrations (version) VALUES (1)');
@@ -231,6 +231,19 @@ export async function migrate(pool: Pool): Promise<void> {
                 );
                 CREATE INDEX agent_trials_network ON agent_trials (ip_key, created_at);
                 INSERT INTO schema_migrations (version) VALUES (11);`);
+        }
+        if (version < 12) {
+            await client.query(`
+                CREATE TABLE approvals (
+                    id uuid PRIMARY KEY,
+                    account_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                    approval jsonb NOT NULL,
+                    status text NOT NULL,
+                    created_at timestamptz NOT NULL,
+                    expires_at timestamptz NOT NULL
+                );
+                CREATE INDEX approvals_account ON approvals (account_id, created_at DESC);
+                INSERT INTO schema_migrations (version) VALUES (12);`);
         }
     });
 }

@@ -24,6 +24,8 @@ import { MemoryMockCalls } from './mock-calls.js';
 import { MemoryActivity } from './activity.js';
 import { MemoryKv, registerKv } from './kv.js';
 import { MemoryAgents, registerAgents, setAgentPepper } from './agents.js';
+import { MemoryApprovals, registerApprovals } from './approvals.js';
+import type { ApprovalRepository } from './approvals.js';
 import type { AgentRepository } from './agents.js';
 import { MemoryMonitors, registerMonitors } from './monitors.js';
 import type { MonitorChecks, MonitorRepository } from './monitors.js';
@@ -76,6 +78,7 @@ interface AppOptions {
     monitorStore?: MonitorRepository;
     monitorChecks?: MonitorChecks;
     agentStore?: AgentRepository;
+    approvalStore?: ApprovalRepository;
 }
 
 interface InboxRoute {
@@ -126,6 +129,7 @@ export function buildApp({
     monitorStore = new MemoryMonitors(),
     monitorChecks,
     agentStore = new MemoryAgents(),
+    approvalStore = new MemoryApprovals(),
 }: AppOptions = {}) {
     const ledger = new MemoryAllocations();
     const inboxStore = providedInboxes ?? new InboxStore({ quotaLedger: ledger });
@@ -671,6 +675,17 @@ export function buildApp({
         agents: agentStore,
         origin: baseUrl.origin,
         limits: rateLimiter,
+        ...(mailSender ? { mail: mailSender } : {}),
+    });
+    registerApprovals({
+        app,
+        access,
+        approvals: approvalStore,
+        agents: agentStore,
+        identities: identityStore,
+        recovery: recovery.store,
+        waiters,
+        origin: baseUrl.origin,
         ...(mailSender ? { mail: mailSender } : {}),
     });
     registerKv(app, access, memory);

@@ -13,6 +13,7 @@ import { PostgresActivity } from './activity.js';
 import { PostgresKv } from './kv.js';
 import { PostgresMonitors } from './monitors.js';
 import { PostgresAgents } from './agents.js';
+import { PostgresApprovals } from './approvals.js';
 import type { CrudState } from '@socket-help/tools/mock-crud';
 import { PostgresRecoveryRepository } from './recovery-store.js';
 import { passwordHash, PostgresIdentityRepository } from './identity.js';
@@ -431,7 +432,7 @@ test('upgrading an existing webhook-only database preserves captures and enables
     await pool.query(
         `DROP TRIGGER inbox_quota ON inboxes; DROP FUNCTION enforce_resource_quota() CASCADE;
          ALTER TABLE inboxes DROP COLUMN owner_id, DROP COLUMN quota_key, DROP COLUMN created_at, DROP COLUMN persistent, DROP COLUMN request_limit, DROP COLUMN byte_limit, DROP COLUMN visibility, DROP COLUMN access_token_hash, DROP COLUMN access_version, DROP COLUMN response, DROP COLUMN forward_url;
-         DROP TABLE mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors, agent_trials, agent_logins, agents, user_contact_emails, auth_mail_outbox, auth_challenges, user_recovery_emails, temporary_resources, resource_usage, account_members, auth_sessions, api_keys, account_invites, users, accounts, usage_plans, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events CASCADE; DELETE FROM schema_migrations WHERE version > 1`,
+         DROP TABLE mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors, approvals, agent_trials, agent_logins, agents, user_contact_emails, auth_mail_outbox, auth_challenges, user_recovery_emails, temporary_resources, resource_usage, account_members, auth_sessions, api_keys, account_invites, users, accounts, usage_plans, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events CASCADE; DELETE FROM schema_migrations WHERE version > 1`,
     );
     await Promise.all([migrate(pool), migrate(pool)]);
     assert.equal(
@@ -447,7 +448,7 @@ test('upgrading an existing webhook-only database preserves captures and enables
     );
     assert.equal(
         (await pool.query('SELECT max(version) AS version FROM schema_migrations')).rows[0].version,
-        11,
+        12,
     );
 });
 
@@ -1145,7 +1146,7 @@ test('Dodo migration preserves legacy Stripe data without adopting its customer 
         user.personalAccountId,
     ]);
     await pool.query(
-        'ALTER TABLE accounts DROP COLUMN dodo_customer_id, DROP COLUMN dodo_subscription_id, DROP COLUMN dodo_event_created, DROP COLUMN dodo_checkout_id, DROP COLUMN dodo_checkout_url, DROP COLUMN dodo_checkout_plan; DROP TABLE dodo_events; ALTER TABLE inboxes DROP COLUMN response, DROP COLUMN forward_url; DROP TABLE mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors, agent_trials, agent_logins, agents; DELETE FROM schema_migrations WHERE version >= 8',
+        'ALTER TABLE accounts DROP COLUMN dodo_customer_id, DROP COLUMN dodo_subscription_id, DROP COLUMN dodo_event_created, DROP COLUMN dodo_checkout_id, DROP COLUMN dodo_checkout_url, DROP COLUMN dodo_checkout_plan; DROP TABLE dodo_events; ALTER TABLE inboxes DROP COLUMN response, DROP COLUMN forward_url; DROP TABLE mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors, approvals, agent_trials, agent_logins, agents; DELETE FROM schema_migrations WHERE version >= 8',
     );
     await Promise.all([migrate(pool), migrate(pool)]);
     const row = (
@@ -1413,4 +1414,47 @@ test('agent trials resolve by token until they expire and count toward the netwo
     assert.equal(await store.recentTrials('network-b'), 0);
     await store.deleteExpired();
     assert.equal(await store.recentTrials('network-a'), 2);
+});
+
+test('approvals are answered once and never after they expire', async () => {
+    const identities = new PostgresIdentityRepository(pool);
+    const user = (await identities.register(
+        'approval-owner',
+        await passwordHash('correct-horse-battery-staple'),
+    ))!;
+    const store = new PostgresApprovals(pool);
+    const accountId = user.personalAccountId;
+    const approval = (expiresAt: number) => ({
+        id: crypto.randomUUID(),
+        accountId,
+        agentName: 'Claude Code',
+        question: 'Deploy?',
+        options: ['Approve', 'Deny'],
+        status: 'pending' as const,
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(expiresAt).toISOString(),
+    });
+    const live = approval(Date.now() + 60000),
+        stale = approval(Date.now() - 1000);
+    await store.create(live);
+    await store.create(stale);
+    assert.equal((await store.get(accountId, stale.id))?.status, 'expired');
+    assert.deepEqual(
+        (await store.list(accountId, true)).map((item) => item.id),
+        [live.id],
+    );
+    assert.equal(await store.countSince(accountId, new Date(Date.now() - 60000).toISOString()), 2);
+    const answer = { answer: 'Approve', note: 'ok', answeredBy: 'approval-owner' };
+    assert.equal(await store.answer(accountId, stale.id, answer), false);
+    assert.equal(await store.answer(crypto.randomUUID(), live.id, answer), false);
+    const results = await Promise.all([
+        store.answer(accountId, live.id, answer),
+        store.answer(accountId, live.id, { ...answer, answer: 'Deny' }),
+    ]);
+    assert.deepEqual(results.sort(), [false, true]);
+    const stored = (await store.get(accountId, live.id))!;
+    assert.equal(stored.status, 'answered');
+    assert.equal(stored.answeredBy, 'approval-owner');
+    assert.ok(stored.answeredAt);
+    assert.deepEqual(await store.list(accountId, true), []);
 });

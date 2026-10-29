@@ -2712,3 +2712,45 @@ and calmer editors. Loaded last. */
 .replay-error {
   color: var(--danger);
 }
+
+/* Inbox settings: one tabbed panel instead of stacked sections */
+.inbox-settings {
+  margin-bottom: 16px;
+  padding: 4px 20px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+.inbox-settings-pane {
+  display: grid;
+  gap: 12px;
+  padding-top: 16px;
+  font-size: 0.875rem;
+}
+.inbox-settings-pane .sharing-control {
+  margin: 0;
+}
+.inbox-settings-pane .resource-access {
+  margin: 0;
+}
+.inbox-settings-current {
+  color: var(--muted);
+}
+.inbox-settings-current strong {
+  color: var(--ink);
+  font-weight: 550;
+}
+.endpoint-access {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid var(--accent-line);
+  border-radius: 9999px;
+  background: var(--accent-soft);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+}

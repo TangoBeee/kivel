@@ -56,12 +56,12 @@ export function InboxResponseSettings({
         }
     }
     return (
-        <details className="connection-details inbox-response">
-            <summary>
-                Response to senders: <strong>{summary}</strong>
-            </summary>
+        <div className="inbox-settings-pane">
+            <p className="inbox-settings-current">
+                Currently: <strong>{summary}</strong>
+            </p>
             <form
-                className="connection-content inbox-response-form"
+                className="inbox-response-form"
                 onSubmit={(event) => {
                     event.preventDefault();
                     void save(false);
@@ -132,6 +132,6 @@ export function InboxResponseSettings({
                     )}
                 </div>
             </form>
-        </details>
+        </div>
     );
 }

@@ -217,6 +217,7 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
     const [existingId, setExistingId] = useState('');
     const [existingToken, setExistingToken] = useState('');
     const [showToken, setShowToken] = useState(false);
+    const [settingsOpen, setSettingsOpen] = useState(false);
     const [confirmation, setConfirmation] = useState<'create' | 'delete' | null>(null);
     const etag = useRef('');
     const inFlight = useRef(false);
@@ -600,6 +601,15 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
                     <div className="endpoint-bar">
                         <span className="endpoint-label">YOUR ENDPOINT</span>
                         <code className="endpoint-url">{inbox.webhookUrl}</code>
+                        <button
+                            type="button"
+                            className="endpoint-access"
+                            onClick={() => setSettingsOpen(true)}
+                            title="Change who can send to this inbox"
+                        >
+                            <Icon name="shield" size={12} />
+                            {inbox.visibility === 'private' ? 'Private' : 'Public'}
+                        </button>
                         <CopyButton text={inbox.webhookUrl} label="Copy URL" />
                         <span className="expiry">
                             <Icon name="clock" size={13} /> {timeLeft(remaining)}
@@ -613,32 +623,6 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
                             days and use them from your AI agent.
                         </p>
                     )}
-                    <SharingControl
-                        value={inbox.visibility ?? 'public'}
-                        onChange={(mode) => void changeSharing(mode)}
-                        disabled={working}
-                    />
-                    {inbox.visibility === 'private' && (
-                        <div className="resource-access">
-                            <p>
-                                Senders need the access token in <code>X-Access-Token</code>. Your
-                                inspection token only reads and manages the inbox.
-                            </p>
-                            {inbox.accessToken && (
-                                <CopyButton
-                                    text={inbox.accessToken}
-                                    label="Copy sender access token"
-                                />
-                            )}
-                            <button
-                                className="button button-small"
-                                disabled={working}
-                                onClick={() => void changeSharing('private')}
-                            >
-                                Rotate sender access token
-                            </button>
-                        </div>
-                    )}
                     <div className="inbox-toolbar">
                         <div className="live-status">
                             <span className={live && !error ? 'status-dot' : ''} />
@@ -649,6 +633,15 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
                                 : 'Updates paused'}
                         </div>
                         <div className="button-row">
+                            <Button
+                                size="2"
+                                variant={settingsOpen ? 'soft' : 'surface'}
+                                color="gray"
+                                aria-expanded={settingsOpen}
+                                onClick={() => setSettingsOpen(!settingsOpen)}
+                            >
+                                Settings
+                            </Button>
                             <Button
                                 size="2"
                                 variant="surface"
@@ -681,6 +674,149 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
                             </IconButton>
                         </div>
                     </div>
+                    {settingsOpen && (
+                        <section className="inbox-settings" aria-label="Inbox settings">
+                            <Tabs.Root defaultValue="access">
+                                <Tabs.List size="2">
+                                    <Tabs.Trigger value="access">Access</Tabs.Trigger>
+                                    <Tabs.Trigger value="response">Response</Tabs.Trigger>
+                                    <Tabs.Trigger value="forward">Forwarding</Tabs.Trigger>
+                                    <Tabs.Trigger value="code">Code &amp; export</Tabs.Trigger>
+                                </Tabs.List>
+                                <Tabs.Content value="access">
+                                    <div className="inbox-settings-pane">
+                                        <SharingControl
+                                            value={inbox.visibility ?? 'public'}
+                                            onChange={(mode) => void changeSharing(mode)}
+                                            disabled={working}
+                                        />
+                                        {inbox.visibility === 'private' && (
+                                            <div className="resource-access">
+                                                <p>
+                                                    Senders need the access token in{' '}
+                                                    <code>X-Access-Token</code>. Your inspection
+                                                    token only reads and manages the inbox.
+                                                </p>
+                                                {inbox.accessToken && (
+                                                    <CopyButton
+                                                        text={inbox.accessToken}
+                                                        label="Copy sender access token"
+                                                    />
+                                                )}
+                                                <button
+                                                    className="button button-small"
+                                                    disabled={working}
+                                                    onClick={() => void changeSharing('private')}
+                                                >
+                                                    Rotate sender access token
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </Tabs.Content>
+                                <Tabs.Content value="response">
+                                    <InboxResponseSettings
+                                        key={inbox.id}
+                                        inbox={inbox}
+                                        onError={setError}
+                                        onSaved={(response) => {
+                                            const { response: _old, ...rest } = inbox;
+                                            const updated = response ? { ...rest, response } : rest;
+                                            remember(updated);
+                                            setInbox(updated);
+                                        }}
+                                    />
+                                </Tabs.Content>
+                                <Tabs.Content value="forward">
+                                    <InboxForwardSettings
+                                        key={`forward-${inbox.id}`}
+                                        inbox={inbox}
+                                        onError={setError}
+                                        onSaved={(forwardUrl) => {
+                                            const { forwardUrl: _old, ...rest } = inbox;
+                                            const updated = forwardUrl
+                                                ? { ...rest, forwardUrl }
+                                                : rest;
+                                            remember(updated);
+                                            setInbox(updated);
+                                        }}
+                                    />
+                                </Tabs.Content>
+                                <Tabs.Content value="code">
+                                    <div className="inbox-settings-pane">
+                                        <p>Run this in your terminal to send a test event.</p>
+                                        <div className="code-row">
+                                            <code>{command}</code>
+                                            <CopyButton
+                                                text={command}
+                                                label="Copy cURL command"
+                                                compact
+                                            />
+                                        </div>
+                                        {inbox.inspectionToken ? (
+                                            <>
+                                                <div className="connection-token">
+                                                    <Icon name="shield" size={13} />
+                                                    <span>Keep your inspection token private.</span>
+                                                </div>
+                                                <div className="token-controls">
+                                                    <input
+                                                        className="token-value"
+                                                        aria-label="Inspection token"
+                                                        type={showToken ? 'text' : 'password'}
+                                                        readOnly
+                                                        value={inbox.inspectionToken}
+                                                        autoComplete="off"
+                                                    />
+                                                    <Button
+                                                        size="2"
+                                                        variant="surface"
+                                                        color="gray"
+                                                        aria-pressed={showToken}
+                                                        onClick={() => setShowToken(!showToken)}
+                                                    >
+                                                        {showToken ? 'Hide' : 'Show'}
+                                                    </Button>
+                                                    <CopyButton
+                                                        text={inbox.inspectionToken}
+                                                        label="Copy token"
+                                                    />
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <p>Managed through your current workspace.</p>
+                                        )}
+                                        <div className="button-row" style={{ marginTop: 15 }}>
+                                            <Button
+                                                size="2"
+                                                variant="surface"
+                                                color="gray"
+                                                disabled={!requests.length}
+                                                onClick={() =>
+                                                    download(
+                                                        JSON.stringify(
+                                                            {
+                                                                inbox: {
+                                                                    id: inbox.id,
+                                                                    expiresAt: inbox.expiresAt,
+                                                                },
+                                                                requests,
+                                                            },
+                                                            null,
+                                                            2,
+                                                        ),
+                                                        `inbox-${inbox.id}.json`,
+                                                    )
+                                                }
+                                            >
+                                                <Icon name="download" size={13} /> Export history
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </Tabs.Content>
+                            </Tabs.Root>
+                        </section>
+                    )}
                     <div className="inbox-layout">
                         <aside className="request-list-panel" aria-label="Captured requests">
                             <div className="panel-heading">
@@ -794,97 +930,6 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
                             />
                         </section>
                     </div>
-                    <InboxForwardSettings
-                        key={`forward-${inbox.id}`}
-                        inbox={inbox}
-                        onError={setError}
-                        onSaved={(forwardUrl) => {
-                            const { forwardUrl: _old, ...rest } = inbox;
-                            const updated = forwardUrl ? { ...rest, forwardUrl } : rest;
-                            remember(updated);
-                            setInbox(updated);
-                        }}
-                    />
-                    <InboxResponseSettings
-                        key={inbox.id}
-                        inbox={inbox}
-                        onError={setError}
-                        onSaved={(response) => {
-                            const { response: _old, ...rest } = inbox;
-                            const updated = response ? { ...rest, response } : rest;
-                            remember(updated);
-                            setInbox(updated);
-                        }}
-                    />
-                    <details className="connection-details">
-                        <summary>Send a test request & connection details</summary>
-                        <div className="connection-content">
-                            <p>Run this in your terminal to send a test event.</p>
-                            <div className="code-row">
-                                <code>{command}</code>
-                                <CopyButton text={command} label="Copy cURL command" compact />
-                            </div>
-                            {inbox.inspectionToken ? (
-                                <>
-                                    <div className="connection-token">
-                                        <Icon name="shield" size={13} />
-                                        <span>Keep your inspection token private.</span>
-                                    </div>
-                                    <div className="token-controls">
-                                        <input
-                                            className="token-value"
-                                            aria-label="Inspection token"
-                                            type={showToken ? 'text' : 'password'}
-                                            readOnly
-                                            value={inbox.inspectionToken}
-                                            autoComplete="off"
-                                        />
-                                        <Button
-                                            size="2"
-                                            variant="surface"
-                                            color="gray"
-                                            aria-pressed={showToken}
-                                            onClick={() => setShowToken(!showToken)}
-                                        >
-                                            {showToken ? 'Hide' : 'Show'}
-                                        </Button>
-                                        <CopyButton
-                                            text={inbox.inspectionToken}
-                                            label="Copy token"
-                                        />
-                                    </div>
-                                </>
-                            ) : (
-                                <p>Managed through your current workspace.</p>
-                            )}
-                            <div className="button-row" style={{ marginTop: 15 }}>
-                                <Button
-                                    size="2"
-                                    variant="surface"
-                                    color="gray"
-                                    disabled={!requests.length}
-                                    onClick={() =>
-                                        download(
-                                            JSON.stringify(
-                                                {
-                                                    inbox: {
-                                                        id: inbox.id,
-                                                        expiresAt: inbox.expiresAt,
-                                                    },
-                                                    requests,
-                                                },
-                                                null,
-                                                2,
-                                            ),
-                                            `inbox-${inbox.id}.json`,
-                                        )
-                                    }
-                                >
-                                    <Icon name="download" size={13} /> Export history
-                                </Button>
-                            </div>
-                        </div>
-                    </details>
                 </>
             )}
             <AlertDialog.Root

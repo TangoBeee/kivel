@@ -77,14 +77,10 @@ export function InboxForwardSettings({
         }
     }
     return (
-        <details className="connection-details inbox-forward">
-            <summary>
-                Forward to your server:{' '}
-                <strong>{inbox.forwardUrl ?? (paid ? 'off' : 'Pro')}</strong>
-            </summary>
+        <div className="inbox-settings-pane">
             {paid ? (
                 <form
-                    className="connection-content inbox-response-form"
+                    className="inbox-response-form"
                     onSubmit={(event) => {
                         event.preventDefault();
                         void save(false);
@@ -150,7 +146,7 @@ export function InboxForwardSettings({
                     )}
                 </form>
             ) : (
-                <div className="connection-content upsell">
+                <div className="upsell">
                     <p>
                         Relay every webhook to your own server as it arrives, with retries and a
                         delivery log. Other webhook tools charge more for this; on socket.help it’s
@@ -161,6 +157,6 @@ export function InboxForwardSettings({
                     </Link>
                 </div>
             )}
-        </details>
+        </div>
     );
 }

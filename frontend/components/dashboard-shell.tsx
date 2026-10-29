@@ -414,7 +414,7 @@ export function DashboardShell({
                     </div>
                 </div>
                 <div className="dashboard-content">
-                    <header className="dashboard-heading">
+                    <header key={`h-${panel}`} className="dashboard-heading dashboard-panel-enter">
                         <div>
                             <h1>
                                 {title ??
@@ -437,7 +437,9 @@ export function DashboardShell({
                             ))}
                         </nav>
                     )}
-                    {children}
+                    <div key={panel} className="dashboard-panel-enter">
+                        {children}
+                    </div>
                 </div>
             </div>
         </div>

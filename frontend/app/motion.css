@@ -92,8 +92,69 @@ details[open]::details-content {
     opacity 300ms ease 200ms;
   pointer-events: none;
 }
-main {
-  animation: motion-enter 320ms var(--motion-ease) both;
+.page-enter {
+  animation: motion-enter 450ms var(--motion-ease) backwards;
+}
+/* Dashboard sections switch in place; each one eases in the same way */
+.dashboard-panel-enter {
+  animation: motion-enter 350ms var(--motion-ease) backwards;
+}
+/* The active tab's underline grows in instead of appearing */
+.dashboard-tabs button,
+.client-tabs [role='tab'] {
+  position: relative;
+}
+.dashboard-tabs button[aria-current='page'],
+.client-tabs [role='tab'][aria-selected='true'] {
+  border-bottom-color: transparent !important;
+}
+.dashboard-tabs button::after,
+.client-tabs [role='tab']::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 -1px;
+  height: 2px;
+  background: var(--ink);
+  transform: scaleX(0);
+  transition: transform 300ms var(--motion-ease);
+}
+.dashboard-tabs button[aria-current='page']::after,
+.client-tabs [role='tab'][aria-selected='true']::after {
+  transform: scaleX(1);
+}
+/* Code that changes (a new client tab) fades in */
+[role='tabpanel'] {
+  animation: motion-enter 300ms var(--motion-ease) backwards;
+}
+/* Sidebar items slide their highlight in */
+.dashboard-nav button {
+  transition:
+    background-color 220ms var(--motion-ease),
+    color 220ms var(--motion-ease),
+    transform 140ms var(--motion-ease);
+}
+/* Lists and cards lift slightly under the pointer */
+.home-panel li,
+.agent-list li,
+.docs-row,
+.article-card,
+.featured-article,
+.pricing-card {
+  transition:
+    background-color 200ms var(--motion-ease),
+    transform 250ms var(--motion-ease),
+    box-shadow 250ms var(--motion-ease);
+}
+.article-card:hover,
+.pricing-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 40px rgb(20 20 20 / 0.07);
+}
+/* Messages and notices slide in when they appear */
+.account-message,
+[role='alert'],
+[role='status']:not(.dashboard-skeleton):not(.home-panels):not(.activity-skeleton) {
+  animation: motion-enter 300ms var(--motion-ease) backwards;
 }
 
 @keyframes motion-fade-out {
@@ -115,6 +176,6 @@ main {
 @keyframes motion-enter {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(10px);
   }
 }

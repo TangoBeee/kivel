@@ -528,7 +528,7 @@ body {
 }
 .category-roadmap li {
   padding-left: 12px;
-  border-left: 2px solid var(--line);
+  border-left: 1px solid var(--line);
 }
 .catalog-bottom-note {
   display: flex;

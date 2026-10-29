@@ -7,6 +7,7 @@ import { LiveWebhook } from '../components/home/live-webhook';
 import { RidgeField } from '../components/home/ridge-field';
 import { Reveal } from '../components/landing/reveal';
 import { TaglineReveal } from '../components/landing/tagline-reveal';
+import { paidPlansEnabled } from '../lib/pricing';
 import { setupPrompt } from '../lib/setup-prompt';
 import { siteOrigin } from '../lib/site';
 import './home.css';
@@ -51,7 +52,7 @@ const joinSteps = [
 
 const pricing = [
     {
-        name: 'socket.help Pro',
+        name: paidPlansEnabled ? 'socket.help Pro' : 'socket.help Pro, after beta',
         price: '$2',
         note: 'Webhooks, email, mocks, memory, monitors and approvals',
         ours: true,
@@ -181,7 +182,10 @@ export default function Home() {
                 </Reveal>
             </section>
 
-            <section className="home-section home-container" aria-labelledby="desk-heading">
+            <section
+                className="home-section home-container home-section-desk"
+                aria-labelledby="desk-heading"
+            >
                 <Reveal>
                     <h2 id="desk-heading" className="home-heading">
                         One place to see what they did.
@@ -221,21 +225,12 @@ export default function Home() {
                         ))}
                     </ol>
                 </Reveal>
-                <Reveal className="home-shots">
+                <Reveal className="home-shot">
                     <img
-                        className="home-shot home-shot-back"
                         src="/home/approve-agent.webp"
-                        alt="The approval page, where you connect an agent to your workspace."
+                        alt="The approval page: connect Codex on ThinkPad to your workspace, with Approve and Deny."
                         width={1040}
                         height={765}
-                        loading="lazy"
-                    />
-                    <img
-                        className="home-shot home-shot-front"
-                        src="/home/answer-question.webp"
-                        alt="An agent asking whether to deploy build 412, with answer buttons."
-                        width={1040}
-                        height={958}
                         loading="lazy"
                     />
                 </Reveal>
@@ -244,11 +239,12 @@ export default function Home() {
             <section className="home-section home-container" aria-labelledby="price-heading">
                 <Reveal>
                     <h2 id="price-heading" className="home-heading">
-                        $2 a month. Not $20.
+                        {paidPlansEnabled ? '$2 a month. Not $20.' : 'Free in beta. $2 after.'}
                     </h2>
                     <p className="home-lede">
                         Free covers 3 agents with hard caps and no card. Pro adds 25 agents, 30 day
-                        history, forwarding and recorded mocks.
+                        history, forwarding and recorded mocks
+                        {paidPlansEnabled ? '.' : ', once paid plans open.'}
                     </p>
                 </Reveal>
                 <Reveal className="home-prices">
@@ -264,13 +260,10 @@ export default function Home() {
                     ))}
                 </Reveal>
                 <p className="home-footnote">
-                    Entry paid plans from each vendor’s pricing page, October 2026.{' '}
+                    Entry paid plans from each vendor’s pricing page, October 2026. AgentMail and
+                    Inkbox are email and identity products; Pro covers all six tools above.{' '}
                     <Link href="/plans/">Compare our plans</Link>
                 </p>
-            </section>
-
-            <section className="home-tagline home-container" aria-label="Summary">
-                <TaglineReveal lines={['Your agent does the work.', 'You approve what matters.']} />
             </section>
 
             <section className="home-section home-container home-faq" aria-labelledby="faq-heading">
@@ -290,12 +283,17 @@ export default function Home() {
                 </div>
             </section>
 
-            <section className="home-final" aria-labelledby="final-heading">
+            <section className="home-final" aria-label="Get started">
                 <div className="home-container">
-                    <h2 id="final-heading">Paste one prompt. Approve once.</h2>
-                    <p>Your agent handles the rest.</p>
-                    <div className="home-actions home-actions-center">
-                        <CopyPrompt prompt={setupPrompt} />
+                    <TaglineReveal
+                        lines={['Your agent does the work.', 'You approve what matters.']}
+                    />
+                    <div className="home-final-prompt">
+                        <div className="home-final-bar">
+                            <span>Paste this into your agent</span>
+                            <CopyPrompt prompt={setupPrompt} />
+                        </div>
+                        <pre translate="no">{setupPrompt}</pre>
                     </div>
                 </div>
             </section>

@@ -30,6 +30,16 @@ const saved = (): Inbox | null => {
     }
 };
 
+const pretty = (body: string) => {
+    try {
+        return JSON.stringify(JSON.parse(body), null, 2);
+    } catch {
+        return body || 'No body';
+    }
+};
+// The headers an agent usually checks first; the full set is in the inbox.
+const SHOWN_HEADERS = ['content-type', 'user-agent', 'stripe-signature', 'x-github-event'];
+
 const preview = (body: string) => {
     try {
         return JSON.stringify(JSON.parse(body));
@@ -100,7 +110,7 @@ export function LiveWebhook() {
                         seen.current.add(request.id);
                         dispatchEvent(new Event(SIGNAL_EVENT));
                     }
-                setRequests(result.requests.slice(-4).reverse());
+                setRequests(result.requests.slice(-3).reverse());
             } catch {}
             if (live) timer = setTimeout(poll, document.hidden ? 6000 : 2000);
         }
@@ -216,6 +226,21 @@ export function LiveWebhook() {
                             ))
                         )}
                     </ol>
+                    {requests[0] && (
+                        <div className="home-live-detail">
+                            <dl>
+                                {SHOWN_HEADERS.filter((name) => requests[0]!.headers[name]).map(
+                                    (name) => (
+                                        <div key={name}>
+                                            <dt>{name}</dt>
+                                            <dd>{requests[0]!.headers[name]}</dd>
+                                        </div>
+                                    ),
+                                )}
+                            </dl>
+                            <pre>{pretty(requests[0].body)}</pre>
+                        </div>
+                    )}
                 </>
             )}
         </div>

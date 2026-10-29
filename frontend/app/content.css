@@ -1049,7 +1049,6 @@ a brand dot pattern with its icon in a raised tile */
 .docs-nav a[aria-current='page'],
 .docs-nav-home.is-current {
   background: var(--subtle);
-  box-shadow: inset 2px 0 0 var(--accent);
   font-weight: 600;
   color: var(--ink);
 }
@@ -1822,4 +1821,46 @@ a brand dot pattern with its icon in a raised tile */
   border-radius: var(--radius-control);
   font: inherit;
   resize: vertical;
+}
+
+/* Docs index inside the docs shell: navigation left, pages as a scannable list */
+.docs-shell-index {
+  grid-template-columns: 220px minmax(0, 1fr);
+}
+.docs-home .docs-start {
+  margin-bottom: 16px;
+}
+.docs-rows {
+  display: grid;
+  border-top: 1px solid var(--line);
+}
+.docs-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 24px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  transition: background-color 300ms var(--ease);
+}
+.docs-row strong {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+.docs-row span {
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  color: var(--muted);
+}
+.docs-row:hover strong {
+  color: var(--accent);
+}
+@media (max-width: 720px) {
+  .docs-shell-index {
+    grid-template-columns: 1fr;
+  }
+  .docs-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
 }

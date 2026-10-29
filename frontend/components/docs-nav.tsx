@@ -8,6 +8,9 @@ export function DocsNav({ current }: { current?: string }) {
             <Link href="/docs/" className={`docs-nav-home ${current ? '' : 'is-current'}`}>
                 Documentation home
             </Link>
+            <Link href="/connect/" className="docs-nav-home">
+                Connect an agent
+            </Link>
             {docGroups.map((group) => {
                 const pages = docPages.filter((page) => page.group === group);
                 if (!pages.length && group !== 'Reference') return null;

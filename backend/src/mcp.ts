@@ -181,6 +181,19 @@ export const platformTools = [
         annotations: creates,
     },
     {
+        name: 'start_trial',
+        description:
+            'Only if no human is available right now: get a 72-hour trial key with anonymous limits (webhooks, mocks, files, email inboxes, tools) and a claim link for your human. Prefer start_login when a human can approve. Pass humanEmail to notify them.',
+        inputSchema: schema(
+            {
+                name: stringProperty('How your human will recognise you.'),
+                humanEmail: stringProperty('Optional address to tell your human about the trial.'),
+            },
+            [],
+        ),
+        annotations: creates,
+    },
+    {
         name: 'finish_login',
         description:
             'Wait (up to 25 seconds per call) for the human to approve the login from start_login. Returns status pending, denied, expired, or approved with the API key and MCP settings to save in your client config.',
@@ -980,13 +993,13 @@ export function registerMcp({
         value: Record<string, unknown>,
         request: FastifyRequest,
     ) {
-        if (name === 'start_login') {
+        if (name === 'start_login' || name === 'start_trial') {
             const response = await app.inject({
                 method: 'POST',
-                url: '/api/agents/login',
+                url: name === 'start_trial' ? '/api/agents/trial' : '/api/agents/login',
                 headers: { 'content-type': 'application/json' },
                 remoteAddress: request.ip,
-                payload: { name: value.name, client: value.client },
+                payload: { name: value.name, client: value.client, humanEmail: value.humanEmail },
             });
             return result(response.json(), response.statusCode >= 400);
         }
@@ -1262,7 +1275,9 @@ export function registerMcp({
                                 ? await callMock(values, request)
                                 : params.name === 'resource_request'
                                   ? await resourceRequest(values, request)
-                                  : ['start_login', 'finish_login'].includes(params.name)
+                                  : ['start_login', 'start_trial', 'finish_login'].includes(
+                                          params.name,
+                                      )
                                     ? await loginRequest(params.name, values, request)
                                     : [
                                             'create_monitor',

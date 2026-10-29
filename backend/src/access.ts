@@ -21,6 +21,8 @@ export interface Actor {
     quotaKey: string;
     plan: keyof typeof plans;
     sessionToken?: string;
+    /** Set for unclaimed trial agents, which act with anonymous limits under a stable identity. */
+    trialId?: string;
 }
 export const resourceToken = (request: FastifyRequest) => {
     const separate = request.headers['x-resource-token'];
@@ -31,6 +33,8 @@ export const resourceToken = (request: FastifyRequest) => {
 export class Access {
     private actors = new WeakMap<FastifyRequest, Actor>();
     readonly cookieName: string;
+    /** Resolves a trial key to its trial ID; installed by the agents module. */
+    trials?: (token: string) => Promise<string | undefined>;
     constructor(
         readonly identities: IdentityRepository,
         private limits: RateLimitRepository,
@@ -44,6 +48,24 @@ export class Access {
         if (cached) return cached;
         let identity: Identity | undefined, sessionToken: string | undefined;
         const authorization = request.headers.authorization;
+        if (authorization && /^Bearer sht_/i.test(authorization)) {
+            const token = /^Bearer (sht_[A-Za-z0-9_-]{43})$/i.exec(authorization)?.[1];
+            const trialId = token && this.trials ? await this.trials(token) : undefined;
+            if (!trialId)
+                throw new HttpError(
+                    401,
+                    'This trial key expired or is invalid. Ask your human to claim this agent, or start a new trial.',
+                );
+            const actor: Actor = {
+                plan: 'anonymous',
+                trialId,
+                quotaKey: createHmac('sha256', this.secret)
+                    .update(`trial:${trialId}`)
+                    .digest('hex'),
+            };
+            this.actors.set(request, actor);
+            return actor;
+        }
         if (authorization && /^Bearer sh_/i.test(authorization)) {
             const key = /^Bearer (sh_[A-Za-z0-9_-]{43})$/i.exec(authorization)?.[1];
             identity = key ? await this.identities.authenticateKey(key) : undefined;

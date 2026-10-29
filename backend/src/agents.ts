@@ -13,9 +13,13 @@ import { HttpError } from './access.js';
 import type { Access } from './access.js';
 import { effectivePlan } from './identity.js';
 import type { Identity, IdentityRepository } from './identity.js';
+import type { MailSender } from './mail.js';
+import type { RateLimitRepository } from './rate-limit.js';
 import { isUuid } from './security.js';
 
 export const LOGIN_TTL_MS = 15 * 60 * 1000;
+export const TRIAL_TTL_MS = 72 * 60 * 60 * 1000;
+export const TRIALS_PER_NETWORK = 3;
 const AGENT_KEY_DAYS = 365;
 // No vowels or look-alike characters, so codes are easy to read aloud and never spell words.
 const CODE_ALPHABET = 'BCDFGHJKLMNPQRSTVWXZ23456789';
@@ -41,8 +45,23 @@ export interface AgentRecord {
     createdAt: string;
 }
 
+/** An unclaimed agent: anonymous limits, a stable identity and a pending claim login. */
+export interface AgentTrial {
+    id: string;
+    tokenHash: string;
+    loginId: string;
+    ipKey: string;
+    name: string;
+    createdAt: string;
+    expiresAt: string;
+}
+
 type MaybePromise<T> = T | Promise<T>;
 export interface AgentRepository {
+    createTrial(trial: AgentTrial): MaybePromise<void>;
+    trialByToken(tokenHash: string): MaybePromise<AgentTrial | undefined>;
+    /** Trials started from one network in the last 24 hours. */
+    recentTrials(ipKey: string): MaybePromise<number>;
     createLogin(login: AgentLogin): MaybePromise<void>;
     loginByCode(userCode: string): MaybePromise<AgentLogin | undefined>;
     loginByDevice(deviceHash: string): MaybePromise<AgentLogin | undefined>;
@@ -61,6 +80,20 @@ export interface AgentRepository {
 export class MemoryAgents implements AgentRepository {
     private readonly logins = new Map<string, AgentLogin>();
     private readonly list = new Map<string, AgentRecord>();
+    private readonly trials = new Map<string, AgentTrial>();
+    createTrial(trial: AgentTrial) {
+        this.trials.set(trial.id, { ...trial });
+    }
+    trialByToken(tokenHash: string) {
+        const trial = [...this.trials.values()].find((item) => item.tokenHash === tokenHash);
+        return trial && Date.parse(trial.expiresAt) > Date.now() ? { ...trial } : undefined;
+    }
+    recentTrials(ipKey: string) {
+        const since = Date.now() - 86400000;
+        return [...this.trials.values()].filter(
+            (trial) => trial.ipKey === ipKey && Date.parse(trial.createdAt) > since,
+        ).length;
+    }
     createLogin(login: AgentLogin) {
         this.logins.set(login.id, { ...login });
     }
@@ -92,6 +125,9 @@ export class MemoryAgents implements AgentRepository {
         const now = Date.now();
         for (const [id, login] of this.logins)
             if (Date.parse(login.expiresAt) + LOGIN_TTL_MS < now) this.logins.delete(id);
+        for (const [id, trial] of this.trials)
+            if (Date.parse(trial.createdAt) + 86400000 < now && Date.parse(trial.expiresAt) < now)
+                this.trials.delete(id);
     }
 }
 
@@ -122,6 +158,45 @@ const loginFromRow = (row: LoginRow): AgentLogin => ({
 
 export class PostgresAgents implements AgentRepository {
     constructor(private readonly pool: Pool) {}
+    async createTrial(trial: AgentTrial) {
+        await this.pool.query(
+            'INSERT INTO agent_trials (id, token_hash, login_id, ip_key, name, created_at, expires_at) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+            [
+                trial.id,
+                trial.tokenHash,
+                trial.loginId,
+                trial.ipKey,
+                trial.name,
+                trial.createdAt,
+                trial.expiresAt,
+            ],
+        );
+    }
+    async trialByToken(tokenHash: string) {
+        const result = await this.pool.query(
+            'SELECT * FROM agent_trials WHERE token_hash = $1 AND expires_at > clock_timestamp()',
+            [tokenHash],
+        );
+        const row = result.rows[0];
+        return row
+            ? {
+                  id: row.id,
+                  tokenHash: row.token_hash,
+                  loginId: row.login_id,
+                  ipKey: row.ip_key,
+                  name: row.name,
+                  createdAt: row.created_at.toISOString(),
+                  expiresAt: row.expires_at.toISOString(),
+              }
+            : undefined;
+    }
+    async recentTrials(ipKey: string) {
+        const result = await this.pool.query<{ count: string }>(
+            "SELECT count(*) FROM agent_trials WHERE ip_key = $1 AND created_at > clock_timestamp() - interval '1 day'",
+            [ipKey],
+        );
+        return Number(result.rows[0]!.count);
+    }
     async createLogin(login: AgentLogin) {
         await this.pool.query(
             'INSERT INTO agent_logins (id, device_hash, user_code, name, client, status, created_at, expires_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
@@ -193,8 +268,12 @@ export class PostgresAgents implements AgentRepository {
         ]);
     }
     async deleteExpired() {
+        // Trials keep their row for a day after creation so the per-network daily cap still counts them.
         await this.pool.query(
-            "DELETE FROM agent_logins WHERE expires_at < clock_timestamp() - interval '15 minutes'",
+            "DELETE FROM agent_trials WHERE expires_at < clock_timestamp() AND created_at < clock_timestamp() - interval '1 day'",
+        );
+        await this.pool.query(
+            "DELETE FROM agent_logins WHERE expires_at < clock_timestamp() - interval '15 minutes' AND id NOT IN (SELECT login_id FROM agent_trials)",
         );
     }
 }
@@ -243,6 +322,8 @@ export interface AgentContext {
     identities: IdentityRepository;
     agents: AgentRepository;
     origin: string;
+    limits: RateLimitRepository;
+    mail?: MailSender;
 }
 
 /** Active agents of a workspace with their key's last use, newest first. */
@@ -265,7 +346,17 @@ async function workspaceAgents(
         .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
 }
 
-export function registerAgents({ app, access, identities, agents, origin }: AgentContext) {
+export function registerAgents({
+    app,
+    access,
+    identities,
+    agents,
+    origin,
+    limits,
+    mail,
+}: AgentContext) {
+    access.trials = async (token) =>
+        (await agents.trialByToken(hash('trial', token).toString('hex')))?.id;
     const manager = (identity: Identity) => {
         if (identity.role !== 'owner' && identity.role !== 'admin')
             throw new HttpError(403, 'Only workspace owners and admins can manage agents.');
@@ -312,6 +403,91 @@ export function registerAgents({ app, access, identities, agents, origin }: Agen
                 expiresAt: login.expiresAt,
                 interval: 3,
                 instructions: `Ask your human to open ${link} and approve "${login.name}". Then call POST /api/agents/token with the deviceCode every few seconds until it returns your API key. Never ask the human to paste a key into the chat.`,
+            });
+        },
+    );
+
+    // No human around: a 72-hour trial with anonymous limits, plus a claim link for later.
+    app.post(
+        '/api/agents/trial',
+        {
+            onRequest: async (request) => {
+                await access.rate(request, true);
+            },
+        },
+        async (request, reply) => {
+            const body = (request.body ?? {}) as {
+                name?: unknown;
+                client?: unknown;
+                humanEmail?: unknown;
+            };
+            const network = await access.actor(request);
+            if (network.identity || network.trialId)
+                throw new HttpError(
+                    400,
+                    'You already have a key. Trials are for agents without one.',
+                );
+            if ((await agents.recentTrials(network.quotaKey)) >= TRIALS_PER_NETWORK)
+                throw new HttpError(
+                    429,
+                    'This network started 3 trials today. Ask your human to connect you with POST /api/agents/login instead.',
+                );
+            const humanEmail =
+                typeof body.humanEmail === 'string' &&
+                /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/.test(body.humanEmail.trim())
+                    ? body.humanEmail.trim().toLowerCase()
+                    : undefined;
+            const now = Date.now();
+            const deviceCode = randomBytes(32).toString('base64url');
+            const trialKey = `sht_${randomBytes(32).toString('base64url')}`;
+            const login: AgentLogin = {
+                id: randomUUID(),
+                deviceHash: hash('device', deviceCode).toString('hex'),
+                userCode: userCode(),
+                name: label(body.name, 'AI agent'),
+                ...(typeof body.client === 'string' && body.client.trim()
+                    ? { client: label(body.client, '') }
+                    : {}),
+                status: 'pending',
+                createdAt: new Date(now).toISOString(),
+                expiresAt: new Date(now + TRIAL_TTL_MS).toISOString(),
+            };
+            await agents.createLogin(login);
+            await agents.createTrial({
+                id: randomUUID(),
+                tokenHash: hash('trial', trialKey).toString('hex'),
+                loginId: login.id,
+                ipKey: network.quotaKey,
+                name: login.name,
+                createdAt: login.createdAt,
+                expiresAt: login.expiresAt,
+            });
+            const claimUrl = `${origin}/link/?code=${login.userCode}`;
+            let notified = false;
+            // One notice per address per minute, so the trial endpoint cannot be used to spam people.
+            if (humanEmail && mail && !(await limits.consume(`trial-mail:${humanEmail}`, 1))) {
+                await mail
+                    .send({
+                        to: humanEmail,
+                        subject: `An AI agent wants to use socket.help for you`,
+                        text: `An AI agent called "${login.name}" started a socket.help trial and listed this address as its human.\n\nTo keep it, open ${claimUrl} and approve it within 72 hours. If you do not know this agent, ignore this email; the trial ends on its own and nothing is charged.\n`,
+                    })
+                    .then(() => {
+                        notified = true;
+                    })
+                    .catch(() => request.log.warn('Trial notice email failed.'));
+            }
+            return reply.code(201).send({
+                trialKey,
+                expiresAt: login.expiresAt,
+                limits: 'Anonymous limits: 5 resources, 1 hour retention, 100 tool runs a day. Memory and monitors need a claimed agent.',
+                claim: {
+                    userCode: login.userCode,
+                    claimUrl,
+                    deviceCode,
+                    humanNotified: notified,
+                },
+                instructions: `Use the trialKey as "Authorization: Bearer <trialKey>" now. To keep working after 72 hours, give your human ${claimUrl}. After they approve, POST /api/agents/token with the deviceCode returns your permanent API key.`,
             });
         },
     );
@@ -403,12 +579,10 @@ export function registerAgents({ app, access, identities, agents, origin }: Agen
                 .code(403)
                 .send({ status: 'denied', error: 'Your human denied this request.' });
         if (login.status === 'delivered')
-            return reply
-                .code(410)
-                .send({
-                    status: 'used',
-                    error: 'The key was already delivered. Start a new login if you lost it.',
-                });
+            return reply.code(410).send({
+                status: 'used',
+                error: 'The key was already delivered. Start a new login if you lost it.',
+            });
         if (login.status === 'pending') {
             if (Date.parse(login.expiresAt) <= Date.now())
                 return reply

@@ -431,7 +431,7 @@ test('upgrading an existing webhook-only database preserves captures and enables
     await pool.query(
         `DROP TRIGGER inbox_quota ON inboxes; DROP FUNCTION enforce_resource_quota() CASCADE;
          ALTER TABLE inboxes DROP COLUMN owner_id, DROP COLUMN quota_key, DROP COLUMN created_at, DROP COLUMN persistent, DROP COLUMN request_limit, DROP COLUMN byte_limit, DROP COLUMN visibility, DROP COLUMN access_token_hash, DROP COLUMN access_version, DROP COLUMN response, DROP COLUMN forward_url;
-         DROP TABLE mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors, agent_logins, agents, user_contact_emails, auth_mail_outbox, auth_challenges, user_recovery_emails, temporary_resources, resource_usage, account_members, auth_sessions, api_keys, account_invites, users, accounts, usage_plans, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events CASCADE; DELETE FROM schema_migrations WHERE version > 1`,
+         DROP TABLE mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors, agent_trials, agent_logins, agents, user_contact_emails, auth_mail_outbox, auth_challenges, user_recovery_emails, temporary_resources, resource_usage, account_members, auth_sessions, api_keys, account_invites, users, accounts, usage_plans, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events CASCADE; DELETE FROM schema_migrations WHERE version > 1`,
     );
     await Promise.all([migrate(pool), migrate(pool)]);
     assert.equal(
@@ -447,7 +447,7 @@ test('upgrading an existing webhook-only database preserves captures and enables
     );
     assert.equal(
         (await pool.query('SELECT max(version) AS version FROM schema_migrations')).rows[0].version,
-        10,
+        11,
     );
 });
 
@@ -1145,7 +1145,7 @@ test('Dodo migration preserves legacy Stripe data without adopting its customer 
         user.personalAccountId,
     ]);
     await pool.query(
-        'ALTER TABLE accounts DROP COLUMN dodo_customer_id, DROP COLUMN dodo_subscription_id, DROP COLUMN dodo_event_created, DROP COLUMN dodo_checkout_id, DROP COLUMN dodo_checkout_url, DROP COLUMN dodo_checkout_plan; DROP TABLE dodo_events; ALTER TABLE inboxes DROP COLUMN response, DROP COLUMN forward_url; DROP TABLE mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors, agent_logins, agents; DELETE FROM schema_migrations WHERE version >= 8',
+        'ALTER TABLE accounts DROP COLUMN dodo_customer_id, DROP COLUMN dodo_subscription_id, DROP COLUMN dodo_event_created, DROP COLUMN dodo_checkout_id, DROP COLUMN dodo_checkout_url, DROP COLUMN dodo_checkout_plan; DROP TABLE dodo_events; ALTER TABLE inboxes DROP COLUMN response, DROP COLUMN forward_url; DROP TABLE mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors, agent_trials, agent_logins, agents; DELETE FROM schema_migrations WHERE version >= 8',
     );
     await Promise.all([migrate(pool), migrate(pool)]);
     const row = (
@@ -1381,4 +1381,36 @@ test('agent logins are found by code or device and can be answered only once', a
         await store.settle(login.id, { status: 'delivered', sealedKey: undefined }, 'approved'),
         false,
     );
+});
+
+test('agent trials resolve by token until they expire and count toward the network cap', async () => {
+    const store = new PostgresAgents(pool);
+    const now = Date.now();
+    const login = {
+        id: crypto.randomUUID(),
+        deviceHash: 'e'.repeat(64),
+        userCode: 'CDFG-3456',
+        name: 'Trial bot',
+        status: 'pending' as const,
+        createdAt: new Date(now).toISOString(),
+        expiresAt: new Date(now + 3600000).toISOString(),
+    };
+    await store.createLogin(login);
+    const trial = (id: string, token: string, expiresAt: number) => ({
+        id,
+        tokenHash: token,
+        loginId: login.id,
+        ipKey: 'network-a',
+        name: 'Trial bot',
+        createdAt: new Date(now).toISOString(),
+        expiresAt: new Date(expiresAt).toISOString(),
+    });
+    await store.createTrial(trial(crypto.randomUUID(), 'live-token', now + 3600000));
+    await store.createTrial(trial(crypto.randomUUID(), 'old-token', now - 1000));
+    assert.equal((await store.trialByToken('live-token'))?.name, 'Trial bot');
+    assert.equal(await store.trialByToken('old-token'), undefined);
+    assert.equal(await store.recentTrials('network-a'), 2);
+    assert.equal(await store.recentTrials('network-b'), 0);
+    await store.deleteExpired();
+    assert.equal(await store.recentTrials('network-a'), 2);
 });

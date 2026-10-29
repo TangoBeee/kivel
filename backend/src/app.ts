@@ -670,6 +670,8 @@ export function buildApp({
         identities: identityStore,
         agents: agentStore,
         origin: baseUrl.origin,
+        limits: rateLimiter,
+        ...(mailSender ? { mail: mailSender } : {}),
     });
     registerKv(app, access, memory);
     registerEmail({

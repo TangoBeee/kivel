@@ -204,3 +204,99 @@ test('an agent can connect over MCP with no key, using start_login and finish_lo
     assert.equal(finished.status, 'approved');
     assert.match(finished.apiKey, /^sh_/);
 });
+
+test('agents without a human get a capped trial that keeps working until claimed', async (t) => {
+    const sent: { to: string; text: string }[] = [];
+    const app = buildApp({
+        mailSender: {
+            async send(message) {
+                sent.push(message);
+            },
+            close() {},
+        },
+    });
+    t.after(() => app.close());
+    const trial = await app.inject({
+        method: 'POST',
+        url: '/api/agents/trial',
+        payload: { name: 'Night bot', humanEmail: 'Owner@Example.test' },
+    });
+    assert.equal(trial.statusCode, 201, trial.body);
+    const body = trial.json();
+    assert.match(body.trialKey, /^sht_[A-Za-z0-9_-]{43}$/);
+    assert.equal(body.claim.humanNotified, true);
+    assert.equal(sent[0]!.to, 'owner@example.test');
+    assert.ok(sent[0]!.text.includes(body.claim.claimUrl));
+    const auth = { authorization: `Bearer ${body.trialKey}` };
+    assert.equal(
+        (await app.inject({ method: 'POST', url: '/api/inboxes', headers: auth })).statusCode,
+        201,
+    );
+    assert.equal(
+        (
+            await app.inject({
+                method: 'PUT',
+                url: '/api/memory/a/b',
+                headers: auth,
+                payload: { value: 1 },
+            })
+        ).statusCode,
+        401,
+    );
+    assert.equal(
+        (await app.inject({ method: 'POST', url: '/api/agents/trial', headers: auth, payload: {} }))
+            .statusCode,
+        400,
+    );
+    assert.equal(
+        (
+            await app.inject({
+                url: '/api/inboxes/00000000-0000-4000-8000-000000000000/requests',
+                headers: { authorization: `Bearer sht_${'x'.repeat(43)}` },
+            })
+        ).statusCode,
+        401,
+    );
+    for (let index = 0; index < 2; index++)
+        assert.equal(
+            (
+                await app.inject({
+                    method: 'POST',
+                    url: '/api/agents/trial',
+                    payload: { humanEmail: 'owner@example.test' },
+                })
+            ).statusCode,
+            201,
+        );
+    assert.equal(sent.length, 1);
+    const capped = await app.inject({ method: 'POST', url: '/api/agents/trial', payload: {} });
+    assert.equal(capped.statusCode, 429);
+    assert.match(capped.json().error, /api\/agents\/login/);
+
+    assert.equal((await poll(app, body.claim.deviceCode)).statusCode, 202);
+    const session = await human(app, 'claimer');
+    await app.inject({
+        method: 'POST',
+        url: `/api/agents/login/${body.claim.userCode}/approve`,
+        headers: session,
+        payload: {},
+    });
+    const claimed = await poll(app, body.claim.deviceCode);
+    assert.equal(claimed.statusCode, 200);
+    const real = { authorization: `Bearer ${claimed.json().apiKey}` };
+    assert.equal(
+        (
+            await app.inject({
+                method: 'PUT',
+                url: '/api/memory/a/b',
+                headers: real,
+                payload: { value: 1 },
+            })
+        ).statusCode,
+        200,
+    );
+    assert.equal(
+        (await app.inject({ url: '/api/agents', headers: session })).json().agents[0].name,
+        'Night bot',
+    );
+});

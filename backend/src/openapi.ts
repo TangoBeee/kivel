@@ -316,6 +316,32 @@ export function openApi(origin: string) {
                     responses: { '201': { description: 'Login started' }, ...limited },
                 },
             },
+            '/api/agents/trial': {
+                post: {
+                    operationId: 'startAgentTrial',
+                    tags: ['Agents'],
+                    summary: 'Start a 72-hour trial when no human can approve yet',
+                    description:
+                        'Returns a trialKey (anonymous limits, stable identity) and a claim link. At most 3 trials per network per day. When the human approves the claim link, POST /api/agents/token with the claim deviceCode returns a permanent key. Optional humanEmail sends one notice.',
+                    requestBody: {
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    properties: {
+                                        name: { type: 'string', maxLength: 60 },
+                                        humanEmail: { type: 'string', format: 'email' },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    responses: {
+                        '201': { description: 'Trial started' },
+                        '429': { description: 'Network trial cap reached' },
+                    },
+                },
+            },
             '/api/agents/token': {
                 post: {
                     operationId: 'finishAgentLogin',

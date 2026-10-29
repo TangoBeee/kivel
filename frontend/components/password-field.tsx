@@ -5,11 +5,11 @@ import type { ComponentProps } from 'react';
 import { TextField } from '@radix-ui/themes';
 import { Eye, EyeSlash } from '@phosphor-icons/react';
 
-/** A password input with a show/hide button. Showing it opens the logo's eyes again. */
+/** A password input with a show/hide button. The logo keeps its eyes shut either way. */
 export function PasswordField(props: Omit<ComponentProps<typeof TextField.Root>, 'type'>) {
     const [visible, setVisible] = useState(false);
     return (
-        <TextField.Root {...props} type={visible ? 'text' : 'password'}>
+        <TextField.Root {...props} type={visible ? 'text' : 'password'} data-password="">
             <TextField.Slot side="right">
                 <button
                     type="button"

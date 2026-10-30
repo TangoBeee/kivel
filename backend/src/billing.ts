@@ -58,6 +58,8 @@ export function subscriptionState(
 const COOKIE_COUPON_BASIS_POINTS = 1000;
 const COOKIE_COUPON_CYCLES = 12;
 const COOKIE_COUPON_DAYS = 30;
+/** An unpaid checkout link is handed out again for 30 minutes, then replaced with a fresh one. */
+const CHECKOUT_REUSE_MS = 30 * 60 * 1000;
 
 export class BillingRepository {
     constructor(private pool: Pool) {}
@@ -345,7 +347,11 @@ export function registerBilling(
             plan,
             async (id) => {
                 const historical = await subscriptions();
-                const status = (await dodo.checkoutSessions.retrieve(id)).payment_status;
+                const session = await dodo.checkoutSessions.retrieve(id);
+                const status = session.payment_status;
+                // Dodo expires checkout links that were never paid, so an old unpaid one is replaced.
+                if (!status && Date.now() - Date.parse(session.created_at) > CHECKOUT_REUSE_MS)
+                    return 'cancelled';
                 return status === 'succeeded' && historical ? 'cancelled' : status;
             },
             async () => {

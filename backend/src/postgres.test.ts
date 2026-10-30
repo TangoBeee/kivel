@@ -1025,7 +1025,8 @@ test('Dodo checkout is serialized, reused, owner-only and does not grant access 
         checkoutCreates = 0,
         portalCreates = 0,
         history = false,
-        active = false;
+        active = false,
+        checkoutCreatedAt = new Date().toISOString();
     let checkoutPayload: Record<string, unknown> = {};
     const dodo = new DodoPayments({
         bearerToken: 'test-billing-key',
@@ -1071,7 +1072,11 @@ test('Dodo checkout is serialized, reused, owner-only and does not grant access 
                 });
             }
             if (url.pathname.startsWith('/checkouts/'))
-                return Response.json({ id: 'cks_1', payment_status: history ? 'succeeded' : null });
+                return Response.json({
+                    id: 'cks_1',
+                    created_at: checkoutCreatedAt,
+                    payment_status: history ? 'succeeded' : null,
+                });
             if (url.pathname.endsWith('/customer-portal/session')) {
                 portalCreates++;
                 return Response.json({ link: 'https://customer.dodopayments.com/test' });
@@ -1129,6 +1134,12 @@ test('Dodo checkout is serialized, reused, owner-only and does not grant access 
     assert.deepEqual(checkoutPayload.metadata, { accountId: identity.account.id });
     assert.equal((await identities.account(identity.account.id))!.plan, 'free');
     assert.equal((await checkout('team')).statusCode, 409);
+    // An unpaid link older than Dodo keeps it open is replaced, not handed out again.
+    checkoutCreatedAt = new Date(Date.now() - 31 * 60 * 1000).toISOString();
+    const stale = await checkout();
+    assert.equal(stale.json().url, 'https://checkout.dodopayments.com/session/2');
+    assert.equal(checkoutCreates, 2);
+    checkoutCreatedAt = new Date().toISOString();
     const portal = await app.inject({
         method: 'POST',
         url: '/api/billing/portal',
@@ -1138,11 +1149,11 @@ test('Dodo checkout is serialized, reused, owner-only and does not grant access 
     assert.equal(portalCreates, 1);
     active = true;
     assert.equal((await checkout()).statusCode, 409);
-    assert.equal(checkoutCreates, 1);
+    assert.equal(checkoutCreates, 2);
     active = false;
     history = true;
     assert.equal((await checkout()).statusCode, 200);
-    assert.equal(checkoutCreates, 2);
+    assert.equal(checkoutCreates, 3);
     await pool.query("UPDATE account_members SET role='member' WHERE user_id=$1", [
         identity.userId,
     ]);

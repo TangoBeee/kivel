@@ -323,13 +323,17 @@ export const comparisons: Comparison[] = [
             {
                 topic: 'Lifetime',
                 socket: 'Resources start at one hour, up to seven days on a free account.',
-                other: 'Not stated in the pages we reviewed.',
+                other: 'Free endpoints last 30 days from creation, or 90 days from creation once claimed with a free account.',
             },
         ],
         limitations:
             'socket.help supports one bounded CRUD collection per mock resource. Proxy and record needs Pro and saves up to 20 routes. It has no local tunnel, gRPC, or SOAP mocks. Its mocks are capped at 20 routes, 50 KiB per response body, and two-second delays, and they expire, so they are not a long-term shared sandbox.',
         sources: [
             { title: 'Beeceptor documentation', url: 'https://beeceptor.com/docs/' },
+            {
+                title: 'Beeceptor pricing and Free plan retention',
+                url: 'https://beeceptor.com/pricing/',
+            },
             {
                 title: 'Beeceptor: create an endpoint (public by default)',
                 url: 'https://beeceptor.com/docs/create-endpoint/',
@@ -350,7 +354,7 @@ export const comparisons: Comparison[] = [
             { title: 'GraphQL mock', href: '/tools/graphql-mock/' },
             { title: 'Webhook inbox', href: '/tools/webhook-inbox/' },
         ],
-        reviewedAt: '2026-10-29',
+        reviewedAt: '2026-10-30',
         bestFor: {
             socket: [
                 'Mock responses or captured payloads should not be public',

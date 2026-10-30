@@ -29,8 +29,10 @@ pnpm test:packages  # pack, audit, offline install, TypeScript and CLI checks
 ```
 
 Tarballs and the checksum manifest are in ignored `release/`. After a completed
-release, `pnpm test:packages --published` additionally checks registry hashes/tags
-and installs from npm. It should fail against unreleased source changes.
+release, `pnpm test:packages --published` verifies registry tags, download integrity
+and every packaged file against the local build, then installs from npm. File
+comparison allows compression differences between Node versions while rejecting
+unreleased source changes. CI still publishes the exact tested archive bytes.
 
 ## One-time GitHub/npm setup
 

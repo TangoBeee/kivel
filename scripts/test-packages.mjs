@@ -26,21 +26,28 @@ const [sdk, cli] = manifests;
 assert.match(sdk.version, /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/);
 
 function run(command, args, options = {}) {
+    const { rawOutput = false, ...spawnOptions } = options;
     return new Promise((resolveRun, reject) => {
         const child = spawn(command, args, {
             cwd: root,
             stdio: ['pipe', 'pipe', 'pipe'],
-            ...options,
+            ...spawnOptions,
         });
-        let stdout = '',
-            stderr = '';
-        child.stdout.on('data', (chunk) => (stdout += chunk));
+        const stdout = [];
+        let stderr = '';
+        child.stdout.on('data', (chunk) => stdout.push(chunk));
         child.stderr.on('data', (chunk) => (stderr += chunk));
         child.on('error', reject);
         child.on('exit', (code) =>
             code === 0
-                ? resolveRun(stdout.trim())
-                : reject(new Error(`${command} exited ${code}\n${stderr || stdout}`)),
+                ? resolveRun(
+                      rawOutput ? Buffer.concat(stdout) : Buffer.concat(stdout).toString().trim(),
+                  )
+                : reject(
+                      new Error(
+                          `${command} exited ${code}\n${stderr || Buffer.concat(stdout).toString()}`,
+                      ),
+                  ),
         );
         child.stdin.end();
     });
@@ -122,11 +129,39 @@ try {
                 artifact.version,
                 'Verify beta points to the tested release',
             );
+            const distribution = metadata.versions?.[artifact.version]?.dist;
+            assert.ok(distribution?.tarball, 'Published version must have a tarball');
+            const download = await fetch(distribution.tarball, {
+                signal: AbortSignal.timeout(30000),
+            });
+            assert.ok(download.ok, `Cannot download ${artifact.name}`);
+            const data = Buffer.from(await download.arrayBuffer());
             assert.equal(
-                metadata.versions?.[artifact.version]?.dist?.integrity,
-                `sha512-${artifact.sha512}`,
-                'Registry tarball must match reviewed bytes',
+                distribution.integrity,
+                `sha512-${createHash('sha512').update(data).digest('base64')}`,
+                'Downloaded tarball must match registry integrity',
             );
+            const publishedPath = join(temporary, artifact.file);
+            await writeFile(publishedPath, data);
+            const localPath = join(output, artifact.file);
+            const localFiles = (await run('tar', ['-tzf', localPath])).split('\n').sort();
+            const publishedFiles = (await run('tar', ['-tzf', publishedPath])).split('\n').sort();
+            assert.deepEqual(
+                publishedFiles,
+                localFiles,
+                'Published file list must match reviewed files',
+            );
+            // Compression can differ between Node versions; compare every file byte instead.
+            for (const file of localFiles) {
+                const [local, published] = await Promise.all([
+                    run('tar', ['-xOzf', localPath, file], { rawOutput: true }),
+                    run('tar', ['-xOzf', publishedPath, file], { rawOutput: true }),
+                ]);
+                assert.ok(
+                    local.equals(published),
+                    `Published file differs from reviewed source: ${artifact.name}/${file}`,
+                );
+            }
         }
     }
     await run(

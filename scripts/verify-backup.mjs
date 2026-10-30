@@ -45,7 +45,8 @@ try {
     } finally {
         closeSync(fd);
     }
-    assert.equal(sql(restored, 'SELECT MAX(version) FROM schema_migrations'), '8');
+    const latest = 'SELECT MAX(version) FROM schema_migrations';
+    assert.equal(sql(restored, latest), sql('socket', latest));
     assert.equal(
         sql(restored, 'SELECT inbox_count FROM platform_usage'),
         sql(restored, 'SELECT COUNT(*) FROM inboxes'),
@@ -82,7 +83,7 @@ try {
         assert.match(sql(restored, `SELECT count(*) FROM ${table}`), /^\d+$/);
     assert.equal(sql('socket', "SELECT rolsuper FROM pg_roles WHERE rolname='socket'"), 'f');
     console.log(
-        'Backup/restore verification passed in an isolated schema-8 database. No live data was changed.',
+        `Backup/restore verification passed in an isolated schema-${sql('socket', latest)} database. No live data was changed.`,
     );
 } finally {
     try {

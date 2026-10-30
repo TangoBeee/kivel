@@ -29,12 +29,20 @@ The Docker image includes both. They accept files up to 10 MiB and 120 seconds,
 produce at most 5 MiB, and cancel after 20 seconds. Uploads and results are removed
 after processing; no media history is retained.
 
-## Free open beta deployment
+## Production
 
-Follow [docs/deploy-open-beta.md](docs/deploy-open-beta.md) for VM sizing, Hostinger DNS,
-SMTP, HTTPS, release checks and backups. `BILLING_ENABLED=false` is the default;
-Pro/Team checkout stays closed even if Dodo credentials are present. Public
-production startup requires recovery email configuration. Support is support@socket.help.
+socket.help runs on one VPS behind Cloudflare. Every push to `main` that passes CI runs the
+Deploy workflow: it builds the app, database and proxy images, pushes them to the private
+Docker Hub repository `tangobee/socket`, then runs [deploy/server-deploy.sh](deploy/server-deploy.sh)
+on the server over SSH. That script backs up the database, pulls the release, waits for it to
+become healthy and rolls back if it does not; the workflow then runs
+`scripts/production-check.mjs` against the live site. Run the workflow by hand to redeploy any
+commit. It needs the `DOCKERHUB_TOKEN`, `DEPLOY_SSH_KEY` and `DEPLOY_KNOWN_HOSTS` secrets and the
+`DEPLOY_HOST` variable.
+
+`BILLING_ENABLED=false` is the default for self-hosting; Pro/Team checkout stays closed even if
+Dodo credentials are present. Public production startup requires recovery email configuration.
+Support is support@socket.help.
 
 ## Docker
 

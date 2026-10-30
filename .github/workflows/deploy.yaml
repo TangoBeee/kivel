@@ -84,4 +84,6 @@ jobs:
             | remote 'tar -xzf - -C /opt/socket-help'
           remote "bash /opt/socket-help/deploy/server-deploy.sh $TAG"
       - name: Check the live site
-        run: curl -fsS --retry 6 --retry-delay 5 --retry-all-errors "https://$DOMAIN/ready"
+        run: |
+          curl -fsS --retry 6 --retry-delay 5 --retry-all-errors -o /dev/null "https://$DOMAIN/ready"
+          node scripts/production-check.mjs "https://$DOMAIN"

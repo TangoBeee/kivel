@@ -26,25 +26,30 @@ const request = async (path) => {
 };
 assert.equal((await (await request('/ready')).json()).status, 'ok');
 const billing = await (await request('/api/billing')).json();
-assert.equal(billing.enabled, false, 'Open beta must keep checkout disabled');
-assert.deepEqual(billing.prices, []);
+assert.equal(billing.enabled, true, 'Paid plans must be open for checkout');
+assert.deepEqual(
+    billing.prices.map((price) => [price.plan, price.amount]),
+    [
+        ['pro', 200],
+        ['team', 600],
+    ],
+    'Pro is $2 and Team is $6 a month',
+);
 assert.equal(
     (await (await request('/api/auth/recovery')).json()).enabled,
     true,
     'Configure SMTP before inviting public users',
 );
-for (const path of ['/contact/', '/refunds/', '/terms/', '/privacy/', '/plans/', '/beta/']) {
+for (const path of ['/contact/', '/refunds/', '/terms/', '/privacy/', '/beta/']) {
     const html = await (await request(path)).text();
     assert.ok(html.includes('support@socket.help'), `${path}: support contact`);
-    if (path === '/plans/') {
-        assert.ok(!html.includes('cycle-yearly'));
-        assert.ok(html.includes('Not available during beta'));
-    }
 }
+const plans = await (await request('/plans/')).text();
+assert.ok(plans.includes('$2') && plans.includes('$6'), '/plans/: prices');
 const robots = await (await request('/robots.txt')).text();
 assert.ok(robots.includes(`${origin.origin}/sitemap.xml`), 'Build SEO URLs for this domain');
 console.log(
-    'Public HTTPS beta checks passed: readiness, disabled checkout, SMTP configuration, policy pages and sitemap origin.',
+    'Public HTTPS checks passed: readiness, paid checkout, SMTP configuration, policy pages and sitemap origin.',
 );
 console.log(
     'Before inviting users, confirm a real verification email and password-reset email arrive, and verify an off-VM backup restore.',

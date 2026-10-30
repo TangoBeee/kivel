@@ -187,7 +187,7 @@ const mcp = await request('/mcp', {
 });
 assert.equal(mcp.status, 200);
 const platformTools = (await mcp.json()).result.tools;
-assert.equal(platformTools.length, 15);
+assert.equal(platformTools.length, 33);
 assert.ok(platformTools.some((tool) => tool.name === 'describe_tool'));
 assert.equal(new Set(platformTools.map((tool) => tool.name)).size, platformTools.length);
 const descriptor = await request('/api/tools/test-media-audio-composer');

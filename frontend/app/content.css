@@ -1931,3 +1931,20 @@ a brand dot pattern with its icon in a raised tile */
 .comparison-table td.is-theirs {
   color: var(--muted);
 }
+
+.connect-packages {
+  margin-top: 20px;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.connect-packages code {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.8125rem;
+  color: var(--ink);
+}
+.connect-packages a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}

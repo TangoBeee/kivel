@@ -167,6 +167,12 @@ export default function Connect() {
             <section id="clients" className="content-section">
                 <h2>Or set it up by hand</h2>
                 <ClientTabs clients={clients} />
+                <p className="connect-packages">
+                    Prefer a terminal or code? The same tools ship as{' '}
+                    <code>npm install --global @socket-help/cli@beta</code> and{' '}
+                    <code>npm install @socket-help/sdk@beta</code>. See the{' '}
+                    <Link href="/docs/cli/">CLI</Link> and <Link href="/docs/sdk/">SDK</Link> docs.
+                </p>
             </section>
 
             <section className="content-section">

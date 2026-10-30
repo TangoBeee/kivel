@@ -111,7 +111,7 @@
 }
 .dashboard-content .account-card,
 .dashboard-content .dashboard-block {
-  margin-bottom: 48px;
+  margin-block: 48px;
 }
 
 /* Section headings: small, with the action on the right */

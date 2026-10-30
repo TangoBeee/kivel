@@ -93,8 +93,7 @@ docker compose up -d --wait
 `node scripts/verify-backup.mjs` verifies a backup in an isolated temporary database.
 `pnpm scan:images` checks all three built images for high/critical vulnerabilities.
 `pnpm test:https` tests the built stack with verified local TLS and proxy trust.
-See [backend/README.md](backend/README.md) for API details and [PROJECT.md](PROJECT.md)
-for the broader roadmap. Start at `/docs/`; the interactive Scalar reference is at
+See [backend/README.md](backend/README.md) for API details. Start at `/docs/`; the interactive Scalar reference is at
 `/docs/reference/`. Tool guides, `/blog/`, and `/compare/` are statically rendered
 with canonical metadata and sitemap coverage. Unavailable tools remain Coming soon
 and are excluded from search indexing.

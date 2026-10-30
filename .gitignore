@@ -34,3 +34,8 @@ frontend/.impeccable/mocks/
 # npm release artifacts
 release/
 *.tgz
+
+# Internal plans, strategy notes and briefs stay local
+docs/*-plan.md
+docs/competitor-review.md
+PROJECT.md

@@ -366,7 +366,7 @@ export function registerBilling(
                     metadata: { accountId: identity.account.id },
                     subscription_data: { trial_period_days: 0 },
                     feature_flags: {
-                        allow_discount_code: false,
+                        allow_discount_code: true,
                         allow_editing_addons: false,
                         always_create_new_customer: false,
                         allow_customer_editing_email: false,

@@ -15,7 +15,7 @@ services:
     build:
       context: .
       dockerfile: deploy/caddy.Dockerfile
-    image: socket-help-proxy:local
+    image: ${PROXY_IMAGE:-socket-help-proxy:local}
     restart: unless-stopped
     mem_limit: 128m
     cpus: 1

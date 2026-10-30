@@ -7,7 +7,7 @@ services:
       args:
         BILLING_ENABLED: ${BILLING_ENABLED:-false}
         SITE_URL: ${SITE_URL:-https://socket.help}
-    image: socket-help:local
+    image: ${APP_IMAGE:-socket-help:local}
     init: true
     restart: unless-stopped
     ports:
@@ -59,7 +59,7 @@ services:
     build:
       context: .
       dockerfile: deploy/postgres.Dockerfile
-    image: socket-help-postgres:local
+    image: ${DATABASE_IMAGE:-socket-help-postgres:local}
     restart: unless-stopped
     environment:
       POSTGRES_DB: socket

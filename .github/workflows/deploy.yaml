@@ -1,0 +1,87 @@
+name: Deploy
+# Every push to main that passes CI is built into images, pushed to Docker Hub and rolled out to
+# the production server. Run it by hand to redeploy main or any earlier commit.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Commit to deploy (defaults to main)
+        required: false
+permissions:
+  contents: read
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+env:
+  REPOSITORY: tangobee/socket
+  DOMAIN: socket.help
+jobs:
+  deploy:
+    # Nothing runs until the DEPLOY_HOST variable names the server.
+    if: >-
+      vars.DEPLOY_HOST != '' && (github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || inputs.ref || github.sha }}
+      - id: release
+        run: echo "tag=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          username: tangobee
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push the app
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          # Production runs with paid plans on; the frontend is built with that baked in.
+          build-args: |
+            BILLING_ENABLED=true
+            SITE_URL=https://${{ env.DOMAIN }}
+          tags: ${{ env.REPOSITORY }}:app-${{ steps.release.outputs.tag }}
+          cache-from: type=gha,scope=app
+          cache-to: type=gha,mode=max,scope=app
+      - name: Build and push the database
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/postgres.Dockerfile
+          push: true
+          tags: ${{ env.REPOSITORY }}:postgres-${{ steps.release.outputs.tag }}
+          cache-from: type=gha,scope=postgres
+          cache-to: type=gha,mode=max,scope=postgres
+      - name: Build and push the proxy
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/caddy.Dockerfile
+          push: true
+          tags: ${{ env.REPOSITORY }}:proxy-${{ steps.release.outputs.tag }}
+          cache-from: type=gha,scope=proxy
+          cache-to: type=gha,mode=max,scope=proxy
+      - name: Roll out to the server
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          HOST: ${{ vars.DEPLOY_HOST }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/deploy
+          remote() { ssh -i ~/.ssh/deploy -o StrictHostKeyChecking=yes "deploy@$HOST" "$@"; }
+          tar -czf - compose.yaml compose.production.yaml deploy/Caddyfile deploy/init-app.sql deploy/server-deploy.sh \
+            | remote 'tar -xzf - -C /opt/socket-help'
+          remote "bash /opt/socket-help/deploy/server-deploy.sh $TAG"
+      - name: Check the live site
+        run: curl -fsS --retry 6 --retry-delay 5 --retry-all-errors "https://$DOMAIN/ready"

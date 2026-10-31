@@ -151,8 +151,8 @@ export default function Connect() {
                     <div>
                         <strong>Paste the prompt</strong>
                         <p>
-                            Your agent adds the MCP server and calls <code>start_login</code>. No
-                            API key goes through the chat.
+                            Your agent asks to join your workspace, then adds the MCP server with
+                            its own key. No API key goes through the chat.
                         </p>
                     </div>
                 </li>

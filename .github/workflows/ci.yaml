@@ -26,6 +26,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ffmpeg
       - run: pnpm install --frozen-lockfile
+      - uses: actions/cache@v4
+        with:
+          path: frontend/.next/cache
+          key: next-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: next-${{ hashFiles('pnpm-lock.yaml') }}-
       - name: Require changesets for published client changes
         if: github.event_name == 'pull_request'
         env:
@@ -39,9 +44,40 @@ jobs:
       - run: pnpm test:integration
       - run: pnpm build
       - run: pnpm audit --prod --audit-level=high
-      - run: docker build --tag socket-help:local .
+      # Image builds reuse layers from earlier runs; database, proxy and mail share the Deploy caches.
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: socket-help:local
+          cache-from: type=gha,scope=ci-app
+          cache-to: type=gha,mode=max,scope=ci-app
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/postgres.Dockerfile
+          load: true
+          tags: socket-help-postgres:local
+          cache-from: type=gha,scope=postgres
+          cache-to: type=gha,mode=max,scope=postgres
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/caddy.Dockerfile
+          load: true
+          tags: socket-help-proxy:local
+          cache-from: type=gha,scope=proxy
+          cache-to: type=gha,mode=max,scope=proxy
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/mail.Dockerfile
+          load: true
+          tags: socket-help-mail:local
+          cache-from: type=gha,scope=mail
+          cache-to: type=gha,mode=max,scope=mail
       - run: node scripts/setup-env.mjs
-      - run: docker compose -f compose.yaml -f compose.production.yaml build database proxy mail
       - run: docker compose up -d --wait --wait-timeout 90
       - run: pnpm test:agent-mail
       - run: pnpm test:smoke

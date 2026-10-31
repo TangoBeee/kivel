@@ -7,15 +7,9 @@ import type { Scope, Identity, IdentityRepository } from './identity.js';
 import { effectivePlan } from './identity.js';
 import type { AllocationContext } from './allocations.js';
 import type { RateLimitRepository } from './rate-limit.js';
-export class HttpError extends Error {
-    constructor(
-        public statusCode: number,
-        message: string,
-        public retryAfter?: number,
-    ) {
-        super(message);
-    }
-}
+import { HttpError } from './errors.js';
+export { HttpError } from './errors.js';
+import { entitlement } from './entitlements.js';
 export interface Actor {
     identity?: Identity;
     quotaKey: string;
@@ -179,8 +173,7 @@ export class Access {
             ![true, false, 'true', 'false'].includes(input.persistent as boolean)
         )
             throw new HttpError(400, 'persistent must be true or false.');
-        if (persistent && (!plan.persistent || !actor.identity))
-            throw new HttpError(403, 'Persistent resources require an active paid plan.');
+        if (persistent) entitlement(actor.identity, 'persistentResource', this.origin);
         const ttl =
             input.ttlSeconds === undefined
                 ? Math.min(3600, plan.maxRetentionSeconds)

@@ -64,8 +64,6 @@ test('Dodo entitlements require a configured, active, paid fixed subscription', 
         { recurring_pre_tax_amount: 0 },
         { next_billing_date: new Date(0).toISOString() },
         { next_billing_date: 'invalid' },
-        { addons: [{}] },
-        { meters: [{}] },
     ])
         assert.equal(
             subscriptionState(subscription(override), products).plan,
@@ -249,4 +247,110 @@ test('Dodo subscription ownership falls back to current customer metadata when c
     });
     assert.equal(response.statusCode, 200, response.body);
     assert.equal(account, 'workspace_current');
+});
+
+test('phone add-ons grant slots only for the configured product on an active paid subscription', () => {
+    const products = {
+        proProduct: 'pdt_pro',
+        teamProduct: 'pdt_team',
+        phoneAddonId: 'addon_phone',
+    };
+    const addon = subscription({ addons: [{ addon_id: 'addon_phone', quantity: 2 }] });
+    assert.equal(subscriptionState(addon, products).plan, 'pro');
+    assert.equal(subscriptionState(addon, products).phoneNumbers, 2);
+    assert.equal(
+        subscriptionState(addon, { proProduct: 'pdt_pro', teamProduct: 'pdt_team' }).plan,
+        'pro',
+    );
+    assert.equal(
+        subscriptionState(
+            subscription({ addons: [{ addon_id: 'addon_phone', quantity: 11 }] }),
+            products,
+        ).plan,
+        'pro',
+    );
+    assert.equal(
+        subscriptionState(
+            subscription({ addons: [{ addon_id: 'addon_phone', quantity: 1 }], status: 'on_hold' }),
+            products,
+        ).phoneNumbers,
+        0,
+    );
+});
+
+test('unexpected add-ons never revoke Pro or Team and phone allowance is counted separately', () => {
+    for (const plan of ['pro', 'team']) {
+        for (const [addons, phoneAddonId, allowance] of [
+            [[{ addon_id: 'unknown', quantity: 1 }], 'addon_phone', 0],
+            [[{ addon_id: 'addon_phone', quantity: 11 }], 'addon_phone', 10],
+            [[{ addon_id: 'addon_phone', quantity: 2 }], undefined, 0],
+        ] as const) {
+            const warnings: string[] = [];
+            const state = subscriptionState(
+                subscription({ product_id: `pdt_${plan}`, addons }),
+                { ...products, ...(phoneAddonId ? { phoneAddonId } : {}) },
+                (message) => warnings.push(message),
+            );
+            assert.equal(state.plan, plan);
+            assert.equal(state.phoneNumbers, allowance);
+            assert.ok(warnings.length);
+        }
+    }
+});
+
+test('changing phone slots preserves unrelated paid add-ons', async (t) => {
+    let accountId = '';
+    const changes: { addons: { addon_id: string; quantity: number }[] }[] = [];
+    const dodo = new DodoPayments({
+        bearerToken: config.apiKey,
+        maxRetries: 0,
+        fetch: async (_url, init) => {
+            if (init?.method === 'POST') {
+                changes.push(JSON.parse(String(init.body)));
+                return Response.json({ payment_link: 'https://checkout.dodopayments.com/test' });
+            }
+            return Response.json(
+                subscription({
+                    metadata: { accountId },
+                    addons: [
+                        { addon_id: 'unrelated', quantity: 3 },
+                        { addon_id: 'addon_phone', quantity: 1 },
+                    ],
+                }),
+            );
+        },
+    });
+    const app = buildApp({
+        dodoClient: dodo,
+        billingConfig: { ...config, phoneAddonId: 'addon_phone', phoneAddonEnabled: true },
+        billingRepository: { subscription: async () => 'sub_test' } as never,
+    });
+    t.after(() => app.close());
+    const origin = 'http://localhost:3000';
+    const registered = await app.inject({
+        method: 'POST',
+        url: '/api/auth/register',
+        headers: { origin },
+        payload: {
+            username: 'addon-owner',
+            email: 'addon@example.test',
+            password: 'long-test-password',
+        },
+    });
+    accountId = registered.json().account.id;
+    const cookie = String(registered.headers['set-cookie']).split(';')[0]!;
+    for (const quantity of [0, 2]) {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/billing/phone-addon',
+            headers: { origin, cookie, 'idempotency-key': `phone-change-key-${quantity}` },
+            payload: { quantity, confirm: true },
+        });
+        assert.equal(response.statusCode, 200, response.body);
+    }
+    assert.deepEqual(changes[0]!.addons, [{ addon_id: 'unrelated', quantity: 3 }]);
+    assert.deepEqual(changes[1]!.addons, [
+        { addon_id: 'unrelated', quantity: 3 },
+        { addon_id: 'addon_phone', quantity: 2 },
+    ]);
 });

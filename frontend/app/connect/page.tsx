@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { catalog } from '../../lib/catalog';
+const utilityCount = catalog.filter((tool) => tool.status === 'available').length;
 import { PageIntro, StructuredData } from '../../components/content-layout';
 import { ClientTabs } from '../../components/client-tabs';
 import { CopyPrompt } from '../../components/home/copy-prompt';
@@ -9,7 +11,7 @@ import { siteOrigin } from '../../lib/site';
 
 export const metadata = pageMetadata(
     'Connect your AI agent',
-    'Add socket.help to Claude Code, Cursor, Codex, ChatGPT, VS Code or any MCP client in one step. Your agent gets webhook inboxes, mock APIs, MCP servers, file drops and 130+ tools.',
+    `Connect socket.help to your MCP client. Give agents webhook inboxes, mocks, files and ${utilityCount} tools, with scoped workspace keys and browser approval.`,
     '/connect/',
 );
 
@@ -90,8 +92,12 @@ const tools: { name: string; does: string }[] = [
     { name: 'create_webhook_inbox', does: 'A private URL that captures any HTTP request.' },
     { name: 'wait_for_webhook', does: 'Block until the inbox receives a request.' },
     { name: 'inspect_webhook_inbox', does: 'Read captured requests: method, headers, body.' },
-    { name: 'create_email_inbox', does: 'A receive-only address for sign-up and reset tests.' },
+    {
+        name: 'create_email_inbox',
+        does: 'An owned address for sign-up and reset tests; account required.',
+    },
     { name: 'wait_for_email', does: 'Block until mail arrives; codes and links come extracted.' },
+    { name: 'wait_for_event', does: 'Wait for any webhook, email or human answer in one call.' },
     { name: 'create_mock_api', does: 'Routes, templates, CRUD records and failure modes.' },
     { name: 'call_mock_api', does: 'Call a mock or change its CRUD data.' },
     { name: 'upload_temporary_file', does: 'Share a file through a private, expiring link.' },
@@ -99,7 +105,10 @@ const tools: { name: string; does: string }[] = [
     { name: 'ask_human', does: 'Ask you before a risky step; you answer from a link.' },
     { name: 'wait_for_approval', does: 'Block until you answer, then act on it.' },
     { name: 'create_monitor', does: 'Watch a URL, a certificate or a cron job, with alerts.' },
-    { name: 'search_tools', does: 'Find one of 130+ utilities by keyword.' },
+    {
+        name: 'search_tools',
+        does: 'Find an executable utility by keyword; hosted services use their resource tools.',
+    },
     { name: 'run_tool', does: 'Run a utility: JSON, JWT, DNS, SSL, PDF, images and more.' },
     { name: 'resource_request', does: 'List, renew, share or delete what your agent created.' },
 ];

@@ -109,12 +109,15 @@ test('SDK and CLI cover the agent lifecycle, email, memory, monitors, questions 
         client.memoryGet('build', 'steps/last'),
         (error: unknown) => error instanceof SocketError && error.status === 404,
     );
-    const email = await client.createEmailInbox({ ttlSeconds: 120 });
+    const email = await client.createEmailInbox({ activeDays: 2 });
     assert.match(email.address, /@inbox.example.test$/);
     assert.deepEqual(await command(client, ['email', 'messages', email.id]), { messages: [] });
     assert.equal((await client.emailInbox(email.id)).id, email.id);
     assert.equal((await client.waitForEmail(email.id, { timeoutSeconds: 1 })).timedOut, true);
-    assert.equal((await client.renew('email-inboxes', email.id)).id, email.id);
+    await assert.rejects(
+        client.renew('email-inboxes', email.id),
+        (error: unknown) => error instanceof SocketError && error.status === 409,
+    );
     await client.remove('email-inboxes', email.id);
     const monitor = await client.createMonitor({
         kind: 'heartbeat',
@@ -159,6 +162,21 @@ test('SDK and CLI cover the agent lifecycle, email, memory, monitors, questions 
         200,
     );
     assert.equal((await client.waitForApproval(approval.id, 1)).answer, 'Deploy');
+    assert.equal(
+        (await client.waitForEvent([{ kind: 'approval', id: approval.id }], 1)).events[0]!.approval!
+            .answer,
+        'Deploy',
+    );
+    assert.equal(
+        (
+            (await command(
+                client,
+                ['event', 'wait'],
+                bytes({ sources: [{ kind: 'approval', id: approval.id }], timeoutSeconds: 1 }),
+            )) as { events: { approval: { answer: string } }[] }
+        ).events[0]!.approval.answer,
+        'Deploy',
+    );
     assert.equal((await mcp('workspace_status', { section: 'approvals' })).approvals.length, 1);
     assert.equal((await mcp('workspace_status', { section: 'agents' })).agents.length, 1);
     const inbox = await client.createInbox();
@@ -179,10 +197,10 @@ test('SDK and CLI cover the agent lifecycle, email, memory, monitors, questions 
     const mail = await mcp('resource_request', {
         kind: 'email-inboxes',
         action: 'create',
-        ttlSeconds: 120,
+        config: { activeDays: 2 },
     });
     await mcp('list_emails', { id: mail.id });
-    await mcp('resource_request', { kind: 'email-inboxes', action: 'renew', id: mail.id });
+    assert.equal((await client.emailInboxes()).inboxes[0]!.id, mail.id);
     await mcp('resource_request', { kind: 'email-inboxes', action: 'delete', id: mail.id });
     const mock = await client.createMock(
         {
@@ -236,6 +254,35 @@ test('SDK rejects credential-leaking paths and CLI and SSH agree on commands req
     assert.equal(needsInput(['email', 'wait', 'id']), false);
 });
 
+test('all SDK waits stay within the client timeout and server long-poll limit', async () => {
+    for (const [timeoutMs, expected] of [
+        [25000, 20],
+        [10000, 5],
+        [90000, 30],
+    ] as const) {
+        const waits: number[] = [];
+        const client = new SocketHelp({
+            timeoutMs,
+            fetch: async (url, init) => {
+                const parsed = new URL(String(url));
+                waits.push(
+                    init?.body
+                        ? JSON.parse(String(init.body)).timeoutSeconds
+                        : Number(parsed.searchParams.get('timeoutSeconds')),
+                );
+                return Response.json({ timedOut: true, events: [], messages: [], requests: [] });
+            },
+        });
+        const id = '11111111-1111-4111-8111-111111111111';
+        await client.waitForEvent([{ kind: 'email', id }], 60);
+        await client.waitForSms(id, { timeoutSeconds: 60 });
+        await client.waitForEmail(id, { timeoutSeconds: 60 });
+        await client.waitForRequests(id, { timeoutSeconds: 60 });
+        await client.waitForApproval(id, 60);
+        assert.deepEqual(waits, Array(5).fill(expected));
+    }
+});
+
 test('HTTP reference includes the new agent operations and keeps human actions session-only', async (t) => {
     const app = buildApp();
     t.after(() => app.close());
@@ -256,7 +303,7 @@ test('HTTP reference includes the new agent operations and keeps human actions s
         ),
     );
     assert.ok(
-        !paths['/api/email-inboxes'].post.parameters.some(
+        !paths['/api/email-inboxes'].post.parameters?.some(
             (p: { name: string }) => p.name === 'visibility',
         ),
     );
@@ -287,6 +334,12 @@ test('the executable CLI uses stdin, exit codes and HTTP correctly', async (t) =
     assert.equal(invalid.code, 1);
     assert.equal(invalid.stdout, '');
     assert.equal(typeof JSON.parse(invalid.stderr).error, 'string');
+    const paid = await run(['email', 'create', '--local-part', 'paid-name']);
+    assert.equal(paid.code, 1);
+    assert.equal(paid.stdout, '');
+    assert.equal(JSON.parse(paid.stderr).status, 402);
+    assert.equal(JSON.parse(paid.stderr).requiredPlan, 'pro');
+    assert.equal(JSON.parse(paid.stderr).upgradeUrl, `${origin}/plans/`);
     const email = await run(['email', 'create']);
     assert.equal(email.code, 0, email.stderr);
     assert.match(JSON.parse(email.stdout).address, /@inbox.example.test$/);
@@ -400,20 +453,21 @@ test('SDK, CLI and MCP cannot access resources belonging to a different workspac
         ['inspect_monitor', { id: monitor.id }],
         ['memory_get', { namespace: 'private', key: 'key' }],
     ] as const) {
-        const response: { body: string; json(): { result: { isError: boolean } } } = await app.inject({
-            method: 'POST',
-            url: '/mcp',
-            headers: {
-                authorization: `Bearer ${token.apiKey}`,
-                accept: 'application/json, text/event-stream',
-            },
-            payload: {
-                jsonrpc: '2.0',
-                id: 1,
-                method: 'tools/call',
-                params: { name, arguments: args },
-            },
-        });
+        const response: { body: string; json(): { result: { isError: boolean } } } =
+            await app.inject({
+                method: 'POST',
+                url: '/mcp',
+                headers: {
+                    authorization: `Bearer ${token.apiKey}`,
+                    accept: 'application/json, text/event-stream',
+                },
+                payload: {
+                    jsonrpc: '2.0',
+                    id: 1,
+                    method: 'tools/call',
+                    params: { name, arguments: args },
+                },
+            });
         assert.equal(response.json().result.isError, true, response.body);
     }
     assert.deepEqual((await client.memoryGet('private', 'key')).value, { secret: true });

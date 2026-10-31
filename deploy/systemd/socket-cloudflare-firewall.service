@@ -1,0 +1,8 @@
+[Unit]
+Description=Restrict Docker HTTP ingress to current Cloudflare ranges
+After=docker.service network-online.target
+Requires=docker.service
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/socket-help/firewall.env
+ExecStart=/usr/local/sbin/socket-cloudflare-firewall --apply

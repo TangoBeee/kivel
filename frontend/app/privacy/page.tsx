@@ -10,6 +10,7 @@ export const metadata = pageMetadata(
 const sections = [
     { id: 'local', title: 'Local browser tools' },
     { id: 'resources', title: 'Temporary resources' },
+    { id: 'agent-email', title: 'Owned agent email' },
     { id: 'access', title: 'Sharing & credentials' },
     { id: 'browser', title: 'Browser storage' },
     { id: 'accounts', title: 'Accounts & email' },
@@ -65,6 +66,32 @@ export default function Privacy() {
                     Files are limited to 10 MiB. The final allowed download removes the stored
                     contents; lifecycle metadata remains until expiry or deletion. Downloads are
                     forced attachments. Files are not scanned for malware.
+                </p>
+            </section>
+            <section id="agent-email">
+                <h2>Owned agent email</h2>
+                <p>
+                    Agent inboxes store received and sent messages separately from account recovery
+                    mail. Free inboxes expire after the selected lifetime; paid addresses remain
+                    active while subscribed. Lapsed paid addresses pause immediately and their mail
+                    is deleted after a 30-day grace period. Retired addresses remain reserved so
+                    another workspace cannot receive mail intended for the previous owner.
+                </p>
+                <p>
+                    When enabled, the server’s separate Postfix relay queues outgoing agent email
+                    from socketspace.xyz and OpenDKIM signs it. Recipient mail servers process the
+                    delivered content. An optional forwarding webhook receives message content only
+                    when the workspace configures it. Delivery receipts, recipient addresses and
+                    request hashes are retained for 90 days for retry safety and abuse prevention;
+                    send receipts contain no message bodies. Suppression records are retained to
+                    honor unsubscribe, bounce and complaint restrictions.
+                </p>
+                <p>
+                    When phone service is enabled, Telnyx processes purchased numbers and received
+                    SMS. SMS content is retained for up to 30 days, with at most 1,000 messages per
+                    number. Lifecycle records remain until provider release is confirmed, including
+                    after workspace deletion; number reservations prevent reassignment here. Lapsed
+                    add-ons pause receiving and release excess numbers after seven days.
                 </p>
             </section>
             <section id="access">

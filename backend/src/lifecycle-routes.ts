@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { plans } from '@socket-help/tools/plans';
 import { Access, HttpError, resourceToken } from './access.js';
+import type { EmailLifecycle } from './email-lifecycle.js';
 import type { Visibility } from './sharing.js';
 import type { InboxRepository } from './inboxes.js';
 import type { ResourceRepository, ResourceKind } from './resources.js';
@@ -9,9 +10,17 @@ export function registerLifecycle(
     access: Access,
     inboxes: InboxRepository,
     resources: ResourceRepository,
+    email?: EmailLifecycle,
 ) {
     app.get('/api/account/resources', async (request) => {
         const identity = await access.require(request, 'resources:read');
+        await email?.reconcile(identity.account.id);
+        const emailRows = new Map(
+            ((await email?.addresses.list(identity.account.id)) ?? []).map((row) => [
+                row.resourceId,
+                row,
+            ]),
+        );
         const [inboxList, resourceList] = await Promise.all([
             inboxes.listOwned(identity.account.id),
             resources.listOwned(identity.account.id),
@@ -29,16 +38,29 @@ export function registerLifecycle(
             ...resourceList.map((resource) => ({
                 id: resource.id,
                 kind: resource.kind,
-                ...(resource.kind === 'mock' && resource.payload.crud
-                    ? { toolId: 'mock-apis-stateful-crud-api' }
-                    : resource.kind === 'mock' && resource.payload.echo
-                      ? { toolId: 'network-http-echo' }
-                      : {}),
+                ...(resource.kind === 'email' && emailRows.get(resource.id)
+                    ? {
+                          name: emailRows.get(resource.id)!.address,
+                          status: emailRows.get(resource.id)!.pausedAt ? 'paused' : 'active',
+                      }
+                    : {}),
+                ...(resource.kind === 'email' && resource.payload.smtpCapture
+                    ? { toolId: 'email-mock-smtp' }
+                    : resource.kind === 'mock' && resource.payload.llm
+                      ? { toolId: 'agents-mock-llm-endpoint' }
+                      : resource.kind === 'mock' && resource.payload.crud
+                        ? { toolId: 'mock-apis-stateful-crud-api' }
+                        : resource.kind === 'mock' && resource.payload.echo
+                          ? { toolId: 'network-http-echo' }
+                          : {}),
                 ...(typeof resource.payload.name === 'string'
                     ? { name: resource.payload.name }
                     : {}),
                 available: resource.kind !== 'file' || resource.uses < (resource.maxUses ?? 100),
-                visibility: resource.visibility,
+                visibility:
+                    resource.kind === 'email' || resource.kind === 'job'
+                        ? 'private'
+                        : resource.visibility,
                 createdAt: resource.createdAt,
                 expiresAt: resource.expiresAt,
                 persistent: resource.persistent,
@@ -60,6 +82,7 @@ export function registerLifecycle(
         ['mocks', 'mock'],
         ['files', 'file'],
         ['mcp-servers', 'mcp'],
+        ['status-pages', 'status'],
     ] as const)
         app.post<{ Params: { id: string } }>(`/api/${path}/:id/sharing`, async (request) => {
             const actor = await access.scope(request, 'resources:write'),
@@ -90,7 +113,7 @@ export function registerLifecycle(
         ['mocks', 'mock'],
         ['files', 'file'],
         ['mcp-servers', 'mcp'],
-        ['email-inboxes', 'email'],
+        ['status-pages', 'status'],
     ] as const)
         app.post<{ Params: { id: string } }>(`/api/${path}/:id/renew`, async (request) => {
             const actor = await access.scope(request, 'resources:write'),

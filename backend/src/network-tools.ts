@@ -1,3 +1,4 @@
+import { simulateWebhook } from './webhook-events.js';
 import { inspectMcp } from './mcp-inspector.js';
 import { runScenario } from './api-scenarios.js';
 import { parseSse } from '@socket-help/tools/sse';
@@ -246,6 +247,7 @@ export async function inspectTls(input: string, signal: AbortSignal) {
     });
 }
 export class NetworkRunner {
+    constructor(private eventSend: typeof publicRequest = publicRequest) {}
     private active = new Set<AbortController>();
     async run(
         id: NetworkOperationId,
@@ -320,6 +322,8 @@ export class NetworkRunner {
         signal: AbortSignal,
     ): Promise<unknown> {
         switch (id) {
+            case 'mock-apis-webhook-event-simulator':
+                return simulateWebhook(input, options, signal, this.eventSend);
             case 'mock-apis-api-test-scenarios':
                 return runScenario(input, options.secret ?? '', signal);
             case 'agents-mcp-server-inspector':
@@ -625,3 +629,18 @@ export class NetworkRunner {
         }
     }
 }
+
+export async function monitorDns(
+    target: string,
+    type: string,
+    signal: AbortSignal,
+): Promise<string[]> {
+    const response = await dnsAnswer(domain(target), type, 'cloudflare', signal);
+    if (response.status !== 0 || !response.answers.length)
+        throw new Error('DNS lookup returned no successful records.');
+    const records = response.answers.map((answer) => `${answer.type} ${answer.data}`).sort();
+    if (Buffer.byteLength(JSON.stringify(records)) > 32768)
+        throw new Error('DNS records exceed the 32 KiB monitor limit.');
+    return records;
+}
+export const publicDnsDomain = domain;

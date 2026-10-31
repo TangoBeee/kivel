@@ -273,7 +273,7 @@ test('retention and persistent resources enforce the active plan; billing defaul
     assert.equal(
         (await app.inject({ method: 'POST', url: '/api/inboxes?persistent=true', headers }))
             .statusCode,
-        403,
+        402,
     );
     assert.equal(
         (await app.inject({ method: 'POST', url: '/api/inboxes?ttlSeconds=604801', headers }))
@@ -309,7 +309,7 @@ test('retention and persistent resources enforce the active plan; billing defaul
     assert.equal(
         (await app.inject({ method: 'POST', url: '/api/inboxes?persistent=true', headers }))
             .statusCode,
-        403,
+        402,
     );
     assert.deepEqual((await app.inject({ url: '/api/billing' })).json(), {
         provider: 'dodo',
@@ -560,7 +560,7 @@ test('Pro inboxes forward captured webhooks with retries and keep a delivery log
             headers,
             payload: { url },
         });
-    assert.equal((await forward('https://example.com/hook')).statusCode, 403);
+    assert.equal((await forward('https://example.com/hook')).statusCode, 402);
     await identities.setEntitlement(
         owner.account.id,
         'pro',
@@ -639,7 +639,7 @@ test('Pro proxy mocks pass unmatched calls through, never serve HTML, and record
             headers,
             payload: { name: 'Proxy', routes: [], proxy },
         });
-    assert.equal((await create({ target: 'https://api.example.com' })).statusCode, 403);
+    assert.equal((await create({ target: 'https://api.example.com' })).statusCode, 402);
     await identities.setEntitlement(
         owner.account.id,
         'pro',

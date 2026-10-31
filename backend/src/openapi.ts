@@ -1,3 +1,4 @@
+import { readinessOpenApi } from './readiness-openapi.js';
 import { agentInterfaceOpenApi } from './agent-interface-openapi.js';
 import { accountOpenApi } from './account-openapi.js';
 import { API_VERSION } from './version.js';
@@ -385,7 +386,7 @@ export function openApi(origin: string) {
                     tags: ['Monitors'],
                     summary: 'Watch a URL, a certificate or a scheduled job',
                     description:
-                        'Needs an account or API key. http checks a public URL; ssl alerts before a certificate expires; heartbeat returns a pingUrl your job calls (append /fail to report a failure). Alerts go to the owner’s verified email and optional alertWebhook when status changes. Free: 20 monitors, every 5 minutes at most; Pro: 100, every minute.',
+                        'Needs an account or API key. http checks a public URL; ssl alerts before a certificate expires; dns watches DNS records against the first successful baseline; heartbeat returns a pingUrl your job calls (append /fail to report a failure). Alerts go to the owner’s verified email and optional alertWebhook when status changes. Free: 20 monitors, every 5 minutes at most; Pro: 100, every minute.',
                     security: secured,
                     requestBody: {
                         required: true,
@@ -397,7 +398,7 @@ export function openApi(origin: string) {
                                     properties: {
                                         kind: {
                                             type: 'string',
-                                            enum: ['http', 'ssl', 'heartbeat'],
+                                            enum: ['http', 'ssl', 'heartbeat', 'dns'],
                                         },
                                         name: { type: 'string', maxLength: 80 },
                                         target: { type: 'string' },
@@ -406,6 +407,11 @@ export function openApi(origin: string) {
                                         expectStatus: { type: 'integer' },
                                         expectText: { type: 'string', maxLength: 200 },
                                         sslDays: { type: 'integer', default: 14 },
+                                        dnsRecordType: {
+                                            type: 'string',
+                                            enum: ['A', 'AAAA', 'CNAME', 'MX', 'TXT', 'NS', 'CAA'],
+                                            default: 'A',
+                                        },
                                         alertWebhook: { type: 'string', format: 'uri' },
                                     },
                                 },
@@ -756,7 +762,7 @@ export function openApi(origin: string) {
             },
         },
     };
-    Object.assign(spec.paths, agentInterfaceOpenApi());
+    Object.assign(spec.paths, agentInterfaceOpenApi(), readinessOpenApi());
     for (const [path, methods] of Object.entries(spec.paths)) {
         for (const [method, definition] of Object.entries(methods)) {
             if (!definition || typeof definition !== 'object') continue;
@@ -766,7 +772,7 @@ export function openApi(origin: string) {
                 description?: string;
             };
             if (
-                /^\/api\/(inboxes|mocks|files|mcp-servers|email-inboxes|memory|monitors)(\/|$)/.test(
+                /^\/api\/(inboxes|mocks|files|mcp-servers|email-inboxes|status-pages|memory|monitors)(\/|$)/.test(
                     path,
                 )
             ) {
@@ -778,7 +784,11 @@ export function openApi(origin: string) {
                     { accountKey: [], privateResourceToken: [] },
                     { sessionCookie: [] },
                 ];
-                if (method === 'post' && !path.includes('{id}') && !/^\/api\/(memory|monitors)/.test(path))
+                if (
+                    method === 'post' &&
+                    !path.includes('{id}') &&
+                    !/^\/api\/(memory|monitors|email-inboxes)/.test(path)
+                )
                     operation.parameters = [
                         ...(operation.parameters ?? []).filter(
                             (parameter) =>
@@ -818,8 +828,8 @@ export function openApi(origin: string) {
                         },
                     ];
             }
-            if (path === '/api/email-inboxes' && operation.parameters)
-                operation.parameters = operation.parameters.filter(parameter => (parameter as { name?: string }).name !== 'visibility');
+            if (path === '/api/email-inboxes')
+                operation.security = [{ accountKey: [] }, { sessionCookie: [] }];
             if (path === '/api/files' && method === 'post')
                 operation.parameters = [
                     ...(operation.parameters ?? []),

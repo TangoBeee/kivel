@@ -35,13 +35,15 @@ jobs:
       - run: pnpm test
       - run: pnpm test:packages
       - run: pnpm test:releases
+      - run: pnpm test:operations
       - run: pnpm test:integration
       - run: pnpm build
       - run: pnpm audit --prod --audit-level=high
       - run: docker build --tag socket-help:local .
       - run: node scripts/setup-env.mjs
-      - run: docker compose -f compose.yaml -f compose.production.yaml build database proxy
+      - run: docker compose -f compose.yaml -f compose.production.yaml build database proxy mail
       - run: docker compose up -d --wait --wait-timeout 90
+      - run: pnpm test:agent-mail
       - run: pnpm test:smoke
       - run: pnpm test:backup
       - run: pnpm test:https

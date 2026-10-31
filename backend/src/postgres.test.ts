@@ -8,6 +8,9 @@ import { PostgresInboxStore, PostgresRateLimiter } from './postgres.js';
 import { buildApp } from './app.js';
 import { PostgresResourceStore } from './resources.js';
 import { PostgresMockCalls } from './mock-calls.js';
+import { PostgresEmailSending, newSendJob } from './email-sending-store.js';
+import { PostgresEmailAddresses } from './email-addresses.js';
+import { EmailLifecycle } from './email-lifecycle.js';
 import { PostgresEmailMessages } from './email.js';
 import { PostgresActivity } from './activity.js';
 import { PostgresKv } from './kv.js';
@@ -22,6 +25,7 @@ import type { Client as SshClient } from 'ssh2';
 const { Client, utils } = ssh2;
 import { createSshServer } from './ssh.js';
 import { BillingRepository } from './billing.js';
+import { liftEmailSuspension } from './email-admin.js';
 import type { CapturedRequest } from './inboxes.js';
 
 if (!process.env.TEST_DATABASE_URL)
@@ -48,7 +52,7 @@ before(async () => {
 });
 beforeEach(async () => {
     await pool.query(
-        'TRUNCATE captured_requests, inboxes, rate_windows, temporary_resources, users, accounts, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events RESTART IDENTITY CASCADE',
+        'TRUNCATE phone_messages, phone_numbers, email_send_jobs, email_sender_suspensions, email_suppressions, email_addresses, captured_requests, inboxes, rate_windows, temporary_resources, users, accounts, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events RESTART IDENTITY CASCADE',
     );
     await pool.query('UPDATE platform_usage SET inbox_count = 0, stored_bytes = 0');
     await pool.query('UPDATE resource_usage SET resource_count = 0, stored_bytes = 0');
@@ -432,7 +436,7 @@ test('upgrading an existing webhook-only database preserves captures and enables
     await pool.query(
         `DROP TRIGGER inbox_quota ON inboxes; DROP FUNCTION enforce_resource_quota() CASCADE;
          ALTER TABLE inboxes DROP COLUMN owner_id, DROP COLUMN quota_key, DROP COLUMN created_at, DROP COLUMN persistent, DROP COLUMN request_limit, DROP COLUMN byte_limit, DROP COLUMN visibility, DROP COLUMN access_token_hash, DROP COLUMN access_version, DROP COLUMN response, DROP COLUMN forward_url;
-         DROP TABLE mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors, cookie_coupons, approvals, agent_trials, agent_logins, agents, user_contact_emails, auth_mail_outbox, auth_challenges, user_recovery_emails, temporary_resources, resource_usage, account_members, auth_sessions, api_keys, account_invites, users, accounts, usage_plans, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events CASCADE; DELETE FROM schema_migrations WHERE version > 1`,
+         DROP TABLE phone_messages, phone_numbers, scheduled_jobs, email_send_jobs, email_sender_suspensions, email_suppressions, email_addresses, mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors, cookie_coupons, approvals, agent_trials, agent_logins, agents, user_contact_emails, auth_mail_outbox, auth_challenges, user_recovery_emails, temporary_resources, resource_usage, account_members, auth_sessions, api_keys, account_invites, users, accounts, usage_plans, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events CASCADE; DELETE FROM schema_migrations WHERE version > 1`,
     );
     await Promise.all([migrate(pool), migrate(pool)]);
     assert.equal(
@@ -448,7 +452,7 @@ test('upgrading an existing webhook-only database preserves captures and enables
     );
     assert.equal(
         (await pool.query('SELECT max(version) AS version FROM schema_migrations')).rows[0].version,
-        13,
+        19,
     );
 });
 
@@ -732,6 +736,12 @@ test('SSH verifies host identity, executes the shared engine, rejects shell comm
     assert.equal(JSON.parse(missing.stderr).status, 404);
     const remembered = await execute(client, 'socket-help memory get ssh result');
     assert.deepEqual(JSON.parse(remembered.stdout).value, { success: true });
+    const paid = await execute(client, 'socket-help email create --local-part paid-name');
+    assert.equal(paid.code, 1);
+    assert.equal(paid.stdout, '');
+    assert.equal(JSON.parse(paid.stderr).status, 402);
+    assert.equal(JSON.parse(paid.stderr).requiredPlan, 'pro');
+    assert.equal(JSON.parse(paid.stderr).upgradeUrl, 'http://localhost:3000/plans/');
     const email = await execute(client, 'socket-help email create');
     assert.equal(email.code, 0, email.stderr);
     const emailId = JSON.parse(email.stdout).id;
@@ -1183,7 +1193,7 @@ test('Dodo migration preserves legacy Stripe data without adopting its customer 
         user.personalAccountId,
     ]);
     await pool.query(
-        'ALTER TABLE accounts DROP COLUMN dodo_customer_id, DROP COLUMN dodo_subscription_id, DROP COLUMN dodo_event_created, DROP COLUMN dodo_checkout_id, DROP COLUMN dodo_checkout_url, DROP COLUMN dodo_checkout_plan; DROP TABLE dodo_events; ALTER TABLE inboxes DROP COLUMN response, DROP COLUMN forward_url; DROP TABLE mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors, cookie_coupons, approvals, agent_trials, agent_logins, agents; DELETE FROM schema_migrations WHERE version >= 8',
+        'ALTER TABLE accounts DROP COLUMN phone_allowance, DROP COLUMN dodo_customer_id, DROP COLUMN dodo_subscription_id, DROP COLUMN dodo_event_created, DROP COLUMN dodo_checkout_id, DROP COLUMN dodo_checkout_url, DROP COLUMN dodo_checkout_plan; DROP TABLE dodo_events; ALTER TABLE inboxes DROP COLUMN response, DROP COLUMN forward_url; DROP TABLE phone_messages, phone_numbers, scheduled_jobs, email_send_jobs, email_sender_suspensions, email_suppressions, email_addresses, mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors, cookie_coupons, approvals, agent_trials, agent_logins, agents; DELETE FROM schema_migrations WHERE version >= 8',
     );
     await Promise.all([migrate(pool), migrate(pool)]);
     const row = (
@@ -1629,6 +1639,444 @@ test('the cookie coupon is created once per person, only before a first subscrip
     });
     assert.equal(refused.statusCode, 409);
     assert.equal(discounts, 1);
+});
+
+test('owned email survives repository restarts, enforces limits across replicas and never reissues deleted addresses', async (t) => {
+    const identities = new PostgresIdentityRepository(pool);
+    const user = (await identities.register('durable-email', 'test-hash'))!;
+    const session = randomBytes(32).toString('base64url');
+    await identities.createSession(user.id, user.personalAccountId, session);
+    const identity = (await identities.authenticateSession(session))!;
+    const key = await identities.createKey(
+        identity,
+        'Email integration',
+        ['resources:write', 'resources:read'],
+        new Date(Date.now() + 86400000).toISOString(),
+    );
+    const options = {
+        identityStore: identities,
+        recoveryStore: new PostgresRecoveryRepository(pool),
+        resourceStore: new PostgresResourceStore(pool),
+        emailMessages: new PostgresEmailMessages(pool),
+        emailAddresses: new PostgresEmailAddresses(pool),
+        mailDomain: 'socketspace.xyz',
+        emailIngestSecret: 'x'.repeat(40),
+    };
+    const apps = [
+        buildApp(options),
+        buildApp({
+            ...options,
+            emailAddresses: new PostgresEmailAddresses(pool),
+            resourceStore: new PostgresResourceStore(pool),
+        }),
+    ];
+    t.after(async () => {
+        await Promise.all(apps.map((app) => app.close()));
+    });
+    const headers = { authorization: `Bearer ${key.key}` };
+    const created = await Promise.all(
+        Array.from({ length: 12 }, (_, index) =>
+            apps[index % 2]!.inject({ method: 'POST', url: '/api/email-inboxes', headers }),
+        ),
+    );
+    assert.equal(
+        created.filter((response) => response.statusCode === 201).length,
+        1,
+        created.map((response) => response.body).join('\n'),
+    );
+    const first = created.find((response) => response.statusCode === 201)!.json();
+    await identities.setEntitlement(
+        identity.account.id,
+        'pro',
+        new Date(Date.now() + 86400000).toISOString(),
+    );
+    const upgraded = await apps[1]!.inject({ url: `/api/email-inboxes/${first.id}`, headers });
+    assert.equal(upgraded.json().expiresAt, null, upgraded.body);
+    const custom = await apps[0]!.inject({
+        method: 'POST',
+        url: '/api/email-inboxes',
+        headers,
+        payload: { localPart: 'durable-qa-bot' },
+    });
+    assert.equal(custom.statusCode, 201, custom.body);
+    const row = await new PostgresEmailAddresses(pool).find('durable-qa-bot@socketspace.xyz');
+    assert.equal(row?.resourceId, custom.json().id);
+    const restarted = buildApp({
+        ...options,
+        emailAddresses: new PostgresEmailAddresses(pool),
+        resourceStore: new PostgresResourceStore(pool),
+    });
+    t.after(() => restarted.close());
+    assert.equal(
+        (await restarted.inject({ url: `/api/email-inboxes/${custom.json().id}`, headers })).json()
+            .address,
+        row!.address,
+    );
+    await restarted.inject({
+        method: 'DELETE',
+        url: `/api/email-inboxes/${custom.json().id}`,
+        headers,
+    });
+    assert.equal(
+        (
+            await apps[0]!.inject({
+                method: 'POST',
+                url: '/api/email-inboxes',
+                headers,
+                payload: { localPart: 'durable-qa-bot' },
+            })
+        ).statusCode,
+        409,
+    );
+    assert.ok((await new PostgresEmailAddresses(pool).find(row!.address))!.retiredAt);
+    await identities.setEntitlement(
+        identity.account.id,
+        'pro',
+        new Date(Date.now() - 31 * 86400000).toISOString(),
+    );
+    await new EmailLifecycle(
+        new PostgresEmailAddresses(pool),
+        new PostgresResourceStore(pool),
+        identities,
+        new PostgresEmailMessages(pool),
+    ).reconcile();
+    assert.ok((await new PostgresEmailAddresses(pool).find(first.address))!.retiredAt);
+});
+
+test('email send reservations serialize across replicas and persist retry keys, suppression and suspension', async () => {
+    const stores = [new PostgresEmailSending(pool), new PostgresEmailSending(pool)];
+    const owner = '11111111-1111-4111-8111-111111111111';
+    const attempts = await Promise.all(
+        Array.from({ length: 15 }, (_, index) =>
+            stores[index % 2]!.withOwner(owner, async (session) => {
+                if ((await session.usage()) >= 3) return false;
+                await session.save(
+                    newSendJob({
+                        ownerId: owner,
+                        inboxId: '22222222-2222-4222-8222-222222222222',
+                        key: `request-${index}`,
+                        hash: 'content-hash',
+                        recipients: [{ address: 'recipient@example.com' }],
+                    }),
+                );
+                return true;
+            }),
+        ),
+    );
+    assert.equal(attempts.filter(Boolean).length, 3);
+    await stores[0]!.withOwner(owner, async (session) => {
+        const old = newSendJob({
+            ownerId: owner,
+            inboxId: '22222222-2222-4222-8222-222222222222',
+            key: 'old-reputation',
+            hash: 'old',
+            recipients: Array.from({ length: 30 }, () => ({
+                address: 'old@example.com',
+                providerId: 'old',
+                bounced: true,
+            })),
+        });
+        old.createdAt = new Date(Date.now() - 31 * 86400000).toISOString();
+        old.status = 'sent';
+        await session.save(old);
+        const job = (await session.job('request-0'))!;
+        assert.ok(job);
+        job.recipients[0]!.providerId = 'provider-accepted';
+        job.recipients[0]!.bounced = true;
+        job.status = 'sent';
+        await session.save(job);
+        await session.suppress('recipient@example.com', 'bounce');
+        await session.suspend('Bounce rate exceeds 5%');
+    });
+    const restarted = new PostgresEmailSending(pool);
+    await restarted.withOwner(owner, async (session) => {
+        assert.equal(await session.usage(), 3);
+        assert.equal(
+            (await session.job('request-0'))!.recipients[0]!.providerId,
+            'provider-accepted',
+        );
+        assert.deepEqual(await session.reputation(), {
+            sent: 1,
+            bounced: 1,
+            suspended: 'Bounce rate exceeds 5%',
+        });
+        assert.equal(await session.blocked('recipient@example.com'), true);
+        await session.suppress('optout@example.com', 'unsubscribe');
+    });
+    await restarted.withOwner('33333333-3333-4333-8333-333333333333', async (session) => {
+        assert.equal(await session.blocked('recipient@example.com'), true);
+        assert.equal(await session.blocked('optout@example.com'), false);
+        assert.equal(await session.usage(), 0);
+    });
+    await liftEmailSuspension(restarted, owner);
+    await restarted.withOwner(owner, async (session) => {
+        assert.equal((await session.reputation()).suspended, null);
+        assert.equal(await session.blocked('recipient@example.com'), true);
+    });
+});
+
+test('paid renewals preserve excess inbox pause deadlines after a Team-to-Pro downgrade', async (t) => {
+    const identities = new PostgresIdentityRepository(pool),
+        user = (await identities.register('inbox-renewals', 'test'))!;
+    const token = randomBytes(32).toString('base64url');
+    await identities.createSession(user.id, user.personalAccountId, token);
+    const identity = (await identities.authenticateSession(token))!;
+    const until = new Date(Date.now() + 86400000).toISOString();
+    await identities.setEntitlement(identity.account.id, 'team', until);
+    const key = await identities.createKey(
+        identity,
+        'Renewals',
+        ['resources:read', 'resources:write'],
+        until,
+    );
+    const resources = new PostgresResourceStore(pool),
+        addresses = new PostgresEmailAddresses(pool),
+        messages = new PostgresEmailMessages(pool);
+    const app = buildApp({
+        identityStore: identities,
+        recoveryStore: new PostgresRecoveryRepository(pool),
+        resourceStore: resources,
+        emailAddresses: addresses,
+        emailMessages: messages,
+        mailDomain: 'socketspace.xyz',
+        emailIngestSecret: 'x'.repeat(40),
+    });
+    t.after(() => app.close());
+    for (let index = 0; index < 12; index++) {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/email-inboxes',
+            headers: { authorization: `Bearer ${key.key}` },
+        });
+        assert.equal(response.statusCode, 201, response.body);
+    }
+    await identities.setEntitlement(identity.account.id, 'pro', until);
+    const lifecycle = new EmailLifecycle(addresses, resources, identities, messages);
+    await lifecycle.reconcile(identity.account.id);
+    const pausedAt = new Date(Date.now() - 10 * 86400000).toISOString(),
+        expiresAt = new Date(Date.now() + 20 * 86400000).toISOString();
+    await pool.query(
+        'UPDATE email_addresses SET paused_at=$2,expires_at=$3 WHERE owner_id=$1 AND paused_at IS NOT NULL',
+        [identity.account.id, pausedAt, expiresAt],
+    );
+    await pool.query(
+        'UPDATE temporary_resources SET expires_at=$2 WHERE id IN(SELECT resource_id FROM email_addresses WHERE owner_id=$1 AND paused_at IS NOT NULL)',
+        [identity.account.id, expiresAt],
+    );
+    await pool.query('UPDATE accounts SET dodo_customer_id=$2 WHERE id=$1', [
+        identity.account.id,
+        'cus_renewals',
+    ]);
+    const billing = new BillingRepository(pool);
+    const renew = () =>
+        billing.process(
+            `renew-${randomBytes(8).toString('hex')}`,
+            Date.now(),
+            'cus_renewals',
+            async () => ({
+                id: 'sub_renewals',
+                customerId: 'cus_renewals',
+                accountId: identity.account.id,
+                plan: 'pro',
+                validUntil: until,
+            }),
+        );
+    await renew();
+    await lifecycle.reconcile(identity.account.id);
+    await renew();
+    const rows = await addresses.list(identity.account.id),
+        paused = rows.filter((row) => row.pausedAt);
+    assert.equal(rows.length, 12);
+    assert.equal(paused.length, 2);
+    for (const row of paused) {
+        assert.equal(row.pausedAt, pausedAt);
+        assert.equal(row.expiresAt, expiresAt);
+        assert.equal(
+            (await resources.read(row.resourceId!, 'email', '', identity.account.id))!.expiresAt,
+            expiresAt,
+        );
+    }
+    await pool.query(
+        "UPDATE email_addresses SET expires_at=clock_timestamp()-interval '1 second' WHERE owner_id=$1 AND paused_at IS NOT NULL",
+        [identity.account.id],
+    );
+    await renew();
+    await lifecycle.reconcile(identity.account.id);
+    assert.equal((await addresses.list(identity.account.id)).length, 10);
+});
+
+test('scheduled-job claims use durable fenced leases across replicas and cascade on resource deletion', async () => {
+    const { PostgresJobs } = await import('./scheduled-jobs.js');
+    const identities = new PostgresIdentityRepository(pool),
+        user = (await identities.register('job-storage', 'test-hash'))!,
+        account = (await identities.account(user.personalAccountId))!;
+    const resources = new PostgresResourceStore(pool),
+        created = (await resources.create('job', { name: 'Durable callback' }, undefined, {
+            ownerId: account.id,
+            quotaKey: account.quotaKey,
+            plan: 'free',
+            expiresAt: new Date(Date.now() + 3600000).toISOString(),
+        }))!;
+    const a = new PostgresJobs(pool),
+        b = new PostgresJobs(pool),
+        now = Date.now();
+    const job = {
+        id: created.id,
+        ownerId: account.id,
+        name: 'Durable callback',
+        url: 'https://example.com/hook',
+        body: { event: 'ready' },
+        nextRunAt: new Date(now - 1).toISOString(),
+        intervalSeconds: null,
+        remaining: 1,
+        run: 0,
+        attempt: 0,
+        status: 'scheduled' as const,
+        expiresAt: created.expiresAt,
+        events: [],
+    };
+    await a.create(job);
+    const claims = await Promise.all([a.claim(now), b.claim(now)]),
+        first = claims.find(Boolean)!;
+    assert.equal(claims.filter(Boolean).length, 1);
+    await pool.query(
+        "UPDATE scheduled_jobs SET lease_until=clock_timestamp()-interval '1 second' WHERE id=$1",
+        [job.id],
+    );
+    const second = (await b.claim(Date.now()))!;
+    await a.finish({ ...job, status: 'completed', nextRunAt: null }, first.lease);
+    assert.equal((await b.get(job.id))?.status, 'scheduled');
+    await b.finish({ ...job, status: 'completed', nextRunAt: null }, second.lease);
+    assert.equal((await a.get(job.id))?.status, 'completed');
+    await resources.delete(job.id, 'job', '', account.id);
+    assert.equal(await a.get(job.id), undefined);
+});
+
+test('email bytes share workspace/global budgets, survive metadata updates and migrate existing stored messages', async () => {
+    const identities = new PostgresIdentityRepository(pool),
+        user = (await identities.register('mail-storage', 'test-hash'))!,
+        account = (await identities.account(user.personalAccountId))!;
+    const resources = new PostgresResourceStore(pool),
+        created = (await resources.create('email', { name: 'Owned inbox' }, undefined, {
+            ownerId: account.id,
+            quotaKey: account.quotaKey,
+            plan: 'free',
+        }))!;
+    const before = (await resources.read(created.id, 'email', '', account.id))!.storedBytes;
+    const messages = new PostgresEmailMessages(pool),
+        message = {
+            id: 'message-id',
+            receivedAt: new Date().toISOString(),
+            from: 'sender@example.com',
+            to: 'agent@socketspace.xyz',
+            subject: 'Test',
+            text: 'Test body',
+            codes: [],
+            links: [],
+            attachments: [],
+        };
+    assert.equal(
+        await new PostgresEmailMessages(pool, before + 1).record(created.id, message),
+        'full',
+    );
+    assert.equal((await messages.list(created.id)).length, 0);
+    assert.equal(await messages.record(created.id, message), 'stored');
+    const stored = (await resources.read(created.id, 'email', '', account.id))!.storedBytes;
+    assert.ok(stored > before);
+    await resources.update(
+        created.id,
+        'email',
+        '',
+        { name: 'Owned inbox', forwardingUrl: 'https://example.com/hook' },
+        account.id,
+    );
+    const renamed = (await resources.read(created.id, 'email', '', account.id))!.storedBytes;
+    assert.ok(renamed > stored);
+    const original = (await pool.query("SELECT settings FROM usage_plans WHERE id='free'")).rows[0]
+        .settings;
+    try {
+        await pool.query(
+            "UPDATE usage_plans SET settings=jsonb_set(settings,'{storageBytes}',$1::jsonb) WHERE id='free'",
+            [String(renamed + 1)],
+        );
+        assert.equal(await messages.record(created.id, { ...message, id: 'over-quota' }), 'full');
+        assert.equal((await messages.list(created.id)).length, 1);
+        assert.equal(
+            Number(
+                (await pool.query('SELECT stored_bytes FROM resource_usage')).rows[0].stored_bytes,
+            ),
+            renamed,
+        );
+    } finally {
+        await pool.query("UPDATE usage_plans SET settings=$1 WHERE id='free'", [original]);
+    }
+    await messages.replace(created.id, message.id, {
+        ...message,
+        direction: 'outbound',
+        deliveryStatus: 'sent',
+    });
+    await messages.delete(created.id);
+    const empty = (await resources.read(created.id, 'email', '', account.id))!.storedBytes;
+    assert.ok(empty < renamed);
+    await pool.query(
+        'ALTER TABLE email_messages DROP COLUMN stored_bytes; DELETE FROM schema_migrations WHERE version=19',
+    );
+    await pool.query('INSERT INTO email_messages(resource_id,message) VALUES($1,$2)', [
+        created.id,
+        message,
+    ]);
+    await migrate(pool);
+    assert.ok((await resources.read(created.id, 'email', '', account.id))!.storedBytes > empty);
+    await resources.delete(created.id, 'email', '', account.id);
+    assert.equal(
+        Number((await pool.query('SELECT stored_bytes FROM resource_usage')).rows[0].stored_bytes),
+        0,
+    );
+    assert.equal(
+        Number(
+            (
+                await pool.query('SELECT stored_bytes FROM principal_usage WHERE account_id=$1', [
+                    account.id,
+                ])
+            ).rows[0].stored_bytes,
+        ),
+        0,
+    );
+});
+
+test('phone order ownership and SMS deduplication persist across repositories and retain release records', async () => {
+    const { PostgresPhones, newPhone } = await import('./phone/store.js');
+    const a = new PostgresPhones(pool),
+        b = new PostgresPhones(pool),
+        owner = '11111111-1111-4111-8111-111111111111';
+    const results = await Promise.all(
+        [a, b].map((store, index) =>
+            store.withOwner(owner, async (session) => {
+                if ((await session.list()).length) return false;
+                await session.save(newPhone(owner, `+1212555012${index}`, 'purchase-reference'));
+                return true;
+            }),
+        ),
+    );
+    assert.equal(results.filter(Boolean).length, 1);
+    const phone = (await a.withOwner(owner, (session) => session.list()))[0]!;
+    const sms = {
+        id: 'telnyx-event',
+        at: new Date().toISOString(),
+        from: '+12125550111',
+        to: phone.number,
+        text: 'Code 123456',
+    };
+    await Promise.all(
+        [a, b].map((store) => store.withOwner(owner, (session) => session.record(phone.id, sms))),
+    );
+    assert.equal((await b.withOwner(owner, (session) => session.sms(phone.id))).length, 1);
+    await b.withOwner(owner, async (session) => {
+        phone.state = 'released';
+        await session.save(phone);
+    });
+    assert.equal((await a.find(phone.number))?.state, 'released');
+    assert.equal((await a.owners()).includes(owner), false);
 });
 
 test('rollback baseline accepts additive schemas through 19 and rejects unknown future schemas', async () => {

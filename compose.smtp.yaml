@@ -1,0 +1,6 @@
+services:
+  app:
+    ports:
+      - '${SMTP_CAPTURE_BIND_ADDRESS:-0.0.0.0}:${SMTP_CAPTURE_PUBLIC_PORT:-465}:2465'
+    volumes:
+      - ./.secrets/smtp:/run/smtp:ro

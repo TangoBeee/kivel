@@ -1,3 +1,4 @@
+import { sendLlmMock } from './llm-mock.js';
 import { matchMockCondition, renderMockBody } from '@socket-help/tools/mock-behavior';
 import { MemoryMockCalls, mockCall } from './mock-calls.js';
 import type { MockCallRepository } from './mock-calls.js';
@@ -8,6 +9,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { HttpError, resourceToken as token } from './access.js';
 import type { Actor } from './access.js';
+import { entitlement } from './entitlements.js';
 import { publicRequest, publicUrl } from './public-network.js';
 import type { Access } from './access.js';
 import type { ResourceRepository } from './resources.js';
@@ -24,8 +26,7 @@ export { validateMock, mockPayload } from '@socket-help/tools/mock-config';
 /** Proxy mocks are a paid feature and may only point at public APIs other than socket.help. */
 export function checkMockProxy(config: MockConfig, actor: Actor, origin: string) {
     if (!config.proxy) return;
-    if (actor.plan !== 'pro' && actor.plan !== 'team')
-        throw new HttpError(403, 'Proxy and record mocks are part of the Pro and Team plans.');
+    entitlement(actor.identity, 'mockProxy', origin);
     let target: URL;
     try {
         target = publicUrl(config.proxy.target);
@@ -524,6 +525,7 @@ export function registerResources(
                     const resource = await store.use(request.params.id, 'mock', undefined, caller);
                     if (!resource) return reply.code(404).send(missing);
                     const config = resource.payload as unknown as MockConfig;
+                    if (config.llm) return sendLlmMock(config.llm, path, request, reply, streams);
                     if (config.echo)
                         return reply
                             .type('application/json')

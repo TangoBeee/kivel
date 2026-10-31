@@ -1,0 +1,7 @@
+[Unit]
+Description=Check socket.help disk space every fifteen minutes
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=15min
+[Install]
+WantedBy=timers.target

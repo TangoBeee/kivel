@@ -1450,7 +1450,7 @@ curl https://socket.help/api/tools/everyday-file-checksums/run \\
                 id: 'commands',
                 title: 'Commands',
                 paragraphs: [
-                    'Resource creation accepts --ttl-seconds and --persistent. Webhooks, mocks, mock MCP servers and files default to private visibility. Email addresses accept incoming mail publicly; reading mail always requires management access. Agent login/trial commands use their own fixed expiry rules.',
+                    'Webhook, mock and file creation accepts --ttl-seconds and --persistent. Email uses --active-days (1–7, default 3) and an optional paid --local-part. Webhooks, mocks, mock MCP servers and files default to private visibility. Email addresses accept incoming mail publicly; reading mail always requires management access. Agent login/trial commands use their own fixed expiry rules.',
                 ],
                 table: {
                     caption: 'socket-help commands',
@@ -1460,17 +1460,47 @@ curl https://socket.help/api/tools/everyday-file-checksums/run \\
                         ['socket-help describe <tool-id>', 'Show one tool and its options'],
                         ['socket-help usage', 'Show your plan, limits and runs today'],
                         ['socket-help resources', 'List workspace resources (needs an API key)'],
-                        ['socket-help agent login <name> / agent token', 'Start device login, then pipe {"deviceCode":"…"} to agent token after browser approval; save the returned key privately'],
-                        ['socket-help agent trial <name>', 'Start a 72-hour anonymous-limit trial; --human-email optionally notifies the human'],
-                        ['socket-help email create / messages <id> / wait <id>', 'Receive-only mail; waits accept --after and --timeout-seconds'],
-                        ['socket-help memory set|get|delete <namespace> <key>', 'Pipe a JSON value to set; memory list <namespace> accepts --prefix'],
-                        ['socket-help monitor create|list|inspect|pause|resume|delete [id]', 'Pipe monitor settings as JSON to create'],
-                        ['socket-help monitor ping|fail <ping-token>', 'Report job success or failure using the secret from pingUrl'],
-                        ['socket-help approval ask|list|pending|inspect|wait [id]', 'Pipe question/options as JSON to ask; only the signed-in human can answer'],
-                        ['socket-help inbox requests|wait|response|forward|deliveries <id>', 'Read requests, wait, pipe response/forward settings as JSON, or inspect delivery attempts'],
-                        ['socket-help mock create|update|calls|reset [id]', 'Pipe mock configuration as JSON to create/update'],
+                        [
+                            'socket-help agent login <name> / agent token',
+                            'Start device login, then pipe {"deviceCode":"…"} to agent token after browser approval; save the returned key privately',
+                        ],
+                        [
+                            'socket-help agent trial <name>',
+                            'Start a 72-hour anonymous-limit trial; --human-email optionally notifies the human',
+                        ],
+                        [
+                            'socket-help email create / messages <id> / wait <id>',
+                            'Owned mail; email list reopens addresses and email forward reads a webhook URL from stdin; waits accept --after and --timeout-seconds',
+                        ],
+                        [
+                            'socket-help memory set|get|delete <namespace> <key>',
+                            'Pipe a JSON value to set; memory list <namespace> accepts --prefix',
+                        ],
+                        [
+                            'socket-help monitor create|list|inspect|pause|resume|delete [id]',
+                            'Pipe monitor settings as JSON to create',
+                        ],
+                        [
+                            'socket-help monitor ping|fail <ping-token>',
+                            'Report job success or failure using the secret from pingUrl',
+                        ],
+                        [
+                            'socket-help approval ask|list|pending|inspect|wait [id]',
+                            'Pipe question/options as JSON to ask; only the signed-in human can answer',
+                        ],
+                        [
+                            'socket-help inbox requests|wait|response|forward|deliveries <id>',
+                            'Read requests, wait, pipe response/forward settings as JSON, or inspect delivery attempts',
+                        ],
+                        [
+                            'socket-help mock create|update|calls|reset [id]',
+                            'Pipe mock configuration as JSON to create/update',
+                        ],
                         ['socket-help mcp-server create', 'Pipe a mock MCP configuration as JSON'],
-                        ['socket-help inbox|email|mock|mcp-server|file inspect|delete|renew <id>', 'Shared lifecycle commands; --token for anonymous management, --persistent on renew for paid leases'],
+                        [
+                            'socket-help inbox|email|mock|mcp-server|file inspect|delete|renew <id>',
+                            'Shared lifecycle commands; --token for anonymous management, --persistent on renew for paid leases',
+                        ],
                         [
                             'socket-help run <tool-id> [--options JSON] [--file <name>]',
                             'Run a utility with standard input as text, or as file bytes with --file',
@@ -1591,22 +1621,70 @@ console.log(result.output, result.usage.used);`,
                         ['tool(id)', 'GET /api/tools/{id}'],
                         ['run(toolId, input?, options?, file?)', 'POST /api/tools/{id}/run'],
                         ['usage()', 'GET /api/usage'],
-                        ['plans() / activity() / agents()', 'Read plan limits, MCP activity and workspace agents'],
-                        ['startLogin(name, client?) / finishLogin(deviceCode)', 'Device login; approved keys are delivered once. Approval remains in the human browser'],
-                        ['startTrial(name, humanEmail?, client?)', '72-hour trial with anonymous limits and a human claim link'],
-                        ['createEmailInbox(settings?) / emailInbox(id, token?) / emails(id, token?)', 'Receive-only inbox creation, metadata and messages'],
-                        ['waitForEmail(id, {token?, after?, timeoutSeconds?})', 'Long-poll for messages, extracted codes and links'],
-                        ['memorySet(namespace, key, value, ttlSeconds?)', 'Save a JSON value within workspace memory limits'],
-                        ['memoryGet<T>(namespace, key) / memoryList(namespace, prefix?) / memoryDelete(namespace, key)', 'Read, list metadata and delete workspace memory'],
-                        ['createMonitor(settings) / monitors() / monitor(id)', 'Create and inspect HTTP, SSL or heartbeat monitors'],
-                        ['pingMonitor(token, failed?)', 'Report a job success or failure using the secret token from pingUrl'],
-                        ['pauseMonitor(id, paused?) / deleteMonitor(id)', 'Pause, resume or remove a monitor'],
-                        ['askHuman({question, options?, details?, timeoutMinutes?})', 'Ask the human; answerUrl is safe to show them'],
-                        ['approvals(pendingOnly?) / approval(id) / waitForApproval(id, timeoutSeconds?)', 'Read questions and wait; a timeout never means approval'],
-                        ['waitForRequests(id, {token?, after?, timeoutSeconds?})', 'Long-poll for webhook captures'],
-                        ['setInboxResponse(id, settingsOrNull, token?) / setInboxForward(id, urlOrNull, token?)', 'Configure responses or paid forwarding; null restores defaults'],
-                        ['inboxDeliveries(id, token?) / mockCalls(id, token?)', 'Read recent forwarding attempts and mock calls'],
-                        ['inspectResource(kind, id, token?) / updateMock(id, config, token?) / resetMock(id, token?)', 'Resource metadata, mock configuration and CRUD reset'],
+                        [
+                            'plans() / activity() / agents()',
+                            'Read plan limits, MCP activity and workspace agents',
+                        ],
+                        [
+                            'startLogin(name, client?) / finishLogin(deviceCode)',
+                            'Device login; approved keys are delivered once. Approval remains in the human browser',
+                        ],
+                        [
+                            'startTrial(name, humanEmail?, client?)',
+                            '72-hour trial with anonymous limits and a human claim link',
+                        ],
+                        [
+                            'createEmailInbox(settings?) / emailInbox(id, token?) / emails(id, token?)',
+                            'Owned email creation, metadata and messages',
+                        ],
+                        [
+                            'waitForEmail(id, {token?, after?, timeoutSeconds?})',
+                            'Long-poll for messages, extracted codes and links',
+                        ],
+                        [
+                            'memorySet(namespace, key, value, ttlSeconds?)',
+                            'Save a JSON value within workspace memory limits',
+                        ],
+                        [
+                            'memoryGet<T>(namespace, key) / memoryList(namespace, prefix?) / memoryDelete(namespace, key)',
+                            'Read, list metadata and delete workspace memory',
+                        ],
+                        [
+                            'createMonitor(settings) / monitors() / monitor(id)',
+                            'Create and inspect HTTP, SSL or heartbeat monitors',
+                        ],
+                        [
+                            'pingMonitor(token, failed?)',
+                            'Report a job success or failure using the secret token from pingUrl',
+                        ],
+                        [
+                            'pauseMonitor(id, paused?) / deleteMonitor(id)',
+                            'Pause, resume or remove a monitor',
+                        ],
+                        [
+                            'askHuman({question, options?, details?, timeoutMinutes?})',
+                            'Ask the human; answerUrl is safe to show them',
+                        ],
+                        [
+                            'approvals(pendingOnly?) / approval(id) / waitForApproval(id, timeoutSeconds?)',
+                            'Read questions and wait; a timeout never means approval',
+                        ],
+                        [
+                            'waitForRequests(id, {token?, after?, timeoutSeconds?})',
+                            'Long-poll for webhook captures',
+                        ],
+                        [
+                            'setInboxResponse(id, settingsOrNull, token?) / setInboxForward(id, urlOrNull, token?)',
+                            'Configure responses or paid forwarding; null restores defaults',
+                        ],
+                        [
+                            'inboxDeliveries(id, token?) / mockCalls(id, token?)',
+                            'Read recent forwarding attempts and mock calls',
+                        ],
+                        [
+                            'inspectResource(kind, id, token?) / updateMock(id, config, token?) / resetMock(id, token?)',
+                            'Resource metadata, mock configuration and CRUD reset',
+                        ],
                         ['resources()', 'GET /api/account/resources'],
                         ['createInbox(settings?)', 'POST /api/inboxes'],
                         ['inspectInbox(id, token?)', 'GET /api/inboxes/{id}/requests'],
@@ -1628,7 +1706,7 @@ console.log(result.output, result.usage.used);`,
                 id: 'resources',
                 title: 'Work with resources',
                 paragraphs: [
-                    'Webhook, mock, mock MCP and file settings accept ttlSeconds, persistent and visibility; upload also accepts maxDownloads. Email settings accept ttlSeconds and persistent, with management-protected reading. inspectResource reads metadata. Use request() for other /api/ operations and /mock/ caller requests; its token is a caller access token for /mock/ paths.',
+                    'Webhook, mock, mock MCP and file settings accept ttlSeconds, persistent and visibility; upload also accepts maxDownloads. Email requires an account and accepts activeDays (1–7, default 3) on Free, or an optional paid localPart. Free allows one active inbox; Pro 10 and Team 50 addresses that stay active while subscribed. emailInboxes() lists owned addresses; emailForwarding(id, url) configures a public webhook. inspectResource reads metadata. Use request() for other /api/ operations and /mock/ caller requests; its token is a caller access token for /mock/ paths.',
                 ],
                 code: {
                     title: 'Inbox and file lifecycle',
@@ -1800,7 +1878,10 @@ ssh -T -n -p 2222 socket@your-host socket-help inbox create --visibility public`
                     caption: 'Platform MCP tools',
                     headers: ['Tool', 'Purpose'],
                     rows: [
-                        ['search_tools', 'Find executable utilities by keyword; preferred over listing the full catalog'],
+                        [
+                            'search_tools',
+                            'Find executable utilities by keyword; preferred over listing the full catalog',
+                        ],
                         ['list_tools', 'List executable utility IDs'],
                         ['describe_tool', 'Options, defaults, limits and examples for one tool ID'],
                         [
@@ -1809,20 +1890,50 @@ ssh -T -n -p 2222 socket@your-host socket-help inbox create --visibility public`
                         ],
                         ['create_webhook_inbox', 'Create an inbox; optional visibility'],
                         ['inspect_webhook_inbox', 'Read inbox details and captured requests'],
-                        ['wait_for_webhook', 'Wait for new requests; after is the last request ID seen'],
-                        ['set_webhook_response', 'Configure status, body, content type, headers and delay; reset restores defaults'],
+                        [
+                            'wait_for_webhook',
+                            'Wait for new requests; after is the last request ID seen',
+                        ],
+                        [
+                            'set_webhook_response',
+                            'Configure status, body, content type, headers and delay; reset restores defaults',
+                        ],
                         ['delete_webhook_inbox', 'Delete an inbox and its history'],
-                        ['start_login / finish_login / start_trial', 'Connect through human approval, or start a capped trial'],
-                        ['create_email_inbox / list_emails / wait_for_email', 'Receive email with extracted codes and links'],
-                        ['memory_set / memory_get / memory_list / memory_delete', 'Workspace-scoped JSON memory'],
-                        ['create_monitor / list_monitors / inspect_monitor / pause_monitor / ping_monitor / delete_monitor', 'Manage uptime, SSL and heartbeat checks'],
-                        ['ask_human / wait_for_approval', 'Ask and wait; answering stays in the human browser'],
-                        ['workspace_status', 'Read agents, activity, plan limits, usage or human questions'],
+                        [
+                            'start_login / finish_login / start_trial',
+                            'Connect through human approval, or start a capped trial',
+                        ],
+                        [
+                            'create_email_inbox / list_emails / wait_for_email',
+                            'Receive email with extracted codes and links',
+                        ],
+                        [
+                            'memory_set / memory_get / memory_list / memory_delete',
+                            'Workspace-scoped JSON memory',
+                        ],
+                        [
+                            'create_monitor / list_monitors / inspect_monitor / pause_monitor / ping_monitor / delete_monitor',
+                            'Manage uptime, SSL and heartbeat checks',
+                        ],
+                        [
+                            'ask_human / wait_for_approval',
+                            'Ask and wait; answering stays in the human browser',
+                        ],
+                        [
+                            'workspace_status',
+                            'Read agents, activity, plan limits, usage or human questions',
+                        ],
                         ['create_mock_api', 'Create a mock API from name and routes'],
-                        ['call_mock_api', 'Call a mock route or mutate CRUD data with caller access'],
+                        [
+                            'call_mock_api',
+                            'Call a mock route or mutate CRUD data with caller access',
+                        ],
                         ['inspect_mock_api', 'Read a mock configuration and usage'],
                         ['delete_mock_api', 'Delete a mock API'],
-                        ['upload_temporary_file', 'Upload a file up to 64 KiB as Base64; HTTP/SDK/CLI support larger files'],
+                        [
+                            'upload_temporary_file',
+                            'Upload a file up to 64 KiB as Base64; HTTP/SDK/CLI support larger files',
+                        ],
                         ['inspect_temporary_file', 'Read file metadata and remaining downloads'],
                         [
                             'download_temporary_file',
@@ -1841,7 +1952,7 @@ ssh -T -n -p 2222 socket@your-host socket-help inbox create --visibility public`
                 title: 'Credentials inside tool calls',
                 paragraphs: [
                     'The inspect_*, delete_* and wait tools take a resource id. Anonymous resources also require the inspection or management token returned at creation. Resources owned by the authenticated workspace do not need a separate management token. download_temporary_file takes the private access token as accessToken, separate from the management token.',
-                    'resource_request takes kind (inboxes, mocks, files, mcp-servers or email-inboxes), action (create, inspect, update, delete, renew, sharing, list, reset, calls, response, forward or deliveries), and optionally id, token, config, ttlSeconds, persistent and visibility. It calls the same HTTP endpoints, so its results match the HTTP responses. Email supports create, inspect, delete and renew; its messages always require management access. response and forward accept config; config.reset=true restores defaults. update, calls and reset apply to mocks; response, forward and deliveries apply to webhooks.',
+                    'resource_request takes kind (inboxes, mocks, files, mcp-servers or email-inboxes), action (create, inspect, update, delete, renew, sharing, list, reset, calls, response, forward or deliveries), and optionally id, token, config, ttlSeconds, persistent and visibility. It calls the same HTTP endpoints, so its results match the HTTP responses. Email supports create (config.activeDays and paid config.localPart), inspect, delete, paid renew and forward (config.url or null). Free inboxes cannot be renewed. Messages require workspace access; existing anonymous inboxes can expire naturally. response and forward accept config; config.reset=true restores defaults. update, calls and reset apply to mocks; response, forward and deliveries apply to webhooks.',
                 ],
                 note: 'Tool results can contain new tokens. Agents should keep management and inspection tokens private and pass only access tokens to the systems that need them.',
             },

@@ -1,12 +1,25 @@
+import { setTimeout as sleep } from 'node:timers/promises';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type { Pool } from 'pg';
 import { HttpError, resourceToken } from './access.js';
 import type { Access } from './access.js';
 import type { ResourceRepository } from './resources.js';
+import { MAX_RESOURCE_BYTES } from './resources.js';
 import { isUuid } from './security.js';
 import type { Waiters } from './waiting.js';
 import { waitSeconds } from './waiting.js';
+import { load } from 'cheerio';
+import { transaction } from './database.js';
+import { randomUUID } from 'node:crypto';
+import { plans } from '@socket-help/tools/plans';
+import { entitlement } from './entitlements.js';
+import { effectivePlan } from './identity.js';
+import { customEmailLocalPart } from './email-addresses.js';
+import type { EmailAddressRepository } from './email-addresses.js';
+import { EmailLifecycle, PERMANENT_EMAIL_EXPIRY } from './email-lifecycle.js';
+import { publicRequest, publicUrl } from './public-network.js';
+import type { ForwardSend } from './forwarding.js';
 
 export const EMAIL_MESSAGE_LIMIT = 100;
 const TEXT_LIMIT = 64 * 1024;
@@ -65,6 +78,11 @@ export interface EmailMessage {
     codes: string[];
     links: EmailLink[];
     attachments: { filename: string; mimeType: string; size: number }[];
+    direction?: 'inbound' | 'outbound';
+    deliveryStatus?: 'pending' | 'sent';
+    messageId?: string;
+    inReplyTo?: string;
+    references?: string[];
 }
 
 const codeWords =
@@ -75,10 +93,14 @@ const verificationLink =
 /** Pulls one-time codes and links out of a message without any AI. */
 export function extractFromEmail(subject: string, text: string, html = '') {
     const codes: string[] = [];
-    const scan = `${subject}\n${text}`;
-    for (const match of scan.matchAll(/(?<![\w-])([A-Z0-9]{4,8}|\d{3}[ -]\d{3})(?![\w-])/g)) {
+    const readable = text || load(html).text();
+    const scan = `${subject}\n${readable}`.replace(/\u00a0/g, ' ');
+    for (const match of scan.matchAll(
+        /(?<![\w-])([A-Z0-9]{4}-[A-Z0-9]{4}|[A-Z0-9]{4,8}|\d{3}[ -]\d{3})(?![\w-])/g,
+    )) {
         const code = match[1]!;
-        if (!/\d/.test(code) || /^(19|20)\d\d$/.test(code)) continue;
+        if ((!/\d/.test(code) && !/^[A-Z]{4}-[A-Z]{4}$/.test(code)) || /^(19|20)\d\d$/.test(code))
+            continue;
         const near = scan.slice(Math.max(0, match.index! - 80), match.index! + code.length + 40);
         if (codeWords.test(near) && !codes.includes(code)) codes.push(code);
     }
@@ -98,13 +120,33 @@ export interface EmailMessageRepository {
     record(resourceId: string, message: EmailMessage): MaybePromise<'stored' | 'full'>;
     list(resourceId: string): MaybePromise<EmailMessage[]>;
     count(resourceId: string): MaybePromise<number>;
+    cursor(resourceId: string): MaybePromise<string>;
+    delete(resourceId: string): MaybePromise<void>;
+    replace(resourceId: string, id: string, message: EmailMessage): MaybePromise<void>;
 }
 
 export class MemoryEmailMessages implements EmailMessageRepository {
     private readonly messages = new Map<string, EmailMessage[]>();
+    private budget?: (id: string, bytes: number) => boolean;
+    private live?: (id: string) => boolean;
+    setBudget(budget: (id: string, bytes: number) => boolean, live: (id: string) => boolean) {
+        this.budget = budget;
+        this.live = live;
+    }
+    cleanup() {
+        for (const id of this.messages.keys())
+            if (this.live && !this.live(id)) this.messages.delete(id);
+    }
     record(resourceId: string, message: EmailMessage) {
         const list = this.messages.get(resourceId) ?? [];
+        if (list.some((item) => item.id === message.id)) return 'stored' as const;
         if (list.length >= EMAIL_MESSAGE_LIMIT) return 'full' as const;
+        try {
+            if (this.budget && !this.budget(resourceId, Buffer.byteLength(JSON.stringify(message))))
+                return 'full' as const;
+        } catch {
+            return 'full' as const;
+        }
         list.push(message);
         this.messages.set(resourceId, list);
         return 'stored' as const;
@@ -112,22 +154,92 @@ export class MemoryEmailMessages implements EmailMessageRepository {
     list(resourceId: string) {
         return [...(this.messages.get(resourceId) ?? [])];
     }
+    cursor(resourceId: string) {
+        return this.messages.get(resourceId)?.at(-1)?.id ?? '';
+    }
     count(resourceId: string) {
         return this.messages.get(resourceId)?.length ?? 0;
+    }
+    delete(resourceId: string) {
+        const bytes = (this.messages.get(resourceId) ?? []).reduce(
+            (sum, message) => sum + Buffer.byteLength(JSON.stringify(message)),
+            0,
+        );
+        if (bytes) this.budget?.(resourceId, -bytes);
+        this.messages.delete(resourceId);
+    }
+    replace(resourceId: string, id: string, message: EmailMessage) {
+        const list = this.messages.get(resourceId);
+        const index = list?.findIndex((item) => item.id === id) ?? -1;
+        if (list && index !== -1) {
+            const delta =
+                Buffer.byteLength(JSON.stringify(message)) -
+                Buffer.byteLength(JSON.stringify(list[index]));
+            if (this.budget && !this.budget(resourceId, delta))
+                throw new HttpError(429, 'Mail storage allowance reached.');
+            list[index] = structuredClone(message);
+        }
     }
 }
 
 export class PostgresEmailMessages implements EmailMessageRepository {
-    constructor(private readonly pool: Pool) {}
+    constructor(
+        private readonly pool: Pool,
+        private maxBytes = MAX_RESOURCE_BYTES,
+    ) {}
     async record(resourceId: string, message: EmailMessage) {
-        const result = await this.pool.query(
-            `INSERT INTO email_messages (resource_id, message)
-             SELECT id, $2::jsonb FROM temporary_resources
+        return transaction(this.pool, async (client) => {
+            await client.query('SELECT id FROM resource_usage WHERE id=1 FOR UPDATE');
+            const parent = await client.query(
+                "SELECT id FROM temporary_resources WHERE id=$1 AND kind='email' AND expires_at > clock_timestamp() FOR UPDATE",
+                [resourceId],
+            );
+            if (!parent.rowCount) return 'full' as const;
+            if (
+                (
+                    await client.query(
+                        "SELECT 1 FROM email_messages WHERE resource_id=$1 AND message->>'id'=$2",
+                        [resourceId, message.id],
+                    )
+                ).rowCount
+            )
+                return 'stored' as const;
+            const count = Number(
+                (
+                    await client.query(
+                        'SELECT count(*) AS count FROM email_messages WHERE resource_id=$1',
+                        [resourceId],
+                    )
+                ).rows[0].count,
+            );
+            if (count >= EMAIL_MESSAGE_LIMIT) return 'full' as const;
+            const bytes = Number(
+                (await client.query('SELECT octet_length($1::jsonb::text) AS bytes', [message]))
+                    .rows[0].bytes,
+            );
+            const reserved = await client.query(
+                'UPDATE resource_usage SET stored_bytes=stored_bytes+$1 WHERE id=1 AND stored_bytes+$1 <= $2 RETURNING id',
+                [bytes, this.maxBytes],
+            );
+            if (!reserved.rowCount) return 'full' as const;
+            await client.query(
+                'UPDATE temporary_resources SET stored_bytes=stored_bytes+$2 WHERE id=$1',
+                [resourceId, bytes],
+            );
+            const result = await client.query(
+                `INSERT INTO email_messages (resource_id, message, stored_bytes)
+             SELECT id, $2::jsonb, octet_length($2::jsonb::text) FROM temporary_resources
              WHERE id = $1 AND kind = 'email' AND expires_at > clock_timestamp()
                AND (SELECT count(*) FROM email_messages WHERE resource_id = $1) < $3`,
-            [resourceId, JSON.stringify(message), EMAIL_MESSAGE_LIMIT],
-        );
-        return result.rowCount ? ('stored' as const) : ('full' as const);
+                [resourceId, JSON.stringify(message), EMAIL_MESSAGE_LIMIT],
+            );
+            if (!result.rowCount) throw new Error('Mail storage reservation lost.');
+            return 'stored' as const;
+        }).catch((error) => {
+            if (error instanceof Error && error.message === 'account_storage_limit')
+                return 'full' as const;
+            throw error;
+        });
     }
     async list(resourceId: string) {
         const result = await this.pool.query<{ message: EmailMessage }>(
@@ -136,12 +248,79 @@ export class PostgresEmailMessages implements EmailMessageRepository {
         );
         return result.rows.map((row) => row.message);
     }
+    async cursor(resourceId: string) {
+        return (
+            await this.pool.query(
+                'SELECT COALESCE(max(sequence),0)::text AS cursor FROM email_messages WHERE resource_id=$1',
+                [resourceId],
+            )
+        ).rows[0].cursor as string;
+    }
     async count(resourceId: string) {
         const result = await this.pool.query<{ count: string }>(
             'SELECT count(*) FROM email_messages WHERE resource_id = $1',
             [resourceId],
         );
         return Number(result.rows[0]!.count);
+    }
+    async delete(resourceId: string) {
+        await transaction(this.pool, async (client) => {
+            await client.query('SELECT id FROM resource_usage WHERE id=1 FOR UPDATE');
+            const parent = await client.query(
+                'SELECT id FROM temporary_resources WHERE id=$1 FOR UPDATE',
+                [resourceId],
+            );
+            const rows = await client.query(
+                'DELETE FROM email_messages WHERE resource_id=$1 RETURNING stored_bytes',
+                [resourceId],
+            );
+            const bytes = rows.rows.reduce((sum, row) => sum + Number(row.stored_bytes), 0);
+            if (parent.rowCount && bytes) {
+                await client.query(
+                    'UPDATE resource_usage SET stored_bytes=stored_bytes-$1 WHERE id=1',
+                    [bytes],
+                );
+                await client.query(
+                    'UPDATE temporary_resources SET stored_bytes=stored_bytes-$2 WHERE id=$1',
+                    [resourceId, bytes],
+                );
+            }
+        });
+    }
+    async replace(resourceId: string, id: string, message: EmailMessage) {
+        await transaction(this.pool, async (client) => {
+            await client.query('SELECT id FROM resource_usage WHERE id=1 FOR UPDATE');
+            const parent = await client.query(
+                'SELECT id FROM temporary_resources WHERE id=$1 FOR UPDATE',
+                [resourceId],
+            );
+            if (!parent.rowCount) return;
+            const old = (
+                await client.query(
+                    "SELECT stored_bytes FROM email_messages WHERE resource_id=$1 AND message->>'id'=$2",
+                    [resourceId, id],
+                )
+            ).rows[0];
+            if (!old) return;
+            const bytes = Number(
+                (await client.query('SELECT octet_length($1::jsonb::text) AS bytes', [message]))
+                    .rows[0].bytes,
+            );
+            const delta = bytes - Number(old.stored_bytes);
+            const reserved = await client.query(
+                'UPDATE resource_usage SET stored_bytes=stored_bytes+$1 WHERE id=1 AND stored_bytes+$1 <= $2 RETURNING id',
+                [delta, this.maxBytes],
+            );
+            if (!reserved.rowCount) throw new HttpError(429, 'Mail storage allowance reached.');
+            await client.query(
+                'UPDATE temporary_resources SET stored_bytes=stored_bytes+$2 WHERE id=$1',
+                [resourceId, delta],
+            );
+            await client.query(
+                "UPDATE email_messages SET message=$3,stored_bytes=$4 WHERE resource_id=$1 AND message->>'id'=$2",
+                [resourceId, id, message, bytes],
+            );
+        });
     }
 }
 
@@ -164,14 +343,7 @@ export function verifyIngest(secret: string, timestamp: unknown, signature: unkn
 const text = (value: unknown, limit: number) =>
     typeof value === 'string' ? value.slice(0, limit) : '';
 
-const pause = (ms: number, signal: AbortSignal) =>
-    new Promise<void>((resolve) => {
-        const timer = setTimeout(resolve, ms);
-        signal.addEventListener('abort', () => {
-            clearTimeout(timer);
-            resolve();
-        });
-    });
+const pause = (ms: number, signal: AbortSignal) => sleep(ms, undefined, { signal }).catch(() => {});
 
 interface EmailContext {
     app: FastifyInstance;
@@ -181,6 +353,10 @@ interface EmailContext {
     waiters: Waiters;
     mailDomain?: string;
     ingestSecret?: string;
+    addresses: EmailAddressRepository;
+    forwardSend?: ForwardSend;
+    sendingEnabled?: boolean;
+    feedback?: (input: Record<string, unknown>) => Promise<boolean>;
 }
 
 export function registerEmail({
@@ -191,22 +367,46 @@ export function registerEmail({
     waiters,
     mailDomain,
     ingestSecret,
+    addresses,
+    forwardSend = (url, signal, options) => publicRequest(url, signal, { ...options, body: false }),
+    sendingEnabled = false,
+    feedback,
 }: EmailContext) {
+    const lifecycle = new EmailLifecycle(addresses, resources, access.identities, messages);
+    const cleanup = setInterval(() => {
+        void lifecycle
+            .reconcile()
+            .then(() => {
+                if (messages instanceof MemoryEmailMessages) messages.cleanup();
+            })
+            .catch(() => app.log.error('Email lifecycle cleanup failed.'));
+    }, 30000);
+    cleanup.unref();
+    app.addHook('onReady', () => lifecycle.reconcile());
+    app.addHook('onClose', async () => {
+        clearInterval(cleanup);
+        await lifecycle.reconcile();
+    });
     const configured = () => {
         if (!mailDomain) throw new HttpError(503, 'Email inboxes are not configured here yet.');
         return mailDomain;
     };
     const address = (id: string) => `${emailLocalPart(id)}@${configured()}`;
-    async function owned(request: import('fastify').FastifyRequest, id: string) {
+    async function owned(
+        request: import('fastify').FastifyRequest,
+        id: string,
+        token = resourceToken(request),
+    ) {
         const actor = await access.actor(request);
-        const inbox = await resources.read(
-            id,
-            'email',
-            resourceToken(request),
-            actor.identity?.account.id,
-        );
+        if (actor.identity) await lifecycle.reconcile(actor.identity.account.id);
+        const inbox = await resources.read(id, 'email', token, actor.identity?.account.id);
         if (!inbox) throw new HttpError(404, 'Email inbox unavailable or access denied.');
-        return { inbox, actor };
+        const row =
+            typeof inbox.payload.address === 'string'
+                ? await addresses.find(inbox.payload.address)
+                : undefined;
+        if (row?.retiredAt) throw new HttpError(404, 'Email inbox unavailable or access denied.');
+        return { inbox, actor, row };
     }
 
     app.post(
@@ -217,36 +417,163 @@ export function registerEmail({
             },
         },
         async (request, reply) => {
+            const actor = await access.scope(request, 'resources:write');
+            const plan = entitlement(actor.identity, 'emailInbox', access.origin);
             configured();
-            // Anyone can send mail to the address; reading always needs the management token.
             const query = (request.query ?? {}) as Record<string, unknown>;
-            const created = await resources.create(
-                'email',
-                {},
-                undefined,
-                await access.allocation(request, { ...query, visibility: 'public' }),
+            const body = request.body ?? {};
+            if (typeof body !== 'object' || Array.isArray(body))
+                throw new HttpError(400, 'Provide email inbox settings as an object.');
+            const input = { ...query, ...body } as Record<string, unknown>;
+            if (input.localPart !== undefined)
+                entitlement(actor.identity, 'customEmailAddress', access.origin);
+            const activeDays = Number(input.activeDays ?? 3);
+            if (!Number.isInteger(activeDays) || activeDays < 1 || activeDays > 7)
+                throw new HttpError(400, 'activeDays must be between 1 and 7.');
+            if (input.ttlSeconds !== undefined || input.persistent !== undefined)
+                throw new HttpError(
+                    400,
+                    'Email inboxes use activeDays (1–7) on Free and remain active while paid. Use activeDays instead of ttlSeconds or persistent.',
+                );
+            const ownerId = actor.identity!.account.id;
+            await lifecycle.reconcile(ownerId);
+            const permanent = plan === 'pro' || plan === 'team';
+            const expiresAt = permanent
+                ? null
+                : new Date(Date.now() + activeDays * 86400000).toISOString();
+            const local =
+                input.localPart === undefined
+                    ? emailLocalPart(randomUUID())
+                    : customEmailLocalPart(input.localPart);
+            const row = await addresses.claim(
+                {
+                    address: `${local}@${configured()}`,
+                    ownerId,
+                    tier: permanent ? 'paid' : 'free',
+                    createdAt: new Date().toISOString(),
+                    expiresAt,
+                },
+                plans[plan].emailInboxes,
             );
-            if (!created)
-                return reply
-                    .code(503)
-                    .send({ error: 'Temporary resource capacity reached. Try again later.' });
-            const { accessToken: _unused, ...credentials } = created;
-            return reply.code(201).send({ ...credentials, address: address(created.id) });
+            try {
+                const allocation = await access.allocation(request, { visibility: 'private' });
+                const created = await resources.create(
+                    'email',
+                    { address: row.address },
+                    undefined,
+                    {
+                        ...allocation,
+                        expiresAt: expiresAt ?? PERMANENT_EMAIL_EXPIRY,
+                        persistent: permanent,
+                    },
+                );
+                if (!created)
+                    throw new HttpError(503, 'Email inbox capacity reached. Try again later.');
+                row.resourceId = created.id;
+                await addresses.save(row);
+                const { accessToken: _unused, ...credentials } = created;
+                return reply.code(201).send({
+                    ...credentials,
+                    address: row.address,
+                    expiresAt,
+                    persistent: permanent,
+                    status: 'active',
+                });
+            } catch (error) {
+                await lifecycle.retire(row);
+                throw error;
+            }
         },
     );
 
     app.get<{ Params: { id: string } }>('/api/email-inboxes/:id', async (request) => {
-        const { inbox } = await owned(request, request.params.id);
+        const { inbox, row } = await owned(request, request.params.id);
         return {
             id: inbox.id,
-            address: address(inbox.id),
-            expiresAt: inbox.expiresAt,
+            address: inbox.payload.smtpCapture ? null : (row?.address ?? address(inbox.id)),
+            expiresAt: row ? row.expiresAt : inbox.expiresAt,
             persistent: inbox.persistent,
+            status: row?.pausedAt ? 'paused' : 'active',
+            forwardingUrl: inbox.payload.forwardingUrl ?? null,
+            lastForward: inbox.payload.lastForward ?? null,
             messageCount: await messages.count(inbox.id),
             messageLimit: EMAIL_MESSAGE_LIMIT,
+            sendingEnabled: sendingEnabled && !inbox.payload.smtpCapture,
         };
     });
 
+    app.get('/api/email-inboxes', async (request) => {
+        const identity = await access.require(request, 'resources:read');
+        await lifecycle.reconcile(identity.account.id);
+        return {
+            inboxes: (await addresses.list(identity.account.id))
+                .filter((row) => row.resourceId)
+                .map((row) => ({
+                    id: row.resourceId,
+                    address: row.address,
+                    expiresAt: row.expiresAt,
+                    persistent: row.tier === 'paid',
+                    status: row.pausedAt ? 'paused' : 'active',
+                })),
+        };
+    });
+
+    app.put<{ Params: { id: string } }>('/api/email-inboxes/:id/forwarding', async (request) => {
+        const caller = await access.scope(request, 'resources:write');
+        entitlement(caller.identity, 'webhookForwarding', access.origin);
+        const { inbox, actor } = await owned(request, request.params.id);
+        if (inbox.payload.smtpCapture)
+            throw new HttpError(
+                400,
+                'SMTP capture does not forward mail. Read or wait for captured messages instead.',
+            );
+        const input = request.body as { url?: unknown } | null;
+        let url: string | null = null;
+        if (input?.url !== null) {
+            if (typeof input?.url !== 'string' || input.url.length > 2048)
+                throw new HttpError(
+                    400,
+                    'Provide a public webhook URL, or null to disable forwarding.',
+                );
+            try {
+                url = publicUrl(input.url).href;
+            } catch {
+                throw new HttpError(400, 'Forwarding requires a public HTTP(S) webhook URL.');
+            }
+            if (new URL(url).hostname === new URL(access.origin).hostname)
+                throw new HttpError(400, 'Forward to your own endpoint, not socket.help.');
+        }
+        await resources.update(
+            inbox.id,
+            'email',
+            resourceToken(request),
+            { ...inbox.payload, forwardingUrl: url },
+            actor.identity?.account.id,
+        );
+        return { forwardingUrl: url };
+    });
+
+    app.post<{ Params: { id: string } }>('/api/email-inboxes/:id/renew', async (request) => {
+        const { inbox, row } = await owned(request, request.params.id);
+        if (!row || row.tier === 'free')
+            throw new HttpError(
+                409,
+                'Free inboxes cannot be extended. Upgrade before expiry to keep this address, or create a new inbox after it expires.',
+            );
+        if (row.pausedAt)
+            throw new HttpError(402, 'Restore your paid subscription to reactivate this address.');
+        return { id: inbox.id, expiresAt: null, persistent: true };
+    });
+
+    app.delete<{ Params: { id: string } }>(
+        '/api/email-inboxes/:id/messages',
+        async (request, reply) => {
+            await access.scope(request, 'resources:write');
+            const { inbox } = await owned(request, request.params.id);
+            await messages.delete(inbox.id);
+            return reply.code(204).send();
+        },
+    );
     app.get<{ Params: { id: string } }>('/api/email-inboxes/:id/messages', async (request) => {
         const { inbox } = await owned(request, request.params.id);
         return { messages: await messages.list(inbox.id) };
@@ -261,15 +588,23 @@ export function registerEmail({
         const abort = new AbortController();
         request.raw.once('close', () => abort.abort());
         return waiters.run(actor.quotaKey, async () => {
-            let seen = -1;
+            let seen: string | undefined;
             for (;;) {
-                const count = await messages.count(inbox.id);
-                if (count !== seen) {
-                    seen = count;
+                const state = await owned(request, request.params.id);
+                if (state.row?.pausedAt)
+                    throw new HttpError(
+                        409,
+                        'This email address is paused. Restore your subscription to receive mail.',
+                    );
+                const cursor = await messages.cursor(inbox.id);
+                if (cursor !== seen) {
+                    seen = cursor;
                     const list = await messages.list(inbox.id);
                     const after = request.query.after;
                     const index = after ? list.findIndex((message) => message.id === after) : -1;
-                    const fresh = list.slice(index + 1);
+                    const fresh = list
+                        .slice(index + 1)
+                        .filter((message) => message.direction !== 'outbound');
                     if (fresh.length) return { timedOut: false, messages: fresh };
                 }
                 if (abort.signal.aborted || Date.now() + 500 > deadline)
@@ -280,7 +615,11 @@ export function registerEmail({
     });
 
     app.delete<{ Params: { id: string } }>('/api/email-inboxes/:id', async (request, reply) => {
-        const actor = await access.actor(request);
+        const { actor, row } = await owned(request, request.params.id);
+        if (row) {
+            await lifecycle.retire(row);
+            return reply.code(204).send();
+        }
         const deleted = await resources.delete(
             request.params.id,
             'email',
@@ -319,11 +658,24 @@ export function registerEmail({
             } catch {
                 return reply.code(400).send({ error: 'Invalid JSON.' });
             }
+            if (feedback && (await feedback(input)))
+                return reply.code(202).send({ received: true });
             const to = text(input.to, 320).toLowerCase();
             const [local, domain] = to.split('@');
-            const id = local && domain === mailDomain ? emailInboxId(local) : undefined;
+            const row = domain === mailDomain ? await addresses.find(to) : undefined;
+            if (row) await lifecycle.reconcile(row.ownerId);
+            const current = row ? await addresses.find(to) : undefined;
+            if (current?.retiredAt || current?.pausedAt)
+                return reply.code(404).send({ error: 'Unknown address.' });
+            const id =
+                current?.resourceId ??
+                (local && domain === mailDomain && !row ? emailInboxId(local) : undefined);
             if (!id) return reply.code(404).send({ error: 'Unknown address.' });
-            const exists = await resources.peek(id, 'email', {});
+            const exists = await resources.peek(
+                id,
+                'email',
+                current ? { ownerId: current.ownerId } : {},
+            );
             if (!exists) return reply.code(404).send({ error: 'Unknown address.' });
             const subject = text(input.subject, 998);
             const body = text(input.text, TEXT_LIMIT);
@@ -334,6 +686,26 @@ export function registerEmail({
                 from: text(input.from, 320),
                 to,
                 subject,
+                direction: 'inbound',
+                ...(typeof input.messageId === 'string' &&
+                /^<[^<>\s\x00-\x1f\x7f]{1,900}>$/.test(input.messageId)
+                    ? { messageId: input.messageId }
+                    : {}),
+                ...(typeof input.inReplyTo === 'string' &&
+                /^<[^<>\s\x00-\x1f\x7f]{1,900}>$/.test(input.inReplyTo)
+                    ? { inReplyTo: input.inReplyTo }
+                    : {}),
+                ...(Array.isArray(input.references)
+                    ? {
+                          references: input.references
+                              .filter(
+                                  (value): value is string =>
+                                      typeof value === 'string' &&
+                                      /^<[^<>\s\x00-\x1f\x7f]{1,900}>$/.test(value),
+                              )
+                              .slice(-10),
+                      }
+                    : {}),
                 text: body,
                 ...(html ? { html } : {}),
                 ...extractFromEmail(subject, body, html),
@@ -346,9 +718,52 @@ export function registerEmail({
                     })),
             };
             const stored = await messages.record(id, message);
+            const owner = exists.ownerId
+                ? await access.identities.account(exists.ownerId)
+                : undefined;
+            if (
+                stored === 'stored' &&
+                typeof exists.payload.forwardingUrl === 'string' &&
+                owner &&
+                ['pro', 'team'].includes(effectivePlan(owner))
+            ) {
+                let outcome: Record<string, unknown>;
+                try {
+                    const response = await forwardSend(
+                        exists.payload.forwardingUrl,
+                        AbortSignal.timeout(5000),
+                        {
+                            method: 'POST',
+                            headers: {
+                                'content-type': 'application/json',
+                                'x-socket-email-id': message.id,
+                            },
+                            requestBody: JSON.stringify({
+                                type: 'email.received',
+                                inboxId: id,
+                                message,
+                            }),
+                        },
+                    );
+                    outcome = { status: response.status, at: new Date().toISOString() };
+                } catch {
+                    outcome = {
+                        error: 'Webhook delivery failed. Read the message from this inbox; forwarding is not retried.',
+                        at: new Date().toISOString(),
+                    };
+                }
+                await resources.update(
+                    id,
+                    'email',
+                    '',
+                    { ...exists.payload, lastForward: outcome },
+                    exists.ownerId,
+                );
+            }
             return stored === 'stored'
                 ? reply.code(202).send({ stored: true })
                 : reply.code(429).send({ error: 'This inbox is full.' });
         });
     });
+    return { owned, lifecycle };
 }

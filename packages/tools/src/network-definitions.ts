@@ -20,6 +20,57 @@ const domainLimits =
 const webLimits =
     'Only public HTTP/HTTPS targets on ports 80, 443, 8080, or 8443. Private, loopback, link-local, and reserved IP ranges are blocked on every hop. Up to five redirects, 256 KiB response data, and a ten-second overall deadline. No cookies or user credentials are sent.';
 export const networkOperations = {
+    'mock-apis-webhook-event-simulator': {
+        action: 'Send test event',
+        input: true,
+        inputLabel: 'Your public test webhook URL',
+        placeholder: 'https://your-app.com/hooks/test',
+        fields: [
+            {
+                key: 'mode',
+                label: 'Provider',
+                defaultValue: 'stripe',
+                choices: [
+                    ['stripe', 'Stripe'],
+                    ['github', 'GitHub'],
+                    ['shopify', 'Shopify'],
+                ],
+            },
+            {
+                key: 'action',
+                label: 'Event',
+                defaultValue: 'default',
+                choices: [
+                    ['default', 'Provider default'],
+                    ['checkout.session.completed', 'Stripe · checkout completed'],
+                    ['payment_intent.succeeded', 'Stripe · payment succeeded'],
+                    ['invoice.paid', 'Stripe · invoice paid'],
+                    ['push', 'GitHub · push'],
+                    ['pull_request', 'GitHub · pull request opened'],
+                    ['orders/create', 'Shopify · order created'],
+                    ['orders/paid', 'Shopify · order paid'],
+                ],
+            },
+            { key: 'secret', label: 'Test signing secret', type: 'password', defaultValue: '' },
+            {
+                key: 'body',
+                label: 'Custom JSON payload (optional)',
+                type: 'textarea',
+                defaultValue: '',
+            },
+        ],
+        intro: 'Send realistic synthetic Stripe, GitHub or Shopify events to your public test endpoint, signed with the test secret you supply.',
+        steps: [
+            'Choose a provider, event and public test URL.',
+            'Enter the same test signing secret your receiver uses; optionally edit the JSON payload.',
+            'Send one event and inspect its exact headers, body and receiver response.',
+        ],
+        limits: 'One outbound POST per successful run, with the normal ten-second network deadline. Private/local targets and redirects are blocked. Custom JSON is limited to 4 KiB. The secret is used only to sign the event and is not returned or retained. Test endpoints may change state when they receive the event; this simulator does not contact provider APIs.',
+        useCase:
+            'Exercise webhook signature validation and event handling without creating a real payment, commit or order.',
+        example:
+            'Stripe-Signature: t=<timestamp>,v1=<HMAC of timestamp.body>\nX-Hub-Signature-256: sha256=<HMAC of body>\nX-Shopify-Hmac-Sha256: <base64 HMAC of body>',
+    },
     'mock-apis-api-test-scenarios': {
         action: 'Run scenario',
         input: true,

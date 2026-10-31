@@ -40,6 +40,7 @@ interface ToolboxContext {
     openSearch: () => void;
     previewTool: (tool: CatalogTool) => void;
     shortcut: string;
+    capabilities: { emailReceiving: boolean; smtpCapture: boolean; phones: boolean } | null;
 }
 const Context = createContext<ToolboxContext | null>(null);
 export function useToolbox() {
@@ -50,6 +51,15 @@ export function useToolbox() {
 
 export function ToolboxProvider({ children }: { children: React.ReactNode }) {
     const router = useRouter();
+    const [capabilities, setCapabilities] = useState<ToolboxContext['capabilities']>(null);
+    useEffect(() => {
+        const controller = new AbortController();
+        void fetch('/api/capabilities', { signal: controller.signal })
+            .then((response) => (response.ok ? response.json() : null))
+            .then(setCapabilities)
+            .catch(() => {});
+        return () => controller.abort();
+    }, []);
     const [searchOpen, setSearchOpen] = useState(false);
     const [query, setQuery] = useState('');
     const [planned, setPlanned] = useState<CatalogTool | null>(null);
@@ -79,8 +89,8 @@ export function ToolboxProvider({ children }: { children: React.ReactNode }) {
         [searchOpen],
     );
     const context = useMemo(
-        () => ({ openSearch, previewTool, shortcut }),
-        [openSearch, previewTool, shortcut],
+        () => ({ openSearch, previewTool, shortcut, capabilities }),
+        [openSearch, previewTool, shortcut, capabilities],
     );
     useEffect(() => {
         if (typeof BroadcastChannel === 'undefined') return;
@@ -445,15 +455,54 @@ export function ToolboxProvider({ children }: { children: React.ReactNode }) {
     );
 }
 
+export function ToolCapabilityNotice({ toolId }: { toolId: string }) {
+    const { capabilities } = useToolbox();
+    const pending =
+        capabilities &&
+        ((['email-temporary-email-inbox', 'email-email-webhook-forwarding'].includes(toolId) &&
+            !capabilities.emailReceiving) ||
+            (toolId === 'email-mock-smtp' && !capabilities.smtpCapture));
+    return pending ? (
+        <p className="tool-notice" role="status">
+            This server has not enabled{' '}
+            {toolId === 'email-mock-smtp' ? 'TLS SMTP capture' : 'agent mail receiving'} yet. This
+            page documents the feature; creating it will become available after operator setup.
+        </p>
+    ) : null;
+}
 export function Availability({ tool }: { tool: CatalogTool }) {
+    const { capabilities } = useToolbox();
+    if (
+        !capabilities &&
+        [
+            'email-temporary-email-inbox',
+            'email-email-webhook-forwarding',
+            'email-mock-smtp',
+        ].includes(tool.id)
+    )
+        return <span className="badge">Requires setup</span>;
+    if (
+        capabilities &&
+        ((['email-temporary-email-inbox', 'email-email-webhook-forwarding'].includes(tool.id) &&
+            !capabilities.emailReceiving) ||
+            (tool.id === 'email-mock-smtp' && !capabilities.smtpCapture))
+    )
+        return <span className="badge">Setup pending</span>;
     return (
-        <Badge
-            variant="soft"
-            color={tool.status === 'available' ? 'green' : 'gray'}
-            className="availability-badge"
-        >
-            {tool.status === 'available' ? 'Available' : 'Coming soon'}
-        </Badge>
+        <>
+            {tool.minimumPlan && tool.minimumPlan !== 'free' && (
+                <Badge color="gray" variant="outline">
+                    {tool.minimumPlan === 'pro' ? 'Pro' : 'Team'}
+                </Badge>
+            )}
+            <Badge
+                variant="soft"
+                color={tool.status === 'available' ? 'green' : 'gray'}
+                className="availability-badge"
+            >
+                {tool.status === 'available' ? 'Available' : 'Coming soon'}
+            </Badge>
+        </>
     );
 }
 

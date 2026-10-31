@@ -16,6 +16,7 @@ import { browserOperations } from '@socket-help/tools/definitions';
 import type { OperationOptions } from '@socket-help/tools/definitions';
 import type { ToolId } from '@socket-help/tools/engine';
 import { ToolRunner, ToolExecutionError } from '@socket-help/tools/node';
+import { entitlement } from './entitlements.js';
 import { plans } from '@socket-help/tools/plans';
 import { Access, HttpError } from './access.js';
 export const executableIds = [
@@ -234,6 +235,8 @@ export class ToolService {
         if (!executableIds.includes(toolId as ToolId))
             throw new HttpError(404, 'This tool is not available for execution.');
         const actor = await this.access.scope(request, 'tools:run');
+        const minimumPlan = catalog.find((tool) => tool.id === toolId)?.minimumPlan;
+        if (minimumPlan) entitlement(actor.identity, { minimumPlan }, this.access.origin);
         if (!value || typeof value !== 'object' || Array.isArray(value))
             throw new HttpError(400, 'Provide a JSON object with input and options.');
         const body = value as Record<string, unknown>,
@@ -410,6 +413,7 @@ export function registerTools(app: FastifyInstance, access: Access, service: Too
             name: tool.name,
             description: tool.description,
             categoryId: tool.categoryId,
+            minimumPlan: tool.minimumPlan ?? null,
             status: tool.status,
             page: toolPageHref(tool),
             guide: executionGuide(tool.id),

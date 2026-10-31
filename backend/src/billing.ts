@@ -8,11 +8,14 @@ import type { FastifyInstance } from 'fastify';
 import { transaction } from './database.js';
 import { Access, HttpError } from './access.js';
 import type { AccountPlan } from '@socket-help/tools/plans';
+import { plans } from '@socket-help/tools/plans';
 export interface BillingConfig {
     apiKey: string;
     webhookSecret: string;
     proProduct: string;
     teamProduct: string;
+    phoneAddonId?: string;
+    phoneAddonEnabled?: boolean;
     environment: 'test_mode' | 'live_mode';
 }
 export interface SubscriptionState {
@@ -21,10 +24,12 @@ export interface SubscriptionState {
     accountId: string;
     plan: AccountPlan;
     validUntil: string | null;
+    phoneNumbers?: number;
 }
 export function subscriptionState(
     subscription: Subscription,
-    products: Pick<BillingConfig, 'proProduct' | 'teamProduct'>,
+    products: Pick<BillingConfig, 'proProduct' | 'teamProduct' | 'phoneAddonId'>,
+    warn: (message: string) => void = console.warn,
 ): SubscriptionState {
     const plan =
         subscription.product_id === products.proProduct
@@ -39,10 +44,20 @@ export function subscriptionState(
         !subscription.on_demand &&
         subscription.trial_period_days === 0 &&
         subscription.recurring_pre_tax_amount > 0 &&
-        !subscription.addons.length &&
-        !subscription.meters.length &&
         Number.isFinite(end) &&
         end > Date.now();
+    let phoneNumbers = 0;
+    for (const addon of subscription.addons) {
+        if (!products.phoneAddonId || addon.addon_id !== products.phoneAddonId) {
+            warn(`Unrecognized subscription add-on: ${addon.addon_id}; base plan retained.`);
+        } else if (!Number.isInteger(addon.quantity) || addon.quantity < 0) {
+            warn(`Invalid phone add-on quantity on subscription ${subscription.subscription_id}.`);
+        } else {
+            phoneNumbers += addon.quantity;
+        }
+    }
+    if (phoneNumbers > 10)
+        warn(`Phone allowance capped at 10 on subscription ${subscription.subscription_id}.`);
     return {
         id: subscription.subscription_id,
         customerId: subscription.customer.customer_id,
@@ -52,6 +67,7 @@ export function subscriptionState(
                 : '',
         plan: active ? plan : 'free',
         validUntil: active && plan !== 'free' ? new Date(end).toISOString() : null,
+        phoneNumbers: active && plan !== 'free' ? Math.min(phoneNumbers, 10) : 0,
     };
 }
 /** 10% off, for the first 12 monthly payments, claimable for 30 days. */
@@ -63,6 +79,26 @@ const CHECKOUT_REUSE_MS = 30 * 60 * 1000;
 
 export class BillingRepository {
     constructor(private pool: Pool) {}
+    async subscription(accountId: string) {
+        const row = (
+            await this.pool.query('SELECT dodo_subscription_id FROM accounts WHERE id=$1', [
+                accountId,
+            ])
+        ).rows[0];
+        return row?.dodo_subscription_id as string | null | undefined;
+    }
+    async phoneAllowance(accountId: string) {
+        const row = (
+            await this.pool.query(
+                'SELECT plan,phone_allowance,plan_valid_until FROM accounts WHERE id=$1',
+                [accountId],
+            )
+        ).rows[0];
+        return {
+            count: row && row.plan !== 'free' ? Number(row.phone_allowance) : 0,
+            validUntil: row?.plan_valid_until ? new Date(row.plan_valid_until).toISOString() : null,
+        };
+    }
     async customer(accountId: string, create: () => Promise<string>) {
         return transaction(this.pool, async (client) => {
             const row = (
@@ -197,13 +233,14 @@ export class BillingRepository {
                 return false;
             }
             await client.query(
-                'UPDATE accounts SET plan = $1, plan_valid_until = $2, dodo_subscription_id = $3, dodo_event_created = $4 WHERE id = $5',
+                'UPDATE accounts SET plan = $1, plan_valid_until = $2, dodo_subscription_id = $3, dodo_event_created = $4, phone_allowance = $6 WHERE id = $5',
                 [
                     state.plan,
                     state.validUntil,
                     state.plan === 'free' ? null : state.id,
                     created,
                     account.id,
+                    state.phoneNumbers ?? 0,
                 ],
             );
             if (state.validUntil)
@@ -211,6 +248,7 @@ export class BillingRepository {
                     client,
                     account.id,
                     new Date(Date.parse(state.validUntil) + 86400000).toISOString(),
+                    state.plan,
                 );
             await client.query(
                 'INSERT INTO dodo_events (id, created) VALUES ($1, $2) ON CONFLICT DO NOTHING',
@@ -219,10 +257,31 @@ export class BillingRepository {
             return true;
         });
     }
-    private async extend(client: PoolClient, accountId: string, expiresAt: string) {
+    private async extend(
+        client: PoolClient,
+        accountId: string,
+        expiresAt: string,
+        plan: AccountPlan,
+    ) {
+        // Preserve an existing Free address at the moment payment activates the plan.
+        const selected = await client.query(
+            `WITH chosen AS (
+                SELECT a.resource_id FROM email_addresses a JOIN temporary_resources r ON r.id=a.resource_id
+                WHERE a.owner_id=$1 AND a.retired_at IS NULL AND r.expires_at > clock_timestamp()
+                AND (a.expires_at IS NULL OR a.expires_at > clock_timestamp())
+                ORDER BY a.created_at DESC,a.id DESC LIMIT $2
+            ) UPDATE email_addresses SET tier='paid',expires_at=NULL,paused_at=NULL
+            WHERE resource_id IN (SELECT resource_id FROM chosen) RETURNING resource_id`,
+            [accountId, plans[plan].emailInboxes],
+        );
+        if (selected.rowCount)
+            await client.query(
+                "UPDATE temporary_resources SET expires_at='9999-12-31T00:00:00Z',persistent=true WHERE id=ANY($1::uuid[])",
+                [selected.rows.map((row) => row.resource_id)],
+            );
         for (const table of ['inboxes', 'temporary_resources'])
             await client.query(
-                `UPDATE ${table} SET expires_at = GREATEST(expires_at, $1) WHERE owner_id = $2 AND persistent AND expires_at > clock_timestamp()`,
+                `UPDATE ${table} SET expires_at = GREATEST(expires_at, $1) WHERE owner_id = $2 AND persistent AND expires_at > clock_timestamp()${table === 'temporary_resources' ? " AND kind <> 'email'" : ''}`,
                 [expiresAt, accountId],
             );
     }
@@ -422,6 +481,55 @@ export function registerBilling(
             months: COOKIE_COUPON_CYCLES,
         };
     });
+    app.post('/api/billing/phone-addon', async (request) => {
+        const identity = await access.require(request, 'account:read', true);
+        if (identity.role !== 'owner')
+            throw new HttpError(403, 'Only the workspace owner can change paid add-ons.');
+        if (!enabled || !dodo || !config.phoneAddonEnabled || !config.phoneAddonId)
+            throw new HttpError(503, 'Phone add-on sales are not enabled.');
+        const input = request.body as { quantity?: unknown; confirm?: unknown } | null;
+        if (
+            !input ||
+            !Number.isInteger(input.quantity) ||
+            Number(input.quantity) < 0 ||
+            Number(input.quantity) > 10 ||
+            input.confirm !== true
+        )
+            throw new HttpError(400, 'Confirm a phone add-on quantity between 0 and 10.');
+        const retryKey = request.headers['idempotency-key'];
+        if (typeof retryKey !== 'string' || !/^[A-Za-z0-9_-]{16,100}$/.test(retryKey))
+            throw new HttpError(
+                400,
+                'Provide a unique Idempotency-Key and retain it for this billing change.',
+            );
+        const id = await repository.subscription(identity.account.id);
+        if (!id) throw new HttpError(409, 'Subscribe to Pro or Team before adding phone numbers.');
+        const subscription = await dodo.subscriptions.retrieve(id);
+        const state = subscriptionState(subscription, config, (message) => app.log.warn(message));
+        if (state.accountId !== identity.account.id || state.plan === 'free')
+            throw new HttpError(409, 'An active workspace subscription is required.');
+        return dodo.subscriptions.changePlan(
+            id,
+            {
+                product_id: subscription.product_id,
+                quantity: 1,
+                addons: [
+                    ...subscription.addons
+                        .filter((addon) => addon.addon_id !== config.phoneAddonId)
+                        .map((addon) => ({ addon_id: addon.addon_id, quantity: addon.quantity })),
+                    ...(Number(input.quantity)
+                        ? [{ addon_id: config.phoneAddonId, quantity: Number(input.quantity) }]
+                        : []),
+                ],
+                proration_billing_mode: 'prorated_immediately',
+                effective_at: 'immediately',
+                on_payment_failure: 'prevent_change',
+                collect_via_payment_link: true,
+                return_url: `${access.origin}/phone/`,
+            },
+            { idempotencyKey: `${identity.account.id}-${retryKey}` },
+        );
+    });
     app.post('/api/billing/portal', async (request) => {
         const identity = await access.require(request, 'account:read', true);
         if (identity.role !== 'owner')
@@ -488,7 +596,9 @@ export function registerBilling(
                     data.customer.customer_id,
                     async () => {
                         const current = await dodo.subscriptions.retrieve(subscriptionId);
-                        const state = subscriptionState(current, config);
+                        const state = subscriptionState(current, config, (message) =>
+                            app.log.warn(message),
+                        );
                         if (!state.accountId) {
                             const customer = await dodo.customers.retrieve(
                                 current.customer.customer_id,

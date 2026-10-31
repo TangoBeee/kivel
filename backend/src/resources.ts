@@ -10,7 +10,7 @@ export const RESOURCE_TTL_MS = 60 * 60 * 1000;
 export const MAX_RESOURCES = 500;
 export const MAX_RESOURCE_BYTES = 128 * 1024 * 1024;
 export const MAX_FILE_BYTES = 10 * 1024 * 1024;
-export type ResourceKind = 'mock' | 'file' | 'mcp' | 'email';
+export type ResourceKind = 'mock' | 'file' | 'mcp' | 'email' | 'status' | 'job';
 export type MockAccess = PublicAccess & { managementToken?: string };
 export interface Resource extends Sharing {
     id: string;
@@ -231,6 +231,21 @@ export class ResourceStore implements ResourceRepository {
         }
         return result;
     }
+    emailExists(id: string) {
+        return Boolean(this.get(id, 'email'));
+    }
+    adjustEmailBytes(id: string, delta: number) {
+        const resource = this.get(id, 'email');
+        if (
+            !resource ||
+            [...this.resources.values()].reduce((sum, item) => sum + item.storedBytes, 0) + delta >
+                this.maxBytes
+        )
+            return false;
+        this.allocations?.reserve(resource.allocation, 0, delta);
+        resource.storedBytes += delta;
+        return true;
+    }
     update(
         id: string,
         kind: ResourceKind,
@@ -244,7 +259,10 @@ export class ResourceStore implements ResourceRepository {
             !ownsOrToken(resource.ownerId, ownerId, () => matches(token, resource.tokenHash))
         )
             return 'not-found';
-        const storedBytes = size(payload, resource.data);
+        const storedBytes =
+            size(payload, resource.data) +
+            resource.storedBytes -
+            size(resource.payload, resource.data);
         if (
             [...this.resources.values()].reduce((sum, item) => sum + item.storedBytes, 0) -
                 resource.storedBytes +
@@ -540,7 +558,10 @@ export class PostgresResourceStore implements ResourceRepository {
                 )
             )
                 return 'not-found';
-            const storedBytes = size(payload, row.data);
+            const storedBytes =
+                size(payload, row.data) +
+                Number(row.stored_bytes) -
+                size(JSON.parse(row.payload), row.data);
             const budget = await client.query(
                 'UPDATE resource_usage SET stored_bytes = stored_bytes + $1 WHERE id = 1 AND stored_bytes + $1 <= $2 RETURNING id',
                 [storedBytes - Number(row.stored_bytes), this.maxBytes],

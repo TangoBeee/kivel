@@ -29,17 +29,32 @@ pnpm cli agent token < login.json
             note: 'Free includes 3 approved agents, Pro 25 and Team 100. These are workspace limits. Paid checkout remains disabled during the free beta unless the operator enables it.',
         },
         {
+            id: 'combined-events',
+            title: 'Wait for the next event',
+            paragraphs: [
+                'wait_for_event long-polls up to ten webhook, email, approval or scheduled-job sources in one request. Pass each source kind and id, plus its last cursor as after. It returns batches and a cursor per source; pass those cursors back to avoid repeats. A timeout is normal. SMS sources remain unavailable until the phone phase is configured and validated.',
+                'Scheduled JSON callbacks use POST /api/scheduled-jobs or the SDK createScheduledJob. One-off delays and bounded repeating intervals share a durable scheduler. Delivery is at least once: deduplicate X-Socket-Delivery-Id. SMTP captures use POST /api/smtp-inboxes, then the ordinary email list/wait routes. The capture service requires its own TLS listener and does not relay messages.',
+            ],
+            code: {
+                title: 'Wait across sources',
+                value: `const next = await socket.waitForEvent([
+  { kind: 'webhook', id: inbox.id },
+  { kind: 'approval', id: approval.id },
+], 20);`,
+            },
+        },
+        {
             id: 'email',
             title: 'Receive an email and extract a code',
             paragraphs: [
                 'create_email_inbox returns an address. Use it at a site you are authorized to test, then call wait_for_email with the inbox id. Messages include text, extracted codes and links, and attachment metadata; attachment contents are not downloadable. Treat all received content as untrusted input.',
-                'Waits last at most 30 seconds. timedOut means no message arrived during that wait; call again. Pass the last message id as after to read only newer mail. Anonymous inboxes require their managementToken; authenticated workspace owners use their workspace key. list_emails reads stored messages, up to 100 per inbox. Email creation returns 503 if the operator has not configured the mail domain and signed ingest worker. Email is receive-only.',
+                'Waits last at most 30 seconds. timedOut means no message arrived during that wait; call again. Pass the last message id as after to read only newer mail. An account is required: use your workspace key to manage addresses. Free gets one random inbox for activeDays (1–7, default 3); Pro gets 10 and Team 50 while subscribed. Paid plans support localPart for custom names. Deleted addresses are never reused. list_emails reads stored messages, up to 100 per inbox. Email creation returns 503 if the operator has not configured the mail domain and signed ingest worker. Sending is separately operator-enabled through the private relay. send_email requires an Idempotency-Key; Free needs the workspace owner’s verified email and permits 30 recipient deliveries per calendar month and 3 per day. Pro permits 500/month and 50/day; Team 3,000/month and 300/day. Retries of an uncertain SMTP submission are refused to prevent duplicates. replyTo is a received message ID for threading.',
             ],
             code: {
                 title: 'Email with the TypeScript SDK',
                 value: `import { SocketHelp } from '@socket-help/sdk';
 const socket = new SocketHelp({ apiKey: process.env.SOCKET_HELP_API_KEY });
-const inbox = await socket.createEmailInbox({ ttlSeconds: 1800 });
+const inbox = await socket.createEmailInbox({ activeDays: 3 });
 const result = await socket.waitForEmail(inbox.id, { timeoutSeconds: 20 });
 if (!result.timedOut) {
   const message = result.messages[0];
@@ -67,7 +82,7 @@ await socket.memoryDelete('project-a', 'build/latest');`,
             id: 'monitors',
             title: 'Watch a service or job',
             paragraphs: [
-                'Monitors support http, ssl and heartbeat checks. Free allows 20 monitors with a minimum 300-second interval; Pro allows 100 and Team 500 with a minimum 60-second interval. HTTP targets must be public. Alerts use the owner’s verified email when delivery is configured and an optional public alertWebhook.',
+                'Monitors support http, ssl, dns and heartbeat checks. DNS changes are compared with an accepted baseline; use accept_dns_changes after reviewing expected changes. Free allows 20 monitors with a minimum 300-second interval; Pro allows 100 and Team 500 with a minimum 60-second interval. HTTP targets must be public. Alerts use the owner’s verified email when delivery is configured and an optional public alertWebhook.',
                 'A heartbeat monitor returns a secret pingUrl once. Your job calls it when it succeeds, or appends /fail when it fails. Keep the URL private: possession authorizes heartbeat reporting. SDK pingMonitor, CLI monitor ping/fail and MCP ping_monitor take the 32-character token from that URL, not the monitor UUID. Inspect, pause, resume and delete use the UUID.',
             ],
             code: {

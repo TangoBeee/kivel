@@ -1,5 +1,7 @@
+import { llmMockSchema } from '@socket-help/tools/llm-mock';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { isUuid } from './security.js';
+import { PlanError } from './entitlements.js';
 import { API_VERSION } from './version.js';
 import { validateInboxResponse } from './inboxes.js';
 import type { InboxRepository } from './inboxes.js';
@@ -49,6 +51,52 @@ const deletes = {
     openWorldHint: false,
 };
 export const platformTools = [
+    {
+        name: 'create_phone_number',
+        description:
+            'Buy a US number using an already-paid phone add-on slot. Operator-enabled Telnyx only. Obtain a number from the phone inventory API first. Keep the idempotencyKey; uncertain purchases must be reconciled, never retried with a new key.',
+        inputSchema: schema({
+            number: stringProperty('US E.164 number from available inventory.'),
+            idempotencyKey: stringProperty('Unique purchase key, reused only for this number.'),
+        }),
+        annotations: { ...creates, openWorldHint: true },
+    },
+    {
+        name: 'list_phone_numbers',
+        description:
+            'List owned phone numbers and add-on allowance. Disabled providers return enabled=false.',
+        inputSchema: schema({}),
+        annotations: readonly,
+    },
+    {
+        name: 'release_phone_number',
+        description:
+            'Release an owned number at Telnyx and stop its provider billing. This cannot be undone; do not interpret it as cancelling the paid Dodo add-on.',
+        inputSchema: schema({ id: stringProperty('Phone resource UUID.') }),
+        annotations: { ...deletes, openWorldHint: true },
+    },
+    {
+        name: 'list_sms',
+        description:
+            'Read received SMS and extracted codes from an active owned phone number. Requires an active paid add-on.',
+        inputSchema: schema({ id: stringProperty('Phone resource UUID.') }),
+        annotations: readonly,
+    },
+    {
+        name: 'wait_for_sms',
+        description:
+            'Wait up to 30 seconds for inbound SMS. Pass the last message ID as after. A paused or pending number cannot receive messages.',
+        inputSchema: schema(
+            {
+                id: stringProperty('Phone resource UUID.'),
+                after: stringProperty('Last message ID.'),
+                timeoutSeconds: { type: 'number' },
+            },
+            ['id'],
+        ),
+        annotations: readonly,
+    },
+
     {
         name: 'call_mock_api',
         description:
@@ -140,11 +188,18 @@ export const platformTools = [
     {
         name: 'create_email_inbox',
         description:
-            'Create a receive-only email address (for example to sign up to a site under test). Lasts one hour unless ttlSeconds is set, up to the plan maximum. Save the managementToken, then call wait_for_email.',
+            'Create an owned agent email address. Requires a Free account: one random inbox lasting activeDays (1–7, default 3). Pro allows 10 and Team 50 inboxes that remain active while subscribed; localPart selects a custom address on paid plans. Retired addresses are never reused. Then call wait_for_email.',
         inputSchema: schema(
             {
-                ttlSeconds: { type: 'number', description: 'Lifetime in seconds, from 60.' },
-                persistent: { type: 'boolean' },
+                activeDays: {
+                    type: 'integer',
+                    minimum: 1,
+                    maximum: 7,
+                    description: 'Free inbox lifetime in days; defaults to 3.',
+                },
+                localPart: stringProperty(
+                    'Optional custom name, 3–48 lowercase letters, numbers or single hyphens. Pro or Team only.',
+                ),
             },
             [],
         ),
@@ -171,6 +226,59 @@ export const platformTools = [
         annotations: readonly,
     },
     {
+        name: 'send_email',
+        description:
+            'Send from an owned socketspace.xyz inbox when operator-enabled. Free requires verified owner email and permits 30 recipient deliveries/month, 3/day (3 recipients/message); Pro 500/month, 50/day and Team 3000/month, 300/day (10/message). Supply a unique idempotencyKey; reuse it only for retries of the identical message. replyTo is a received message ID for threading. Suspensions and suppression cannot be bypassed by retrying.',
+        inputSchema: schema(
+            {
+                id: access.id,
+                to: { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 10 },
+                subject: stringProperty('Message subject.'),
+                text: stringProperty('Plain text body.'),
+                html: stringProperty('Optional HTML body; text or html required.'),
+                replyTo: stringProperty('Received message ID in this inbox.'),
+                idempotencyKey: stringProperty(
+                    'Unique 16–100 character retry key. Reuse only for the identical message.',
+                ),
+            },
+            ['id', 'to', 'subject', 'idempotencyKey'],
+        ),
+        annotations: { ...deletes, openWorldHint: true },
+    },
+    {
+        name: 'wait_for_event',
+        description:
+            'Wait once for any of 1–10 webhook, email or human-approval sources. Each source has kind, id, optional token and after cursor. Returns events with per-source cursors, or timedOut. Waits are capped at 30 seconds and share the same per-caller wait limit. Email events exclude sent mail. Expired/denied approval is never permission. SMS sources require the future phone service and are not supported yet.',
+        inputSchema: schema(
+            {
+                sources: {
+                    type: 'array',
+                    minItems: 1,
+                    maxItems: 10,
+                    items: {
+                        type: 'object',
+                        properties: {
+                            kind: {
+                                type: 'string',
+                                enum: ['webhook', 'email', 'approval', 'job', 'sms'],
+                            },
+                            id: access.id,
+                            token: access.token,
+                            after: stringProperty(
+                                'Last consumed message/request ID, or approval ID.',
+                            ),
+                        },
+                        required: ['kind', 'id'],
+                        additionalProperties: false,
+                    },
+                },
+                timeoutSeconds: { type: 'number', minimum: 1, maximum: 30 },
+            },
+            ['sources'],
+        ),
+        annotations: readonly,
+    },
+    {
         name: 'start_login',
         description:
             'Connect this agent to its human’s socket.help workspace (no API key needed). Returns a link and code for the human to approve in their browser, and a deviceCode for finish_login. Never ask the human to paste an API key into the chat.',
@@ -188,7 +296,7 @@ export const platformTools = [
     {
         name: 'start_trial',
         description:
-            'Only if no human is available right now: get a 72-hour trial key with anonymous limits (webhooks, mocks, files, email inboxes, tools) and a claim link for your human. Prefer start_login when a human can approve. Pass humanEmail to notify them.',
+            'Only if no human is available right now: get a 72-hour trial key with anonymous limits (webhooks, mocks, files, utilities) and a claim link for your human. Email requires an approved workspace key. Prefer start_login when a human can approve. Pass humanEmail to notify them.',
         inputSchema: schema(
             {
                 name: stringProperty('How your human will recognise you.'),
@@ -238,10 +346,10 @@ export const platformTools = [
     {
         name: 'create_monitor',
         description:
-            'Watch something on a schedule and alert the workspace owner by email (and optionally a webhook) when it goes down or recovers. kind "http" checks a public URL (expectStatus, expectText), "ssl" warns before a certificate expires (sslDays), "heartbeat" returns a pingUrl your job calls when it finishes. Needs an API key; Free allows 20 monitors every 5 minutes or slower.',
+            'Watch something on a schedule and alert the workspace owner by email (and optionally a webhook) when it goes down or recovers. kind "http" checks a public URL (expectStatus, expectText), "ssl" warns before a certificate expires (sslDays), "heartbeat" returns a pingUrl your job calls when it finishes. kind "dns" watches public DNS records against its first successful baseline (dnsRecordType). Needs an API key; Free allows 20 monitors every 5 minutes or slower.',
         inputSchema: schema(
             {
-                kind: { type: 'string', enum: ['http', 'ssl', 'heartbeat'] },
+                kind: { type: 'string', enum: ['http', 'ssl', 'heartbeat', 'dns'] },
                 name: stringProperty('Short label, up to 80 characters.'),
                 target: stringProperty('URL or hostname for http and ssl.'),
                 intervalSeconds: { type: 'number' },
@@ -249,11 +357,22 @@ export const platformTools = [
                 expectStatus: { type: 'number' },
                 expectText: stringProperty('Text the response must contain.'),
                 sslDays: { type: 'number' },
+                dnsRecordType: {
+                    type: 'string',
+                    enum: ['A', 'AAAA', 'CNAME', 'MX', 'TXT', 'NS', 'CAA'],
+                },
                 alertWebhook: stringProperty('Public URL that receives alert JSON.'),
             },
             ['kind', 'name'],
         ),
         annotations: creates,
+    },
+    {
+        name: 'accept_dns_changes',
+        description:
+            'Accept the last successfully observed DNS answers as a monitor’s new baseline. Use only after reviewing that the change is expected.',
+        inputSchema: schema({ id: access.id }),
+        annotations: { ...deletes, idempotentHint: true },
     },
     {
         name: 'list_monitors',
@@ -319,6 +438,7 @@ export const platformTools = [
                 visibility: { type: 'string', enum: ['public', 'private'] },
                 name: stringProperty('API name, up to 80 characters.'),
                 crud: crudSchema,
+                llm: llmMockSchema,
                 echo: {
                     type: 'boolean',
                     enum: [true],
@@ -517,7 +637,16 @@ export const platformTools = [
             {
                 kind: {
                     type: 'string',
-                    enum: ['inboxes', 'mocks', 'files', 'mcp-servers', 'email-inboxes'],
+                    enum: [
+                        'inboxes',
+                        'mocks',
+                        'files',
+                        'mcp-servers',
+                        'email-inboxes',
+                        'status-pages',
+                        'scheduled-jobs',
+                        'smtp-inboxes',
+                    ],
                 },
                 action: {
                     type: 'string',
@@ -534,6 +663,7 @@ export const platformTools = [
                         'response',
                         'forward',
                         'deliveries',
+                        'clear',
                     ],
                 },
                 id: stringProperty('Resource UUID for existing resources.'),
@@ -996,6 +1126,20 @@ export function registerMcp({
         );
     }
     // Email tools reuse the HTTP routes so quotas, scopes and errors stay identical.
+    async function eventRequest(value: Record<string, unknown>, request: FastifyRequest) {
+        uploads.delete(request);
+        const headers: Record<string, string> = {};
+        for (const key of ['authorization', 'cookie', 'origin'])
+            if (typeof request.headers[key] === 'string') headers[key] = request.headers[key];
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/events/wait',
+            headers,
+            remoteAddress: request.ip,
+            payload: value,
+        });
+        return result(response.json(), response.statusCode >= 400);
+    }
     async function emailRequest(
         name: string,
         value: Record<string, unknown>,
@@ -1005,11 +1149,13 @@ export function registerMcp({
         for (const key of ['authorization', 'cookie', 'origin'])
             if (typeof request.headers[key] === 'string') headers[key] = request.headers[key];
         let url: string;
-        if (name === 'create_email_inbox') {
-            const query = new URLSearchParams();
-            for (const key of ['ttlSeconds', 'persistent'])
-                if (value[key] !== undefined) query.set(key, String(value[key]));
-            url = `/api/email-inboxes${query.size ? `?${query}` : ''}`;
+        if (name === 'send_email') {
+            if (typeof value.id !== 'string' || !isUuid(value.id))
+                throw new RpcError(-32602, 'Provide an email inbox UUID.');
+            headers['idempotency-key'] = String(value.idempotencyKey);
+            url = `/api/email-inboxes/${value.id}/send`;
+        } else if (name === 'create_email_inbox') {
+            url = '/api/email-inboxes';
         } else {
             const { id, token } = credentials(value);
             if (!isUuid(id)) throw new RpcError(-32602, 'Provide an email inbox UUID.');
@@ -1023,9 +1169,20 @@ export function registerMcp({
             if (name === 'wait_for_email') uploads.delete(request);
         }
         const response = await app.inject({
-            method: name === 'create_email_inbox' ? 'POST' : 'GET',
+            method: ['create_email_inbox', 'send_email'].includes(name) ? 'POST' : 'GET',
             url,
             headers,
+            ...(name === 'create_email_inbox'
+                ? { payload: value }
+                : name === 'send_email'
+                  ? {
+                        payload: Object.fromEntries(
+                            Object.entries(value).filter(
+                                ([key]) => !['id', 'idempotencyKey'].includes(key),
+                            ),
+                        ),
+                    }
+                  : {}),
             remoteAddress: request.ip,
         });
         return result(response.json(), response.statusCode >= 400);
@@ -1142,7 +1299,9 @@ export function registerMcp({
         for (const key of ['authorization', 'cookie', 'origin'])
             if (typeof request.headers[key] === 'string') headers[key] = request.headers[key];
         if (
-            ['delete_monitor', 'inspect_monitor', 'pause_monitor'].includes(name) &&
+            ['delete_monitor', 'inspect_monitor', 'pause_monitor', 'accept_dns_changes'].includes(
+                name,
+            ) &&
             !isUuid(String(value.id))
         )
             throw new RpcError(-32602, 'Provide a monitor UUID.');
@@ -1150,7 +1309,9 @@ export function registerMcp({
             throw new RpcError(-32602, 'Provide the 32-character token from pingUrl.');
         const response = await app.inject({
             method:
-                name === 'create_monitor' || name === 'ping_monitor'
+                name === 'create_monitor' ||
+                name === 'ping_monitor' ||
+                name === 'accept_dns_changes'
                     ? 'POST'
                     : name === 'delete_monitor'
                       ? 'DELETE'
@@ -1160,8 +1321,13 @@ export function registerMcp({
             url:
                 name === 'ping_monitor'
                     ? `/ping/${value.token}${value.failed === true ? '/fail' : ''}`
-                    : ['delete_monitor', 'inspect_monitor', 'pause_monitor'].includes(name)
-                      ? `/api/monitors/${value.id}`
+                    : [
+                            'delete_monitor',
+                            'inspect_monitor',
+                            'pause_monitor',
+                            'accept_dns_changes',
+                        ].includes(name)
+                      ? `/api/monitors/${value.id}${name === 'accept_dns_changes' ? '/accept-dns' : ''}`
                       : '/api/monitors',
             headers,
             remoteAddress: request.ip,
@@ -1198,6 +1364,39 @@ export function registerMcp({
         });
         return result(response.json(), response.statusCode >= 400);
     }
+    async function phoneRequest(
+        name: string,
+        value: Record<string, unknown>,
+        request: FastifyRequest,
+    ) {
+        const headers: Record<string, string> = {};
+        for (const key of ['authorization', 'cookie', 'origin'])
+            if (typeof request.headers[key] === 'string') headers[key] = request.headers[key];
+        const creating = name === 'create_phone_number';
+        if (!creating && name !== 'list_phone_numbers' && !isUuid(String(value.id)))
+            throw new RpcError(-32602, 'Provide a phone resource UUID.');
+        if (creating) {
+            headers['content-type'] = 'application/json';
+            headers['idempotency-key'] = String(value.idempotencyKey);
+        }
+        const query = new URLSearchParams();
+        if (value.after !== undefined) query.set('after', String(value.after));
+        if (value.timeoutSeconds !== undefined)
+            query.set('timeoutSeconds', String(value.timeoutSeconds));
+        const url = `/api/phone-numbers${creating || name === 'list_phone_numbers' ? '' : `/${encodeURIComponent(String(value.id))}${name === 'wait_for_sms' ? `/wait?${query}` : name === 'list_sms' ? '/sms' : ''}`}`;
+        if (name === 'wait_for_sms') uploads.delete(request);
+        const response = await app.inject({
+            method: creating ? 'POST' : name === 'release_phone_number' ? 'DELETE' : 'GET',
+            url,
+            headers,
+            remoteAddress: request.ip,
+            ...(creating ? { payload: { number: value.number } } : {}),
+        });
+        return result(
+            response.statusCode === 204 ? { released: true } : response.json(),
+            response.statusCode >= 400,
+        );
+    }
     async function resourceRequest(value: Record<string, unknown>, request: FastifyRequest) {
         const kind = String(value.kind ?? ''),
             action = String(value.action ?? '');
@@ -1215,18 +1414,36 @@ export function registerMcp({
                 'response',
                 'forward',
                 'deliveries',
+                'clear',
             ].includes(action) ||
             (action !== 'list' &&
-                !['inboxes', 'mocks', 'files', 'mcp-servers', 'email-inboxes'].includes(kind))
+                ![
+                    'inboxes',
+                    'mocks',
+                    'files',
+                    'mcp-servers',
+                    'email-inboxes',
+                    'status-pages',
+                    'scheduled-jobs',
+                    'smtp-inboxes',
+                ].includes(kind))
         )
             throw new RpcError(-32602, 'Choose a resource kind and action.');
         if (
             (['calls', 'reset'].includes(action) && kind !== 'mocks') ||
-            (['response', 'forward', 'deliveries'].includes(action) && kind !== 'inboxes') ||
-            (action === 'update' && kind !== 'mocks') ||
+            (['response', 'deliveries'].includes(action) && kind !== 'inboxes') ||
+            (action === 'forward' && !['inboxes', 'email-inboxes'].includes(kind)) ||
+            (action === 'update' && !['mocks', 'status-pages'].includes(kind)) ||
+            (['sharing', 'renew', 'update'].includes(action) && kind === 'scheduled-jobs') ||
+            (action === 'clear' && kind !== 'email-inboxes') ||
             (action === 'sharing' && kind === 'email-inboxes')
         )
             throw new RpcError(-32602, 'This resource does not support that action.');
+        if (kind === 'smtp-inboxes' && !['create', 'inspect'].includes(action))
+            throw new RpcError(
+                -32602,
+                'Use email-inboxes for SMTP capture inspection and deletion.',
+            );
         if (action === 'create' && kind === 'files')
             throw new RpcError(-32602, 'Use upload_temporary_file for file creation.');
         if (
@@ -1238,19 +1455,22 @@ export function registerMcp({
         const query = new URLSearchParams();
         for (const key of ['ttlSeconds', 'persistent', 'visibility'])
             if (value[key] !== undefined) query.set(key, String(value[key]));
-        const suffix = [
-            'sharing',
-            'renew',
-            'reset',
-            'calls',
-            'response',
-            'forward',
-            'deliveries',
-        ].includes(action)
-            ? `/${action}`
-            : action === 'inspect' && kind === 'inboxes'
-              ? '/requests'
-              : '';
+        const suffix =
+            action === 'clear'
+                ? '/messages'
+                : [
+                        'sharing',
+                        'renew',
+                        'reset',
+                        'calls',
+                        'response',
+                        'forward',
+                        'deliveries',
+                    ].includes(action)
+                  ? `/${action === 'forward' && kind === 'email-inboxes' ? 'forwarding' : action}`
+                  : action === 'inspect' && kind === 'inboxes'
+                    ? '/requests'
+                    : '';
         const path =
             action === 'list'
                 ? '/api/account/resources'
@@ -1261,10 +1481,11 @@ export function registerMcp({
         if (typeof value.token === 'string') headers['x-resource-token'] = value.token;
         const resetSetting =
             ['response', 'forward'].includes(action) &&
+            kind !== 'email-inboxes' &&
             object(value.config) &&
             value.config.reset === true;
         const method =
-            action === 'delete' || resetSetting
+            action === 'delete' || action === 'clear' || resetSetting
                 ? 'DELETE'
                 : ['update', 'response', 'forward'].includes(action)
                   ? 'PUT'
@@ -1391,7 +1612,7 @@ export function registerMcp({
                         serverInfo: { name: config?.name ?? 'socket.help', version: API_VERSION },
                         instructions: config
                             ? 'A temporary mock MCP server. Tools return configured static responses.'
-                            : 'Temporary resources expire after one hour. Keep returned management and inspection tokens private.',
+                            : 'Webhook, mock and file resources start with one hour. Owned email requires an account and has its own lifetime rules. Keep credentials private; use cursor-based waits. A 402 plan error needs the human to upgrade, not repeated retries.',
                     };
                     break;
                 }
@@ -1438,9 +1659,11 @@ export function registerMcp({
                             const expected = properties[key]!.type;
                             if (
                                 expected !== undefined &&
-                                (expected === 'array'
-                                    ? !Array.isArray(value)
-                                    : typeof value !== expected)
+                                (expected === 'integer'
+                                    ? typeof value !== 'number' || !Number.isInteger(value)
+                                    : expected === 'array'
+                                      ? !Array.isArray(value)
+                                      : typeof value !== expected)
                             )
                                 throw new RpcError(-32602, `Invalid argument type: ${key}`);
                         }
@@ -1449,8 +1672,17 @@ export function registerMcp({
                             !executableIds.some((id) => id === values.toolId)
                         )
                             throw new RpcError(-32602, 'Choose an executable tool ID.');
-                        response =
-                            params.name === 'call_mock_api'
+                        response = [
+                            'create_phone_number',
+                            'list_phone_numbers',
+                            'release_phone_number',
+                            'list_sms',
+                            'wait_for_sms',
+                        ].includes(params.name)
+                            ? await phoneRequest(params.name, values, request)
+                            : params.name === 'wait_for_event'
+                              ? await eventRequest(values, request)
+                              : params.name === 'call_mock_api'
                                 ? await callMock(values, request)
                                 : params.name === 'workspace_status'
                                   ? await workspaceStatus(values, request)
@@ -1464,6 +1696,7 @@ export function registerMcp({
                                         ? await approvalRequest(params.name, values, request)
                                         : [
                                                 'create_monitor',
+                                                'accept_dns_changes',
                                                 'list_monitors',
                                                 'ping_monitor',
                                                 'inspect_monitor',
@@ -1477,6 +1710,7 @@ export function registerMcp({
                                                     'create_email_inbox',
                                                     'wait_for_email',
                                                     'list_emails',
+                                                    'send_email',
                                                 ].includes(params.name)
                                               ? await emailRequest(params.name, values, request)
                                               : params.name === 'describe_tool'
@@ -1533,7 +1767,16 @@ export function registerMcp({
                 return reply.send({
                     jsonrpc: '2.0',
                     id: body.id,
-                    result: result({ error: error.message, status: error.statusCode }, true),
+                    result: result(
+                        {
+                            error: error.message,
+                            status: error.statusCode,
+                            ...(error instanceof PlanError
+                                ? { requiredPlan: error.requiredPlan, upgradeUrl: error.upgradeUrl }
+                                : {}),
+                        },
+                        true,
+                    ),
                 });
             if (!(error instanceof RpcError)) throw error;
             return reply.send({

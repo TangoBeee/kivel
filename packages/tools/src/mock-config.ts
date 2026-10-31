@@ -1,3 +1,5 @@
+import { validateLlmMock } from './llm-mock.js';
+import type { LlmMockConfig } from './llm-mock.js';
 import { validateCrud, initialCrud } from './mock-crud.js';
 import type { CrudConfig } from './mock-crud.js';
 const byteLength = (text: string) => new TextEncoder().encode(text).length;
@@ -21,6 +23,7 @@ export interface MockConfig {
     routes: MockRoute[];
     crud?: CrudConfig;
     echo?: true;
+    llm?: LlmMockConfig;
     /** Unmatched calls go to this API; with record, its answers become new routes. */
     proxy?: { target: string; record: boolean };
 }
@@ -41,7 +44,8 @@ export function validateMock(value: unknown): MockConfig {
         (!value.routes.length &&
             value.crud === undefined &&
             value.echo !== true &&
-            value.proxy === undefined) ||
+            value.proxy === undefined &&
+            value.llm === undefined) ||
         value.routes.length > 20
     )
         throw new Error('Provide a name and either 1–20 static routes or a CRUD collection.');
@@ -248,9 +252,15 @@ export function validateMock(value: unknown): MockConfig {
         )
     )
         throw new Error('The CRUD collection path is reserved; static routes cannot overlap it.');
+    const llm = value.llm === undefined ? undefined : validateLlmMock(value.llm);
+    if (llm && (routes.length || crud || proxy || value.echo))
+        throw new Error(
+            'LLM mode uses empty routes and cannot combine with CRUD, echo or proxy mode.',
+        );
     const config: MockConfig = {
         name: value.name.trim(),
         routes,
+        ...(llm ? { llm } : {}),
         ...(value.echo === true ? { echo: true as const } : {}),
         ...(crud ? { crud } : {}),
         ...(proxy ? { proxy } : {}),

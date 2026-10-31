@@ -11,6 +11,9 @@ services:
       edge:
         ipv4_address: ${PROXY_NETWORK_PREFIX:-10.203.0}.3
 
+  mail:
+    image: ${MAIL_IMAGE:-socket-help-mail:local}
+
   proxy:
     build:
       context: .

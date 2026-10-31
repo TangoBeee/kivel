@@ -1,0 +1,8 @@
+[Unit]
+Description=Refresh socket.help Cloudflare ingress ranges
+[Timer]
+OnBootSec=30s
+OnCalendar=daily
+Persistent=true
+[Install]
+WantedBy=timers.target

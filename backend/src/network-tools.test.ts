@@ -281,3 +281,66 @@ test('MCP discovery negotiates versions, reads paginated descriptors and cleans 
         /credentials/,
     );
 });
+
+test('webhook event simulator signs exact payload bytes, reports delivery and never returns the signing secret', async () => {
+    const { createHmac } = await import('node:crypto');
+    const { webhookEvent, simulateWebhook } = await import('./webhook-events.js');
+    for (const provider of ['stripe', 'github', 'shopify']) {
+        const event = webhookEvent(
+            { mode: provider, secret: 'a-private-test-signing-secret' },
+            1700000000000,
+            'fixture-id',
+        );
+        const signature = createHmac('sha256', 'a-private-test-signing-secret');
+        if (provider === 'stripe')
+            assert.equal(
+                event.headers['stripe-signature'],
+                `t=1700000000,v1=${signature.update(`1700000000.${event.body}`).digest('hex')}`,
+            );
+        else if (provider === 'github')
+            assert.equal(
+                event.headers['x-hub-signature-256'],
+                `sha256=${signature.update(event.body).digest('hex')}`,
+            );
+        else
+            assert.equal(
+                event.headers['x-shopify-hmac-sha256'],
+                signature.update(event.body).digest('base64'),
+            );
+        assert.ok(!JSON.stringify(event).includes('a-private-test-signing-secret'));
+    }
+    let posted = false;
+    const result = await simulateWebhook(
+        'https://receiver.example.com/hooks',
+        { mode: 'github', secret: 'test-secret' },
+        new AbortController().signal,
+        async (url, _signal, options) => {
+            posted = true;
+            assert.equal(options?.method, 'POST');
+            assert.equal(options?.headers?.['x-github-event'], 'push');
+            return {
+                url,
+                status: 204,
+                body: Buffer.alloc(0),
+                headers: {},
+                truncated: false,
+                address: '1.1.1.1',
+                timings: { dnsMs: 1, responseMs: 2, totalMs: 3 },
+            };
+        },
+    );
+    assert.equal(posted, true);
+    assert.equal(result.response.status, 204);
+    assert.throws(
+        () => webhookEvent({ mode: 'github', action: 'invoice.paid', secret: 'test' }),
+        /supported/,
+    );
+    await assert.rejects(
+        simulateWebhook(
+            'http://127.0.0.1',
+            { mode: 'stripe', secret: 'test' },
+            new AbortController().signal,
+        ),
+        /Private|private/,
+    );
+});

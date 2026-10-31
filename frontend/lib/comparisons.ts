@@ -56,7 +56,7 @@ export const comparisons: Comparison[] = [
             },
             {
                 topic: 'Related work',
-                socket: 'Receive-only email inboxes, forwarding with retries on Pro, replay, mock APIs, file shares, utilities and MCP tools such as wait_for_webhook.',
+                socket: 'Owned email inboxes when configured, forwarding with retries on Pro, replay, mock APIs, file shares, utilities and MCP tools such as wait_for_webhook.',
                 other: 'Forwarding, schedules, CSV export, and email workflows on paid plans.',
             },
         ],

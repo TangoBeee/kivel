@@ -1,5 +1,6 @@
-import { spawn } from 'node:child_process';
-import { mkdir, open, rename, rm } from 'node:fs/promises';
+import { promisify } from 'node:util';
+import { execFile, spawn } from 'node:child_process';
+import { mkdir, open, rename, rm, readdir } from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { pipeline } from 'node:stream/promises';
@@ -37,7 +38,45 @@ try {
         await checksum.close();
     }
     console.log(`Backup written: ${file}`);
-    console.log('Copy the dump, checksum and a separately protected .env to off-VM storage.');
+    const remote = process.env.BACKUP_REMOTE;
+    if (remote) {
+        if (
+            !/^[A-Za-z0-9_-]+:[A-Za-z0-9][A-Za-z0-9_./-]+$/.test(remote) ||
+            remote.split('/').includes('..')
+        )
+            throw new Error('BACKUP_REMOTE must name a dedicated rclone prefix.');
+        const run = promisify(execFile);
+        for (const path of [file, file + '.sha256'])
+            await run('rclone', ['copyto', path, `${remote}/${path.split('/').pop()}`], {
+                timeout: 300000,
+            });
+        await run(
+            'rclone',
+            [
+                'delete',
+                remote,
+                '--min-age',
+                '30d',
+                '--include',
+                'socket-*.dump',
+                '--include',
+                'socket-*.dump.sha256',
+            ],
+            { timeout: 300000 },
+        );
+        console.log('Off-site copy completed; remote retention is 30 days.');
+    } else
+        console.log(
+            'Off-site copy is not configured. Set BACKUP_REMOTE after configuring an encrypted rclone remote.',
+        );
+    const local = (await readdir(directory))
+        .filter((name) => /^socket-[0-9TZ.-]+\.dump$/.test(name))
+        .sort()
+        .reverse();
+    for (const name of local.slice(14)) {
+        await rm(join(directory, name));
+        await rm(join(directory, name + '.sha256'), { force: true });
+    }
 } catch (error) {
     child.kill('SIGTERM');
     await rm(partial, { force: true });

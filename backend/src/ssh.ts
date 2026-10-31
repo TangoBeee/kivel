@@ -210,7 +210,7 @@ export function createSshServer(
                             stream.exit(0);
                         } catch (error) {
                             stream.stderr.write(
-                                `${JSON.stringify({ error: error instanceof Error ? error.message : 'Command failed.', ...(error instanceof SocketError ? { status: error.status, requestId: error.requestId, retryAfter: error.retryAfter } : {}) })}\n`,
+                                `${JSON.stringify({ error: error instanceof Error ? error.message : 'Command failed.', ...(error instanceof SocketError ? { status: error.status, requestId: error.requestId, retryAfter: error.retryAfter, requiredPlan: error.requiredPlan, upgradeUrl: error.upgradeUrl } : {}) })}\n`,
                             );
                             stream.exit(1);
                         } finally {

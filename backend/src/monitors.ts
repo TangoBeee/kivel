@@ -5,13 +5,13 @@ import { HttpError } from './access.js';
 import type { Access } from './access.js';
 import type { IdentityRepository } from './identity.js';
 import type { MailSender } from './mail.js';
-import { inspectTls } from './network-tools.js';
+import { monitorDns, publicDnsDomain, inspectTls } from './network-tools.js';
 import { publicRequest, publicUrl } from './public-network.js';
 import type { RateLimitRepository } from './rate-limit.js';
 import type { RecoveryRepository } from './recovery-store.js';
 import { isUuid } from './security.js';
 
-export type MonitorKind = 'heartbeat' | 'http' | 'ssl';
+export type MonitorKind = 'heartbeat' | 'http' | 'ssl' | 'dns';
 export type MonitorStatus = 'pending' | 'up' | 'down';
 
 export interface Monitor {
@@ -25,6 +25,11 @@ export interface Monitor {
     expectStatus?: number;
     expectText?: string;
     sslDays?: number;
+    dnsRecordType?: string;
+    dnsBaseline?: string[];
+    lastDnsAnswers?: string[];
+    lastDurationMs?: number;
+    recentChecks?: { at: string; status: MonitorStatus; durationMs: number }[];
     alertWebhook?: string;
     paused: boolean;
     status: MonitorStatus;
@@ -228,6 +233,7 @@ export class PostgresMonitors implements MonitorRepository {
 }
 
 export interface MonitorChecks {
+    dns?(target: string, recordType: string, signal: AbortSignal): Promise<string[]>;
     http(url: string, signal: AbortSignal): Promise<{ status: number; body: string }>;
     tls(
         target: string,
@@ -236,6 +242,7 @@ export interface MonitorChecks {
     webhook(url: string, body: string, signal: AbortSignal): Promise<void>;
 }
 export const networkChecks: MonitorChecks = {
+    dns: monitorDns,
     async http(url, signal) {
         const response = await publicRequest(url, signal, { body: true, limit: 256 * 1024 });
         return { status: response.status, body: response.body.toString('utf8') };
@@ -258,8 +265,8 @@ export const networkChecks: MonitorChecks = {
 
 function validate(input: Record<string, unknown>, minInterval: number, origin: string) {
     const kind = input.kind;
-    if (kind !== 'heartbeat' && kind !== 'http' && kind !== 'ssl')
-        throw new HttpError(400, 'kind must be heartbeat, http or ssl.');
+    if (kind !== 'heartbeat' && kind !== 'http' && kind !== 'ssl' && kind !== 'dns')
+        throw new HttpError(400, 'kind must be heartbeat, http, ssl or dns.');
     const name = typeof input.name === 'string' ? input.name.trim().slice(0, 80) : '';
     if (!name) throw new HttpError(400, 'Give the monitor a name.');
     const interval = Number(input.intervalSeconds ?? (kind === 'ssl' ? 86400 : 300));
@@ -272,7 +279,15 @@ function validate(input: Record<string, unknown>, minInterval: number, origin: s
     if (!Number.isInteger(grace) || grace < 0 || grace > 86400)
         throw new HttpError(400, 'graceSeconds must be between 0 and 86400.');
     let target: string | undefined;
-    if (kind !== 'heartbeat') {
+    if (kind === 'dns') {
+        try {
+            target = publicDnsDomain(String(input.target ?? ''));
+        } catch {
+            throw new HttpError(400, 'DNS monitors need a public domain name.');
+        }
+        if (target === new URL(origin).hostname)
+            throw new HttpError(400, 'Monitor your own domain, not socket.help.');
+    } else if (kind !== 'heartbeat') {
         try {
             const raw = String(input.target ?? '');
             target = publicUrl(
@@ -305,6 +320,9 @@ function validate(input: Record<string, unknown>, minInterval: number, origin: s
     const sslDays = Number(input.sslDays ?? 14);
     if (!Number.isInteger(sslDays) || sslDays < 1 || sslDays > 90)
         throw new HttpError(400, 'sslDays must be between 1 and 90.');
+    const dnsRecordType = String(input.dnsRecordType ?? 'A');
+    if (kind === 'dns' && !['A', 'AAAA', 'CNAME', 'MX', 'TXT', 'NS', 'CAA'].includes(dnsRecordType))
+        throw new HttpError(400, 'Choose A, AAAA, CNAME, MX, TXT, NS or CAA.');
     return {
         kind,
         name,
@@ -315,6 +333,7 @@ function validate(input: Record<string, unknown>, minInterval: number, origin: s
         ...(kind === 'http' && expectStatus !== undefined ? { expectStatus } : {}),
         ...(kind === 'http' && expectText ? { expectText } : {}),
         ...(kind === 'ssl' ? { sslDays } : {}),
+        ...(kind === 'dns' ? { dnsRecordType } : {}),
     } as const;
 }
 
@@ -393,6 +412,9 @@ export function registerMonitors({
         const signal = AbortSignal.timeout(10000);
         let ok = true;
         let message = '';
+        const started = performance.now();
+        let dnsBaseline = monitor.dnsBaseline,
+            lastDnsAnswers = monitor.lastDnsAnswers;
         if (monitor.kind === 'heartbeat') {
             const last = Date.parse(monitor.lastPingAt ?? monitor.createdAt);
             ok = now < last + (monitor.intervalSeconds + monitor.graceSeconds) * 1000;
@@ -416,6 +438,24 @@ export function registerMonitors({
                 ok = false;
                 message = error instanceof Error ? error.message : 'No answer.';
             }
+        } else if (monitor.kind === 'dns') {
+            try {
+                lastDnsAnswers = (
+                    await (checks.dns ?? monitorDns)(
+                        monitor.target!,
+                        monitor.dnsRecordType ?? 'A',
+                        signal,
+                    )
+                ).sort();
+                dnsBaseline ??= lastDnsAnswers;
+                ok = JSON.stringify(lastDnsAnswers) === JSON.stringify(dnsBaseline);
+                message = ok
+                    ? `${monitor.dnsRecordType ?? 'A'} records match the baseline.`
+                    : `${monitor.dnsRecordType ?? 'A'} records changed. Review the new answers and accept them only if expected.`;
+            } catch (error) {
+                ok = false;
+                message = error instanceof Error ? error.message : 'DNS check failed.';
+            }
         } else {
             try {
                 const tls = await checks.tls(monitor.target!, signal);
@@ -433,8 +473,20 @@ export function registerMonitors({
         const confirming = !ok && monitor.kind !== 'heartbeat' && failures < 2;
         const status: MonitorStatus = ok ? 'up' : confirming ? monitor.status : 'down';
         const changed = status !== monitor.status && status !== 'pending';
+        const durationMs = Math.round(performance.now() - started);
         const next: Monitor = {
             ...monitor,
+            lastDurationMs: durationMs,
+            recentChecks: [
+                ...(monitor.recentChecks ?? []),
+                {
+                    at: new Date(now).toISOString(),
+                    status: ok ? ('up' as const) : ('down' as const),
+                    durationMs,
+                },
+            ].slice(-50),
+            ...(dnsBaseline ? { dnsBaseline } : {}),
+            ...(lastDnsAnswers ? { lastDnsAnswers } : {}),
             status,
             failures,
             lastCheckAt: new Date(now).toISOString(),
@@ -520,6 +572,26 @@ export function registerMonitors({
             ...view(monitor),
             ...(token ? { pingUrl: `${origin}/ping/${token}` } : {}),
         });
+    });
+    app.post<{ Params: { id: string } }>('/api/monitors/:id/accept-dns', async (request) => {
+        const actor = await owner(request, true);
+        const monitor = await monitors.get(actor.accountId, request.params.id);
+        if (!monitor || monitor.kind !== 'dns')
+            throw new HttpError(404, 'DNS monitor unavailable.');
+        if (!monitor.lastDnsAnswers?.length)
+            throw new HttpError(
+                409,
+                'Wait for a successful DNS lookup before accepting its answers.',
+            );
+        await monitors.save({
+            ...monitor,
+            dnsBaseline: [...monitor.lastDnsAnswers],
+            failures: 0,
+            status: 'up',
+            lastMessage: 'DNS baseline updated by the workspace.',
+            nextRunAt: new Date().toISOString(),
+        });
+        return { accepted: true };
     });
     app.get('/api/monitors', async (request) => {
         const { accountId, plan } = await owner(request, false);

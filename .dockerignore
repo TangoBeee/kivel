@@ -16,3 +16,8 @@ backups
 
 release
 *.tgz
+.ops.env
+.secrets
+docs/internal
+docs/*-plan.md
+PROJECT.md

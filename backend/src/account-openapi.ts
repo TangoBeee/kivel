@@ -406,7 +406,7 @@ export function accountOpenApi() {
             },
         },
     };
-    for (const path of ['inboxes', 'mocks', 'files', 'mcp-servers'])
+    for (const path of ['inboxes', 'mocks', 'files', 'mcp-servers', 'status-pages'])
         paths[`/api/${path}/{id}/renew`] = {
             post: {
                 ...operation(
@@ -498,7 +498,7 @@ export function accountOpenApi() {
                 'Requires the site Origin. Success revokes every user session and API key, consumes outstanding codes, and does not sign in automatically. Existing resources remain owned by the same account.',
         },
     };
-    for (const kind of ['inboxes', 'mocks', 'files', 'mcp-servers'])
+    for (const kind of ['inboxes', 'mocks', 'files', 'mcp-servers', 'status-pages'])
         paths[`/api/${kind}/{id}/sharing`] = {
             post: {
                 ...operation(

@@ -37,5 +37,8 @@ release/
 
 # Internal plans, strategy notes and briefs stay local
 docs/*-plan.md
+docs/internal/
 docs/competitor-review.md
 PROJECT.md
+.ops.env
+.secrets/

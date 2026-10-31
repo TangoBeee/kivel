@@ -1,6 +1,11 @@
+import { PostgresPhones } from './phone/store.js';
+import { TelnyxProvider } from './phone/telnyx.js';
+import { PostgresJobs } from './scheduled-jobs.js';
 import { PostgresRecoveryRepository } from './recovery-store.js';
 import { PostgresMockCalls } from './mock-calls.js';
 import { PostgresEmailMessages } from './email.js';
+import { PostgresEmailAddresses } from './email-addresses.js';
+import { PostgresEmailSending } from './email-sending-store.js';
 import { PostgresActivity } from './activity.js';
 import { PostgresKv } from './kv.js';
 import { PostgresAgents } from './agents.js';
@@ -44,11 +49,19 @@ try {
         ...(config.authSecret ? { authSecret: config.authSecret } : {}),
         ...(pool ? { billingRepository: new BillingRepository(pool) } : {}),
         ...(pool ? { mockCalls: new PostgresMockCalls(pool) } : {}),
-        ...(pool ? { emailMessages: new PostgresEmailMessages(pool) } : {}),
+        ...(pool ? { emailMessages: new PostgresEmailMessages(pool, config.resourceBytes) } : {}),
+        ...(pool ? { emailAddresses: new PostgresEmailAddresses(pool) } : {}),
+        ...(pool ? { emailSending: new PostgresEmailSending(pool) } : {}),
+        ...(config.smtpCaptureConfig ? { smtpCaptureConfig: config.smtpCaptureConfig } : {}),
+        ...(config.agentEmailConfig ? { agentEmailConfig: config.agentEmailConfig } : {}),
         ...(pool ? { activity: new PostgresActivity(pool) } : {}),
         ...(pool ? { memory: new PostgresKv(pool) } : {}),
         ...(pool ? { agentStore: new PostgresAgents(pool) } : {}),
         ...(pool ? { approvalStore: new PostgresApprovals(pool) } : {}),
+        ...(pool ? { phoneStore: new PostgresPhones(pool) } : {}),
+        phoneEnabled: config.phoneEnabled,
+        ...(config.phoneConfig ? { phoneProvider: new TelnyxProvider(config.phoneConfig) } : {}),
+        ...(pool ? { jobStore: new PostgresJobs(pool) } : {}),
         ...(pool ? { monitorStore: new PostgresMonitors(pool) } : {}),
         ...(config.mailDomain && config.emailIngestSecret
             ? { mailDomain: config.mailDomain, emailIngestSecret: config.emailIngestSecret }

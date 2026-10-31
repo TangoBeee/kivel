@@ -1,3 +1,9 @@
+import { ScheduledJobWorkbench } from '../../../components/scheduled-job-workbench';
+import { SmtpWorkbench } from '../../../components/smtp-workbench';
+import { MemoryWorkbench } from '../../../components/memory-workbench';
+import { MonitorWorkbench } from '../../../components/monitor-workbench';
+import { StatusPageWorkbench } from '../../../components/status-page-workbench';
+import { LlmWorkbench } from '../../../components/llm-workbench';
 import { toolDetails } from '../../../lib/tool-details';
 import { ApiScenarioWorkbench } from '../../../components/api-scenario-workbench';
 import { AudioComposer } from '../../../components/audio-composer';
@@ -9,7 +15,16 @@ import type { NetworkOperationId } from '@socket-help/tools/network-definitions'
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { catalog, categories, toolSlug, toolPageHref, fileToolIds } from '../../../lib/catalog';
+import {
+    catalog,
+    categories,
+    toolSlug,
+    toolPageHref,
+    fileToolIds,
+    monitorToolIds,
+    memoryToolIds,
+    scheduledToolIds,
+} from '../../../lib/catalog';
 import { browserOperations } from '../../../lib/browser-tool-definitions';
 import type { BrowserOperationId } from '../../../lib/browser-tool-definitions';
 import { toolGuide, toolExample, toolArticle } from '../../../lib/tool-guides';
@@ -85,17 +100,39 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
                         {categories.find((category) => category.id === tool.categoryId)?.name}
                     </Link>
                 </div>
+            ) : tool.id === 'email-mock-smtp' ? (
+                <SmtpWorkbench toolId={tool.id} />
+            ) : tool.id === 'monitoring-public-status-page' ? (
+                <StatusPageWorkbench toolId={tool.id} />
+            ) : [
+                  'agents-mock-llm-endpoint',
+                  'agents-mock-agents-llms',
+                  'agents-llm-streaming-simulator',
+              ].includes(tool.id) ? (
+                <LlmWorkbench toolId={tool.id} />
+            ) : scheduledToolIds.includes(tool.id) ? (
+                <ScheduledJobWorkbench toolId={tool.id} />
+            ) : memoryToolIds.includes(tool.id) ? (
+                <MemoryWorkbench toolId={tool.id} />
+            ) : monitorToolIds.includes(tool.id) ? (
+                <MonitorWorkbench toolId={tool.id} />
             ) : tool.id === 'mock-apis-api-test-scenarios' ? (
                 <ApiScenarioWorkbench />
             ) : ['test-media-audio-composer', 'test-media-sample-audio'].includes(tool.id) ? (
                 <AudioComposer toolId={tool.id} />
             ) : tool.id === 'test-media-music-library' ? (
                 <MusicLibrary />
-            ) : tool.id === 'email-temporary-email-inbox' ? (
+            ) : ['email-temporary-email-inbox', 'email-email-webhook-forwarding'].includes(
+                  tool.id,
+              ) ? (
                 <EmailInboxWorkbench toolId={tool.id} />
             ) : tool.id === 'agents-socket-help-mcp' ? (
                 <McpConnect />
-            ) : tool.id === 'webhooks' || tool.id === 'domains-temporary-callback-url' ? (
+            ) : [
+                  'webhooks',
+                  'domains-temporary-callback-url',
+                  'network-request-forwarding',
+              ].includes(tool.id) ? (
                 <WebhookWorkbench toolId={tool.id} />
             ) : Object.hasOwn(networkOperations, tool.id) ||
               Object.hasOwn(mediaOperations, tool.id) ? (

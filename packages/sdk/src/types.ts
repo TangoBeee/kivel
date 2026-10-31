@@ -24,11 +24,39 @@ export interface AgentTrial {
 export interface EmailInbox {
     id: string;
     address: string;
-    expiresAt: string;
+    expiresAt: string | null;
     persistent: boolean;
+    status?: 'active' | 'paused';
+    forwardingUrl?: string | null;
     managementToken?: string;
     messageCount?: number;
     messageLimit?: number;
+}
+export interface EmailInboxSettings {
+    activeDays?: number | undefined;
+    localPart?: string | undefined;
+}
+export interface SocketEventSource {
+    kind: 'webhook' | 'email' | 'approval' | 'job' | 'sms';
+    id: string;
+    token?: string;
+    after?: string;
+}
+export interface SocketEvent {
+    kind: SocketEventSource['kind'];
+    id: string;
+    cursor: string;
+    requests?: import('./index.js').CapturedRequest[];
+    messages?: EmailMessage[];
+    approval?: Approval;
+    deliveries?: {
+        id: string;
+        at: string;
+        deliveryId: string;
+        attempt: number;
+        status: number | null;
+        error?: string;
+    }[];
 }
 export interface EmailMessage {
     id: string;
@@ -41,6 +69,19 @@ export interface EmailMessage {
     codes: string[];
     links: { url: string; kind: 'verification' | 'other' }[];
     attachments: { filename: string; mimeType: string; size: number }[];
+    direction?: 'inbound' | 'outbound';
+    deliveryStatus?: 'pending' | 'sent';
+    messageId?: string;
+    inReplyTo?: string;
+    references?: string[];
+}
+export interface SendEmailInput {
+    to: string[];
+    subject: string;
+    text?: string | undefined;
+    html?: string | undefined;
+    replyTo?: string | undefined;
+    idempotencyKey: string;
 }
 export interface MemoryEntry<T = unknown> {
     namespace: string;
@@ -50,7 +91,7 @@ export interface MemoryEntry<T = unknown> {
     expiresAt?: string;
 }
 export interface MonitorInput {
-    kind: 'http' | 'ssl' | 'heartbeat';
+    kind: 'http' | 'ssl' | 'heartbeat' | 'dns';
     name: string;
     target?: string;
     intervalSeconds?: number;
@@ -58,6 +99,7 @@ export interface MonitorInput {
     expectStatus?: number;
     expectText?: string;
     sslDays?: number;
+    dnsRecordType?: 'A' | 'AAAA' | 'CNAME' | 'MX' | 'TXT' | 'NS' | 'CAA';
     alertWebhook?: string;
 }
 export interface Monitor extends MonitorInput {
@@ -70,6 +112,10 @@ export interface Monitor extends MonitorInput {
     lastCheckAt?: string;
     lastPingAt?: string;
     lastMessage?: string;
+    lastDurationMs?: number;
+    recentChecks?: { at: string; status: string; durationMs: number }[];
+    dnsBaseline?: string[];
+    lastDnsAnswers?: string[];
     pingUrl?: string;
     events?: { at: string; status: string; message: string }[];
 }

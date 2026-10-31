@@ -799,6 +799,35 @@ export function renderToolResult(toolId: string, text: string, input?: string): 
                 <p className="tool-notice">{value.note}</p>
             </Panel>
         );
+    if (toolId === 'mock-apis-webhook-event-simulator')
+        return (
+            <Panel title="Webhook delivery" detail={`HTTP ${value.response?.status}`}>
+                <Facts
+                    value={{
+                        provider: value.provider,
+                        event: value.eventType,
+                        target: value.request?.url,
+                        duration: `${value.response?.durationMs} ms`,
+                    }}
+                />
+                <p className="tool-notice">{value.note}</p>
+                <details>
+                    <summary>Signed request</summary>
+                    <ResultPreview
+                        text={JSON.stringify(value.request, null, 2)}
+                        title="Request headers and payload"
+                    />
+                </details>
+                <ResultPreview
+                    text={String(value.response?.body ?? '')}
+                    title="Receiver response"
+                />
+                <details>
+                    <summary>Receiver headers</summary>
+                    <ResultPreview text={JSON.stringify(value.response?.headers ?? {}, null, 2)} />
+                </details>
+            </Panel>
+        );
     if (
         [
             'network-http-header-inspector',

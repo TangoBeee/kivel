@@ -59,11 +59,12 @@ type Key = { id: string; name: string; prefix: string; scopes: string[]; expires
 type Resource = {
     toolId?: string;
     id: string;
-    kind: 'inbox' | 'mock' | 'file' | 'mcp' | 'email';
+    kind: 'inbox' | 'mock' | 'file' | 'mcp' | 'email' | 'status' | 'job';
     visibility: Visibility;
     name?: string;
     expiresAt: string;
     persistent: boolean;
+    status?: 'active' | 'paused';
     storedBytes: number;
     available?: boolean;
 };
@@ -73,6 +74,8 @@ const paths = {
     file: 'files',
     mcp: 'mcp-servers',
     email: 'email-inboxes',
+    status: 'status-pages',
+    job: 'scheduled-jobs',
 };
 const resourceTools = {
     inbox: 'webhooks',
@@ -80,6 +83,8 @@ const resourceTools = {
     file: 'files-temporary-file-transfer',
     mcp: 'agents-mock-mcp-server',
     email: 'email-temporary-email-inbox',
+    status: 'monitoring-public-status-page',
+    job: 'automation-delayed-webhooks',
 };
 const formatBytes = (value: number) =>
     value < 1048576 ? `${Math.ceil(value / 1024)} KiB` : `${(value / 1048576).toFixed(1)} MiB`;
@@ -361,6 +366,8 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
         mock: 'Mock API',
         mcp: 'MCP server',
         email: 'Email inbox',
+        status: 'Status page',
+        job: 'Scheduled job',
     };
     const bar = (value: number, max: number) => (
         <span className="metric-bar" aria-hidden="true">
@@ -377,6 +384,8 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
         mock: BracketsCurly,
         mcp: Plugs,
         email: EnvelopeSimple,
+        status: ShieldCheck,
+        job: Lightning,
     };
     const messages = (
         <>
@@ -737,19 +746,24 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                                                 }
                                                                 variant="soft"
                                                             >
-                                                                {resource.available === false
-                                                                    ? 'Used up'
-                                                                    : resource.visibility ===
-                                                                        'private'
-                                                                      ? 'Private'
-                                                                      : 'Public'}
+                                                                {resource.kind === 'email' &&
+                                                                resource.status === 'paused'
+                                                                    ? 'Paused'
+                                                                    : resource.available === false
+                                                                      ? 'Used up'
+                                                                      : resource.visibility ===
+                                                                          'private'
+                                                                        ? 'Private'
+                                                                        : 'Public'}
                                                             </Badge>
                                                         </td>
                                                         <td>
                                                             <span title={date(resource.expiresAt)}>
-                                                                {resource.persistent
-                                                                    ? 'While subscribed'
-                                                                    : `${Math.max(0, Math.ceil((Date.parse(resource.expiresAt) - Date.now()) / 60000))} min left`}
+                                                                {resource.status === 'paused'
+                                                                    ? 'Paused · grace period'
+                                                                    : resource.persistent
+                                                                      ? 'While subscribed'
+                                                                      : `${Math.max(0, Math.ceil((Date.parse(resource.expiresAt) - Date.now()) / 60000))} min left`}
                                                             </span>
                                                         </td>
                                                         <td>{formatBytes(resource.storedBytes)}</td>
@@ -790,21 +804,8 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                                                         >
                                                                             View details
                                                                         </DropdownMenu.Item>
-                                                                        <DropdownMenu.Item
-                                                                            disabled={
-                                                                                !session.scopes.includes(
-                                                                                    'resources:write',
-                                                                                )
-                                                                            }
-                                                                            onSelect={() =>
-                                                                                renew(resource)
-                                                                            }
-                                                                        >
-                                                                            Renew retention
-                                                                        </DropdownMenu.Item>
-                                                                        {['pro', 'team'].includes(
-                                                                            session.account
-                                                                                .effectivePlan,
+                                                                        {!['email', 'job'].includes(
+                                                                            resource.kind,
                                                                         ) && (
                                                                             <DropdownMenu.Item
                                                                                 disabled={
@@ -813,17 +814,40 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                                                                     )
                                                                                 }
                                                                                 onSelect={() =>
-                                                                                    renew(
-                                                                                        resource,
-                                                                                        !resource.persistent,
-                                                                                    )
+                                                                                    renew(resource)
                                                                                 }
                                                                             >
-                                                                                {resource.persistent
-                                                                                    ? 'Make temporary'
-                                                                                    : 'Keep while subscribed'}
+                                                                                Renew retention
                                                                             </DropdownMenu.Item>
                                                                         )}
+                                                                        {!['email', 'job'].includes(
+                                                                            resource.kind,
+                                                                        ) &&
+                                                                            [
+                                                                                'pro',
+                                                                                'team',
+                                                                            ].includes(
+                                                                                session.account
+                                                                                    .effectivePlan,
+                                                                            ) && (
+                                                                                <DropdownMenu.Item
+                                                                                    disabled={
+                                                                                        !session.scopes.includes(
+                                                                                            'resources:write',
+                                                                                        )
+                                                                                    }
+                                                                                    onSelect={() =>
+                                                                                        renew(
+                                                                                            resource,
+                                                                                            !resource.persistent,
+                                                                                        )
+                                                                                    }
+                                                                                >
+                                                                                    {resource.persistent
+                                                                                        ? 'Make temporary'
+                                                                                        : 'Keep while subscribed'}
+                                                                                </DropdownMenu.Item>
+                                                                            )}
                                                                         <DropdownMenu.Separator />
                                                                         <DropdownMenu.Item
                                                                             color="red"
@@ -1550,7 +1574,7 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                         </Tabs.Trigger>
                                     </Tabs.List>
                                     <Tabs.Content value="manage">
-                                        {selectedResource.kind !== 'email' && (
+                                        {!['email', 'job'].includes(selectedResource.kind) && (
                                             <SharingControl
                                                 value={selectedResource.visibility}
                                                 disabled={
@@ -1579,7 +1603,7 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                                 }
                                             />
                                         )}
-                                        {selectedResource.kind !== 'email' &&
+                                        {!['email', 'job'].includes(selectedResource.kind) &&
                                             selectedResource.visibility === 'private' && (
                                                 <div className="account-secret">
                                                     <p>

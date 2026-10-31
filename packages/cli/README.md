@@ -37,6 +37,8 @@ requests time out after 90 seconds. Mutations are never automatically retried.
 `SOCKET_HELP_ACCESS_TOKEN` supplies a private file token for `download` when no
 `--access-token` is passed. Keep secrets out of shell history and URLs.
 
+`job`, `status-page`, `smtp`, `phone` and `event wait` use the same owned APIs. Operator-dependent services stay disabled until configured; phone sending and calls are not implemented. Run `socket-help --help` for their current commands.
+
 `listen` streams webhook events and can forward them to a local server. It runs on
 your machine, and stops on Ctrl+C. The optional server SSH gateway supports bounded
 commands; it does not provide this continuous listener or a shell/SCP/SFTP service.

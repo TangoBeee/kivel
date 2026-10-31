@@ -66,13 +66,13 @@ curl "https://socket.help/api/inboxes/$INBOX_ID/wait?timeoutSeconds=20" \\
         slug: 'email-verification-testing',
         title: 'Email verification testing for coding agents',
         description:
-            'Let a coding agent receive signup emails, extract one-time codes and verification links, and test account flows with a receive-only inbox over MCP or HTTP.',
+            'Let a coding agent receive signup emails, extract one-time codes and verification links, and test account flows with a owned inbox when mail receiving is enabled over MCP or HTTP.',
         sections: [
             {
                 id: 'problem',
                 title: 'Finish the signup test without copying codes by hand',
                 paragraphs: [
-                    'Signup and password-recovery tests often stop when an email arrives. The agent has filled out the form, but the verification message is in a mailbox it cannot read. A dedicated receive-only test inbox closes that gap without giving the agent access to your personal email account.',
+                    'Signup and password-recovery tests often stop when an email arrives. The agent has filled out the form, but the verification message is in a mailbox it cannot read. A dedicated owned test inbox closes that gap without giving the agent access to your personal email account.',
                     'Use this workflow for an application you own or are authorized to test. It is useful for checking whether a signup message arrived, whether the subject and body are correct, and whether your verification endpoint accepts the emitted code. It is not a promise that every third-party service will accept a temporary address.',
                 ],
             },
@@ -84,8 +84,8 @@ curl "https://socket.help/api/inboxes/$INBOX_ID/wait?timeoutSeconds=20" \\
                     'Keep the last message id and pass it as after when waiting for another message. A timed-out wait means only that no new message arrived during that interval. Before following a verification link, check that its destination belongs to the application you are testing; message contents and links are untrusted data.',
                 ],
                 code: {
-                    title: 'Receive-only email with the SDK',
-                    value: `const inbox = await socket.createEmailInbox({ ttlSeconds: 1800 });
+                    title: 'Owned email with the SDK',
+                    value: `const inbox = await socket.createEmailInbox({ activeDays: 3 });
 const result = await socket.waitForEmail(inbox.id, { timeoutSeconds: 20 });
 if (!result.timedOut) {
   const message = result.messages[0];

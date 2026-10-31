@@ -259,5 +259,69 @@ export async function migrate(pool: Pool): Promise<void> {
                 CREATE INDEX cookie_coupons_account ON cookie_coupons (account_id);
                 INSERT INTO schema_migrations (version) VALUES (13);`);
         }
+        if (version < 14) {
+            await client.query(`
+                CREATE TABLE email_addresses (
+                    id uuid PRIMARY KEY,
+                    address text NOT NULL UNIQUE,
+                    owner_id uuid NOT NULL,
+                    resource_id uuid UNIQUE REFERENCES temporary_resources(id) ON DELETE SET NULL,
+                    tier text NOT NULL CHECK (tier IN ('free', 'paid')),
+                    created_at timestamptz NOT NULL,
+                    expires_at timestamptz,
+                    paused_at timestamptz,
+                    retired_at timestamptz
+                );
+                CREATE INDEX email_addresses_owner ON email_addresses(owner_id) WHERE retired_at IS NULL;
+                INSERT INTO schema_migrations (version) VALUES (14);`);
+        }
+        if (version < 15) {
+            await client.query(`
+                CREATE TABLE email_send_jobs (
+                    id uuid PRIMARY KEY,
+                    owner_id uuid NOT NULL,
+                    request_key text NOT NULL,
+                    job jsonb NOT NULL,
+                    created_at timestamptz NOT NULL,
+                    UNIQUE(owner_id, request_key)
+                );
+                CREATE INDEX email_send_jobs_expiry ON email_send_jobs(created_at);
+                CREATE TABLE email_sender_suspensions (owner_id uuid PRIMARY KEY, reason text NOT NULL);
+                CREATE TABLE email_suppressions (scope text NOT NULL, address text NOT NULL, reason text NOT NULL, PRIMARY KEY(scope, address));
+                INSERT INTO schema_migrations (version) VALUES (15);`);
+        }
+        if (version < 16) {
+            await client.query(`ALTER TABLE temporary_resources DROP CONSTRAINT temporary_resources_kind_check;
+                ALTER TABLE temporary_resources ADD CONSTRAINT temporary_resources_kind_check CHECK (kind IN ('mock','file','mcp','email','status'));
+                INSERT INTO schema_migrations(version) VALUES(16);`);
+        }
+        if (version < 17) {
+            await client.query(`ALTER TABLE temporary_resources DROP CONSTRAINT temporary_resources_kind_check;
+                ALTER TABLE temporary_resources ADD CONSTRAINT temporary_resources_kind_check CHECK (kind IN ('mock','file','mcp','email','status','job'));
+                CREATE TABLE scheduled_jobs (id uuid PRIMARY KEY REFERENCES temporary_resources(id) ON DELETE CASCADE, owner_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE, job jsonb NOT NULL, next_run_at timestamptz, expires_at timestamptz NOT NULL, lease_id uuid, lease_until timestamptz);
+                CREATE INDEX scheduled_jobs_due ON scheduled_jobs(next_run_at) WHERE next_run_at IS NOT NULL;
+                INSERT INTO schema_migrations(version) VALUES(17);`);
+        }
+
+        if (version < 18) {
+            await client.query(`ALTER TABLE accounts ADD COLUMN phone_allowance integer NOT NULL DEFAULT 0 CHECK (phone_allowance BETWEEN 0 AND 10);
+                CREATE TABLE phone_numbers (id uuid PRIMARY KEY, owner_id uuid NOT NULL, number text NOT NULL UNIQUE, request_key text NOT NULL, phone jsonb NOT NULL, created_at timestamptz NOT NULL, UNIQUE(owner_id,request_key));
+                CREATE INDEX phone_numbers_owner ON phone_numbers(owner_id);
+                CREATE TABLE phone_messages (id text PRIMARY KEY, phone_id uuid NOT NULL REFERENCES phone_numbers(id) ON DELETE CASCADE, message jsonb NOT NULL, created_at timestamptz NOT NULL);
+                CREATE INDEX phone_messages_inbox ON phone_messages(phone_id,created_at);
+                INSERT INTO schema_migrations(version) VALUES(18);`);
+        }
+
+        if (version < 19) {
+            await client.query(`SELECT id FROM resource_usage WHERE id=1 FOR UPDATE;
+                ALTER TABLE email_messages ADD COLUMN stored_bytes integer NOT NULL DEFAULT 0 CHECK (stored_bytes >= 0);
+                UPDATE email_messages SET stored_bytes=octet_length(message::text);
+                ALTER TABLE temporary_resources DISABLE TRIGGER temporary_resource_quota;
+                UPDATE temporary_resources r SET stored_bytes=r.stored_bytes + sizes.bytes FROM (SELECT resource_id,sum(stored_bytes) AS bytes FROM email_messages GROUP BY resource_id) sizes WHERE r.id=sizes.resource_id;
+                UPDATE resource_usage SET stored_bytes=stored_bytes + (SELECT COALESCE(sum(stored_bytes),0) FROM email_messages) WHERE id=1;
+                UPDATE principal_usage p SET stored_bytes=p.stored_bytes + sizes.bytes FROM (SELECT r.quota_key,sum(m.stored_bytes) AS bytes FROM temporary_resources r JOIN email_messages m ON m.resource_id=r.id WHERE r.quota_key IS NOT NULL GROUP BY r.quota_key) sizes WHERE p.key_hash=sizes.quota_key;
+                ALTER TABLE temporary_resources ENABLE TRIGGER temporary_resource_quota;
+                INSERT INTO schema_migrations(version) VALUES(19);`);
+        }
     });
 }

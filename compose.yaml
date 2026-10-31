@@ -36,12 +36,30 @@ services:
       DODO_PAYMENTS_API_KEY: ${DODO_PAYMENTS_API_KEY:-}
       DODO_PAYMENTS_WEBHOOK_KEY: ${DODO_PAYMENTS_WEBHOOK_KEY:-}
       DODO_PRO_PRODUCT_ID: ${DODO_PRO_PRODUCT_ID:-}
+      PHONE_ENABLED: ${PHONE_ENABLED:-false}
+      PHONE_ADDON_PRICE_CONFIRMED: ${PHONE_ADDON_PRICE_CONFIRMED:-false}
+      TELNYX_API_KEY: ${TELNYX_API_KEY:-}
+      TELNYX_PUBLIC_KEY: ${TELNYX_PUBLIC_KEY:-}
+      TELNYX_MESSAGING_PROFILE_ID: ${TELNYX_MESSAGING_PROFILE_ID:-}
+      DODO_PHONE_ADDON_ID: ${DODO_PHONE_ADDON_ID:-}
       DODO_TEAM_PRODUCT_ID: ${DODO_TEAM_PRODUCT_ID:-}
       MAIL_DOMAIN: ${MAIL_DOMAIN:-}
       EMAIL_INGEST_SECRET: ${EMAIL_INGEST_SECRET:-}
+      EMAIL_SENDING_ENABLED: ${EMAIL_SENDING_ENABLED:-false}
+      AGENT_SMTP_HOST: mail
+      AGENT_SMTP_PORT: 587
+      SMTP_CAPTURE_PORT: ${SMTP_CAPTURE_PORT:-0}
+      SMTP_CAPTURE_PUBLIC_HOST: ${SMTP_CAPTURE_PUBLIC_HOST:-}
+      SMTP_CAPTURE_PUBLIC_PORT: ${SMTP_CAPTURE_PUBLIC_PORT:-465}
+      SMTP_CAPTURE_CERT_PATH: ${SMTP_CAPTURE_CERT_PATH:-}
+      SMTP_CAPTURE_KEY_PATH: ${SMTP_CAPTURE_KEY_PATH:-}
     depends_on:
       database:
         condition: service_healthy
+    networks:
+      default:
+      agent_mail:
+        ipv4_address: ${MAIL_NETWORK_PREFIX:-10.205.0}.3
     volumes:
       - ssh_host_keys:/app/state
     read_only: true
@@ -51,6 +69,27 @@ services:
     security_opt: ['no-new-privileges:true']
     mem_limit: 1g
     cpus: 1
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
+
+  mail:
+    build:
+      context: .
+      dockerfile: deploy/mail.Dockerfile
+    image: ${MAIL_IMAGE:-socket-help-mail:local}
+    restart: unless-stopped
+    environment:
+      APP_MAIL_ADDRESS: ${MAIL_NETWORK_PREFIX:-10.205.0}.3
+    volumes:
+      - agent_mail_queue:/var/spool/postfix
+      - agent_mail_keys:/etc/opendkim/keys
+    networks:
+      agent_mail:
+        ipv4_address: ${MAIL_NETWORK_PREFIX:-10.205.0}.2
+      mail_delivery:
+    mem_limit: 256m
+    cpus: 0.5
     logging:
       driver: json-file
       options: { max-size: '10m', max-file: '3' }
@@ -83,3 +122,13 @@ services:
 volumes:
   postgres_data:
   ssh_host_keys:
+  agent_mail_queue:
+  agent_mail_keys:
+
+networks:
+  agent_mail:
+    internal: true
+    ipam:
+      config:
+        - subnet: ${MAIL_NETWORK_PREFIX:-10.205.0}.0/24
+  mail_delivery:

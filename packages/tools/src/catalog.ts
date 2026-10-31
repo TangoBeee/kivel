@@ -5,6 +5,7 @@ import { roadmap } from './roadmap.js';
 import { mediaOperations } from './media-definitions.js';
 import { networkOperations } from './network-definitions.js';
 import { browserOperations } from './definitions.js';
+import type { AccountPlan } from './plans.js';
 
 export interface Category {
     id: keyof typeof roadmap;
@@ -47,13 +48,13 @@ export const categories: Category[] = [
     {
         id: 'email',
         name: 'Email & inboxes',
-        description: 'Temporary mailboxes and better email testing.',
+        description: 'Owned agent addresses and private email testing.',
         icon: 'mail',
     },
     {
         id: 'domains',
-        name: 'Domains & tunnels',
-        description: 'Temporary addresses, previews, and a way to localhost.',
+        name: 'Callback URLs',
+        description: 'Callback addresses for your test integrations.',
         icon: 'globe',
     },
     {
@@ -113,6 +114,7 @@ export interface CatalogTool {
     status: 'available' | 'coming-soon';
     href?: string;
     local: boolean;
+    minimumPlan?: AccountPlan;
 }
 
 const planned: Record<Category['id'], [string, string][]> = {
@@ -128,7 +130,6 @@ const planned: Record<Category['id'], [string, string][]> = {
         ],
         ['Fault injection', 'Introduce controlled failures into integration tests.'],
         ['Request forwarding', 'Capture requests and forward them to another endpoint.'],
-        ['WebSocket tester', 'Connect, send messages, and test echo behavior.'],
         ['SSE tester', 'Inspect server-sent events as they arrive.'],
         ['CORS tester', 'Check cross-origin headers and preflight responses.'],
         ['DNS lookup', 'Look up domain records in one place.'],
@@ -151,7 +152,6 @@ const planned: Record<Category['id'], [string, string][]> = {
         ['Mock response templates', 'Combine dynamic paths, conditions, and response templates.'],
         ['Mock configuration import', 'Import, export, and reuse mock API configurations.'],
         ['Authentication mock', 'Simulate authenticated endpoints and access failures.'],
-        ['OAuth sandbox', 'Test authorization flows without a live integration.'],
         ['Third-party API simulator', 'Stand in for external services while you develop.'],
         ['Payment API sandbox', 'Simulate payment events, states, and failure cases.'],
         ['Webhook event simulator', 'Generate test callbacks for your application.'],
@@ -164,14 +164,14 @@ const planned: Record<Category['id'], [string, string][]> = {
         ['Mock LLM endpoint', 'Test model integrations against configurable responses.'],
         [
             'Mock agents & LLMs',
-            'Create configurable mock agents and LLMs with OpenAI ChatGPT-style, Anthropic Claude-style, and other provider interfaces, without real models.',
+            'Script agent-facing model text using OpenAI Chat Completions or Anthropic Messages response shapes.',
         ],
-        ['LLM streaming simulator', 'Simulate token streams and interrupted responses.'],
+        [
+            'LLM streaming simulator',
+            'Test paced assistant text and streams that end before the completion event.',
+        ],
         ['Tool failure simulator', 'Test how an agent handles errors and tool latency.'],
-        ['Agent integration tests', 'Exercise agent workflows against disposable services.'],
-        ['Agent test environments', 'Reuse a set of temporary services, files, and fixtures.'],
         ['socket.help MCP', 'Create and manage platform resources from your AI agent.'],
-        ['Socket Spaces', 'Keep related temporary tools and resources together.'],
     ],
     files: [
         ['Temporary file transfer', 'Upload a file and pick it up from another machine.'],
@@ -184,10 +184,12 @@ const planned: Record<Category['id'], [string, string][]> = {
         ['Temporary binary storage', 'Keep short-lived binary objects accessible to scripts.'],
         ['Text & code sharing', 'Share an expiring note or code snippet.'],
         ['File metadata inspector', 'Inspect file size, format, and metadata.'],
-        ['SSH file transfer', 'Explore temporary SFTP and SCP-compatible transfer workflows.'],
     ],
     email: [
-        ['Temporary email inbox', 'Receive test emails at a disposable address.'],
+        [
+            'Agent email inbox',
+            'Own an address for your agent, with extracted codes and verification links.',
+        ],
         ['Email inspector', 'Read headers, MIME content, and delivery details.'],
         ['Attachment inspector', 'Inspect attachments received by a test inbox.'],
         ['Email HTML preview', 'Preview the HTML content of received email.'],
@@ -197,36 +199,25 @@ const planned: Record<Category['id'], [string, string][]> = {
         ['Email webhook forwarding', 'Turn received email into a webhook event.'],
     ],
     domains: [
-        ['Temporary subdomain', 'Create an expiring address for a test resource.'],
-        ['Temporary redirects', 'Point a short-lived address at another URL.'],
-        ['Temporary static hosting', 'Publish a small static site for a limited time.'],
-        ['HTML sharing', 'Share a small HTML page without setting up hosting.'],
         ['Temporary callback URL', 'Give a test integration a public callback address.'],
-        ['Localhost tunnel', 'Expose a local development service through HTTPS.'],
         ['Domain validation', 'Validate domain ownership and DNS configuration.'],
-        ['Preview environments', 'Share temporary previews of work in progress.'],
     ],
     monitoring: [
         ['Uptime monitor', 'Check whether your website is reachable.'],
         ['Endpoint health checks', 'Monitor the health of an HTTP endpoint.'],
         ['Public status page', 'Share uptime and incident updates with your users.'],
-        ['Incident reporting', 'Publish and track the progress of a service incident.'],
         ['Response-time monitor', 'Track latency and historical response times.'],
         ['Certificate expiry alerts', 'Keep an eye on expiring SSL certificates.'],
         ['DNS monitor', 'Watch for changes to important DNS records.'],
         ['Monitoring notifications', 'Get notified when a service needs attention.'],
         ['API monitor', 'Check the availability and behavior of an API.'],
-        ['Service health badges', 'Embed a small availability badge in a project.'],
     ],
     databases: [
         ['Temporary key-value store', 'Keep a little state behind a simple HTTP API.'],
         ['JSON data store', 'Store and retrieve structured data for a test.'],
-        ['Temporary SQLite', 'Start an expiring SQLite environment.'],
-        ['Temporary PostgreSQL', 'Use a disposable PostgreSQL database for testing.'],
         ['Test fixtures', 'Prepare reusable data for integration tests.'],
         ['Seed data generator', 'Create sample records for a development database.'],
         ['Agent state store', 'Give an automated workflow a small temporary data store.'],
-        ['Database connection tester', 'Check a database connection and its configuration.'],
     ],
     'test-media': [
         [
@@ -289,7 +280,6 @@ const planned: Record<Category['id'], [string, string][]> = {
         ['Text cleaner', 'Remove unwanted whitespace and tidy copied text.'],
         ['QR code generator', 'Make a QR code for a link or a piece of text.'],
         ['Barcode generator', 'Create a barcode from supported input.'],
-        ['URL shortener', 'Make a long link easier to share.'],
         ['Unit converter', 'Convert measurements between common units.'],
         ['Timestamp converter', 'Move between readable dates and timestamps.'],
         ['Password generator', 'Create a strong random password.'],
@@ -335,10 +325,6 @@ const planned: Record<Category['id'], [string, string][]> = {
         ['Delayed webhooks', 'Deliver a test webhook after a chosen delay.'],
         ['Temporary cron triggers', 'Trigger a URL on a temporary recurring schedule.'],
         ['HTTP polling', 'Poll an endpoint for a limited time.'],
-        ['Workflow chaining', 'Connect a few supported actions into a workflow.'],
-        ['Scheduled mock events', 'Generate mock events on a schedule.'],
-        ['Event-triggered actions', 'Run a supported action when an event arrives.'],
-        ['Disposable test automation', 'Create a short-lived automated testing workflow.'],
     ],
 };
 
@@ -360,10 +346,35 @@ export const fileToolIds = [
     'everyday-temporary-notes',
     'developer-code-paste-sharing',
 ];
+export const scheduledToolIds = [
+    'automation-temporary-scheduled-jobs',
+    'automation-delayed-webhooks',
+    'automation-temporary-cron-triggers',
+];
+export const monitorToolIds = [
+    'monitoring-uptime-monitor',
+    'monitoring-endpoint-health-checks',
+    'monitoring-response-time-monitor',
+    'monitoring-certificate-expiry-alerts',
+    'monitoring-monitoring-notifications',
+    'monitoring-api-monitor',
+    'monitoring-dns-monitor',
+    'automation-http-polling',
+];
+export const memoryToolIds = [
+    'databases-temporary-key-value-store',
+    'databases-json-data-store',
+    'databases-agent-state-store',
+];
 export const backendToolIds = [
     ...new Set([
         ...Object.keys(resourceOperations),
         ...fileToolIds,
+        ...monitorToolIds,
+        ...memoryToolIds,
+        ...scheduledToolIds,
+        'email-email-webhook-forwarding',
+        'email-mock-smtp',
         'test-media-music-library',
         ...Object.keys(networkOperations),
         ...Object.keys(mediaOperations),
@@ -375,6 +386,11 @@ export const backendToolIds = [
         'agents-tool-failure-simulator',
         'mock-apis-mock-rest-api',
         'network-response-builder',
+        'network-request-forwarding',
+        'agents-mock-llm-endpoint',
+        'agents-mock-agents-llms',
+        'agents-llm-streaming-simulator',
+        'monitoring-public-status-page',
         'agents-mock-mcp-server',
         'agents-socket-help-mcp',
         'email-temporary-email-inbox',
@@ -383,7 +399,7 @@ export const backendToolIds = [
     ]),
 ];
 export const toolSlug = (tool: { name: string }) =>
-    tool.name
+    (tool.name === 'Agent email inbox' ? 'Temporary email inbox' : tool.name)
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/-$/, '');
@@ -415,6 +431,23 @@ export const catalog: CatalogTool[] = [
                     : category.icon,
                 status: available ? 'available' : 'coming-soon',
                 local,
+                ...([
+                    'email-mock-smtp',
+                    'email-temporary-email-inbox',
+                    'email-email-webhook-forwarding',
+                    'monitoring-public-status-page',
+                    ...monitorToolIds,
+                    ...memoryToolIds,
+                    ...scheduledToolIds,
+                ].includes(id)
+                    ? { minimumPlan: 'free' as const }
+                    : {}),
+                ...(['network-request-forwarding', 'email-email-webhook-forwarding'].includes(id)
+                    ? { minimumPlan: 'pro' as const }
+                    : {}),
+                ...(['domains-temporary-static-hosting', 'domains-html-sharing'].includes(id)
+                    ? { minimumPlan: 'pro' as const }
+                    : {}),
                 ...(available ? { href: toolPageHref({ name }) } : {}),
             };
         }),

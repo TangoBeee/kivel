@@ -64,6 +64,8 @@ export class SocketError extends Error {
         readonly status: number,
         readonly requestId?: string,
         readonly retryAfter?: number,
+        readonly requiredPlan?: string,
+        readonly upgradeUrl?: string,
     ) {
         super(message);
         this.name = 'SocketError';
@@ -170,6 +172,18 @@ export class SocketHelp {
                 response.status,
                 response.headers.get('x-request-id') ?? undefined,
                 Number(response.headers.get('retry-after')) || undefined,
+                value &&
+                    typeof value === 'object' &&
+                    'requiredPlan' in value &&
+                    typeof value.requiredPlan === 'string'
+                    ? value.requiredPlan
+                    : undefined,
+                value &&
+                    typeof value === 'object' &&
+                    'upgradeUrl' in value &&
+                    typeof value.upgradeUrl === 'string'
+                    ? value.upgradeUrl
+                    : undefined,
             );
         }
         return value as T;
@@ -180,6 +194,7 @@ export class SocketHelp {
                 id: string;
                 name: string;
                 status: 'available' | 'coming-soon';
+                minimumPlan?: 'free' | 'pro' | 'team' | null;
                 execution: string | null;
                 description?: string;
                 guide?: {
@@ -237,8 +252,44 @@ export class SocketHelp {
     agents() {
         return this.request('GET', '/api/agents');
     }
-    createEmailInbox(settings: Omit<ResourceSettings, 'visibility'> = {}) {
-        return this.request<EmailInbox>('POST', `/api/email-inboxes${query(settings)}`);
+    createEmailInbox(settings: import('./types.js').EmailInboxSettings = {}) {
+        return this.request<EmailInbox>('POST', '/api/email-inboxes', settings);
+    }
+    emailInboxes() {
+        return this.request<{ inboxes: EmailInbox[] }>('GET', '/api/email-inboxes');
+    }
+    clearEmails(id: string, token?: string) {
+        return this.request<void>(
+            'DELETE',
+            `/api/email-inboxes/${encodeURIComponent(id)}/messages`,
+            undefined,
+            token,
+        );
+    }
+    sendEmail(id: string, input: import('./types.js').SendEmailInput) {
+        const { idempotencyKey, ...body } = input;
+        return this.request<{ id: string; status: 'sent'; providerIds: string[] }>(
+            'POST',
+            `/api/email-inboxes/${encodeURIComponent(id)}/send`,
+            body,
+            undefined,
+            { 'Idempotency-Key': idempotencyKey },
+        );
+    }
+    waitForEvent(sources: import('./types.js').SocketEventSource[], timeoutSeconds = 20) {
+        return this.request<{ timedOut: boolean; events: import('./types.js').SocketEvent[] }>(
+            'POST',
+            '/api/events/wait',
+            { sources, timeoutSeconds: this.waitTimeout(timeoutSeconds) },
+        );
+    }
+    emailForwarding(id: string, url: string | null, token?: string) {
+        return this.request<{ forwardingUrl: string | null }>(
+            'PUT',
+            `/api/email-inboxes/${encodeURIComponent(id)}/forwarding`,
+            { url },
+            token,
+        );
     }
     emailInbox(id: string, token?: string) {
         return this.request<EmailInbox>(
@@ -282,6 +333,131 @@ export class SocketHelp {
     }
     memoryDelete(namespace: string, key: string) {
         return this.request<void>('DELETE', memoryPath(namespace, key));
+    }
+    availablePhoneNumbers(areaCode?: string) {
+        return this.request<{
+            numbers: {
+                number: string;
+                monthlyCost: string;
+                upfrontCost: string;
+                currency: string;
+            }[];
+        }>('GET', `/api/phone-numbers/available${query({ areaCode })}`);
+    }
+    createPhoneNumber(number: string, idempotencyKey: string) {
+        return this.request<{ number: Record<string, unknown> }>(
+            'POST',
+            '/api/phone-numbers',
+            { number },
+            undefined,
+            { 'Idempotency-Key': idempotencyKey },
+        );
+    }
+    listPhoneNumbers() {
+        return this.request<{ enabled: boolean; numbers: Record<string, unknown>[] }>(
+            'GET',
+            '/api/phone-numbers',
+        );
+    }
+    releasePhoneNumber(id: string) {
+        return this.request<void>('DELETE', `/api/phone-numbers/${encodeURIComponent(id)}`);
+    }
+    listSms(id: string) {
+        return this.request<{ messages: Record<string, unknown>[] }>(
+            'GET',
+            `/api/phone-numbers/${encodeURIComponent(id)}/sms`,
+        );
+    }
+    waitForSms(id: string, options: { after?: string; timeoutSeconds?: number } = {}) {
+        return this.request<{ timedOut: boolean; messages: Record<string, unknown>[] }>(
+            'GET',
+            `/api/phone-numbers/${encodeURIComponent(id)}/wait${this.waitQuery(options)}`,
+        );
+    }
+    createSmtpInbox(settings: ResourceSettings = {}) {
+        return this.request<{
+            id: string;
+            expiresAt: string;
+            smtp: {
+                host: string;
+                port: number;
+                secure: boolean;
+                username: string;
+                password: string;
+            };
+        }>('POST', `/api/smtp-inboxes${query(settings)}`);
+    }
+    smtpInbox(id: string) {
+        return this.request<{
+            id: string;
+            expiresAt: string;
+            smtp: { host: string; port: number; secure: boolean; username: string };
+            enabled: boolean;
+        }>('GET', `/api/smtp-inboxes/${encodeURIComponent(id)}`);
+    }
+    rotateSmtpPassword(id: string) {
+        return this.request<{
+            smtp: {
+                host: string;
+                port: number;
+                secure: boolean;
+                username: string;
+                password: string;
+            };
+        }>('POST', `/api/smtp-inboxes/${encodeURIComponent(id)}/rotate`);
+    }
+    createScheduledJob(
+        config: {
+            name: string;
+            url: string;
+            body?: unknown;
+            delaySeconds?: number;
+            startAt?: string;
+            intervalSeconds?: number;
+            maxRuns?: number;
+        },
+        settings: ResourceSettings = {},
+    ) {
+        return this.request<{ id: string; status: string; nextRunAt: string }>(
+            'POST',
+            `/api/scheduled-jobs${query(settings)}`,
+            config,
+        );
+    }
+    scheduledJobs() {
+        return this.request<{ jobs: Record<string, unknown>[] }>('GET', '/api/scheduled-jobs');
+    }
+    scheduledJob(id: string) {
+        return this.request<Record<string, unknown>>(
+            'GET',
+            `/api/scheduled-jobs/${encodeURIComponent(id)}`,
+        );
+    }
+    cancelScheduledJob(id: string) {
+        return this.request<void>('DELETE', `/api/scheduled-jobs/${encodeURIComponent(id)}`);
+    }
+    createStatusPage(
+        config: { name: string; description?: string; monitorIds: string[] },
+        settings: ResourceSettings = {},
+    ) {
+        return this.request<{
+            id: string;
+            pageUrl: string;
+            expiresAt: string;
+            accessToken?: string;
+        }>('POST', `/api/status-pages${query(settings)}`, config);
+    }
+    updateStatusPage(
+        id: string,
+        config: { name: string; description?: string; monitorIds: string[] },
+    ) {
+        return this.request('PUT', `/api/status-pages/${encodeURIComponent(id)}`, config);
+    }
+    acceptDnsChanges(id: string) {
+        return this.request<{ accepted: boolean }>(
+            'POST',
+            `/api/monitors/${encodeURIComponent(id)}/accept-dns`,
+        );
     }
     createMonitor(settings: MonitorInput) {
         return this.request<Monitor>('POST', '/api/monitors', settings);
@@ -332,7 +508,7 @@ export class SocketHelp {
         );
     }
     inspectResource(
-        kind: 'inboxes' | 'mocks' | 'files' | 'mcp-servers' | 'email-inboxes',
+        kind: 'inboxes' | 'mocks' | 'files' | 'mcp-servers' | 'email-inboxes' | 'status-pages',
         id: string,
         token?: string,
     ) {
@@ -363,11 +539,14 @@ export class SocketHelp {
             token,
         );
     }
-    private waitQuery(options: WaitOptions) {
+    private waitTimeout(timeoutSeconds?: number) {
         const ceiling = Math.max(1, Math.floor(this.timeoutMs / 1000) - 5);
+        return Math.min(timeoutSeconds ?? 20, ceiling, 30);
+    }
+    private waitQuery(options: WaitOptions) {
         return query({
             after: options.after,
-            timeoutSeconds: Math.min(options.timeoutSeconds ?? 20, ceiling, 30),
+            timeoutSeconds: this.waitTimeout(options.timeoutSeconds),
         });
     }
     usage() {
@@ -399,9 +578,8 @@ export class SocketHelp {
         options: { token?: string; after?: string; timeoutSeconds?: number } = {},
     ) {
         // Stay inside the client timeout so the server answers before the request is aborted.
-        const ceiling = Math.max(1, Math.floor(this.timeoutMs / 1000) - 5);
         const query = new URLSearchParams({
-            timeoutSeconds: String(Math.min(options.timeoutSeconds ?? 20, ceiling, 30)),
+            timeoutSeconds: String(this.waitTimeout(options.timeoutSeconds)),
             ...(options.after ? { after: options.after } : {}),
         });
         return this.request<{ timedOut: boolean; requests: CapturedRequest[] }>(
@@ -448,7 +626,7 @@ export class SocketHelp {
         );
     }
     sharing(
-        kind: 'inboxes' | 'mocks' | 'files' | 'mcp-servers',
+        kind: 'inboxes' | 'mocks' | 'files' | 'mcp-servers' | 'status-pages',
         id: string,
         visibility: 'public' | 'private',
         token?: string,
@@ -481,7 +659,7 @@ export class SocketHelp {
         return new Uint8Array(await response.arrayBuffer());
     }
     remove(
-        kind: 'inboxes' | 'mocks' | 'files' | 'mcp-servers' | 'email-inboxes',
+        kind: 'inboxes' | 'mocks' | 'files' | 'mcp-servers' | 'email-inboxes' | 'status-pages',
         id: string,
         token?: string,
     ) {
@@ -493,7 +671,7 @@ export class SocketHelp {
         );
     }
     renew(
-        kind: 'inboxes' | 'mocks' | 'files' | 'mcp-servers' | 'email-inboxes',
+        kind: 'inboxes' | 'mocks' | 'files' | 'mcp-servers' | 'email-inboxes' | 'status-pages',
         id: string,
         settings: { persistent?: boolean } = {},
         token?: string,

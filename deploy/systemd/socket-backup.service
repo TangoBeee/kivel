@@ -1,0 +1,13 @@
+[Unit]
+Description=socket.help backup with off-site copy
+After=docker.service network-online.target
+Requires=docker.service
+[Service]
+Type=oneshot
+User=deploy
+WorkingDirectory=/opt/socket-help
+EnvironmentFile=/opt/socket-help/.ops.env
+ExecStart=/usr/bin/node scripts/backup.mjs
+TimeoutStartSec=20min
+UMask=0077
+NoNewPrivileges=true

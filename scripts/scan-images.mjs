@@ -2,9 +2,10 @@ import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 
 for (const image of [
-    'socket-help:local',
+    process.env.APP_IMAGE ?? 'socket-help:local',
     'socket-help-postgres:local',
     'socket-help-proxy:local',
+    'socket-help-mail:local',
 ]) {
     const scan = spawnSync(
         'docker',

@@ -110,3 +110,14 @@ test('public production requires recovery delivery and beta billing is explicitl
     assert.throws(() => readConfig({ ...production, BILLING_ENABLED: 'true' }), /all four/);
     assert.throws(() => readConfig({ ...production, BILLING_ENABLED: 'yes' }), /true or false/);
 });
+
+test('agent relay, public SMTP capture and phone activation fail closed until separately configured', () => {
+    assert.throws(() => readConfig({ EMAIL_SENDING_ENABLED: 'true' }), /private SMTP relay/);
+    assert.throws(() => readConfig({ AGENT_SMTP_HOST: 'smtp.remote.com' }), /AGENT_SMTP/);
+    assert.equal(readConfig({ AGENT_SMTP_HOST: 'mail' }).agentEmailConfig?.enabled, false);
+    assert.throws(() => readConfig({ SMTP_CAPTURE_PORT: '2465' }), /TLS certificate/);
+    assert.equal(readConfig({}).smtpCaptureConfig, undefined);
+    assert.throws(() => readConfig({ PHONE_ENABLED: 'true' }), /Phone activation/);
+    assert.throws(() => readConfig({ TELNYX_API_KEY: 'test' }), /all three/);
+    assert.equal(readConfig({}).phoneEnabled, false);
+});

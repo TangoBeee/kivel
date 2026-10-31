@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ToolCapabilityNotice } from './toolbox-provider';
 import { Icon } from './icons';
 import { ReturnLink } from './return-link';
 import { SaveToolButton } from './save-tool-button';
@@ -40,12 +41,18 @@ export function ToolHeader({
                     <p>{description ?? tool.description}</p>
                 </div>
                 <div className="tool-header-actions">
+                    {tool.minimumPlan && tool.minimumPlan !== 'free' && (
+                        <Link className="text-link" href="/plans/">
+                            {tool.minimumPlan === 'pro' ? 'Pro' : 'Team'} · View plans
+                        </Link>
+                    )}
                     {children}
                     {tool.status === 'available' && (
                         <SaveToolButton toolId={tool.id} name={tool.name} />
                     )}
                 </div>
             </div>
+            <ToolCapabilityNotice toolId={toolId} />
         </header>
     );
 }

@@ -1,3 +1,4 @@
+import { monitorToolIds, memoryToolIds, scheduledToolIds } from './catalog';
 import { resourceOperations } from '@socket-help/tools/resource-definitions';
 import { mediaOperations } from '@socket-help/tools/media-definitions';
 import { networkOperations } from '@socket-help/tools/network-definitions';
@@ -286,15 +287,91 @@ export function toolGuide(tool: CatalogTool): Guide {
             ],
             limits: 'Servers start with a one-hour lifetime; renewal stays within plan limits. Up to 10 tools, 80 KiB total configuration, and 120 requests per minute are supported. No custom code or outbound requests are executed. Choose public or private access. Private clients need an access token; management uses a separate credential. Account-owned resources require workspace access to manage.',
         };
-    if (tool.id === 'email-temporary-email-inbox')
+    if (
+        [
+            'agents-mock-llm-endpoint',
+            'agents-mock-agents-llms',
+            'agents-llm-streaming-simulator',
+        ].includes(tool.id)
+    )
         return {
-            intro: 'Get a real, receive-only email address in one second. Use it to sign up to the app you are testing, then read the message here or let your AI agent wait for it. One-time codes and verification links are extracted automatically.',
+            intro: 'Create a scripted text-only stand-in using OpenAI Chat Completions or Anthropic Messages HTTP shapes. Preview ordinary JSON, paced SSE or a stream that ends before completion. Responses come from your configuration; token usage is estimated.',
             steps: [
-                'Open the page: an address is created for you.',
+                'Select the provider format and model label, then write the response text.',
+                'Create a private or public endpoint and test its response in the preview.',
+                'Point your SDK at the displayed base URL, send credentials in headers, and inspect calls.',
+            ],
+            limits: 'Up to 8,192 characters, 128 text chunks, five seconds per stream and 16 concurrent streams. Does not execute models, tools, images, audio or reasoning. A mock resource starts with a one-hour lifetime and follows normal account quotas and lifecycle rules. Private credentials are separate from URLs. Use synthetic prompts because calls are captured for inspection.',
+        };
+    if (tool.id === 'monitoring-public-status-page')
+        return {
+            intro: 'Publish the current state of selected workspace monitors in a minimal status page. Show service names, status changes and recent check counts without exposing target URLs, alert destinations or private errors.',
+            steps: [
+                'Create monitors in your workspace and select up to twenty.',
+                'Name the page and explicitly choose public access if other people should see it.',
+                'Share its ID-only URL, or keep it private to workspace access; manage expiry, sharing and deletion from your resources.',
+            ],
+            limits: 'An account is required. Free pages can last up to seven days; paid pages can use a persistent lease. Pages follow normal resource quotas. Check samples are the latest fifty probes, not a time-weighted uptime guarantee. The page must be refreshed for new results and is excluded from search indexing.',
+        };
+    if (scheduledToolIds.includes(tool.id))
+        return {
+            intro: 'Send a JSON webhook after a delay or on a bounded repeating interval. Scheduled jobs belong to your workspace, survive restarts and retain recent delivery results.',
+            steps: [
+                'Sign in and choose a public callback URL without URL credentials.',
+                'Enter a JSON payload, delay and optional repeating interval with a run count.',
+                'Review delivery attempts or wait for job events from your agent. Delete the job when finished.',
+            ],
+            limits: 'Payloads are at most 16 KiB. Start 5 seconds to 7 days ahead, repeat every 5 minutes or slower, and run at most 100 times within the resource lifetime. Two retries follow network errors, HTTP 429 or 5xx. Redirects are not followed. Timing is best effort. Delivery is at least once: deduplicate X-Socket-Delivery-Id at the receiver. Destination URL and DNS checks are repeated before every delivery. Jobs never run shell commands or arbitrary code.',
+        };
+    if (tool.id === 'email-mock-smtp')
+        return {
+            intro: 'Point your application at a private SMTP capture instead of sending test messages to real users. Each capture has its own credentials and shares the inbox message reader, code extraction and event waits.',
+            steps: [
+                'Create a workspace capture and save the SMTP host, port, username and password separately.',
+                'Configure your mail client to use TLS and SMTP authentication, then send a test email.',
+                'Inspect the captured subject, text, codes and attachment metadata. Delete the capture to revoke credentials.',
+            ],
+            limits: 'The operator must enable the TLS SMTP listener first. Captures last one day in the browser and accept at most 100 messages of 128 KiB each. Only attachment metadata is stored. Password rotation revokes old SMTP credentials; API access still requires the workspace key. The server never forwards SMTP recipients or delivers mail externally. No real receiving-domain configuration is needed for SMTP capture.',
+        };
+    if (monitorToolIds.includes(tool.id))
+        return {
+            intro: `${tool.description} Create and manage workspace HTTP, certificate, DNS and heartbeat monitors with owner email or webhook alerts.`,
+            steps: [
+                'Sign in and create a monitor for your public endpoint or domain.',
+                'Choose a check interval and optional alert webhook; verify the owner email for email alerts.',
+                'Review current status and recent check times. For DNS, review changed records before accepting a new baseline.',
+            ],
+            limits: 'Free permits twenty monitors at intervals of five minutes or slower; Pro one hundred and Team five hundred, every minute or slower. Active failures are confirmed before alerting. The latest fifty check timings and fifty status changes are retained. DNS uses a public resolver and ignores TTL changes; it does not identify the domain hosting provider. Changes remain flagged until the workspace accepts new records. Targets and alert destinations are private to the workspace.',
+        };
+    if (memoryToolIds.includes(tool.id))
+        return {
+            intro: 'Store structured JSON state in a workspace namespace and reopen it from a browser, agent or script. Optional expiry makes keys useful for short-lived state, while keys without expiry stay until deletion.',
+            steps: [
+                'Sign in and choose a project namespace and key.',
+                'Save a JSON value with optional expiry, or select an existing key to read it.',
+                'Use the same namespace and key from SDK, CLI or MCP; delete state when it is no longer needed.',
+            ],
+            limits: 'Free includes five MiB, Pro one hundred MiB and Team one GiB of workspace memory. The service caps each value at 256 KiB; the HTTPS gateway caps whole JSON requests at 100 KiB, so browser edits stay within 90 KiB. Expiry ranges from one second to one year. All workspace credentials with the relevant scope can access its namespaces; namespaces organize data and do not create a separate security boundary.',
+        };
+    if (tool.id === 'network-request-forwarding')
+        return {
+            intro: 'Capture a webhook in your workspace and relay it to a public HTTP endpoint. Pro and Team only.',
+            steps: [
+                'Create a webhook inbox while signed in.',
+                'Configure its forwarding URL through the inbox API or CLI.',
+                'Inspect delivery attempts and captured payloads.',
+            ],
+            limits: 'Requires an active Pro or Team subscription and an owned inbox. Targets must be public HTTP(S), with redirects and private networks blocked. Forwarding pauses immediately when the subscription lapses. Binary bodies are not forwarded; see the webhook forwarding API for retry limits.',
+        };
+    if (['email-temporary-email-inbox', 'email-email-webhook-forwarding'].includes(tool.id))
+        return {
+            intro: 'Create an owned address for your agent on socketspace.xyz. Use it to sign up to the app you are testing, then read the message here or let your AI agent wait for it. One-time codes and verification links are extracted automatically.',
+            steps: [
+                'Sign in and choose a 1–7 day lifetime on Free, or an optional custom name on Pro or Team.',
                 'Use the address to sign up, reset a password or receive any test email.',
                 'Copy the extracted code or open the verification link, or call wait_for_email from your agent.',
             ],
-            limits: 'Addresses last one hour without an account, up to 7 days on Free, 30 on Pro and 90 on Team. Each inbox keeps up to 100 messages; text and HTML are stored up to 64 KiB each and attachments are listed but not stored. Receive-only: nothing can be sent from these addresses. Reading messages always needs the private token or your workspace.',
+            limits: 'An account is required. Free includes one random address for 1–7 days, default 3. Pro includes 10 and Team 50 addresses that remain active while subscribed. Upgrade before Free expiry to keep the same address. Lapsed paid inboxes pause immediately and are deleted after 30 days; explicit downgrades keep the newest inbox for 7 days. Retired addresses are never reused. Each inbox keeps up to 100 messages; text and HTML are stored up to 64 KiB each and attachments are listed but not stored. Outbound email is available only when the operator enables a separate mail relay, with verified Free ownership and per-plan sending caps. Workspace access is required for new inboxes. Forwarding to a public webhook requires Pro or Team, stops when the paid plan lapses, and makes one best-effort delivery attempt per received message.',
         };
     if (tool.id === 'agents-socket-help-mcp')
         return {
@@ -527,9 +604,80 @@ const examples: Record<string, { useCase: string; example: string }> = {
         example:
             'Create a tool named get_order.\nDefine a primitive string argument: id.\nReturn a static sample order.\nConnect your client and call tools/list.',
     },
+    ...Object.fromEntries(
+        [
+            'agents-mock-llm-endpoint',
+            'agents-mock-agents-llms',
+            'agents-llm-streaming-simulator',
+        ].map((id) => [
+            id,
+            {
+                useCase:
+                    'Test model-client parsing, loading states and incomplete streams using a configured assistant response.',
+                example:
+                    'POST /api/mocks\n{"name":"Scripted assistant","routes":[],"llm":{"provider":"openai","model":"socket-mock","text":"The test passed.","intervalMs":20}}\n\nPOST /mock/{id}/v1/chat/completions\n{"model":"socket-mock","messages":[{"role":"user","content":"Hello"}],"stream":true}',
+            },
+        ]),
+    ),
+    ...Object.fromEntries(
+        scheduledToolIds.map((id) => [
+            id,
+            {
+                useCase:
+                    'Deliver a callback after a delay, then inspect the attempt without keeping a script running.',
+                example:
+                    'POST /api/scheduled-jobs?ttlSeconds=3600\n{ "name": "Ready event", "url": "https://example.com/hook", "body": { "event": "test.ready" }, "delaySeconds": 60 }\n\nGET /api/scheduled-jobs/{id} → schedule and delivery events\nReceiver: deduplicate X-Socket-Delivery-Id.',
+            },
+        ]),
+    ),
+    'email-mock-smtp': {
+        useCase: 'Check a signup email without delivering it to a real user.',
+        example:
+            'POST /api/smtp-inboxes?ttlSeconds=86400\n\nConfigure your SMTP client with the returned host, TLS port, username and password.\nSend a test message, then GET /api/email-inboxes/{id}/messages with your workspace key.\nThe original recipient never receives the capture.',
+    },
+    ...Object.fromEntries(
+        monitorToolIds.map((id) => [
+            id,
+            {
+                useCase:
+                    'Track your own endpoint, certificate, DNS records or scheduled job and inspect actual check results.',
+                example: id.includes('dns-monitor')
+                    ? 'POST /api/monitors\n{ "kind": "dns", "name": "API DNS", "target": "api.example.com", "dnsRecordType": "A", "intervalSeconds": 300 }\n\nGET /api/monitors/{id} → dnsBaseline, lastDnsAnswers and recentChecks\nPOST /api/monitors/{id}/accept-dns → accept the reviewed records'
+                    : 'POST /api/monitors\n{ "kind": "http", "name": "My API", "target": "https://api.example.com/health", "intervalSeconds": 300 }\n\nGET /api/monitors/{id} → status, lastDurationMs and recentChecks',
+            },
+        ]),
+    ),
+    ...Object.fromEntries(
+        memoryToolIds.map((id) => [
+            id,
+            {
+                useCase:
+                    'Resume an agent task from a saved JSON state without passing it through chat.',
+                example:
+                    'PUT /api/memory/project/build/latest\n{ "value": { "ready": true, "step": "build" }, "ttlSeconds": 86400 }\n\nGET /api/memory/project/build/latest → stored JSON and expiry',
+            },
+        ]),
+    ),
+    'monitoring-public-status-page': {
+        useCase:
+            'Share the health of selected services while keeping probe URLs and alert configuration private.',
+        example:
+            'POST /api/status-pages?visibility=public\n{ "name": "Application status", "monitorIds": ["<owned-monitor-uuid>"] }\n\nShare the returned /status/{id} page URL.',
+    },
+    'email-email-webhook-forwarding': {
+        useCase: 'Let your own application react when an owned agent inbox receives a message.',
+        example:
+            'PUT /api/email-inboxes/{id}/forwarding\n{ "url": "https://your-app.example/hooks/email" }\n\nYour endpoint receives email.received with the structured message; inspect inbox metadata for the latest delivery result.',
+    },
+    'network-request-forwarding': {
+        useCase:
+            'Inspect a webhook while your own public development endpoint receives the same request. Pro and Team only.',
+        example:
+            'Create an owned webhook inbox, then:\nPUT /api/inboxes/{id}/forward\n{"url":"https://your-app.example/hook"}\n\nInspect /api/inboxes/{id}/deliveries for attempts and status.',
+    },
     'email-temporary-email-inbox': {
         useCase:
-            'Test a sign-up or password-reset flow end to end, by hand or with an AI agent, without a real mailbox.',
+            'Test a sign-up or password-reset flow end to end, by hand or with an AI agent, without using your personal mailbox.',
         example:
             'Address: k5zfrjb4ird2tgvpaox42dnr3e@socketspace.xyz\nSubject: Confirm your email\nCode: 700412\nVerification link: https://app.example/verify?token=…',
     },

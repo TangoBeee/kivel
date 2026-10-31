@@ -44,6 +44,7 @@ const slowCommand = [
 const env = {
     ...process.env,
     DOMAIN: 'localhost',
+    MAIL_NETWORK_PREFIX: process.env.TEST_MAIL_NETWORK_PREFIX ?? '10.207.0',
     PROXY_NETWORK_PREFIX: process.env.TEST_PROXY_NETWORK_PREFIX ?? '10.204.0',
 };
 const args = [

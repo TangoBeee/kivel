@@ -12,6 +12,11 @@ export const plans = {
         memoryBytes: 0,
         agents: 0,
         persistent: false,
+        emailInboxes: 0,
+        emailsPerMonth: 0,
+        emailsPerDay: 0,
+        emailsPerMinute: 0,
+        emailRecipients: 0,
     },
     free: {
         name: 'Free account',
@@ -26,6 +31,11 @@ export const plans = {
         memoryBytes: 5 * 1024 * 1024,
         agents: 3,
         persistent: false,
+        emailInboxes: 1,
+        emailsPerMonth: 30,
+        emailsPerDay: 3,
+        emailsPerMinute: 3,
+        emailRecipients: 3,
     },
     pro: {
         name: 'Pro',
@@ -40,6 +50,11 @@ export const plans = {
         memoryBytes: 100 * 1024 * 1024,
         agents: 25,
         persistent: true,
+        emailInboxes: 10,
+        emailsPerMonth: 500,
+        emailsPerDay: 50,
+        emailsPerMinute: 10,
+        emailRecipients: 10,
     },
     team: {
         name: 'Team',
@@ -54,10 +69,28 @@ export const plans = {
         memoryBytes: 1024 * 1024 * 1024,
         agents: 100,
         persistent: true,
+        emailInboxes: 50,
+        emailsPerMonth: 3000,
+        emailsPerDay: 300,
+        emailsPerMinute: 30,
+        emailRecipients: 10,
     },
 } as const;
 export type PlanId = keyof typeof plans;
 export type AccountPlan = Exclude<PlanId, 'anonymous'>;
+export interface FeatureDefinition {
+    minimumPlan: AccountPlan;
+}
+export const features = {
+    emailInbox: { minimumPlan: 'free' },
+    customEmailAddress: { minimumPlan: 'pro' },
+    mockProxy: { minimumPlan: 'pro' },
+    webhookForwarding: { minimumPlan: 'pro' },
+    persistentResource: { minimumPlan: 'pro' },
+    staticHosting: { minimumPlan: 'pro' },
+} as const satisfies Record<string, FeatureDefinition>;
+export type FeatureId = keyof typeof features;
+export const planRank: Record<PlanId, number> = { anonymous: 0, free: 1, pro: 2, team: 3 };
 export function resolvePlan(
     plan: AccountPlan,
     validUntil: string | null,
@@ -68,3 +101,10 @@ export function resolvePlan(
         ? 'free'
         : plan;
 }
+
+export const resourceDefinitions = {
+    email: features.emailInbox,
+    proxy: features.mockProxy,
+    forwarding: features.webhookForwarding,
+    persistent: features.persistentResource,
+} as const;

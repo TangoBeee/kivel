@@ -6,6 +6,22 @@ const json = (schema: object = object) => ({
 const errors = {
     '400': { description: 'Invalid input' },
     '401': { description: 'Authentication required' },
+    '402': {
+        description: 'Required account or plan',
+        content: {
+            'application/json': {
+                schema: {
+                    type: 'object',
+                    required: ['error', 'requiredPlan', 'upgradeUrl'],
+                    properties: {
+                        error: { type: 'string' },
+                        requiredPlan: { type: 'string', enum: ['free', 'pro', 'team'] },
+                        upgradeUrl: { type: 'string', format: 'uri' },
+                    },
+                },
+            },
+        },
+    },
     '403': { description: 'Insufficient permission' },
     '404': { description: 'Not found or access denied' },
     '429': { description: 'Plan or rate limit reached' },
@@ -201,16 +217,90 @@ export function agentInterfaceOpenApi() {
             ),
         },
         '/api/email-inboxes': {
-            post: operation('createEmailInbox', 'Email inboxes', 'Create a receive-only address', {
-                security: [{}, ...security],
-                description:
-                    'Reading always needs a management token or workspace credential. Incoming mail needs MAIL_DOMAIN and the signed Email Worker; there is no arbitrary outbound mail.',
-                responses: {
-                    '201': json(),
-                    '503': { description: 'Mail is not configured or capacity reached' },
-                    ...errors,
+            post: operation(
+                'createEmailInbox',
+                'Email inboxes',
+                'Create an owned agent email address',
+                {
+                    security,
+                    description:
+                        'Requires an account. Free gets one random inbox lasting 1–7 days (default 3); Pro gets 10 and Team 50 persistent inboxes while subscribed. Retired addresses are never reused. MAIL_DOMAIN and signed ingest must be configured.',
+                    requestBody: body(
+                        {
+                            activeDays: { type: 'integer', minimum: 1, maximum: 7, default: 3 },
+                            localPart: {
+                                type: 'string',
+                                minLength: 3,
+                                maxLength: 48,
+                                description:
+                                    'Pro or Team only; lowercase letters, numbers and single hyphens. Reserved and retired names are unavailable.',
+                            },
+                        },
+                        [],
+                    ),
+                    responses: {
+                        '201': json(),
+                        '503': { description: 'Mail is not configured or capacity reached' },
+                        ...errors,
+                    },
                 },
-            }),
+            ),
+            get: operation(
+                'listEmailInboxes',
+                'Email inboxes',
+                'List owned addresses and their active or paused status',
+                { security },
+            ),
+        },
+        '/api/monitors/{id}/accept-dns': {
+            parameters: id,
+            post: operation(
+                'acceptDnsChanges',
+                'Monitors',
+                'Accept the last observed DNS answers as a new baseline',
+                { security },
+            ),
+        },
+        '/api/events/wait': {
+            post: operation(
+                'waitForEvent',
+                'Agents',
+                'Wait for any webhook, email or human-answer event',
+                {
+                    security: [{}, ...security],
+                    description:
+                        'One shared wait slot for up to ten sources. Events have per-source cursors; send them back as after to consume new data. Waits return incoming mail only and never interpret an expired or negative answer as approval. Anonymous webhook/email resources need their own per-source token. New email inboxes and human questions require workspace access. SMS is not available yet.',
+                    requestBody: body(
+                        {
+                            sources: {
+                                type: 'array',
+                                minItems: 1,
+                                maxItems: 10,
+                                items: {
+                                    type: 'object',
+                                    properties: {
+                                        kind: {
+                                            type: 'string',
+                                            enum: ['webhook', 'email', 'approval', 'job', 'sms'],
+                                        },
+                                        id: { type: 'string', format: 'uuid' },
+                                        token: { type: 'string' },
+                                        after: { type: 'string', format: 'uuid' },
+                                    },
+                                    required: ['kind', 'id'],
+                                },
+                            },
+                            timeoutSeconds: {
+                                type: 'integer',
+                                minimum: 1,
+                                maximum: 30,
+                                default: 25,
+                            },
+                        },
+                        ['sources'],
+                    ),
+                },
+            ),
         },
         '/api/email-inboxes/{id}': {
             parameters: id,
@@ -229,6 +319,21 @@ export function agentInterfaceOpenApi() {
         },
         '/api/email-inboxes/{id}/messages': {
             parameters: id,
+            delete: operation(
+                'clearEmails',
+                'Email inboxes',
+                'Delete stored messages while keeping the address',
+                {
+                    security: token,
+                    responses: {
+                        '204': {
+                            description:
+                                'Messages removed and storage released; restart event cursors',
+                        },
+                        ...errors,
+                    },
+                },
+            ),
             get: operation(
                 'listEmails',
                 'Email inboxes',
@@ -255,8 +360,76 @@ export function agentInterfaceOpenApi() {
             post: operation(
                 'renewEmailInbox',
                 'Email inboxes',
-                'Renew an unexpired email inbox within the active plan limit',
-                { security: token, requestBody: body({ persistent: { type: 'boolean' } }, []) },
+                'Check an active paid inbox; Free inbox lifetimes cannot be extended',
+                { security: token },
+            ),
+        },
+        '/api/email-inboxes/{id}/send': {
+            parameters: id,
+            post: operation(
+                'sendEmail',
+                'Email inboxes',
+                'Send from an active owned agent address',
+                {
+                    security,
+                    description:
+                        'Operator-enabled private Postfix relay on socketspace.xyz. Free requires verified owner email and allows 30 deliveries/month and 3/day; Pro 500/month and 50/day; Team 3000/month and 300/day (UTC reset). Free allows 3 recipients/message; paid allows 10. A 1 MiB message limit, minute caps and suppressions apply. Reuse the same Idempotency-Key and identical content to inspect an earlier send. An uncertain relay outcome is not automatically resent. 202 means relay acceptance, not confirmed inbox delivery.',
+                    parameters: [
+                        {
+                            name: 'Idempotency-Key',
+                            in: 'header',
+                            required: true,
+                            schema: { type: 'string', minLength: 16, maxLength: 100 },
+                        },
+                    ],
+                    requestBody: body(
+                        {
+                            to: {
+                                type: 'array',
+                                minItems: 1,
+                                maxItems: 10,
+                                items: { type: 'string', format: 'email' },
+                            },
+                            subject: { type: 'string', maxLength: 998 },
+                            text: { type: 'string' },
+                            html: { type: 'string' },
+                            replyTo: {
+                                type: 'string',
+                                format: 'uuid',
+                                description:
+                                    'Received message ID in this inbox, for In-Reply-To and References headers.',
+                            },
+                        },
+                        ['to', 'subject'],
+                    ),
+                    responses: {
+                        '202': json(),
+                        '409': { description: 'Retry key conflicts or inbox full' },
+                        '503': { description: 'Sending disabled or busy' },
+                        ...errors,
+                    },
+                },
+            ),
+        },
+        '/api/email-inboxes/{id}/forwarding': {
+            parameters: id,
+            put: operation(
+                'setEmailForwarding',
+                'Email inboxes',
+                'Forward received mail to a public webhook (Pro or Team)',
+                {
+                    security: token,
+                    requestBody: body(
+                        {
+                            url: {
+                                type: ['string', 'null'],
+                                description:
+                                    'Requires Pro or Team and pauses when the plan lapses. Public HTTP(S) URL, or null to disable. Latest delivery status is shown on inbox metadata; forwarding is best effort without retries.',
+                            },
+                        },
+                        ['url'],
+                    ),
+                },
             ),
         },
     };

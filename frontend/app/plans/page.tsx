@@ -9,7 +9,7 @@ import { money, paidPlansEnabled, pricing } from '../../lib/pricing';
 import { PlanAction, PlanBadge } from '../../components/plan-action';
 export const metadata = pageMetadata(
     'Pricing, plans & API limits',
-    'Free open beta with clear account, API, storage and retention limits. Preview planned monthly Pro and Team subscriptions; no payment is required during beta.',
+    'Compare Free, Pro and Team workspace limits for agents, API requests, storage and retention. Paid subscriptions are optional; Free needs no payment method.',
     '/plans/',
 );
 const ids = Object.keys(plans) as PlanId[];

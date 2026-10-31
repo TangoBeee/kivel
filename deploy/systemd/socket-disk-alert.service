@@ -1,0 +1,9 @@
+[Unit]
+Description=socket.help disk-space alert
+[Service]
+Type=oneshot
+User=deploy
+WorkingDirectory=/opt/socket-help
+EnvironmentFile=/opt/socket-help/.ops.env
+ExecStart=/usr/bin/node scripts/disk-alert.mjs
+NoNewPrivileges=true

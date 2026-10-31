@@ -153,6 +153,12 @@ export function DashboardTools({ glyphs = {} }: { glyphs?: Record<string, React.
                                         </span>
                                         <span>
                                             <strong>{tool.name}</strong>
+                                            {tool.minimumPlan && tool.minimumPlan !== 'free' && (
+                                                <small>
+                                                    {tool.minimumPlan === 'pro' ? 'Pro' : 'Team'}{' '}
+                                                    plan
+                                                </small>
+                                            )}
                                             <small>{tool.description}</small>
                                         </span>
                                     </Link>

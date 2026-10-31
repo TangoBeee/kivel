@@ -201,3 +201,62 @@ test('agents create, list and delete monitors over MCP', async (t) => {
     assert.equal((await call('delete_monitor', { id: created.id })).deleted, true);
     assert.equal((await call('list_monitors', {})).monitors.length, 0);
 });
+
+test('DNS monitors retain baselines, confirm changes, expose probe timings and let the owner accept expected records', async (t) => {
+    const store = new MemoryMonitors();
+    let records = ['1 1.1.1.1'];
+    const checks: MonitorChecks = {
+        http: async () => ({ status: 200, body: 'ok' }),
+        tls: async () => ({ authorized: true, daysUntilExpiry: 50 }),
+        dns: async () => [...records],
+        webhook: async () => {},
+    };
+    const app = buildApp({ monitorStore: store, monitorChecks: checks });
+    t.after(() => app.close());
+    const headers = await account(app, 'dns-monitor');
+    const response = await app.inject({
+        method: 'POST',
+        url: '/api/monitors',
+        headers,
+        payload: {
+            kind: 'dns',
+            name: 'Application DNS',
+            target: 'example.com',
+            dnsRecordType: 'A',
+        },
+    });
+    assert.equal(response.statusCode, 201, response.body);
+    const id = response.json().id;
+    const accountId = (await app.inject({ url: '/api/account', headers })).json().account.id;
+    const due = async () => {
+        const current = store.get(accountId, id)!;
+        store.save({ ...current, nextRunAt: new Date(Date.now() - 1000).toISOString() });
+    };
+    await due();
+    await app.runMonitors();
+    let current = (await app.inject({ url: `/api/monitors/${id}`, headers })).json();
+    assert.equal(current.status, 'up');
+    assert.deepEqual(current.dnsBaseline, records);
+    assert.equal(typeof current.lastDurationMs, 'number');
+    assert.equal(current.recentChecks.length, 1);
+    records = ['1 8.8.8.8'];
+    await due();
+    await app.runMonitors();
+    await due();
+    await app.runMonitors();
+    current = (await app.inject({ url: `/api/monitors/${id}`, headers })).json();
+    assert.equal(current.status, 'down');
+    assert.deepEqual(current.lastDnsAnswers, records);
+    assert.equal(
+        (await app.inject({ method: 'POST', url: `/api/monitors/${id}/accept-dns` })).statusCode,
+        401,
+    );
+    assert.equal(
+        (await app.inject({ method: 'POST', url: `/api/monitors/${id}/accept-dns`, headers }))
+            .statusCode,
+        200,
+    );
+    current = (await app.inject({ url: `/api/monitors/${id}`, headers })).json();
+    assert.deepEqual(current.dnsBaseline, records);
+    assert.equal(current.status, 'up');
+});

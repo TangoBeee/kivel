@@ -1,3 +1,4 @@
+import { deliveryFeedback } from './feedback.js';
 import PostalMime from 'postal-mime';
 
 const MAX_RAW = 10 * 1024 * 1024;
@@ -13,7 +14,9 @@ async function sign(secret, payload) {
         ['sign'],
     );
     const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(payload));
-    return [...new Uint8Array(signature)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+    return [...new Uint8Array(signature)]
+        .map((byte) => byte.toString(16).padStart(2, '0'))
+        .join('');
 }
 
 // Receives mail for the catch-all address, keeps only what agents need and hands it to socket.help.
@@ -26,6 +29,13 @@ export default {
         const parsed = await PostalMime.parse(await new Response(message.raw).arrayBuffer());
         const body = JSON.stringify({
             to: message.to,
+            feedback: deliveryFeedback(parsed, message.from),
+            messageId: parsed.messageId,
+            inReplyTo: parsed.inReplyTo,
+            references:
+                typeof parsed.references === 'string'
+                    ? (parsed.references.match(/<[^<>]+>/g) ?? [])
+                    : [],
             from: parsed.from?.address
                 ? `${parsed.from.name ? `${parsed.from.name} ` : ''}<${parsed.from.address}>`
                 : message.from,

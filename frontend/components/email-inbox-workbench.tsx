@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { Button } from '@radix-ui/themes';
+import { AlertDialog, Button, Select, TextArea, TextField } from '@radix-ui/themes';
 import { api, ApiError, resourceHeaders } from '../lib/api';
 import { useViewer } from '../lib/viewer';
 import { CopyButton } from './copy-button';
@@ -12,8 +12,10 @@ import { ToolHeader } from './tool-header';
 interface EmailInbox {
     id: string;
     address: string;
-    managementToken: string;
-    expiresAt: string;
+    managementToken?: string;
+    expiresAt: string | null;
+    persistent?: boolean;
+    status?: 'active' | 'paused';
 }
 interface EmailMessage {
     id: string;
@@ -25,6 +27,8 @@ interface EmailMessage {
     codes: string[];
     links: { url: string; kind: 'verification' | 'other' }[];
     attachments: { filename: string; mimeType: string; size: number }[];
+    direction?: 'inbound' | 'outbound';
+    deliveryStatus?: 'pending' | 'sent';
 }
 
 const KEY = 'socket-email-inbox';
@@ -37,7 +41,9 @@ const remember = (inbox: EmailInbox | null) => {
 const restore = (): EmailInbox | null => {
     try {
         const value = JSON.parse(sessionStorage.getItem(KEY) ?? 'null');
-        return value && Date.parse(value.expiresAt) > Date.now() ? value : null;
+        return value && (value.expiresAt === null || Date.parse(value.expiresAt) > Date.now())
+            ? value
+            : null;
     } catch {
         return null;
     }
@@ -51,6 +57,16 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
     const [showHtml, setShowHtml] = useState(false);
     const [error, setError] = useState('');
     const [busy, setBusy] = useState(false);
+    const [activeDays, setActiveDays] = useState('3');
+    const [localPart, setLocalPart] = useState('');
+    const [existing, setExisting] = useState<EmailInbox[]>([]);
+    const [forwardingUrl, setForwardingUrl] = useState('');
+    const [forwardNotice, setForwardNotice] = useState('');
+    const [sendingEnabled, setSendingEnabled] = useState(false);
+    const [draft, setDraft] = useState({ to: '', subject: '', text: '' });
+    const [draftKey, setDraftKey] = useState('');
+    const [sendNotice, setSendNotice] = useState('');
+    const paid = viewer.status === 'user' && ['pro', 'team'].includes(viewer.plan);
     const lastId = useRef<string | undefined>(undefined);
 
     async function create() {
@@ -58,13 +74,24 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
         setError('');
         try {
             const created: EmailInbox = await (
-                await api('/api/email-inboxes', { method: 'POST' })
+                await api('/api/email-inboxes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(
+                        paid
+                            ? localPart
+                                ? { localPart }
+                                : {}
+                            : { activeDays: Number(activeDays) },
+                    ),
+                })
             ).json();
             remember(created);
             lastId.current = undefined;
             setMessages([]);
             setSelected(null);
             setInbox(created);
+            setExisting((items) => [...items, created]);
         } catch (failure) {
             setError(
                 failure instanceof ApiError && failure.status === 503
@@ -79,21 +106,131 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
     }
 
     useEffect(() => {
-        const saved = restore();
-        if (saved) setInbox(saved);
-        else if (
-            !navigator.webdriver &&
-            !/bot|crawl|spider|preview|lighthouse/i.test(navigator.userAgent)
-        )
-            void create();
-        // Runs once; create only uses setters.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+        setInbox(null);
+        setMessages([]);
+        setSelected(null);
+        setExisting([]);
+        if (viewer.status !== 'user') return;
+        let live = true;
+        void api('/api/email-inboxes')
+            .then((response) => response.json())
+            .then((data) => {
+                if (!live) return;
+                setExisting(data.inboxes);
+                const saved = restore();
+                const requested = new URLSearchParams(location.search).get('resource');
+                setInbox(
+                    data.inboxes.find((item: EmailInbox) => item.id === requested) ??
+                        data.inboxes.find((item: EmailInbox) => item.id === saved?.id) ??
+                        data.inboxes[0] ??
+                        null,
+                );
+            })
+            .catch((failure) => {
+                if (live)
+                    setError(
+                        failure instanceof Error ? failure.message : 'Unable to load inboxes.',
+                    );
+            });
+        return () => {
+            live = false;
+        };
+    }, [viewer.status, viewer.status === 'user' ? viewer.workspace : '']);
+
+    async function clearMessages() {
+        if (!inbox) return;
+        setBusy(true);
+        setError('');
+        try {
+            await api(`/api/email-inboxes/${inbox.id}/messages`, { method: 'DELETE' });
+            setMessages([]);
+            setSelected(null);
+            lastId.current = undefined;
+            setInbox({ ...inbox });
+        } catch (failure) {
+            setError(failure instanceof Error ? failure.message : 'Unable to clear messages.');
+        } finally {
+            setBusy(false);
+        }
+    }
+    async function sendDraft() {
+        if (!inbox) return;
+        const key = draftKey || crypto.randomUUID();
+        setDraftKey(key);
+        setBusy(true);
+        setError('');
+        setSendNotice('');
+        try {
+            await api(
+                `/api/email-inboxes/${inbox.id}/send`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key },
+                    body: JSON.stringify({
+                        to: draft.to
+                            .split(',')
+                            .map((value) => value.trim())
+                            .filter(Boolean),
+                        subject: draft.subject,
+                        text: draft.text,
+                    }),
+                },
+                30000,
+            );
+            setSendNotice(
+                'Accepted by the mail relay. Delivery can still fail; check the recipient inbox.',
+            );
+            setDraft({ to: '', subject: '', text: '' });
+            setDraftKey('');
+            const response = await api(`/api/email-inboxes/${inbox.id}/messages`);
+            setMessages((await response.json()).messages);
+        } catch (failure) {
+            setError(
+                failure instanceof Error
+                    ? failure.message
+                    : 'Unable to send. Retry the same draft to preserve its retry key.',
+            );
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    async function saveForwarding() {
+        if (!inbox) return;
+        setBusy(true);
+        setForwardNotice('');
+        try {
+            await api(`/api/email-inboxes/${inbox.id}/forwarding`, {
+                method: 'PUT',
+                headers: {
+                    ...resourceHeaders(inbox.managementToken ?? ''),
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ url: forwardingUrl.trim() || null }),
+            });
+            setForwardNotice(
+                forwardingUrl.trim()
+                    ? 'Forwarding saved. Delivery status is available in the API.'
+                    : 'Forwarding disabled.',
+            );
+        } catch (failure) {
+            setError(failure instanceof Error ? failure.message : 'Unable to save forwarding.');
+        } finally {
+            setBusy(false);
+        }
+    }
 
     useEffect(() => {
-        if (!inbox) return;
+        if (!inbox || inbox.status === 'paused') return;
         const controller = new AbortController();
-        const headers = resourceHeaders(inbox.managementToken);
+        void api(`/api/email-inboxes/${inbox.id}`, { signal: controller.signal })
+            .then((response) => response.json())
+            .then((data) => {
+                setForwardingUrl(data.forwardingUrl ?? '');
+                setSendingEnabled(data.sendingEnabled === true);
+            })
+            .catch(() => {});
+        const headers = resourceHeaders(inbox.managementToken ?? '');
         void (async () => {
             try {
                 const first = await (
@@ -134,7 +271,7 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
 
     const current =
         messages.find((message) => message.id === selected) ?? messages.at(-1) ?? undefined;
-    const minutes = inbox
+    const minutes = inbox?.expiresAt
         ? Math.max(0, Math.round((Date.parse(inbox.expiresAt) - Date.now()) / 60000))
         : 0;
 
@@ -143,15 +280,23 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
             <ToolHeader
                 toolId={toolId}
                 title="An inbox your agent can read."
-                description="A real email address for sign-up tests. Codes and magic links are pulled out for you."
+                description="An owned address for your agent. Read messages, codes and verification links in one place."
             >
                 {inbox && (
+                    <Link className="text-link" href="/account/#resources">
+                        Manage inboxes
+                    </Link>
+                )}
+                {inbox && (paid || !existing.some((item) => item.status === 'active')) && (
                     <Button
                         size="2"
                         variant="surface"
                         color="gray"
                         disabled={busy}
-                        onClick={() => void create()}
+                        onClick={() => {
+                            setInbox(null);
+                            setError('');
+                        }}
                     >
                         <Icon name="plus" size={14} /> New address
                     </Button>
@@ -160,17 +305,102 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
             {error && (
                 <div className="alert" role="alert">
                     <span>{error}</span>
-                    {!inbox && (
-                        <Button
-                            size="2"
-                            color="green"
-                            disabled={busy}
-                            onClick={() => void create()}
-                        >
-                            Try again
-                        </Button>
-                    )}
                 </div>
+            )}
+            {viewer.status === 'guest' && (
+                <div className="dashboard-empty">
+                    <h2>Sign in to own an address.</h2>
+                    <p>
+                        Free includes one random inbox for 1–7 days. Pro includes 10 addresses that
+                        stay active while subscribed, with optional custom names.
+                    </p>
+                    <Link className="button" href="/account/#register">
+                        Create a free account
+                    </Link>
+                </div>
+            )}
+            {viewer.status === 'loading' && <p role="status">Loading your workspace…</p>}
+            {viewer.status === 'user' && (
+                <>
+                    {existing.length > 0 && (
+                        <div className="button-row">
+                            <label htmlFor="email-address-select">Your inboxes</label>
+                            <Select.Root
+                                value={inbox?.id ?? ''}
+                                onValueChange={(id) => {
+                                    const selected = existing.find((item) => item.id === id);
+                                    setInbox(selected ?? null);
+                                    setError('');
+                                }}
+                            >
+                                <Select.Trigger
+                                    id="email-address-select"
+                                    placeholder="Choose an inbox"
+                                />
+                                <Select.Content>
+                                    {existing.map((item) => (
+                                        <Select.Item key={item.id} value={item.id}>
+                                            {item.address}
+                                            {item.status === 'paused' ? ' · Paused' : ''}
+                                        </Select.Item>
+                                    ))}
+                                </Select.Content>
+                            </Select.Root>
+                        </div>
+                    )}
+                    {!inbox && (
+                        <form
+                            className="email-create-form"
+                            onSubmit={(event) => {
+                                event.preventDefault();
+                                void create();
+                            }}
+                        >
+                            <h2>Create an agent address</h2>
+                            {paid ? (
+                                <label>
+                                    Custom name <span className="muted">(optional)</span>
+                                    <TextField.Root
+                                        value={localPart}
+                                        placeholder="qa-bot-42"
+                                        aria-label="Custom address name"
+                                        pattern="[a-z0-9-]{3,48}"
+                                        onChange={(event) => setLocalPart(event.target.value)}
+                                    />
+                                    <small>
+                                        @socketspace.xyz · Leave blank for a random address.
+                                    </small>
+                                </label>
+                            ) : (
+                                <label htmlFor="email-active-days">
+                                    Active for
+                                    <Select.Root value={activeDays} onValueChange={setActiveDays}>
+                                        <Select.Trigger id="email-active-days" />
+                                        <Select.Content>
+                                            {Array.from({ length: 7 }, (_, index) => (
+                                                <Select.Item
+                                                    key={index + 1}
+                                                    value={String(index + 1)}
+                                                >
+                                                    {index + 1} day{index ? 's' : ''}
+                                                </Select.Item>
+                                            ))}
+                                        </Select.Content>
+                                    </Select.Root>
+                                </label>
+                            )}
+                            <p className="muted">
+                                {paid
+                                    ? 'This address stays active while your subscription is active. Deleted addresses are never reassigned.'
+                                    : 'One active inbox per workspace. Upgrade before expiry to keep the same address and choose custom names.'}{' '}
+                                {!paid && <Link href="/plans/">View Pro</Link>}
+                            </p>
+                            <Button type="submit" disabled={busy}>
+                                {busy ? 'Creating…' : 'Create address'}
+                            </Button>
+                        </form>
+                    )}
+                </>
             )}
             {inbox && (
                 <>
@@ -180,18 +410,81 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                         <CopyButton text={inbox.address} label="Copy address" />
                         <span className="expiry">
                             <Icon name="clock" size={13} />{' '}
-                            {minutes >= 120
-                                ? `${Math.round(minutes / 60)}h left`
-                                : `${minutes}m left`}
+                            {inbox.expiresAt === null
+                                ? 'Active while subscribed'
+                                : minutes >= 120
+                                  ? `${Math.round(minutes / 60)}h left`
+                                  : `${minutes}m left`}
                         </span>
                     </div>
-                    {viewer.status === 'guest' && (
-                        <p className="keep-longer">
-                            <Icon name="clock" size={14} />
-                            Anonymous addresses last 1 hour.{' '}
-                            <Link href="/account/#register">Sign up free</Link> to keep them for 7
-                            days and give them to your AI agent.
+                    {inbox.status === 'paused' && (
+                        <p className="alert">
+                            This address is paused.{' '}
+                            <Link href="/plans/">Restore your subscription</Link> to receive mail
+                            before the grace period ends.
                         </p>
+                    )}
+                    {sendingEnabled && inbox.status !== 'paused' && (
+                        <details className="connection-details">
+                            <summary>Send an email</summary>
+                            <form
+                                className="email-create-form"
+                                onSubmit={(event) => {
+                                    event.preventDefault();
+                                    void sendDraft();
+                                }}
+                            >
+                                <label>
+                                    To
+                                    <TextField.Root
+                                        type="text"
+                                        required
+                                        value={draft.to}
+                                        placeholder="recipient@example.com"
+                                        onChange={(event) => {
+                                            setDraft({ ...draft, to: event.target.value });
+                                            setDraftKey('');
+                                        }}
+                                    />
+                                    <small>
+                                        Separate recipients with commas. Free allows 3; Pro and Team
+                                        allow 10.
+                                    </small>
+                                </label>
+                                <label>
+                                    Subject
+                                    <TextField.Root
+                                        required
+                                        maxLength={998}
+                                        value={draft.subject}
+                                        onChange={(event) => {
+                                            setDraft({ ...draft, subject: event.target.value });
+                                            setDraftKey('');
+                                        }}
+                                    />
+                                </label>
+                                <label>
+                                    Message
+                                    <TextArea
+                                        required
+                                        value={draft.text}
+                                        onChange={(event) => {
+                                            setDraft({ ...draft, text: event.target.value });
+                                            setDraftKey('');
+                                        }}
+                                    />
+                                </label>
+                                <p className="muted">
+                                    An agent attribution and unsubscribe link are added
+                                    automatically. Daily allowances count each recipient delivery. A
+                                    failed or uncertain send keeps the same retry key.
+                                </p>
+                                <Button type="submit" disabled={busy}>
+                                    {busy ? 'Sending…' : 'Send email'}
+                                </Button>
+                                {sendNotice && <p role="status">{sendNotice}</p>}
+                            </form>
+                        </details>
                     )}
                     <div className="email-layout">
                         <aside className="email-list" aria-label="Messages">
@@ -200,6 +493,45 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                                 {messages.length
                                     ? `${messages.length} message${messages.length === 1 ? '' : 's'}`
                                     : 'Waiting for mail…'}
+                                {messages.length > 0 && (
+                                    <AlertDialog.Root>
+                                        <AlertDialog.Trigger>
+                                            <Button
+                                                variant="ghost"
+                                                size="1"
+                                                color="gray"
+                                                disabled={busy}
+                                            >
+                                                Clear messages
+                                            </Button>
+                                        </AlertDialog.Trigger>
+                                        <AlertDialog.Content>
+                                            <AlertDialog.Title>
+                                                Delete all stored messages?
+                                            </AlertDialog.Title>
+                                            <AlertDialog.Description>
+                                                This permanently removes this inbox’s message
+                                                content and frees its storage. The address stays
+                                                active. Restart event cursors after clearing it.
+                                            </AlertDialog.Description>
+                                            <div className="dialog-actions">
+                                                <AlertDialog.Cancel>
+                                                    <Button variant="soft">Keep messages</Button>
+                                                </AlertDialog.Cancel>
+                                                <AlertDialog.Action>
+                                                    <Button
+                                                        color="red"
+                                                        onClick={() => {
+                                                            void clearMessages();
+                                                        }}
+                                                    >
+                                                        Delete messages
+                                                    </Button>
+                                                </AlertDialog.Action>
+                                            </div>
+                                        </AlertDialog.Content>
+                                    </AlertDialog.Root>
+                                )}
                             </div>
                             {messages.length ? (
                                 [...messages].reverse().map((message) => (
@@ -213,7 +545,11 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                                         }}
                                     >
                                         <strong>{message.subject || '(no subject)'}</strong>
-                                        <span>{message.from}</span>
+                                        <span>
+                                            {message.direction === 'outbound'
+                                                ? 'Sent by this agent'
+                                                : message.from}
+                                        </span>
                                         <time>
                                             {new Date(message.receivedAt).toLocaleTimeString()}
                                         </time>
@@ -221,8 +557,8 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                                 ))
                             ) : (
                                 <p>
-                                    Use this address to sign up anywhere. Mail usually arrives
-                                    within a few seconds.
+                                    Use this address for a workflow you are authorized to run. Mail
+                                    usually arrives within a few seconds.
                                 </p>
                             )}
                         </aside>
@@ -318,13 +654,48 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                         </section>
                     </div>
                     <details className="connection-details">
+                        <summary>Forward mail to a webhook · Pro</summary>
+                        {!paid ? (
+                            <p className="connection-content">
+                                <Link href="/plans/">Upgrade to Pro</Link> to forward received
+                                messages. Forwarding pauses when the paid plan ends.
+                            </p>
+                        ) : (
+                            <form
+                                className="connection-content"
+                                onSubmit={(event) => {
+                                    event.preventDefault();
+                                    void saveForwarding();
+                                }}
+                            >
+                                <label>
+                                    Webhook URL
+                                    <TextField.Root
+                                        type="url"
+                                        value={forwardingUrl}
+                                        placeholder="https://your-app.com/hooks/email"
+                                        onChange={(event) => setForwardingUrl(event.target.value)}
+                                    />
+                                </label>
+                                <p>
+                                    Received messages stay in this inbox. Forwarding makes one
+                                    delivery attempt; an empty URL disables it.
+                                </p>
+                                <Button type="submit" disabled={busy}>
+                                    Save forwarding
+                                </Button>
+                                {forwardNotice && <p role="status">{forwardNotice}</p>}
+                            </form>
+                        )}
+                    </details>
+                    <details className="connection-details">
                         <summary>Use it from code or an agent</summary>
                         <div className="connection-content">
                             <p>Wait for the next message and read its code:</p>
                             <div className="code-row">
-                                <code>{`curl -H 'X-Resource-Token: ${inbox.managementToken}' \\\n  '${typeof location === 'undefined' ? 'https://socket.help' : location.origin}/api/email-inboxes/${inbox.id}/wait'`}</code>
+                                <code>{`curl -H 'Authorization: Bearer YOUR_WORKSPACE_API_KEY' \\\n  '${typeof location === 'undefined' ? 'https://socket.help' : location.origin}/api/email-inboxes/${inbox.id}/wait'`}</code>
                                 <CopyButton
-                                    text={`curl -H 'X-Resource-Token: ${inbox.managementToken}' '${typeof location === 'undefined' ? 'https://socket.help' : location.origin}/api/email-inboxes/${inbox.id}/wait'`}
+                                    text={`curl -H 'Authorization: Bearer YOUR_WORKSPACE_API_KEY' '${typeof location === 'undefined' ? 'https://socket.help' : location.origin}/api/email-inboxes/${inbox.id}/wait'`}
                                     label="Copy command"
                                     compact
                                 />

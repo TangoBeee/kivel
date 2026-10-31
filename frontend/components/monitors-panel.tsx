@@ -1,14 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Badge, Button, Dialog, DropdownMenu, IconButton } from '@radix-ui/themes';
+import { Badge, Button, Dialog, DropdownMenu, IconButton, Select } from '@radix-ui/themes';
 import { DotsThree, Plus, Pulse } from '@phosphor-icons/react';
 import { api } from '../lib/api';
 import { CopyButton } from './copy-button';
 
 interface Monitor {
     id: string;
-    kind: 'http' | 'ssl' | 'heartbeat';
+    kind: 'http' | 'ssl' | 'heartbeat' | 'dns';
     name: string;
     target?: string;
     intervalSeconds: number;
@@ -16,6 +16,7 @@ interface Monitor {
     paused: boolean;
     lastCheckAt?: string;
     lastMessage?: string;
+    lastDurationMs?: number;
 }
 
 const intervals = [
@@ -29,13 +30,20 @@ const kinds = {
     http: 'Website',
     ssl: 'SSL certificate',
     heartbeat: 'Cron job',
+    dns: 'DNS records',
 } as const;
 const every = (seconds: number) =>
     intervals.find(([value]) => value === seconds)?.[1].toLowerCase() ??
     `every ${Math.round(seconds / 60)} min`;
 
 /** Uptime, SSL and heartbeat monitors for the workspace, with alerts when status changes. */
-export function MonitorsPanel({ verifiedEmail }: { verifiedEmail: boolean }) {
+export function MonitorsPanel({
+    verifiedEmail,
+    initialKind = 'http',
+}: {
+    verifiedEmail: boolean;
+    initialKind?: Monitor['kind'];
+}) {
     const [monitors, setMonitors] = useState<Monitor[] | null>(null);
     const [limit, setLimit] = useState(0);
     const [minInterval, setMinInterval] = useState(300);
@@ -43,12 +51,21 @@ export function MonitorsPanel({ verifiedEmail }: { verifiedEmail: boolean }) {
     const [kind, setKind] = useState<Monitor['kind']>('http');
     const [name, setName] = useState('');
     const [target, setTarget] = useState('');
+    const [dnsRecordType, setDnsRecordType] = useState('A');
     const [interval, setIntervalSeconds] = useState(300);
     const [expectText, setExpectText] = useState('');
     const [webhook, setWebhook] = useState('');
     const [pingUrl, setPingUrl] = useState('');
     const [error, setError] = useState('');
     const [busy, setBusy] = useState(false);
+    const [history, setHistory] = useState<
+        | (Monitor & {
+              recentChecks?: { at: string; status: string; durationMs: number }[];
+              dnsBaseline?: string[];
+              lastDnsAnswers?: string[];
+          })
+        | null
+    >(null);
 
     async function load() {
         try {
@@ -68,7 +85,7 @@ export function MonitorsPanel({ verifiedEmail }: { verifiedEmail: boolean }) {
     }, []);
 
     function start() {
-        setKind('http');
+        setKind(initialKind);
         setName('');
         setTarget('');
         setExpectText('');
@@ -93,6 +110,7 @@ export function MonitorsPanel({ verifiedEmail }: { verifiedEmail: boolean }) {
                         ...(kind !== 'heartbeat' ? { target } : {}),
                         intervalSeconds: kind === 'ssl' ? 86400 : interval,
                         ...(kind === 'http' && expectText ? { expectText } : {}),
+                        ...(kind === 'dns' ? { dnsRecordType } : {}),
                         ...(webhook ? { alertWebhook: webhook } : {}),
                     }),
                 })
@@ -143,7 +161,7 @@ export function MonitorsPanel({ verifiedEmail }: { verifiedEmail: boolean }) {
             </div>
             {!verifiedEmail && !!monitors?.length && (
                 <p className="monitor-hint">
-                    <a href="#security">Verify your email</a> to get alert emails.
+                    <a href="/account/#security">Verify your email</a> to get alert emails.
                 </p>
             )}
             {monitors === null ? null : monitors.length ? (
@@ -168,7 +186,7 @@ export function MonitorsPanel({ verifiedEmail }: { verifiedEmail: boolean }) {
                                             <small>
                                                 {kinds[monitor.kind]}
                                                 {monitor.target
-                                                    ? ` · ${new URL(monitor.target).host}`
+                                                    ? ` · ${monitor.kind === 'dns' ? monitor.target : new URL(monitor.target).host}`
                                                     : ''}{' '}
                                                 ·{' '}
                                                 {monitor.kind === 'ssl'
@@ -199,7 +217,15 @@ export function MonitorsPanel({ verifiedEmail }: { verifiedEmail: boolean }) {
                                                     : 'Waiting'}
                                         </Badge>
                                     </td>
-                                    <td className="monitor-last">{monitor.lastMessage ?? '—'}</td>
+                                    <td className="monitor-last">
+                                        {monitor.lastMessage ?? '—'}
+                                        {monitor.lastDurationMs !== undefined && (
+                                            <small className="muted">
+                                                {' '}
+                                                · {monitor.lastDurationMs} ms
+                                            </small>
+                                        )}
+                                    </td>
                                     <td>
                                         <DropdownMenu.Root>
                                             <DropdownMenu.Trigger>
@@ -222,6 +248,35 @@ export function MonitorsPanel({ verifiedEmail }: { verifiedEmail: boolean }) {
                                                     }
                                                 >
                                                     {monitor.paused ? 'Resume' : 'Pause'}
+                                                </DropdownMenu.Item>
+                                                {monitor.kind === 'dns' &&
+                                                    monitor.status === 'down' && (
+                                                        <DropdownMenu.Item
+                                                            onSelect={() => {
+                                                                void api(
+                                                                    `/api/monitors/${monitor.id}/accept-dns`,
+                                                                    { method: 'POST' },
+                                                                )
+                                                                    .then(() => load())
+                                                                    .catch((failure) =>
+                                                                        setError(failure.message),
+                                                                    );
+                                                            }}
+                                                        >
+                                                            Accept current DNS records
+                                                        </DropdownMenu.Item>
+                                                    )}
+                                                <DropdownMenu.Item
+                                                    onSelect={() => {
+                                                        void api(`/api/monitors/${monitor.id}`)
+                                                            .then((response) => response.json())
+                                                            .then(setHistory)
+                                                            .catch((failure) =>
+                                                                setError(failure.message),
+                                                            );
+                                                    }}
+                                                >
+                                                    Check history
                                                 </DropdownMenu.Item>
                                                 <DropdownMenu.Item
                                                     color="red"
@@ -295,13 +350,15 @@ export function MonitorsPanel({ verifiedEmail }: { verifiedEmail: boolean }) {
                             </div>
                             {kind !== 'heartbeat' && (
                                 <label>
-                                    {kind === 'ssl' ? 'Domain' : 'URL'}
+                                    {kind === 'ssl' || kind === 'dns' ? 'Domain' : 'URL'}
                                     <input
                                         required
                                         autoFocus
                                         value={target}
                                         placeholder={
-                                            kind === 'ssl' ? 'example.com' : 'https://example.com'
+                                            kind === 'ssl' || kind === 'dns'
+                                                ? 'example.com'
+                                                : 'https://example.com'
                                         }
                                         onChange={(event) => setTarget(event.target.value)}
                                     />
@@ -322,20 +379,48 @@ export function MonitorsPanel({ verifiedEmail }: { verifiedEmail: boolean }) {
                             {kind !== 'ssl' && (
                                 <label>
                                     {kind === 'heartbeat' ? 'Runs' : 'Check'}
-                                    <select
-                                        value={interval}
-                                        onChange={(event) =>
-                                            setIntervalSeconds(Number(event.target.value))
-                                        }
+                                    <Select.Root
+                                        value={String(interval)}
+                                        onValueChange={(value) => setIntervalSeconds(Number(value))}
                                     >
-                                        {intervals
-                                            .filter(([seconds]) => seconds >= minInterval)
-                                            .map(([seconds, label]) => (
-                                                <option key={seconds} value={seconds}>
-                                                    {label}
-                                                </option>
-                                            ))}
-                                    </select>
+                                        <Select.Trigger aria-label="Check interval" />
+                                        <Select.Content>
+                                            {intervals
+                                                .filter(([seconds]) => seconds >= minInterval)
+                                                .map(([seconds, label]) => (
+                                                    <Select.Item
+                                                        key={seconds}
+                                                        value={String(seconds)}
+                                                    >
+                                                        {label}
+                                                    </Select.Item>
+                                                ))}
+                                        </Select.Content>
+                                    </Select.Root>
+                                </label>
+                            )}
+                            {kind === 'dns' && (
+                                <label htmlFor="monitor-record-type">
+                                    Record type
+                                    <Select.Root
+                                        value={dnsRecordType}
+                                        onValueChange={setDnsRecordType}
+                                    >
+                                        <Select.Trigger id="monitor-record-type" />
+                                        <Select.Content>
+                                            {['A', 'AAAA', 'CNAME', 'MX', 'TXT', 'NS', 'CAA'].map(
+                                                (type) => (
+                                                    <Select.Item key={type} value={type}>
+                                                        {type}
+                                                    </Select.Item>
+                                                ),
+                                            )}
+                                        </Select.Content>
+                                    </Select.Root>
+                                    <small>
+                                        The first successful lookup becomes the baseline. Changes
+                                        alert you until you accept the new records.
+                                    </small>
                                 </label>
                             )}
                             <details className="monitor-more">
@@ -378,6 +463,62 @@ export function MonitorsPanel({ verifiedEmail }: { verifiedEmail: boolean }) {
                             </div>
                         </form>
                     )}
+                </Dialog.Content>
+            </Dialog.Root>
+            <Dialog.Root
+                open={Boolean(history)}
+                onOpenChange={(open) => {
+                    if (!open) setHistory(null);
+                }}
+            >
+                <Dialog.Content maxWidth="640px">
+                    <Dialog.Title>{history?.name} · Check history</Dialog.Title>
+                    <Dialog.Description>
+                        Latest 50 probes, measured from socket.help. These are individual check
+                        results.
+                    </Dialog.Description>
+                    {history?.kind === 'dns' && (
+                        <>
+                            <h3>Baseline records</h3>
+                            <pre className="email-text">
+                                {history.dnsBaseline?.join('\n') ?? 'Awaiting first lookup'}
+                            </pre>
+                            <h3>Last observed records</h3>
+                            <pre className="email-text">
+                                {history.lastDnsAnswers?.join('\n') ?? 'No successful lookup'}
+                            </pre>
+                        </>
+                    )}
+                    <div className="result-table-scroll">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th scope="col">Checked</th>
+                                    <th scope="col">Result</th>
+                                    <th scope="col">Probe time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {history?.recentChecks
+                                    ?.slice()
+                                    .reverse()
+                                    .map((check) => (
+                                        <tr key={check.at}>
+                                            <td>{new Date(check.at).toLocaleString()}</td>
+                                            <td>{check.status}</td>
+                                            <td>{check.durationMs} ms</td>
+                                        </tr>
+                                    ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div className="button-row">
+                        <Dialog.Close>
+                            <Button variant="soft" color="gray">
+                                Done
+                            </Button>
+                        </Dialog.Close>
+                    </div>
                 </Dialog.Content>
             </Dialog.Root>
         </section>

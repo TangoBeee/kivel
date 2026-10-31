@@ -1,7 +1,7 @@
 # @socket-help/sdk
 
 The TypeScript client for [socket.help](https://socket.help): webhook URLs,
-receive-only email, mock APIs, files, workspace memory, monitors and human approval
+owned email when configured, mock APIs, files, workspace memory, monitors and human approval
 for coding agents. Requires Node.js 22.13+ or a compatible fetch-based runtime.
 The published package is ESM; use `import`, not CommonJS `require`.
 
@@ -31,13 +31,13 @@ to obtain the browser approval link, then `finishLogin(deviceCode)` until approv
 Save the returned key privately; it is delivered once. Never ask a human to paste
 an API key into a chat. Human approvals and billing cannot be performed by a key.
 
-Dedicated methods cover email, memory, monitors, questions, mocks and files.
+Dedicated methods cover owned email and guarded sending, scheduled callbacks, event waits, DNS monitors, status pages, SMTP captures, phone Phase A, memory, questions, mocks and files. Read `GET /api/capabilities` first for operator-enabled features.
 `request()` handles other `/api/` operations and `/mock/` caller requests. Anonymous
 management tokens and private caller tokens serve different purposes; keep them
 out of URLs. A timed-out wait is not a human approval or a received event.
 
 Errors from the API use `SocketError` with `status` and optional `requestId` and
-`retryAfter`. Inputs and credentials go to your configured server; the SDK does not
+`retryAfter`, `requiredPlan` and `upgradeUrl`. Relay a 402 to the human instead of retrying. Inputs and credentials go to your configured server; the SDK does not
 write a local credential file. Do not log responses that contain keys or tokens.
 
 [Method reference](https://socket.help/docs/sdk/) ·

@@ -1,3 +1,12 @@
+import { registerPhones } from './phone/routes.js';
+import type { PhoneEntitlements } from './phone/routes.js';
+import { MemoryPhones } from './phone/store.js';
+import type { PhoneStore } from './phone/store.js';
+import type { PhoneProvider } from './phone/provider.js';
+import { registerSmtpCapture } from './smtp-capture.js';
+import type { SmtpCaptureConfig } from './smtp-capture.js';
+import { MemoryJobs, registerScheduledJobs } from './scheduled-jobs.js';
+import type { JobStore, JobSend } from './scheduled-jobs.js';
 import { registerMusic } from './music-routes.js';
 import { RecoveryService } from './recovery.js';
 import { MemoryRecoveryRepository } from './recovery-store.js';
@@ -33,12 +42,21 @@ import type { MemoryRepository } from './kv.js';
 import type { ActivityRepository } from './activity.js';
 import { MemoryEmailMessages, registerEmail } from './email.js';
 import type { EmailMessageRepository } from './email.js';
+import { MemoryEmailAddresses } from './email-addresses.js';
+import type { EmailAddressRepository } from './email-addresses.js';
+import { MemoryEmailSending } from './email-sending-store.js';
+import type { EmailSendingRepository } from './email-sending-store.js';
+import { receiveEmailFeedback, registerEmailSending } from './email-sending.js';
+import type { AgentEmailConfig, AgentEmailSend } from './email-sending.js';
 import { Forwarder } from './forwarding.js';
 import type { ForwardSend } from './forwarding.js';
 import { publicRequest, publicUrl } from './public-network.js';
 import type { MockCallRepository } from './mock-calls.js';
 import { MemoryAllocations, QuotaError } from './allocations.js';
 import { Access, HttpError, resourceToken } from './access.js';
+import { registerStatusPages } from './status-pages.js';
+import { registerEvents } from './events.js';
+import { PlanError, entitlement } from './entitlements.js';
 import { effectivePlan, MemoryIdentityRepository } from './identity.js';
 import type { IdentityRepository } from './identity.js';
 import { registerAccounts } from './account-routes.js';
@@ -71,11 +89,22 @@ interface AppOptions {
     forwardDelays?: number[];
     mockProxySend?: typeof publicRequest;
     emailMessages?: EmailMessageRepository;
+    emailAddresses?: EmailAddressRepository;
+    emailSending?: EmailSendingRepository;
+    smtpCaptureConfig?: SmtpCaptureConfig;
+    agentEmailConfig?: AgentEmailConfig;
+    agentEmailSend?: AgentEmailSend;
     mailDomain?: string;
     emailIngestSecret?: string;
     activity?: ActivityRepository;
     memory?: MemoryRepository;
     monitorStore?: MonitorRepository;
+    jobStore?: JobStore;
+    phoneStore?: PhoneStore;
+    phoneProvider?: PhoneProvider;
+    phoneEnabled?: boolean;
+    phoneEntitlements?: PhoneEntitlements;
+    jobSend?: JobSend;
     monitorChecks?: MonitorChecks;
     agentStore?: AgentRepository;
     approvalStore?: ApprovalRepository;
@@ -122,11 +151,24 @@ export function buildApp({
     forwardDelays,
     mockProxySend,
     emailMessages = new MemoryEmailMessages(),
+    emailAddresses = new MemoryEmailAddresses(),
+    emailSending = new MemoryEmailSending(),
+    agentEmailConfig,
+    smtpCaptureConfig,
+    agentEmailSend,
     mailDomain,
     emailIngestSecret,
     activity = new MemoryActivity(),
     memory = new MemoryKv(),
     monitorStore = new MemoryMonitors(),
+    jobStore = new MemoryJobs(),
+    phoneStore = new MemoryPhones(),
+    phoneProvider,
+    phoneEnabled = Boolean(phoneProvider),
+    phoneEntitlements = billingRepository
+        ? (owner) => billingRepository.phoneAllowance(owner)
+        : async () => ({ count: 0, validUntil: null }),
+    jobSend,
     monitorChecks,
     agentStore = new MemoryAgents(),
     approvalStore = new MemoryApprovals(),
@@ -135,6 +177,11 @@ export function buildApp({
     const inboxStore = providedInboxes ?? new InboxStore({ quotaLedger: ledger });
     const resourceStore =
         providedResources ?? new ResourceStore(Date.now, undefined, undefined, ledger);
+    if (emailMessages instanceof MemoryEmailMessages && resourceStore instanceof ResourceStore)
+        emailMessages.setBudget(
+            (id, bytes) => resourceStore.adjustEmailBytes(id, bytes),
+            (id) => resourceStore.emailExists(id),
+        );
     const access = new Access(identityStore, rateLimiter, publicBaseUrl, authSecret);
     const waiters = new Waiters();
     // Paid features are re-checked on use, so they stop as soon as the owner's plan lapses.
@@ -218,9 +265,13 @@ export function buildApp({
         if (expected) {
             if (expected instanceof HttpError && expected.retryAfter)
                 reply.header('Retry-After', expected.retryAfter);
-            return reply
-                .code(expected.statusCode)
-                .send({ error: expected.message, requestId: request.id });
+            return reply.code(expected.statusCode).send({
+                error: expected.message,
+                requestId: request.id,
+                ...(expected instanceof PlanError
+                    ? { requiredPlan: expected.requiredPlan, upgradeUrl: expected.upgradeUrl }
+                    : {}),
+            });
         }
         const status =
             failure.statusCode && failure.statusCode >= 400 && failure.statusCode < 500
@@ -333,7 +384,7 @@ export function buildApp({
         if (request.url.startsWith('/api/') || request.url.split('?')[0] === '/mcp') {
             await access.rate(request);
             if (
-                /^\/api\/(inboxes|mocks|files|mcp-servers|email-inboxes|memory|monitors)(\/|\?|$)/.test(
+                /^\/api\/(inboxes|mocks|files|mcp-servers|email-inboxes|memory|monitors|status-pages|scheduled-jobs|smtp-inboxes|phone-numbers)(\/|\?|$)/.test(
                     request.url,
                 )
             )
@@ -355,6 +406,13 @@ export function buildApp({
         }
     });
 
+    app.get('/api/capabilities', async () => ({
+        emailReceiving: Boolean(mailDomain && emailIngestSecret),
+        emailSending: Boolean(agentEmailConfig?.enabled),
+        smtpCapture: Boolean(smtpCaptureConfig),
+        phones: Boolean(phoneProvider && phoneEnabled),
+        phoneAddonSales: Boolean(billingConfig?.phoneAddonEnabled),
+    }));
     app.get('/health', async () => ({ status: 'ok' }));
     app.get('/api/openapi.json', async () => openApi(baseUrl.origin));
     app.get('/ready', async (_request, reply) => {
@@ -530,10 +588,7 @@ export function buildApp({
     // Paid plans can relay every captured request to their own public endpoint.
     app.put<InboxRoute>('/api/inboxes/:id/forward', async (request, reply) => {
         const actor = await access.actor(request);
-        if (actor.plan !== 'pro' && actor.plan !== 'team')
-            return reply
-                .code(403)
-                .send({ error: 'Automatic forwarding is part of the Pro and Team plans.' });
+        entitlement(actor.identity, 'webhookForwarding', baseUrl.origin);
         const input = request.body as { url?: unknown } | undefined;
         let target: URL;
         try {
@@ -666,7 +721,6 @@ export function buildApp({
     registerBilling(app, access, billingRepository, billingConfig, dodoClient, recovery.store);
     registerTools(app, access, tools);
     registerMusic(app, frontendDir);
-    registerLifecycle(app, access, inboxStore, resourceStore);
     if (authSecret) setAgentPepper(authSecret);
     registerAgents({
         app,
@@ -689,14 +743,61 @@ export function buildApp({
         ...(mailSender ? { mail: mailSender } : {}),
     });
     registerKv(app, access, memory);
-    registerEmail({
+    const email = registerEmail({
         app,
         access,
         resources: resourceStore,
         messages: emailMessages,
+        addresses: emailAddresses,
+        sendingEnabled: agentEmailConfig?.enabled ?? false,
+        feedback: (input) =>
+            receiveEmailFeedback(
+                emailSending,
+                authSecret ?? 'local-development-email-secret',
+                input,
+            ),
+        ...(forwardSend ? { forwardSend } : {}),
         waiters,
         ...(mailDomain ? { mailDomain } : {}),
         ...(emailIngestSecret ? { ingestSecret: emailIngestSecret } : {}),
+    });
+    registerSmtpCapture(app, access, resourceStore, emailMessages, rateLimiter, smtpCaptureConfig);
+    registerEmailSending({
+        app,
+        access,
+        messages: emailMessages,
+        owned: email.owned,
+        recovery: recovery.store,
+        store: emailSending,
+        limits: rateLimiter,
+        secret: authSecret ?? 'local-development-email-secret',
+        ...(agentEmailConfig ? { config: agentEmailConfig } : {}),
+        ...(agentEmailSend ? { send: agentEmailSend } : {}),
+    });
+    registerLifecycle(app, access, inboxStore, resourceStore, email.lifecycle);
+    registerStatusPages(app, access, resourceStore, monitorStore);
+    const phones = registerPhones(
+        app,
+        access,
+        phoneStore,
+        waiters,
+        phoneEntitlements,
+        phoneProvider,
+        phoneEnabled,
+    );
+    app.decorate('runPhoneLifecycle', phones.tick);
+    const scheduler = registerScheduledJobs(app, access, resourceStore, jobStore, jobSend);
+    app.decorate('runScheduledJobs', scheduler.tick);
+    registerEvents({
+        app,
+        access,
+        inboxes: inboxStore,
+        emails: emailMessages,
+        email,
+        approvals: approvalStore,
+        jobs: scheduler,
+        phones,
+        waiters,
     });
     registerResources(
         app,

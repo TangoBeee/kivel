@@ -24,7 +24,9 @@
     "test:packages": "node scripts/test-packages.mjs",
     "changeset": "changeset",
     "release:version": "changeset version && pnpm install --lockfile-only --ignore-scripts && pnpm test:packages",
-    "test:releases": "node scripts/test-client-releases.mjs"
+    "test:releases": "node scripts/test-client-releases.mjs",
+    "test:agent-mail": "node scripts/test-agent-mail.mjs",
+    "test:operations": "node scripts/test-operations.mjs"
   },
   "devDependencies": {
     "@changesets/cli": "3.0.3",

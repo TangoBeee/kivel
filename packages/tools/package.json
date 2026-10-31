@@ -32,7 +32,8 @@
     "./image-design": "./dist/image-design.js",
     "./api-scenarios": "./dist/api-scenarios.js",
     "./mock-crud": "./dist/mock-crud.js",
-    "./billing-plans": "./dist/billing-plans.js"
+    "./billing-plans": "./dist/billing-plans.js",
+    "./llm-mock": "./dist/llm-mock.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

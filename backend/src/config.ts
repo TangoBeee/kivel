@@ -103,6 +103,8 @@ export function readConfig(env: Record<string, string | undefined>) {
               webhookSecret: env.DODO_PAYMENTS_WEBHOOK_KEY!,
               proProduct: env.DODO_PRO_PRODUCT_ID!,
               teamProduct: env.DODO_TEAM_PRODUCT_ID!,
+              phoneAddonEnabled: env.PHONE_ENABLED === 'true',
+              ...(env.DODO_PHONE_ADDON_ID ? { phoneAddonId: env.DODO_PHONE_ADDON_ID } : {}),
               environment: environment as 'test_mode' | 'live_mode',
           }
         : undefined;
@@ -170,19 +172,109 @@ export function readConfig(env: Record<string, string | undefined>) {
         resourceCount = positive('MAX_RESOURCES', 10000);
     const inboxBytes = positive('MAX_TOTAL_INBOX_BYTES', 1024 ** 3),
         inboxCount = positive('MAX_INBOXES', 10000);
-    // Agent email inboxes: receive-only, delivered by a Cloudflare Email Worker. Both or neither.
+    // Agent addresses use a separate domain from account mail.
     const mailDomain = env.MAIL_DOMAIN?.trim().toLowerCase() || undefined;
     const emailIngestSecret = env.EMAIL_INGEST_SECRET || undefined;
     if (!!mailDomain !== !!emailIngestSecret)
         throw new Error('Set MAIL_DOMAIN and EMAIL_INGEST_SECRET together.');
     if (mailDomain && !/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(mailDomain))
         throw new Error('MAIL_DOMAIN must be a domain name such as socketspace.xyz.');
+    if (production && mailDomain && mailDomain !== 'socketspace.xyz')
+        throw new Error(
+            'Agent email must use socketspace.xyz, separate from socket.help account mail.',
+        );
     if (emailIngestSecret && emailIngestSecret.length < 32)
         throw new Error('EMAIL_INGEST_SECRET must be at least 32 characters.');
+    if (env.EMAIL_SENDING_ENABLED && !['true', 'false'].includes(env.EMAIL_SENDING_ENABLED))
+        throw new Error('EMAIL_SENDING_ENABLED must be true or false.');
+    const agentHost = env.AGENT_SMTP_HOST || undefined;
+    const agentPort = Number(env.AGENT_SMTP_PORT || 25);
+    if (
+        (agentHost && !['mail', 'localhost', '127.0.0.1'].includes(agentHost)) ||
+        !Number.isInteger(agentPort) ||
+        agentPort < 1 ||
+        agentPort > 65535
+    )
+        throw new Error('Configure a valid AGENT_SMTP_HOST and AGENT_SMTP_PORT.');
+    if (
+        env.EMAIL_SENDING_ENABLED === 'true' &&
+        (!agentHost || !authSecret || mailDomain !== 'socketspace.xyz')
+    )
+        throw new Error(
+            'Agent sending requires a private SMTP relay, AUTH_SECRET and socketspace.xyz receiving domain.',
+        );
+    if (agentHost && agentHost === env.SMTP_HOST)
+        throw new Error('Use a separate relay for agent mail and account email.');
+    const agentEmailConfig = agentHost
+        ? { host: agentHost, port: agentPort, enabled: env.EMAIL_SENDING_ENABLED === 'true' }
+        : undefined;
+    const phoneKeys = [
+        'TELNYX_API_KEY',
+        'TELNYX_PUBLIC_KEY',
+        'TELNYX_MESSAGING_PROFILE_ID',
+    ] as const;
+    const phoneSet = phoneKeys.filter((key) => env[key]);
+    if (phoneSet.length && phoneSet.length !== 3)
+        throw new Error('Configure all three Telnyx credentials together.');
+    if (env.PHONE_ENABLED && !['true', 'false'].includes(env.PHONE_ENABLED))
+        throw new Error('PHONE_ENABLED must be true or false.');
+    if (
+        env.PHONE_ENABLED === 'true' &&
+        (!billingConfig?.phoneAddonId ||
+            !env.PHONE_ADDON_PRICE_CONFIRMED ||
+            env.PHONE_ADDON_PRICE_CONFIRMED !== 'true' ||
+            phoneSet.length !== 3 ||
+            Buffer.from(env.TELNYX_PUBLIC_KEY!, 'base64').length !== 32)
+    )
+        throw new Error(
+            'Phone activation requires complete Telnyx settings, configured Dodo add-on, active billing and explicit price confirmation.',
+        );
+    const phoneConfig =
+        phoneSet.length === 3
+            ? {
+                  apiKey: env.TELNYX_API_KEY!,
+                  publicKey: env.TELNYX_PUBLIC_KEY!,
+                  messagingProfileId: env.TELNYX_MESSAGING_PROFILE_ID!,
+              }
+            : undefined;
+    const capturePort = Number(env.SMTP_CAPTURE_PORT || 0);
+    if (
+        !Number.isInteger(capturePort) ||
+        capturePort < 0 ||
+        capturePort > 65535 ||
+        capturePort === port ||
+        (capturePort && capturePort === sshPort)
+    )
+        throw new Error('SMTP_CAPTURE_PORT must be 0 or a distinct valid port.');
+    if (
+        capturePort &&
+        (!env.SMTP_CAPTURE_PUBLIC_HOST ||
+            !/^[a-z0-9.-]+$/i.test(env.SMTP_CAPTURE_PUBLIC_HOST) ||
+            !env.SMTP_CAPTURE_CERT_PATH ||
+            !env.SMTP_CAPTURE_KEY_PATH)
+    )
+        throw new Error('SMTP capture requires a public host and TLS certificate/key paths.');
+    const capturePublicPort = Number(env.SMTP_CAPTURE_PUBLIC_PORT || 465);
+    if (!Number.isInteger(capturePublicPort) || capturePublicPort < 1 || capturePublicPort > 65535)
+        throw new Error('Invalid SMTP_CAPTURE_PUBLIC_PORT.');
+    const smtpCaptureConfig = capturePort
+        ? {
+              port: capturePort,
+              host: '0.0.0.0',
+              publicHost: env.SMTP_CAPTURE_PUBLIC_HOST!,
+              publicPort: capturePublicPort,
+              certPath: env.SMTP_CAPTURE_CERT_PATH!,
+              keyPath: env.SMTP_CAPTURE_KEY_PATH!,
+          }
+        : undefined;
     return {
         production,
+        smtpCaptureConfig,
+        phoneConfig,
+        phoneEnabled: env.PHONE_ENABLED === 'true',
         mailDomain,
         emailIngestSecret,
+        agentEmailConfig,
         resourceBytes,
         resourceCount,
         inboxBytes,

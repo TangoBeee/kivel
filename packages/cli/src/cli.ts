@@ -55,7 +55,7 @@ try {
     else if (result !== undefined) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 } catch (error) {
     process.stderr.write(
-        `${JSON.stringify({ error: error instanceof Error ? error.message : 'Command failed.', ...(error instanceof SocketError ? { status: error.status, requestId: error.requestId, retryAfter: error.retryAfter } : {}) })}\n`,
+        `${JSON.stringify({ error: error instanceof Error ? error.message : 'Command failed.', ...(error instanceof SocketError ? { status: error.status, requestId: error.requestId, retryAfter: error.retryAfter, requiredPlan: error.requiredPlan, upgradeUrl: error.upgradeUrl } : {}) })}\n`,
     );
     process.exitCode = 1;
 }

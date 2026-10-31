@@ -1,3 +1,4 @@
+import { llmMockSchema } from '@socket-help/tools/llm-mock';
 import { crudSchema } from '@socket-help/tools/mock-crud';
 export const sharingProperties = {
     visibility: { type: 'string', enum: ['public', 'private'] },
@@ -55,9 +56,10 @@ export function resourceOpenApi(origin: string) {
                 maxItems: 20,
                 items: ref('MockRoute'),
                 description:
-                    'At least one static route, a CRUD collection, or echo: true is required.',
+                    'At least one static route, a CRUD collection, echo: true, or an llm script is required.',
             },
             crud: crudSchema,
+            llm: llmMockSchema,
             echo: {
                 type: 'boolean',
                 enum: [true],

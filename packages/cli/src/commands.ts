@@ -9,7 +9,12 @@ socket-help agent login <name> [--client <client>]
 socket-help agent token < login.json
 socket-help agent trial <name> [--human-email <email>] [--client <client>]
 socket-help agent list
-socket-help email create [--ttl-seconds <n>] [--persistent]
+socket-help email create [--active-days <1-7>] [--local-part <paid-address>]
+socket-help email list
+socket-help email clear <id>
+socket-help email forward <id> [--token <token>] < forwarding.json
+socket-help email send <id> --idempotency-key <unique-key> < message.json
+socket-help event wait [--timeout-seconds <1-30>] < sources.json
 socket-help email messages|wait <id> [--token <token>] [--after <id>] [--timeout-seconds <n>]
 socket-help memory set <namespace> <key> [--ttl-seconds <n>] < value.json
 socket-help memory get|delete <namespace> <key>
@@ -17,6 +22,15 @@ socket-help memory list <namespace> [--prefix <prefix>]
 socket-help monitor create < monitor.json
 socket-help monitor list|inspect|pause|resume|delete [id]
 socket-help monitor ping|fail <ping-token>
+socket-help monitor accept-dns <id>
+socket-help job create [--ttl-seconds <n>] < job.json
+socket-help job list|inspect|cancel [id]
+socket-help status-page create|update [id] < page.json
+socket-help smtp create [--ttl-seconds <n>]
+socket-help smtp rotate <id>
+socket-help phone available [US-area-code]
+socket-help phone create <E.164-number> --idempotency-key <unique-key>
+socket-help phone list|release|messages|wait [id] [--after <id>] [--timeout-seconds <n>]
 socket-help approval ask < question.json
 socket-help approval list|pending|inspect|wait [id] [--timeout-seconds <n>]
 socket-help inbox requests|wait|deliveries <id> [--token <token>]

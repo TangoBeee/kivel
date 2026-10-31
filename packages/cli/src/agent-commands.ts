@@ -8,25 +8,43 @@ export function needsInput(args: string[]) {
         (args[0] === 'memory' && args[1] === 'set') ||
         (args[0] === 'approval' && args[1] === 'ask') ||
         (args[0] === 'monitor' && args[1] === 'create') ||
-        (['mock', 'mcp-server'].includes(args[0] ?? '') &&
+        (args[0] === 'event' && args[1] === 'wait') ||
+        (['mock', 'mcp-server', 'status-page', 'job'].includes(args[0] ?? '') &&
             ['create', 'update'].includes(args[1] ?? '')) ||
-        (args[0] === 'inbox' && ['response', 'forward'].includes(args[1] ?? ''))
+        (['inbox', 'email'].includes(args[0] ?? '') &&
+            ['response', 'forward', 'send'].includes(args[1] ?? ''))
     );
 }
 
 export async function agentCommand(client: SocketHelp, args: string[], input: Uint8Array) {
     const [group, action, ...tail] = args;
-    const resource = ['inbox', 'email', 'mock', 'mcp-server', 'file'].includes(group ?? '');
+    const resource = [
+        'inbox',
+        'email',
+        'mock',
+        'mcp-server',
+        'file',
+        'status-page',
+        'job',
+        'smtp',
+    ].includes(group ?? '');
     const allowed = new Set<string>();
     if (resource && action !== 'create') allowed.add('--token');
+    if ((group === 'email' && action === 'send') || (group === 'phone' && action === 'create'))
+        allowed.add('--idempotency-key');
     if (resource && action === 'create') {
-        allowed.add('--ttl-seconds');
-        allowed.add('--persistent');
-        if (group !== 'email') allowed.add('--visibility');
+        if (group === 'email') {
+            allowed.add('--active-days');
+            allowed.add('--local-part');
+        } else {
+            allowed.add('--ttl-seconds');
+            allowed.add('--persistent');
+            allowed.add('--visibility');
+        }
     }
     if (resource && action === 'renew') allowed.add('--persistent');
     if (resource && action === 'sharing' && group !== 'email') allowed.add('--visibility');
-    if (resource && action === 'wait') {
+    if ((resource || group === 'phone') && action === 'wait') {
         allowed.add('--after');
         allowed.add('--timeout-seconds');
     }
@@ -35,6 +53,7 @@ export async function agentCommand(client: SocketHelp, args: string[], input: Ui
     if (group === 'memory' && action === 'set') allowed.add('--ttl-seconds');
     if (group === 'memory' && action === 'list') allowed.add('--prefix');
     if (group === 'approval' && action === 'wait') allowed.add('--timeout-seconds');
+    if (group === 'event' && action === 'wait') allowed.add('--timeout-seconds');
     const positional: string[] = [];
     const flags = new Map<string, string>();
     for (let i = 0; i < tail.length; i++) {
@@ -77,6 +96,8 @@ export async function agentCommand(client: SocketHelp, args: string[], input: Ui
     const clientName = take('--client'),
         humanEmail = take('--human-email');
     const prefix = take('--prefix') ?? '';
+    const idempotencyKey = take('--idempotency-key');
+    const emailSettings = { activeDays: number('--active-days'), localPart: take('--local-part') };
     if (flags.size) throw new Error(`Unknown option: ${flags.keys().next().value}`);
     const exact = (count: number) => {
         if (positional.length !== count)
@@ -87,6 +108,14 @@ export async function agentCommand(client: SocketHelp, args: string[], input: Ui
         return positional[0]!;
     };
     const json = () => JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(input));
+    if (group === 'event' && action === 'wait') {
+        exact(0);
+        const value = json();
+        return client.waitForEvent(
+            value.sources,
+            wait.timeoutSeconds ?? value.timeoutSeconds ?? 20,
+        );
+    }
     if (group === 'agent') {
         if (action === 'login') return client.startLogin(id(), clientName);
         if (action === 'trial') return client.startTrial(id(), humanEmail, clientName);
@@ -110,7 +139,62 @@ export async function agentCommand(client: SocketHelp, args: string[], input: Ui
         if (action === 'get') return client.memoryGet(namespace, key);
         if (action === 'delete') return client.memoryDelete(namespace, key);
     }
+    if (group === 'phone') {
+        if (action === 'available') {
+            if (positional.length > 1) throw new Error('Use an optional US area code.');
+            return client.availablePhoneNumbers(positional[0]);
+        }
+        if (action === 'create') {
+            exact(1);
+            if (!idempotencyKey)
+                throw new Error('Provide --idempotency-key and retain it for this purchase.');
+            return client.createPhoneNumber(positional[0]!, idempotencyKey);
+        }
+        if (action === 'list') {
+            exact(0);
+            return client.listPhoneNumbers();
+        }
+        if (action === 'release') return client.releasePhoneNumber(id());
+        if (action === 'messages') return client.listSms(id());
+        if (action === 'wait')
+            return client.waitForSms(id(), {
+                ...(wait.after ? { after: wait.after } : {}),
+                ...(wait.timeoutSeconds ? { timeoutSeconds: wait.timeoutSeconds } : {}),
+            });
+    }
+    if (group === 'smtp' && action === 'create') {
+        exact(0);
+        return client.createSmtpInbox(settings);
+    }
+    if (group === 'smtp' && action === 'inspect') return client.smtpInbox(id());
+    if (group === 'smtp' && action === 'rotate') return client.rotateSmtpPassword(id());
+    if (group === 'job' && action === 'create') {
+        exact(0);
+        return client.createScheduledJob(json(), settings);
+    }
+    if (group === 'job' && action === 'list') {
+        exact(0);
+        return client.scheduledJobs();
+    }
+    if (group === 'job' && action === 'inspect') {
+        exact(1);
+        return client.scheduledJob(id());
+    }
+    if (group === 'job' && action === 'cancel') {
+        exact(1);
+        return client.cancelScheduledJob(id());
+    }
+    if (group === 'status-page' && action === 'create') {
+        exact(0);
+        return client.createStatusPage(json(), {
+            ...settings,
+            ...(visibility ? { visibility } : {}),
+        });
+    }
+    if (group === 'status-page' && action === 'update')
+        return client.updateStatusPage(id(), json());
     if (group === 'monitor') {
+        if (action === 'accept-dns') return client.acceptDnsChanges(id());
         if (action === 'create') {
             exact(0);
             return client.createMonitor(json() as MonitorInput);
@@ -149,9 +233,30 @@ export async function agentCommand(client: SocketHelp, args: string[], input: Ui
         if (action === 'deliveries') return client.inboxDeliveries(id(), token);
     }
     if (group === 'email') {
+        if (action === 'clear') return client.clearEmails(id(), token);
+        if (action === 'send') {
+            if (!idempotencyKey)
+                throw new Error(
+                    'Provide --idempotency-key and reuse it only when retrying this same message.',
+                );
+            const value = json();
+            return client.sendEmail(id(), { ...value, idempotencyKey });
+        }
+        if (action === 'list') {
+            exact(0);
+            return client.emailInboxes();
+        }
+        if (action === 'forward') {
+            const value = json();
+            if (value?.url !== null && typeof value?.url !== 'string')
+                throw new Error(
+                    'Pipe {"url":"https://your-webhook"}, or {"url":null} to disable forwarding.',
+                );
+            return client.emailForwarding(id(), value.url, token);
+        }
         if (action === 'create') {
             exact(0);
-            return client.createEmailInbox(settings);
+            return client.createEmailInbox(emailSettings);
         }
         if (action === 'messages') return client.emails(id(), token);
         if (action === 'wait') return client.waitForEmail(id(), wait);
@@ -170,6 +275,7 @@ export async function agentCommand(client: SocketHelp, args: string[], input: Ui
     const kinds = {
         inbox: 'inboxes',
         email: 'email-inboxes',
+        'status-page': 'status-pages',
         mock: 'mocks',
         'mcp-server': 'mcp-servers',
         file: 'files',

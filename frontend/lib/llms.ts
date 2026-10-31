@@ -14,7 +14,7 @@ const url = (path: string) => `${siteOrigin}${path}`;
 const clean = (text: string) => text.replace(/\s+/g, ' ').trim();
 const available = catalog.filter((tool) => tool.status === 'available');
 
-const SUMMARY = `socket.help is the internet toolkit for AI coding agents: webhook URLs, receive-only email with extracted codes and links, mock REST APIs and MCP servers, temporary files, workspace JSON memory, uptime/SSL/heartbeat monitors and human questions. Connect over MCP or HTTP; start_login/finish_login require browser approval, or start_trial gives a 72-hour anonymous-limit key. Anonymous resource retention is one hour; memory, monitors and human questions require a workspace. Free includes 3 agents and up to 7 days of resource retention. ${paidPlansEnabled ? 'Paid checkout is enabled on this installation.' : 'Paid checkout is disabled during this installation’s free beta.'} Pro is $${pricing.pro.monthly}/month and Team $${pricing.team.monthly}/month when enabled. SDK and CLI are published as @socket-help/sdk@beta and @socket-help/cli@beta; SSH is optional and requires an operator-enabled gateway. Human approvals and billing stay in the browser. Existing browser utilities remain available; planned tools are not executable. Setup: ${url('/connect/')}. There are no ads.`;
+const SUMMARY = `socket.help is the internet toolkit for AI coding agents: webhook URLs, operator-configured owned email with extracted codes and links, mock REST APIs and MCP servers, temporary files, workspace JSON memory, uptime/SSL/DNS/heartbeat monitors and human questions. Connect over MCP or HTTP; start_login/finish_login require browser approval, or start_trial gives a 72-hour anonymous-limit key. Sending uses a separate operator-enabled relay with monthly/daily caps. Read /api/capabilities before relying on email, SMTP or phone availability. Owned email requires an account: one Free address for 1–7 days; paid addresses remain active while subscribed. Anonymous resource retention is one hour; memory, monitors and human questions require a workspace. Free includes 3 agents and up to 7 days of resource retention. ${paidPlansEnabled ? 'Paid checkout is enabled on this installation.' : 'Paid checkout is disabled during this installation’s free beta.'} Pro is $${pricing.pro.monthly}/month and Team $${pricing.team.monthly}/month when enabled. SDK and CLI are published as @socket-help/sdk@beta and @socket-help/cli@beta; SSH is optional and requires an operator-enabled gateway. Human approvals and billing stay in the browser. Existing browser utilities remain available; planned tools are not executable. Setup: ${url('/connect/')}. There are no ads.`;
 
 export function llmsIndex() {
     const lines = [`# socket.help`, '', `> ${SUMMARY}`, ''];
@@ -31,6 +31,7 @@ export function llmsIndex() {
     );
     lines.push(
         `- [HTTP API reference](${url('/docs/reference/')}): every endpoint with schemas and examples`,
+        `- [Agent skill](${url('/SKILL.md')}): device login, resource waits and human approval`,
         `- [OpenAPI specification](${url('/api/openapi.json')}): machine readable API description`,
         '',
         '## Tools',

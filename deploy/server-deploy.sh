@@ -15,7 +15,8 @@ compose() {
         docker compose -f compose.yaml -f compose.production.yaml "$@"
     fi
 }
-has_mail() { compose config --services | grep -qx mail; }
+# grep must read all of compose's output: with pipefail, "grep -q" exiting early can fail the pipeline.
+has_mail() { compose config --services | grep -x mail >/dev/null; }
 use() {
     export APP_IMAGE=$REPOSITORY:app-$1 DATABASE_IMAGE=$REPOSITORY:postgres-$1 PROXY_IMAGE=$REPOSITORY:proxy-$1
     if has_mail; then export MAIL_IMAGE=$REPOSITORY:mail-$1; else unset MAIL_IMAGE; fi

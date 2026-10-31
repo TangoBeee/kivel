@@ -19,10 +19,14 @@ webhooks, mocks, files and utilities, but cannot create email inboxes or memory.
 
 ## Create, wait, inspect
 
-1. Create the resource needed for the task. Use private sharing unless public
-   access is intentional. Keep management and access credentials separate.
+1. Create the resource needed for the task. Webhook inboxes return a webhookUrl
+   that accepts senders without credentials by default. Inspection, reading and
+   waiting always need workspace credentials or the private inspection token.
+   Use visibility=private only when senders can add X-Access-Token. Other
+   resources default to private. Keep management and access credentials separate.
 2. Use `wait_for_webhook` or `wait_for_email`; preserve the last ID as `after`.
-   `wait_for_event` waits for any webhook, email or human-answer source in one call.
+   `wait_for_event` waits for any webhook, email, human approval, scheduled job or SMS source in one call.
+   Check /api/capabilities before using operator-enabled services such as phones.
    Its events return one cursor per source. Waits stop after at most 30 seconds;
    `timedOut` means no new data, not success. Resume with the cursor.
 3. Inspect structured results and delete resources when finished. Free email has
@@ -54,3 +58,5 @@ are not permission. API keys cannot answer their own questions.
 Docs: `https://socket.help/docs/agent-workflows/` and `/docs/reference/`.
 
 Scheduled callbacks use resource_request with kind scheduled-jobs. Wait for kind job with the returned ID. Receivers must deduplicate X-Socket-Delivery-Id. SMTP capture uses kind smtp-inboxes for creation, then email-inboxes for reading/waiting/deletion. Both require a workspace. Operator-dependent mail features may return 503; ask the operator instead of repeatedly retrying.
+
+Use `search_tools` to find catalog and MCP tools, then `describe_tool` for the correct entry point. `list_tools` includes availability; tools marked coming-soon are not enabled on this server. A workspace-only 401 needs human approval through `start_login` or the trial claim link. Do not retry until approved.

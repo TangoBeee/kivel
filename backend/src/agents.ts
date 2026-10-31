@@ -63,6 +63,7 @@ export interface AgentRepository {
     /** Trials started from one network in the last 24 hours. */
     recentTrials(ipKey: string): MaybePromise<number>;
     createLogin(login: AgentLogin): MaybePromise<void>;
+    loginById(id: string): MaybePromise<AgentLogin | undefined>;
     loginByCode(userCode: string): MaybePromise<AgentLogin | undefined>;
     loginByDevice(deviceHash: string): MaybePromise<AgentLogin | undefined>;
     /** Moves a pending login to a final state; false when it was no longer pending. */
@@ -96,6 +97,10 @@ export class MemoryAgents implements AgentRepository {
     }
     createLogin(login: AgentLogin) {
         this.logins.set(login.id, { ...login });
+    }
+    loginById(id: string) {
+        const login = this.logins.get(id);
+        return login ? { ...login } : undefined;
     }
     loginByCode(userCode: string) {
         const login = [...this.logins.values()].find((item) => item.userCode === userCode);
@@ -211,6 +216,12 @@ export class PostgresAgents implements AgentRepository {
                 login.expiresAt,
             ],
         );
+    }
+    async loginById(id: string) {
+        const result = await this.pool.query<LoginRow>('SELECT * FROM agent_logins WHERE id = $1', [
+            id,
+        ]);
+        return result.rows[0] ? loginFromRow(result.rows[0]) : undefined;
     }
     async loginByCode(userCode: string) {
         const result = await this.pool.query<LoginRow>(
@@ -355,8 +366,15 @@ export function registerAgents({
     limits,
     mail,
 }: AgentContext) {
-    access.trials = async (token) =>
-        (await agents.trialByToken(hash('trial', token).toString('hex')))?.id;
+    access.trials = async (token) => {
+        const trial = await agents.trialByToken(hash('trial', token).toString('hex'));
+        if (!trial) return undefined;
+        const login = await agents.loginById(trial.loginId);
+        return {
+            id: trial.id,
+            ...(login ? { claimUrl: `${origin}/link/?code=${login.userCode}` } : {}),
+        };
+    };
     const manager = (identity: Identity) => {
         if (identity.role !== 'owner' && identity.role !== 'admin')
             throw new HttpError(403, 'Only workspace owners and admins can manage agents.');
@@ -480,7 +498,7 @@ export function registerAgents({
             return reply.code(201).send({
                 trialKey,
                 expiresAt: login.expiresAt,
-                limits: 'Anonymous limits: 5 resources, 1 hour retention, 100 tool runs a day. Memory and monitors need a claimed agent.',
+                limits: 'Anonymous limits: 5 resources, 1 hour retention, 100 tool runs a day. Workspace features need an approved workspace key. Ask your human to open the claim link.',
                 claim: {
                     userCode: login.userCode,
                     claimUrl,

@@ -88,6 +88,7 @@ interface AppOptions {
     forwardSend?: ForwardSend;
     forwardDelays?: number[];
     mockProxySend?: typeof publicRequest;
+    webhookEventSend?: typeof publicRequest;
     emailMessages?: EmailMessageRepository;
     emailAddresses?: EmailAddressRepository;
     emailSending?: EmailSendingRepository;
@@ -150,6 +151,7 @@ export function buildApp({
     forwardSend,
     forwardDelays,
     mockProxySend,
+    webhookEventSend,
     emailMessages = new MemoryEmailMessages(),
     emailAddresses = new MemoryEmailAddresses(),
     emailSending = new MemoryEmailSending(),
@@ -192,7 +194,7 @@ export function buildApp({
         return plan === 'pro' || plan === 'team';
     };
     const forwarder = new Forwarder(inboxStore, forwardSend, forwardDelays);
-    const tools = new ToolService(access, frontendDir);
+    const tools = new ToolService(access, frontendDir, webhookEventSend);
     const baseUrl = new URL(publicBaseUrl);
     if (
         !['http:', 'https:'].includes(baseUrl.protocol) ||
@@ -381,6 +383,18 @@ export function buildApp({
             !request.url.startsWith('/hooks/')
         )
             return;
+        if (
+            ['GET', 'HEAD'].includes(request.method) &&
+            /^\/api\/(tools(?:\/[^/?]+)?|capabilities|openapi\.json)(?:\?|$)/.test(request.url)
+        ) {
+            const retry = await rateLimiter.consume(`catalog:${clientKey(request.ip)}`, 600);
+            if (retry)
+                return reply
+                    .header('Retry-After', retry)
+                    .code(429)
+                    .send({ error: 'Catalog request rate limit exceeded.' });
+            return;
+        }
         if (request.url.startsWith('/api/') || request.url.split('?')[0] === '/mcp') {
             await access.rate(request);
             if (
@@ -406,13 +420,14 @@ export function buildApp({
         }
     });
 
-    app.get('/api/capabilities', async () => ({
+    const capabilities = {
         emailReceiving: Boolean(mailDomain && emailIngestSecret),
         emailSending: Boolean(agentEmailConfig?.enabled),
         smtpCapture: Boolean(smtpCaptureConfig),
         phones: Boolean(phoneProvider && phoneEnabled),
         phoneAddonSales: Boolean(billingConfig?.phoneAddonEnabled),
-    }));
+    };
+    app.get('/api/capabilities', async () => capabilities);
     app.get('/health', async () => ({ status: 'ok' }));
     app.get('/api/openapi.json', async () => openApi(baseUrl.origin));
     app.get('/ready', async (_request, reply) => {
@@ -432,7 +447,10 @@ export function buildApp({
             },
         },
         async (request, reply) => {
-            const inbox = await inboxStore.create(await access.allocation(request));
+            const input = request.query as Record<string, unknown>;
+            const inbox = await inboxStore.create(
+                await access.allocation(request, { visibility: 'public', ...input }),
+            );
             if (!inbox) {
                 return reply.code(503).send({ error: 'Inbox capacity reached. Try again later.' });
             }
@@ -719,7 +737,7 @@ export function buildApp({
         ...(monitorChecks ? { checks: monitorChecks } : {}),
     });
     registerBilling(app, access, billingRepository, billingConfig, dodoClient, recovery.store);
-    registerTools(app, access, tools);
+    registerTools(app, access, tools, capabilities);
     registerMusic(app, frontendDir);
     if (authSecret) setAgentPepper(authSecret);
     registerAgents({
@@ -810,6 +828,7 @@ export function buildApp({
         ownerIsPaid,
     );
     registerMcp({
+        capabilities,
         app,
         inboxes: inboxStore,
         resources: resourceStore,

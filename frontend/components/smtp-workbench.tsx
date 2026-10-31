@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Button, Tabs } from '@radix-ui/themes';
 import { api } from '../lib/api';
 import { useViewer } from '../lib/viewer';
+import { useToolbox } from './toolbox-provider';
 import { ToolHeader } from './tool-header';
 import { CopyButton } from './copy-button';
 interface Capture {
@@ -23,6 +24,7 @@ interface Message {
 }
 export function SmtpWorkbench({ toolId }: { toolId: string }) {
     const viewer = useViewer();
+    const { capabilities } = useToolbox();
     const [capture, setCapture] = useState<Capture | null>(null),
         [messages, setMessages] = useState<Message[]>([]),
         [selected, setSelected] = useState('');
@@ -140,12 +142,16 @@ export function SmtpWorkbench({ toolId }: { toolId: string }) {
                         requires TLS and SMTP authentication.
                     </p>
                     <Button
-                        disabled={busy}
+                        disabled={busy || !capabilities?.smtpCapture}
                         onClick={() => {
                             void create();
                         }}
                     >
-                        {busy ? 'Creating…' : 'Create SMTP capture'}
+                        {busy
+                            ? 'Creating…'
+                            : capabilities?.smtpCapture
+                              ? 'Create SMTP capture'
+                              : 'SMTP capture not enabled'}
                     </Button>
                 </div>
             ) : (

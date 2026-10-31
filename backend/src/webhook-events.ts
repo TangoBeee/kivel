@@ -23,7 +23,7 @@ export function webhookEvent(
         throw new ToolExecutionError('Choose an event type supported by this provider.');
     const secret = options.secret ?? '';
     if (!secret || Buffer.byteLength(secret) > 256)
-        throw new ToolExecutionError('Provide a test signing secret of 1–256 bytes.');
+        throw new ToolExecutionError('secret is required and must be 1–256 bytes.');
     const timestamp = Math.floor(now / 1000);
     let payload: unknown;
     if (options.body?.trim()) {
@@ -167,6 +167,7 @@ export async function simulateWebhook(
     });
     return {
         kind: 'webhook-event',
+        delivered: response.status >= 200 && response.status < 300,
         provider: event.provider,
         eventType: event.eventType,
         request: {
@@ -182,6 +183,6 @@ export async function simulateWebhook(
             body: response.body.toString('utf8'),
             truncated: response.truncated,
         },
-        note: 'A signed synthetic event was sent to the supplied endpoint. Receiver verification checks the test secret; it does not establish provider origin.',
+        note: `The target returned HTTP ${response.status}. ${response.status >= 200 && response.status < 300 ? 'It accepted the signed synthetic event.' : 'It did not accept the signed synthetic event.'} The test signature does not establish provider origin.`,
     };
 }

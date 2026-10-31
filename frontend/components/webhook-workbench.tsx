@@ -203,7 +203,7 @@ function Detail({
 export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = {}) {
     const viewer = useViewer();
     const [inbox, setInbox] = useState<Inbox | null>(null);
-    const [visibility, setVisibility] = useState<Visibility>('private');
+    const [visibility, setVisibility] = useState<Visibility>('public');
     const [requests, setRequests] = useState<CapturedRequest[]>([]);
     const [selected, setSelected] = useState<string | null>(null);
     const [query, setQuery] = useState('');
@@ -545,6 +545,10 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
                             onChange={setVisibility}
                             disabled={working}
                         />
+                        <p className="muted">
+                            Receiving is public by default. Inspection and captured data stay
+                            private. Private receiving requires X-Access-Token from senders.
+                        </p>
                         <Button
                             size="3"
                             variant="solid"

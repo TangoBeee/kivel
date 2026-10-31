@@ -59,7 +59,7 @@ export function toolDetails(id: string): ToolDetail[] {
                 title: 'Use the streaming API',
                 paragraphs: [
                     'GET /api/music returns track names, moods, tempos, durations, licensing information and audio URLs. Each audio endpoint accepts a single HTTP byte range, supporting progressive playback and seeking. ETag, If-None-Match and If-Range are supported for caching. A malformed or unsatisfiable range returns 416 instead of silently producing a different section.',
-                    'Full MP3 arrangements are included with the deployment; WAV loops are rendered on first use. Subsequent requests can use a bounded in-memory cache. Direct streaming and download URLs do not consume hosted renders. Requests to run_tool, including full MP3 artifacts and custom compositions, use the normal successful-run allowance.',
+                    'Full MP3 arrangements are included with the deployment; WAV loops are rendered on first use. Subsequent requests can use a bounded in-memory cache. Direct streaming and download URLs do not consume hosted renders. MCP run_tool returns audioUrl and downloadUrl for library tracks instead of inline Base64. HTTP tool runs still return artifacts. Requests to run_tool, including library requests and custom compositions, use the normal successful-run allowance.',
                 ],
             },
             {

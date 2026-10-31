@@ -7,10 +7,16 @@ import type { ExtraOperationId, ExtraDefinition } from './extra-definitions.js';
 import { artifact, xmlEscape, samplePdf, zipTextFiles, toneWav } from './artifacts.js';
 import { formatJson } from './engine.js';
 const json = (value: unknown) => JSON.stringify(value, null, 2);
-function integer(value: string | undefined, fallback: number, min: number, max: number) {
+function integer(
+    field: string,
+    value: string | undefined,
+    fallback: number,
+    min: number,
+    max: number,
+) {
     const result = Number(value ?? fallback);
     if (!Number.isInteger(result) || result < min || result > max)
-        throw new Error(`Choose an integer between ${min} and ${max}.`);
+        throw new Error(`${field} must be an integer from ${min} to ${max}.`);
     return result;
 }
 export function quoteShell(value: string) {
@@ -182,7 +188,7 @@ function parseCurl(input: string) {
     };
 }
 function records(options: OperationOptions) {
-    const count = integer(options.count, 10, 1, 1000),
+    const count = integer('count', options.count, 10, 1, 1000),
         fields = (options.columns ?? 'id,name,email,active')
             .split(',')
             .map((field) => field.trim());
@@ -437,7 +443,7 @@ export async function runExtraOperation(
             });
         }
         case 'developer-ulid-generator': {
-            const count = integer(options.count, 1, 1, 100),
+            const count = integer('count', options.count, 1, 1, 100),
                 alphabet = '0123456789ABCDEFGHJKMNPQRSTVWXYZ',
                 random = crypto.getRandomValues(new Uint8Array(10));
             let value = random.reduce(
@@ -469,14 +475,16 @@ export async function runExtraOperation(
                 tz: timezone,
                 ...(start ? { currentDate: start } : {}),
             });
-            const occurrences = schedule.take(integer(options.count, 5, 1, 20)).map((date) => ({
-                iso: date.toISOString(),
-                local: new Intl.DateTimeFormat('en-GB', {
-                    timeZone: timezone,
-                    dateStyle: 'full',
-                    timeStyle: 'long',
-                }).format(date.toDate()),
-            }));
+            const occurrences = schedule
+                .take(integer('count', options.count, 5, 1, 20))
+                .map((date) => ({
+                    iso: date.toISOString(),
+                    local: new Intl.DateTimeFormat('en-GB', {
+                        timeZone: timezone,
+                        dateStyle: 'full',
+                        timeStyle: 'long',
+                    }).format(date.toDate()),
+                }));
             return json({ expression: input.trim(), timezone, occurrences, scheduled: false });
         }
         case 'developer-http-request-builder':
@@ -645,9 +653,9 @@ export async function runExtraOperation(
         case 'test-media-json-fixtures':
             return json(records(options));
         case 'test-media-xml-fixtures':
-            return `<?xml version="1.0" encoding="UTF-8"?>\n<records>\n${Array.from({ length: integer(options.count, 10, 1, 1000) }, (_, i) => `  <record id="${i + 1}"><name>Example ${i + 1}</name></record>`).join('\n')}\n</records>`;
+            return `<?xml version="1.0" encoding="UTF-8"?>\n<records>\n${Array.from({ length: integer('count', options.count, 10, 1, 1000) }, (_, i) => `  <record id="${i + 1}"><name>Example ${i + 1}</name></record>`).join('\n')}\n</records>`;
         case 'test-media-binary-payload-generator': {
-            const bytes = new Uint8Array(integer(options.size, 1024, 1, 262144)),
+            const bytes = new Uint8Array(integer('size', options.size, 1024, 1, 262144)),
                 mode = options.mode ?? 'sequence';
             if (!['zero', 'sequence', 'random'].includes(mode))
                 throw new Error('Choose a supported byte pattern.');
@@ -664,7 +672,7 @@ export async function runExtraOperation(
             return artifact(
                 'sample.pdf',
                 'application/pdf',
-                samplePdf(input, integer(options.count, 1, 1, 10)),
+                samplePdf(input, integer('count', options.count, 1, 1, 10)),
             );
         case 'test-media-zip-generator':
             return artifact(

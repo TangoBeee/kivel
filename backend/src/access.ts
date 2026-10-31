@@ -17,6 +17,17 @@ export interface Actor {
     sessionToken?: string;
     /** Set for unclaimed trial agents, which act with anonymous limits under a stable identity. */
     trialId?: string;
+    claimUrl?: string;
+}
+export function requireWorkspace(actor: Actor): asserts actor is Actor & { identity: Identity } {
+    if (actor.identity) return;
+    const next = actor.trialId
+        ? `This trial key needs workspace approval. Ask your human to open your claim link${actor.claimUrl ? `: ${actor.claimUrl}` : ' returned by start_trial'}.`
+        : 'Ask your human to approve you with start_login (or POST /api/agents/login).';
+    throw new HttpError(
+        401,
+        `This needs an approved workspace key. ${next} Do not retry until approved.`,
+    );
 }
 export const resourceToken = (request: FastifyRequest) => {
     const separate = request.headers['x-resource-token'];
@@ -27,8 +38,8 @@ export const resourceToken = (request: FastifyRequest) => {
 export class Access {
     private actors = new WeakMap<FastifyRequest, Actor>();
     readonly cookieName: string;
-    /** Resolves a trial key to its trial ID; installed by the agents module. */
-    trials?: (token: string) => Promise<string | undefined>;
+    /** Resolves a trial key and its claim link; installed by the agents module. */
+    trials?: (token: string) => Promise<{ id: string; claimUrl?: string } | undefined>;
     constructor(
         readonly identities: IdentityRepository,
         private limits: RateLimitRepository,
@@ -44,17 +55,18 @@ export class Access {
         const authorization = request.headers.authorization;
         if (authorization && /^Bearer sht_/i.test(authorization)) {
             const token = /^Bearer (sht_[A-Za-z0-9_-]{43})$/i.exec(authorization)?.[1];
-            const trialId = token && this.trials ? await this.trials(token) : undefined;
-            if (!trialId)
+            const trial = token && this.trials ? await this.trials(token) : undefined;
+            if (!trial)
                 throw new HttpError(
                     401,
                     'This trial key expired or is invalid. Ask your human to claim this agent, or start a new trial.',
                 );
             const actor: Actor = {
                 plan: 'anonymous',
-                trialId,
+                trialId: trial.id,
+                ...(trial.claimUrl ? { claimUrl: trial.claimUrl } : {}),
                 quotaKey: createHmac('sha256', this.secret)
-                    .update(`trial:${trialId}`)
+                    .update(`trial:${trial.id}`)
                     .digest('hex'),
             };
             this.actors.set(request, actor);
@@ -119,12 +131,17 @@ export class Access {
     }
     async require(request: FastifyRequest, scope: Scope, sessionOnly = false): Promise<Identity> {
         const actor = await this.actor(request);
-        if (!actor.identity) throw new HttpError(401, 'Sign in or provide an API key.');
+        requireWorkspace(actor);
         if (!actor.identity.keyScopes.includes(scope))
             throw new HttpError(403, 'This credential does not allow that action.');
         if (sessionOnly && (!actor.sessionToken || actor.identity.keyId))
             throw new HttpError(403, 'Use your signed-in browser session for this action.');
         return actor.identity;
+    }
+    async workspace(request: FastifyRequest, scope: Scope) {
+        const actor = await this.scope(request, scope);
+        requireWorkspace(actor);
+        return actor;
     }
     async scope(request: FastifyRequest, scope: Scope) {
         const actor = await this.actor(request);

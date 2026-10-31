@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { toolCapability, toolAvailability } from '../lib/catalog';
 import { clearPrivateSession, sessionSource } from '../lib/private-session';
 import { useRouter } from 'next/navigation';
 import {
@@ -128,7 +129,9 @@ export function ToolboxProvider({ children }: { children: React.ReactNode }) {
         setSearchOpen(false);
         router.push(tool.href!);
     }
-    const matches = searchTools(query);
+    const matches = searchTools(query).map((tool) =>
+        capabilities ? toolAvailability(tool, capabilities) : tool,
+    );
     const matchingCategories = categories.filter(
         (category) =>
             !query.trim() ||
@@ -457,11 +460,8 @@ export function ToolboxProvider({ children }: { children: React.ReactNode }) {
 
 export function ToolCapabilityNotice({ toolId }: { toolId: string }) {
     const { capabilities } = useToolbox();
-    const pending =
-        capabilities &&
-        ((['email-temporary-email-inbox', 'email-email-webhook-forwarding'].includes(toolId) &&
-            !capabilities.emailReceiving) ||
-            (toolId === 'email-mock-smtp' && !capabilities.smtpCapture));
+    const capability = toolCapability(toolId);
+    const pending = capability && capabilities && !capabilities[capability];
     return pending ? (
         <p className="tool-notice" role="status">
             This server has not enabled{' '}
@@ -472,22 +472,10 @@ export function ToolCapabilityNotice({ toolId }: { toolId: string }) {
 }
 export function Availability({ tool }: { tool: CatalogTool }) {
     const { capabilities } = useToolbox();
-    if (
-        !capabilities &&
-        [
-            'email-temporary-email-inbox',
-            'email-email-webhook-forwarding',
-            'email-mock-smtp',
-        ].includes(tool.id)
-    )
-        return <span className="badge">Requires setup</span>;
-    if (
-        capabilities &&
-        ((['email-temporary-email-inbox', 'email-email-webhook-forwarding'].includes(tool.id) &&
-            !capabilities.emailReceiving) ||
-            (tool.id === 'email-mock-smtp' && !capabilities.smtpCapture))
-    )
-        return <span className="badge">Setup pending</span>;
+    const capability = toolCapability(tool.id);
+    if (capability && !capabilities) return <span className="badge">Checking availability</span>;
+    if (capabilities && 'availabilityReason' in toolAvailability(tool, capabilities))
+        return <span className="badge">Not enabled</span>;
     return (
         <>
             {tool.minimumPlan && tool.minimumPlan !== 'free' && (

@@ -79,7 +79,7 @@ export const docPages: DocPage[] = [
                 id: 'create-an-inbox',
                 title: 'Create a webhook inbox',
                 paragraphs: [
-                    'POST /api/inboxes creates an inbox that lasts one hour. New resources are private, so the response includes two separate secrets: inspectionToken lets you read and delete the inbox, and accessToken lets a sender deliver requests to it.',
+                    'POST /api/inboxes creates an inbox that lasts one hour. Receiving is public by default: senders can POST to webhookUrl without credentials. inspectionToken lets you read and delete the inbox. This example explicitly chooses private receiving, so it also returns an accessToken for senders.',
                     'Both tokens are returned only once. Save them before you continue; anonymous tokens cannot be recovered.',
                 ],
                 code: {
@@ -163,7 +163,7 @@ curl -X POST https://socket.help/api/inboxes \\
             },
             {
                 question: 'Why does my webhook return 404 right after I created the inbox?',
-                answer: 'New inboxes are private. A sender must include the access token in X-Access-Token or as a Bearer token. Requests without a valid token get 404 and are not captured. Create the inbox with ?visibility=public if the sender cannot set headers.',
+                answer: 'New inboxes accept senders without credentials by default. An inbox explicitly created with visibility=private requires X-Access-Token or a Bearer access token. Missing credentials return 404 and are not captured. Use visibility=public for providers that cannot add headers. Reading and waiting always require workspace credentials or the inspection token.',
             },
             {
                 question: 'Is there an OpenAPI document?',
@@ -403,6 +403,10 @@ curl -X POST https://socket.help/api/inboxes \\
                         ['Mock MCP server configuration', '1 to 10 tools, 80 KiB total'],
                         ['Platform MCP request body', '16 MiB; four concurrent requests'],
                         [
+                            'Catalog GET/HEAD requests, including descriptors, capabilities and OpenAPI',
+                            '600 per minute per IP, separate from API and run allowances',
+                        ],
+                        [
                             'Public endpoint rate (each webhook inbox, mock API and mock MCP server)',
                             '120 requests per minute',
                         ],
@@ -549,7 +553,7 @@ X-Request-Id: 1e3e28f5-fb64-474f-845f-b06c17f52eef
                 id: 'create',
                 title: 'Create an inbox',
                 paragraphs: [
-                    'POST /api/inboxes takes no body. Optional query parameters set visibility, ttlSeconds and persistent; see Lifetimes and renewal. The response includes webhookUrl, the inspectionToken for reading and deleting, and, for private inboxes, the accessToken that senders need.',
+                    'POST /api/inboxes takes no body. Optional query parameters set visibility, ttlSeconds and persistent; see Lifetimes and renewal. Senders can POST to webhookUrl without credentials by default. Inspection remains private. The response includes webhookUrl, the inspectionToken for reading and deleting, and, for private inboxes, the accessToken that senders need.',
                 ],
                 code: {
                     title: 'Create a public inbox for 30 minutes',

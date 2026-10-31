@@ -1,3 +1,6 @@
+import { catalog, toolAvailability } from '@socket-help/tools/catalog';
+import type { ServerCapabilities } from '@socket-help/tools/catalog';
+import { catalogGuide } from './tool-discovery.js';
 import { llmMockSchema } from '@socket-help/tools/llm-mock';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { isUuid } from './security.js';
@@ -8,7 +11,7 @@ import type { InboxRepository } from './inboxes.js';
 import type { ResourceRepository } from './resources.js';
 import type { RateLimitRepository } from './rate-limit.js';
 import { Access, resourceToken, HttpError } from './access.js';
-import { executableIds, executionGuide, searchExecutable } from './tool-routes.js';
+import { executableIds } from './tool-routes.js';
 import type { ToolService } from './tool-routes.js';
 import { validateMock, mockPayload } from '@socket-help/tools/mock-config';
 import { checkMockProxy } from './resource-routes.js';
@@ -124,10 +127,15 @@ export const platformTools = [
     {
         name: 'create_webhook_inbox',
         description:
-            'Create a webhook receiver. It expires after one hour unless ttlSeconds is set (up to the plan maximum: 1 hour anonymously, 7 days on Free). Save the private inspection token, then use wait_for_webhook.',
+            'Create a webhook receiver. Senders can POST to the returned webhookUrl without credentials by default. Reading, inspecting and waiting always need workspace credentials or the private inspection token. Set visibility to private only to require senders to supply X-Access-Token. It expires after one hour unless ttlSeconds is set (up to the plan maximum: 1 hour anonymously, 7 days on Free). Save the private inspection token, then use wait_for_webhook.',
         inputSchema: schema(
             {
-                visibility: { type: 'string', enum: ['public', 'private'] },
+                visibility: {
+                    type: 'string',
+                    enum: ['public', 'private'],
+                    description:
+                        'Receive mode: public by default. Private requires X-Access-Token from the sender; inspection stays private in either mode.',
+                },
                 ttlSeconds: { type: 'number', description: 'Lifetime in seconds, from 60.' },
             },
             [],
@@ -248,7 +256,7 @@ export const platformTools = [
     {
         name: 'wait_for_event',
         description:
-            'Wait once for any of 1–10 webhook, email or human-approval sources. Each source has kind, id, optional token and after cursor. Returns events with per-source cursors, or timedOut. Waits are capped at 30 seconds and share the same per-caller wait limit. Email events exclude sent mail. Expired/denied approval is never permission. SMS sources require the future phone service and are not supported yet.',
+            'Wait once for any of 1–10 webhook, email, human approval, scheduled job or SMS sources. Each source has kind, id, optional token and after cursor. Returns events with per-source cursors, or timedOut. Waits are capped at 30 seconds and share the same per-caller wait limit. Email events exclude sent mail. Expired/denied approval is never permission. Job sources use owned scheduled jobs. SMS sources need an active phone add-on; check /api/capabilities phones before creating a phone number. Existing SMS remains readable during provider outages.',
         inputSchema: schema(
             {
                 sources: {
@@ -316,7 +324,7 @@ export const platformTools = [
     {
         name: 'ask_human',
         description:
-            'Ask your human before a risky or irreversible step (deploying, paying, deleting, emailing real people). Emails the workspace owner a link; only they can answer, signed in. Returns an id and answerUrl (show it in chat too), then call wait_for_approval. Needs a connected agent.',
+            'Ask your human before a risky or irreversible step (deploying, paying, deleting, emailing real people). Emails the workspace owner a link; only they can answer, signed in. Returns an id and answerUrl (show it in chat too), then call wait_for_approval. Needs an approved workspace key.',
         inputSchema: schema(
             {
                 question: stringProperty('One clear question, up to 500 characters.'),
@@ -346,7 +354,7 @@ export const platformTools = [
     {
         name: 'create_monitor',
         description:
-            'Watch something on a schedule and alert the workspace owner by email (and optionally a webhook) when it goes down or recovers. kind "http" checks a public URL (expectStatus, expectText), "ssl" warns before a certificate expires (sslDays), "heartbeat" returns a pingUrl your job calls when it finishes. kind "dns" watches public DNS records against its first successful baseline (dnsRecordType). Needs an API key; Free allows 20 monitors every 5 minutes or slower.',
+            'Watch something on a schedule and alert the workspace owner by email (and optionally a webhook) when it goes down or recovers. kind "http" checks a public URL (expectStatus, expectText), "ssl" warns before a certificate expires (sslDays), "heartbeat" returns a pingUrl your job calls when it finishes. kind "dns" watches public DNS records against its first successful baseline (dnsRecordType). Needs an approved workspace key; Free allows 20 monitors every 5 minutes or slower.',
         inputSchema: schema(
             {
                 kind: { type: 'string', enum: ['http', 'ssl', 'heartbeat', 'dns'] },
@@ -389,7 +397,7 @@ export const platformTools = [
     {
         name: 'memory_set',
         description:
-            'Remember a JSON value for later sessions, under a namespace and key (for example namespace "project-x", key "last-deploy"). Values up to 256 KiB; optional ttlSeconds. Needs an API key; space depends on the plan (5 MiB on Free).',
+            'Remember a JSON value for later sessions, under a namespace and key (for example namespace "project-x", key "last-deploy"). Values up to 256 KiB; optional ttlSeconds. Needs an approved workspace key; space depends on the plan (5 MiB on Free).',
         inputSchema: schema(
             {
                 namespace: stringProperty('1-64 characters: letters, digits, . : - _'),
@@ -564,10 +572,10 @@ export const platformTools = [
     {
         name: 'run_tool',
         description:
-            'Run a supported utility, image/PDF/audio/video processor, email inspector or public network check. Call list_tools to discover supported IDs. Hosted plan quotas apply.',
+            'Run an executable utility, image/PDF/audio/video processor, email inspector or public network check. Use search_tools and describe_tool to find executable IDs; resource tools have separate entry points. Music library results contain audio and download URLs instead of inline files. Hosted plan quotas apply.',
         inputSchema: schema(
             {
-                toolId: stringProperty('Executable tool ID.'),
+                toolId: stringProperty('Executable utility tool ID from describe_tool.'),
                 input: stringProperty('Text input.'),
                 options: { type: 'object', additionalProperties: { type: 'string' } },
                 file: {
@@ -680,14 +688,14 @@ export const platformTools = [
     {
         name: 'describe_tool',
         description:
-            'Read input examples, option names, choices, defaults, limits and usage steps for one executable tool.',
-        inputSchema: schema({ toolId: stringProperty('Executable tool ID.') }),
+            'Describe a catalog or MCP tool, its availability, inputs, HTTP route and the MCP entry point.',
+        inputSchema: schema({ toolId: stringProperty('Catalog tool ID or MCP tool name.') }),
         annotations: readonly,
     },
     {
         name: 'search_tools',
         description:
-            'Find utility tools by keyword (for example "json format", "pdf merge", "dns"). Returns up to 25 matches with ID, name and description; then call describe_tool and run_tool.',
+            'Find catalog tools and MCP tools by keyword, including webhook inboxes, memory and monitors. Returns up to 25 matches with availability and the MCP entry point. Call describe_tool for inputs and the HTTP route.',
         inputSchema: schema(
             { query: stringProperty('Keywords; leave empty to list the first 25 tools.') },
             [],
@@ -696,7 +704,8 @@ export const platformTools = [
     },
     {
         name: 'list_tools',
-        description: 'List every executable utility tool ID. Prefer search_tools.',
+        description:
+            'List catalog tools and MCP tools with availability. Tools marked coming-soon are not enabled here. Prefer search_tools for focused results.',
         inputSchema: schema({}),
         annotations: readonly,
     },
@@ -802,6 +811,16 @@ const result = (value: unknown, isError = false) => ({
     content: [{ type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value) }],
     isError,
 });
+function httpResult(
+    response: { statusCode: number; json(): unknown },
+    value: unknown = response.statusCode === 204 ? { completed: true } : response.json(),
+) {
+    const failed = response.statusCode >= 400;
+    return result(
+        failed && object(value) ? { ...value, status: response.statusCode } : value,
+        failed,
+    );
+}
 class RpcError extends Error {
     constructor(
         public code: number,
@@ -845,6 +864,7 @@ interface Context {
     waiters: Waiters;
     mockCalls: MockCallRepository;
     activity: ActivityRepository;
+    capabilities: ServerCapabilities;
 }
 export function registerMcp({
     app,
@@ -857,7 +877,88 @@ export function registerMcp({
     waiters,
     mockCalls,
     activity,
+    capabilities,
 }: Context) {
+    const advertisedTools = platformTools.map((tool) =>
+        tool.name === 'wait_for_event'
+            ? {
+                  ...tool,
+                  description: `${tool.description} This server reports phones=${capabilities.phones}; scheduled job sources are enabled.`,
+              }
+            : tool,
+    );
+    function describe(id: string) {
+        const native = advertisedTools.find((tool) => tool.name === id);
+        if (native) return { toolId: id, ...native, status: nativeAvailability(native.name) };
+        const guide = catalogGuide(id, capabilities);
+        if (!guide)
+            throw new RpcError(
+                -32602,
+                'Unknown tool ID. Use search_tools or list_tools to find it.',
+            );
+        const nativeTool =
+            'mcpTool' in guide
+                ? platformTools.find((tool) => tool.name === guide.mcpTool)
+                : undefined;
+        return { ...guide, ...(nativeTool ? { inputSchema: nativeTool.inputSchema } : {}) };
+    }
+    function nativeAvailability(name: string) {
+        return (['create_phone_number'].includes(name) && !capabilities.phones) ||
+            (name === 'create_email_inbox' && !capabilities.emailReceiving)
+            ? 'coming-soon'
+            : 'available';
+    }
+    function discover(query = '', limit = 25) {
+        const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+        const entries = [
+            ...catalog.map((entry) => {
+                const tool = toolAvailability(entry, capabilities);
+                const guide = catalogGuide(tool.id, capabilities);
+                return {
+                    id: tool.id,
+                    name: tool.name,
+                    description: tool.description,
+                    status: tool.status,
+                    ...('availabilityReason' in tool
+                        ? { availabilityReason: tool.availabilityReason }
+                        : {}),
+                    ...(guide && 'mcpTool' in guide ? { mcpTool: guide.mcpTool } : {}),
+                };
+            }),
+            ...platformTools.map((tool) => ({
+                id: tool.name,
+                name: tool.name,
+                description: tool.description,
+                status: nativeAvailability(tool.name),
+                mcpTool: tool.name,
+            })),
+        ];
+        return entries
+            .filter((tool) =>
+                words.every((word) =>
+                    `${tool.id} ${tool.name} ${tool.description}`.toLowerCase().includes(word),
+                ),
+            )
+            .slice(0, limit);
+    }
+    async function runUtility(values: Record<string, unknown>, request: FastifyRequest) {
+        const output = await tools.run(
+            request,
+            String(values.toolId),
+            {
+                input: values.input ?? '',
+                options: values.options ?? {},
+                ...(values.files || values.file ? { file: values.files ?? values.file } : {}),
+            },
+            true,
+        );
+        let failed = false;
+        if (values.toolId === 'mock-apis-webhook-event-simulator') {
+            const event = JSON.parse(output.output);
+            failed = event.delivered === false;
+        }
+        return result(output, failed);
+    }
     const uploads = new Set<FastifyRequest>();
     app.addHook('onResponse', async (request) => {
         uploads.delete(request);
@@ -884,7 +985,9 @@ export function registerMcp({
         const ownerId = actor.identity?.account.id;
         switch (name) {
             case 'create_webhook_inbox': {
-                const inbox = await inboxes.create(await access.allocation(request, value));
+                const inbox = await inboxes.create(
+                    await access.allocation(request, { visibility: 'public', ...value }),
+                );
                 return inbox
                     ? result({ ...inbox, webhookUrl: `${origin}/hooks/${inbox.id}` })
                     : result({ error: 'Inbox capacity reached.' }, true);
@@ -1095,7 +1198,7 @@ export function registerMcp({
             (!Number.isSafeInteger(value.revision) || Number(value.revision) < 0)
         )
             throw new RpcError(-32602, 'Revision must be a nonnegative safe integer.');
-        const headers: Record<string, string> = {};
+        const headers: Record<string, string> = { 'user-agent': 'socket.help call_mock_api' };
         for (const key of ['authorization', 'cookie', 'origin'])
             if (typeof request.headers[key] === 'string') headers[key] = request.headers[key];
         if (typeof value.accessToken === 'string') headers['x-access-token'] = value.accessToken;
@@ -1138,7 +1241,7 @@ export function registerMcp({
             remoteAddress: request.ip,
             payload: value,
         });
-        return result(response.json(), response.statusCode >= 400);
+        return httpResult(response);
     }
     async function emailRequest(
         name: string,
@@ -1185,7 +1288,7 @@ export function registerMcp({
                   : {}),
             remoteAddress: request.ip,
         });
-        return result(response.json(), response.statusCode >= 400);
+        return httpResult(response);
     }
     // Memory tools reuse the HTTP routes so plan limits and errors stay identical.
     async function memoryRequest(
@@ -1221,9 +1324,9 @@ export function registerMcp({
                   }
                 : {}),
         });
-        return result(
+        return httpResult(
+            response,
             response.statusCode === 204 ? { deleted: true } : response.json(),
-            response.statusCode >= 400,
         );
     }
     // Login tools reuse the device-login routes; finish_login polls briefly so agents wait less.
@@ -1240,7 +1343,7 @@ export function registerMcp({
                 remoteAddress: request.ip,
                 payload: { name: value.name, client: value.client, humanEmail: value.humanEmail },
             });
-            return result(response.json(), response.statusCode >= 400);
+            return httpResult(response);
         }
         uploads.delete(request);
         const deadline = Date.now() + 25000;
@@ -1285,7 +1388,7 @@ export function registerMcp({
             remoteAddress: request.ip,
             ...(name === 'ask_human' ? { payload: value } : {}),
         });
-        return result(response.json(), response.statusCode >= 400);
+        return httpResult(response);
     }
     // Monitor tools reuse the HTTP routes so plan limits and validation stay identical.
     async function monitorRequest(
@@ -1337,9 +1440,9 @@ export function registerMcp({
                   ? { payload: { paused: value.paused } }
                   : {}),
         });
-        return result(
+        return httpResult(
+            response,
             response.statusCode === 204 ? { deleted: true } : response.json(),
-            response.statusCode >= 400,
         );
     }
     async function workspaceStatus(value: Record<string, unknown>, request: FastifyRequest) {
@@ -1362,7 +1465,7 @@ export function registerMcp({
             headers,
             remoteAddress: request.ip,
         });
-        return result(response.json(), response.statusCode >= 400);
+        return httpResult(response);
     }
     async function phoneRequest(
         name: string,
@@ -1392,9 +1495,9 @@ export function registerMcp({
             remoteAddress: request.ip,
             ...(creating ? { payload: { number: value.number } } : {}),
         });
-        return result(
+        return httpResult(
+            response,
             response.statusCode === 204 ? { released: true } : response.json(),
-            response.statusCode >= 400,
         );
     }
     async function resourceRequest(value: Record<string, unknown>, request: FastifyRequest) {
@@ -1510,9 +1613,9 @@ export function registerMcp({
                   }
                 : {}),
         });
-        return result(
+        return httpResult(
+            response,
             response.statusCode === 204 ? { completed: true } : response.json(),
-            response.statusCode >= 400,
         );
     }
     async function transport(request: FastifyRequest, reply: FastifyReply, customId?: string) {
@@ -1628,7 +1731,7 @@ export function registerMcp({
                                       annotations: readonly,
                                   }),
                               )
-                            : platformTools,
+                            : advertisedTools,
                     };
                     break;
                 case 'tools/call': {
@@ -1667,11 +1770,6 @@ export function registerMcp({
                             )
                                 throw new RpcError(-32602, `Invalid argument type: ${key}`);
                         }
-                        if (
-                            params.name === 'describe_tool' &&
-                            !executableIds.some((id) => id === values.toolId)
-                        )
-                            throw new RpcError(-32602, 'Choose an executable tool ID.');
                         response = [
                             'create_phone_number',
                             'list_phone_numbers',
@@ -1714,40 +1812,19 @@ export function registerMcp({
                                                 ].includes(params.name)
                                               ? await emailRequest(params.name, values, request)
                                               : params.name === 'describe_tool'
-                                                ? result({
-                                                      toolId: values.toolId,
-                                                      guide:
-                                                          executionGuide(String(values.toolId)) ??
-                                                          null,
-                                                  })
+                                                ? result(describe(String(values.toolId)))
                                                 : params.name === 'search_tools'
                                                   ? result({
-                                                        tools: searchExecutable(
+                                                        tools: discover(
                                                             typeof values.query === 'string'
                                                                 ? values.query
                                                                 : '',
                                                         ),
                                                     })
                                                   : params.name === 'list_tools'
-                                                    ? result({ tools: executableIds })
+                                                    ? result({ tools: discover('', Infinity) })
                                                     : params.name === 'run_tool'
-                                                      ? result(
-                                                            await tools.run(
-                                                                request,
-                                                                String(values.toolId),
-                                                                {
-                                                                    input: values.input ?? '',
-                                                                    options: values.options ?? {},
-                                                                    ...(values.files || values.file
-                                                                        ? {
-                                                                              file:
-                                                                                  values.files ??
-                                                                                  values.file,
-                                                                          }
-                                                                        : {}),
-                                                                },
-                                                            ),
-                                                        )
+                                                      ? await runUtility(values, request)
                                                       : await callPlatform(
                                                             params.name,
                                                             values,

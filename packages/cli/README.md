@@ -48,3 +48,5 @@ commands; it does not provide this continuous listener or a shell/SCP/SFTP servi
 [Agent workflows](https://socket.help/docs/agent-workflows/)
 
 Licensed under Apache-2.0. Support: support@socket.help.
+
+`inbox create` returns a webhook URL that accepts senders without credentials. Inspection and `listen` require your workspace key or the returned inspection token. Use `inbox create --visibility private` only when the sender can add the returned access token in `X-Access-Token`.

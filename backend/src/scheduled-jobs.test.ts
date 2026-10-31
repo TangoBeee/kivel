@@ -40,7 +40,7 @@ test('scheduled callbacks retry with stable IDs, expose events and isolate works
         other = await account(app, 'other-jobs');
     assert.equal(
         (await app.inject({ method: 'POST', url: '/api/scheduled-jobs', payload: {} })).statusCode,
-        402,
+        401,
     );
     for (const url of [
         'http://localhost:3000/callback',

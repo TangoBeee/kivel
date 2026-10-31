@@ -1,3 +1,4 @@
+import type { publicRequest } from './public-network.js';
 import { readMusicTrack } from './music-assets.js';
 import { artifact } from '@socket-help/tools/artifacts';
 import { musicTracks, defaultRecipe } from '@socket-help/tools/audio';
@@ -11,14 +12,15 @@ import { networkOperations } from '@socket-help/tools/network-definitions';
 import type { NetworkOperationId } from '@socket-help/tools/network-definitions';
 import { NetworkRunner } from './network-tools.js';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import { catalog, toolPageHref } from '@socket-help/tools/catalog';
+import { catalog, toolPageHref, toolAvailability } from '@socket-help/tools/catalog';
+import type { ServerCapabilities } from '@socket-help/tools/catalog';
 import { browserOperations } from '@socket-help/tools/definitions';
 import type { OperationOptions } from '@socket-help/tools/definitions';
 import type { ToolId } from '@socket-help/tools/engine';
 import { ToolRunner, ToolExecutionError } from '@socket-help/tools/node';
 import { entitlement } from './entitlements.js';
 import { plans } from '@socket-help/tools/plans';
-import { Access, HttpError } from './access.js';
+import { Access, HttpError, requireWorkspace } from './access.js';
 export const executableIds = [
     'json',
     'base64',
@@ -80,20 +82,6 @@ const optionKeys = [
     'algorithm',
     'unit',
 ];
-/** Executable tools whose ID, name or description contains every word of the query. */
-export function searchExecutable(query = '', limit = 25) {
-    const words = query.toLowerCase().split(/\s+/).filter(Boolean);
-    return executableIds
-        .map((id) => {
-            const tool = catalog.find((entry) => entry.id === id);
-            return { id, name: tool?.name ?? id, description: tool?.description ?? '' };
-        })
-        .filter((tool) => {
-            const text = `${tool.id} ${tool.name} ${tool.description}`.toLowerCase();
-            return words.every((word) => text.includes(word));
-        })
-        .slice(0, limit);
-}
 export function executionGuide(id: string) {
     const definition = (
         {
@@ -208,13 +196,16 @@ export function executionGuide(id: string) {
 }
 export class ToolService {
     private runner = new ToolRunner();
-    private network = new NetworkRunner();
+    private network: NetworkRunner;
     private av = new AvRunner();
     private media = new ToolRunner(1, 2, 5000);
     constructor(
         private access: Access,
         private frontendDir?: string,
-    ) {}
+        eventSend?: typeof publicRequest,
+    ) {
+        this.network = new NetworkRunner(eventSend);
+    }
     close() {
         this.network.close();
         return Promise.all([this.runner.close(), this.media.close(), this.av.close()]);
@@ -231,7 +222,25 @@ export class ToolService {
             baseLoopRecipe: defaultRecipe(id),
         });
     }
-    async run(request: FastifyRequest, toolId: string, value: unknown) {
+    private musicLinks(options: OperationOptions) {
+        const track = musicTracks.find((track) => track.id === (options.mode ?? musicTracks[0].id));
+        if (!track) throw new ToolExecutionError('Choose a track from the music library.');
+        const format = options.format ?? 'wav';
+        if (!['wav', 'mp3'].includes(format))
+            throw new ToolExecutionError('format must be wav or mp3.');
+        const url = new URL(`/api/music/${track.id}/audio.${format}`, this.access.origin).href;
+        return JSON.stringify({
+            kind: 'audio',
+            name: `${track.id}.${format}`,
+            mimeType: format === 'mp3' ? 'audio/mpeg' : 'audio/wav',
+            audioUrl: url,
+            downloadUrl: `${url}?download=1`,
+            license: 'CC0-1.0',
+            licenseUrl: 'https://creativecommons.org/publicdomain/zero/1.0/',
+            track,
+        });
+    }
+    async run(request: FastifyRequest, toolId: string, value: unknown, linksOnly = false) {
         if (!executableIds.includes(toolId as ToolId))
             throw new HttpError(404, 'This tool is not available for execution.');
         const actor = await this.access.scope(request, 'tools:run');
@@ -270,7 +279,7 @@ export class ToolService {
                         (options as OperationOptions).method,
                     )))
         )
-            throw new HttpError(401, 'Sign in to send write requests or run API scenarios.');
+            requireWorkspace(actor);
         type FileInput = { name: string; bytes: Uint8Array };
         let file: FileInput | FileInput[] | undefined;
         if (body.file !== undefined) {
@@ -339,33 +348,35 @@ export class ToolService {
         request.raw.socket?.once('close', abort);
         try {
             const output =
-                toolId === 'test-media-music-library' &&
-                options &&
-                (options as OperationOptions).format === 'mp3'
-                    ? await this.music((options as OperationOptions).mode ?? musicTracks[0].id)
-                    : Object.hasOwn(avOperations, toolId)
-                      ? await this.av.run(
-                            toolId as AvOperationId,
-                            options as OperationOptions,
-                            file,
-                            controller.signal,
-                        )
-                      : Object.hasOwn(networkOperations, toolId)
-                        ? await this.network.run(
-                              toolId as NetworkOperationId,
-                              input,
-                              options as OperationOptions,
-                              controller.signal,
-                          )
-                        : await (
-                              Object.hasOwn(mediaOperations, toolId) ? this.media : this.runner
-                          ).run(
-                              toolId as ToolId | MediaOperationId,
-                              input,
+                linksOnly && toolId === 'test-media-music-library'
+                    ? this.musicLinks(options as OperationOptions)
+                    : toolId === 'test-media-music-library' &&
+                        options &&
+                        (options as OperationOptions).format === 'mp3'
+                      ? await this.music((options as OperationOptions).mode ?? musicTracks[0].id)
+                      : Object.hasOwn(avOperations, toolId)
+                        ? await this.av.run(
+                              toolId as AvOperationId,
                               options as OperationOptions,
                               file,
                               controller.signal,
-                          );
+                          )
+                        : Object.hasOwn(networkOperations, toolId)
+                          ? await this.network.run(
+                                toolId as NetworkOperationId,
+                                input,
+                                options as OperationOptions,
+                                controller.signal,
+                            )
+                          : await (
+                                Object.hasOwn(mediaOperations, toolId) ? this.media : this.runner
+                            ).run(
+                                toolId as ToolId | MediaOperationId,
+                                input,
+                                options as OperationOptions,
+                                file,
+                                controller.signal,
+                            );
             return {
                 toolId,
                 output,
@@ -399,7 +410,12 @@ export class ToolService {
         }
     }
 }
-export function registerTools(app: FastifyInstance, access: Access, service: ToolService) {
+export function registerTools(
+    app: FastifyInstance,
+    access: Access,
+    service: ToolService,
+    capabilities: ServerCapabilities,
+) {
     const active = new Set<FastifyRequest>();
     app.addHook('onResponse', async (request) => {
         active.delete(request);
@@ -408,27 +424,33 @@ export function registerTools(app: FastifyInstance, access: Access, service: Too
         active.delete(request);
     });
     app.get('/api/tools', async () => ({
-        tools: catalog.map((tool) => ({
-            id: tool.id,
-            name: tool.name,
-            description: tool.description,
-            categoryId: tool.categoryId,
-            minimumPlan: tool.minimumPlan ?? null,
-            status: tool.status,
-            page: toolPageHref(tool),
-            guide: executionGuide(tool.id),
-            execution: executableIds.includes(tool.id as ToolId)
-                ? `/api/tools/${tool.id}/run`
-                : null,
-            interfaces:
-                tool.status === 'available'
-                    ? ['web', 'api', 'sdk', 'cli', 'curl', 'mcp', 'ssh']
-                    : [],
-        })),
+        tools: catalog
+            .map((entry) => toolAvailability(entry, capabilities))
+            .map((tool) => ({
+                id: tool.id,
+                name: tool.name,
+                description: tool.description,
+                categoryId: tool.categoryId,
+                minimumPlan: tool.minimumPlan ?? null,
+                status: tool.status,
+                ...('availabilityReason' in tool
+                    ? { availabilityReason: tool.availabilityReason }
+                    : {}),
+                page: toolPageHref(tool),
+                guide: executionGuide(tool.id),
+                execution: executableIds.includes(tool.id as ToolId)
+                    ? `/api/tools/${tool.id}/run`
+                    : null,
+                interfaces:
+                    tool.status === 'available'
+                        ? ['web', 'api', 'sdk', 'cli', 'curl', 'mcp', 'ssh']
+                        : [],
+            })),
     }));
     app.get<{ Params: { id: string } }>('/api/tools/:id', async (request) => {
-        const tool = catalog.find((tool) => tool.id === request.params.id);
-        if (!tool) throw new HttpError(404, 'Tool not found.');
+        const entry = catalog.find((tool) => tool.id === request.params.id);
+        if (!entry) throw new HttpError(404, 'Tool not found.');
+        const tool = toolAvailability(entry, capabilities);
         return {
             ...tool,
             page: toolPageHref(tool),

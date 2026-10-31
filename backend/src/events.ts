@@ -1,6 +1,6 @@
 import { setTimeout as pause } from 'node:timers/promises';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import { HttpError } from './access.js';
+import { HttpError, requireWorkspace } from './access.js';
 import type { Access } from './access.js';
 import type { InboxRepository } from './inboxes.js';
 import type { EmailMessageRepository } from './email.js';
@@ -31,7 +31,7 @@ function sources(input: unknown): Source[] {
     if (!Array.isArray(input) || !input.length || input.length > 10)
         throw new HttpError(
             400,
-            'Provide 1–10 sources: kind (webhook, email, approval or job), id, and optional token/after.',
+            'Provide 1–10 sources: kind (webhook, email, approval, job or sms), id, and optional token/after.',
         );
     const unique = new Set<string>();
     return input.map((value) => {
@@ -51,7 +51,7 @@ function sources(input: unknown): Source[] {
         )
             throw new HttpError(
                 400,
-                'Invalid event source. SMS becomes available after the phone provider is configured.',
+                'Invalid event source. Use a supported kind, UUID and optional token/after cursor.',
             );
         const key = `${value.kind}:${value.id}`;
         if (unique.has(key)) throw new HttpError(400, 'Each event source must be listed once.');
@@ -161,8 +161,7 @@ export function registerEvents({
                             deliveries,
                         });
                 } else {
-                    if (!actor.identity)
-                        throw new HttpError(401, 'Human approval events require a workspace key.');
+                    requireWorkspace(actor);
                     const approval = await approvals.get(actor.identity.account.id, source.id);
                     if (!approval)
                         throw new HttpError(404, 'Approval unavailable or access denied.');

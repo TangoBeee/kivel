@@ -1,3 +1,4 @@
+import { requireWorkspace } from './access.js';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { Pool } from 'pg';
 import { plans } from '@socket-help/tools/plans';
@@ -161,7 +162,7 @@ export class PostgresKv implements MemoryRepository {
 export function registerKv(app: FastifyInstance, access: Access, kv: MemoryRepository) {
     async function account(request: FastifyRequest, write: boolean) {
         const actor = await access.scope(request, write ? 'resources:write' : 'resources:read');
-        if (!actor.identity) throw new HttpError(401, 'Memory needs a free account or an API key.');
+        requireWorkspace(actor);
         return { accountId: actor.identity.account.id, plan: actor.plan };
     }
     const names = (namespace: string, key?: string) => {

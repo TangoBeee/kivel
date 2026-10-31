@@ -303,7 +303,7 @@ test('phone purchases require paid add-on slots, are idempotent, isolate SMS, pa
         });
     assert.equal(
         (await app.inject({ method: 'POST', url: '/api/phone-numbers', payload })).statusCode,
-        402,
+        401,
     );
     count = 0;
     assert.equal((await create()).statusCode, 402);

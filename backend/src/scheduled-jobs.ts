@@ -3,7 +3,7 @@ import type { Pool } from 'pg';
 import type { FastifyInstance } from 'fastify';
 import { HttpError, resourceToken } from './access.js';
 import type { Access } from './access.js';
-import { entitlement } from './entitlements.js';
+import { requireWorkspace } from './access.js';
 import type { ResourceRepository } from './resources.js';
 import { publicRequest, publicUrl } from './public-network.js';
 
@@ -153,7 +153,7 @@ export function registerScheduledJobs(
     const controllers = new Set<AbortController>();
     const runningTasks = new Set<Promise<void>>();
     async function owned(request: Parameters<Access['actor']>[0], id: string, write = false) {
-        const actor = await access.scope(request, write ? 'resources:write' : 'resources:read');
+        const actor = await access.workspace(request, write ? 'resources:write' : 'resources:read');
         const resource = await resources.read(
             id,
             'job',
@@ -167,7 +167,7 @@ export function registerScheduledJobs(
     }
     app.post('/api/scheduled-jobs', async (request, reply) => {
         const actor = await access.scope(request, 'resources:write');
-        entitlement(actor.identity, { minimumPlan: 'free' }, access.origin);
+        requireWorkspace(actor);
         const input = request.body as Record<string, unknown> | null;
         if (
             !input ||

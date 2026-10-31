@@ -12,7 +12,7 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "NODE_ENV=production node dist/index.js",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test src/app.test.ts src/rate-limit.test.ts src/config.test.ts src/resources.test.ts src/mcp.test.ts src/accounts.test.ts src/billing.test.ts src/sharing.test.ts src/recovery.test.ts src/network-tools.test.ts src/media-tools.test.ts src/mock-behavior.test.ts src/av-tools.test.ts src/audio-design.test.ts src/api-scenarios.test.ts src/crud.test.ts src/http-echo.test.ts src/email.test.ts src/email-sending.test.ts src/email-worker.test.ts src/events.test.ts src/llm-mock.test.ts src/scheduled-jobs.test.ts src/smtp-capture.test.ts src/status-pages.test.ts src/phone/phone.test.ts src/monitors.test.ts src/agents.test.ts src/approvals.test.ts src/interfaces.test.ts",
+    "test": "node --import tsx --test src/app.test.ts src/rate-limit.test.ts src/config.test.ts src/resources.test.ts src/mcp.test.ts src/accounts.test.ts src/billing.test.ts src/sharing.test.ts src/recovery.test.ts src/network-tools.test.ts src/media-tools.test.ts src/mock-behavior.test.ts src/av-tools.test.ts src/audio-design.test.ts src/api-scenarios.test.ts src/crud.test.ts src/http-echo.test.ts src/email.test.ts src/email-sending.test.ts src/email-worker.test.ts src/events.test.ts src/llm-mock.test.ts src/scheduled-jobs.test.ts src/smtp-capture.test.ts src/status-pages.test.ts src/phone/phone.test.ts src/monitors.test.ts src/agents.test.ts src/approvals.test.ts src/interfaces.test.ts src/agent-launch.test.ts",
     "test:integration": "node --import tsx --test src/postgres.test.ts"
   },
   "keywords": [],

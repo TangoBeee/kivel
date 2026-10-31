@@ -1,3 +1,4 @@
+import { requireWorkspace } from './access.js';
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { Pool } from 'pg';
@@ -197,8 +198,7 @@ export function registerApprovals({
     };
     async function account(request: FastifyRequest, write = true) {
         const actor = await access.scope(request, write ? 'resources:write' : 'resources:read');
-        if (!actor.identity)
-            throw new HttpError(401, 'Asking a human needs a connected agent or an account key.');
+        requireWorkspace(actor);
         return actor;
     }
 

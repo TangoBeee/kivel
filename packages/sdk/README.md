@@ -16,11 +16,13 @@ when you need reproducible application builds.
 import { SocketHelp, SocketError } from '@socket-help/sdk';
 
 const socket = new SocketHelp({ apiKey: process.env.SOCKET_HELP_API_KEY });
-const inbox = await socket.createInbox({ visibility: 'private' });
+const inbox = await socket.createInbox();
 const received = await socket.waitForRequests(inbox.id, { timeoutSeconds: 20 });
 console.log(received.requests);
 await socket.remove('inboxes', inbox.id);
 ```
+
+`createInbox()` returns a `webhookUrl` that accepts senders without credentials. Reading and waiting still require your workspace key or the private `inspectionToken`. For token-required receiving, pass `{ visibility: 'private' }` and give the sender the returned `accessToken` for its `X-Access-Token` header.
 
 `baseUrl` defaults to `https://socket.help`; set it to your self-hosted origin.
 Remote origins require HTTPS. The default request timeout is 25 seconds. Requests

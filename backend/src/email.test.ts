@@ -172,7 +172,7 @@ test('email inboxes receive signed mail, expose codes over HTTP and MCP, and ref
 test('email inboxes report clearly when the mail domain is not configured', async (t) => {
     const app = buildApp();
     t.after(() => app.close());
-    assert.equal((await app.inject({ method: 'POST', url: '/api/email-inboxes' })).statusCode, 402);
+    assert.equal((await app.inject({ method: 'POST', url: '/api/email-inboxes' })).statusCode, 401);
     assert.equal(
         (await app.inject({ method: 'POST', url: '/hooks/email', payload: {} })).statusCode,
         503,
@@ -214,9 +214,8 @@ test('plan checks cover guests, Free, Pro, Team and expired subscriptions over R
     });
     t.after(() => app.close());
     const guest = await app.inject({ method: 'POST', url: '/api/email-inboxes' });
-    assert.equal(guest.statusCode, 402);
-    assert.equal(guest.json().requiredPlan, 'free');
-    assert.match(guest.json().upgradeUrl, /\/plans\/$/);
+    assert.equal(guest.statusCode, 401);
+    assert.match(guest.json().error, /approved workspace key/);
     const mcp = await app.inject({
         method: 'POST',
         url: '/mcp',
@@ -229,7 +228,10 @@ test('plan checks cover guests, Free, Pro, Team and expired subscriptions over R
         },
     });
     assert.equal(mcp.json().result.isError, true);
-    assert.match(mcp.json().result.content[0].text, /Free account.*plans.*do not retry/);
+    assert.match(
+        mcp.json().result.content[0].text,
+        /approved workspace key.*start_login.*Do not retry/,
+    );
     for (const [plan, expired] of [
         ['free', false],
         ['pro', false],
@@ -507,9 +509,9 @@ test('MCP relays the shared plan requirement and upgrade URL without creating an
     const result = response.json().result;
     assert.equal(result.isError, true);
     const error = JSON.parse(result.content[0].text);
-    assert.equal(error.requiredPlan, 'free');
-    assert.match(error.upgradeUrl, /\/plans\/$/);
-    assert.match(error.error, /do not retry/);
+    assert.equal(error.status, 401);
+    assert.match(error.error, /approved workspace key/);
+    assert.match(error.error, /Do not retry/);
 });
 
 test('clearing owned email history frees storage and keeps the same receiving address', async (t) => {

@@ -555,10 +555,12 @@ export class SocketHelp {
     resources() {
         return this.request('GET', '/api/account/resources');
     }
+    /** Senders can POST to webhookUrl without credentials by default. Inspection stays private.
+     * Set visibility to private to require X-Access-Token on incoming webhooks. */
     createInbox(settings: ResourceSettings = {}) {
         return this.request<ResourceCredentials & { webhookUrl: string }>(
             'POST',
-            `/api/inboxes${creationQuery(settings)}`,
+            `/api/inboxes${creationQuery({ ...settings, visibility: settings.visibility ?? 'public' })}`,
         );
     }
     inspectInbox(id: string, token?: string) {

@@ -737,7 +737,11 @@ test('SSH verifies host identity, executes the shared engine, rejects shell comm
     const emailId = JSON.parse(email.stdout).id;
     assert.equal((await execute(client, `socket-help email messages ${emailId}`)).code, 0);
     assert.equal((await execute(client, `socket-help email delete ${emailId}`)).code, 0);
-    const monitor = await execute(client, 'socket-help monitor create', '{"kind":"heartbeat","name":"SSH job","intervalSeconds":300}');
+    const monitor = await execute(
+        client,
+        'socket-help monitor create',
+        '{"kind":"heartbeat","name":"SSH job","intervalSeconds":300}',
+    );
     assert.equal(monitor.code, 0, monitor.stderr);
     const monitorId = JSON.parse(monitor.stdout).id;
     assert.equal((await execute(client, `socket-help monitor pause ${monitorId}`)).code, 0);
@@ -1625,4 +1629,25 @@ test('the cookie coupon is created once per person, only before a first subscrip
     });
     assert.equal(refused.statusCode, 409);
     assert.equal(discounts, 1);
+});
+
+test('rollback baseline accepts additive schemas through 19 and rejects unknown future schemas', async () => {
+    const originalVersion = (
+        await pool.query('SELECT max(version) AS version FROM schema_migrations')
+    ).rows[0].version;
+    try {
+        await pool.query(
+            'INSERT INTO schema_migrations (version) VALUES (19) ON CONFLICT DO NOTHING',
+        );
+        await migrate(pool);
+        assert.equal(
+            (await pool.query('SELECT max(version) AS version FROM schema_migrations')).rows[0]
+                .version,
+            19,
+        );
+        await pool.query('INSERT INTO schema_migrations (version) VALUES (20)');
+        await assert.rejects(migrate(pool), /newer than this application/);
+    } finally {
+        await pool.query('DELETE FROM schema_migrations WHERE version > $1', [originalVersion]);
+    }
 });

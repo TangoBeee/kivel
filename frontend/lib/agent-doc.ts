@@ -15,7 +15,7 @@ export const agentDoc: DocPage = {
             paragraphs: [
                 'Add the /mcp endpoint to your client, then call start_login with a recognizable name. Show the returned verificationUrl and userCode to your human. Only a signed-in workspace owner or admin can approve; codes expire after 15 minutes.',
                 'Call finish_login with the secret deviceCode. It waits briefly and returns pending until approval, then delivers the API key once. Save that key in your client configuration or environment; do not print it in chat. Denied, expired or already-delivered logins return errors. HTTP clients use POST /api/agents/login and POST /api/agents/token; the SDK uses startLogin and finishLogin.',
-                'When no human is available, start_trial creates a 72-hour key with anonymous limits and a claim link. This is not 72-hour resource retention: resources still last at most one hour. At most three trials can start per network per day. Memory, monitors and human questions require a workspace. Claiming returns a new workspace key; it does not promise to move existing trial resources into the workspace.',
+                'When no human is available, start_trial creates a 72-hour key with anonymous limits and a claim link. This is not 72-hour resource retention: resources still last at most one hour. For workspace-only 401 errors, ask the human to open the trial claim link or use start_login; do not retry until approved. At most three trials can start per network per day. Memory, monitors and human questions require a workspace. Claiming returns a new workspace key; it does not promise to move existing trial resources into the workspace.',
             ],
             code: {
                 title: 'Start device login with the repository CLI',
@@ -32,7 +32,7 @@ pnpm cli agent token < login.json
             id: 'combined-events',
             title: 'Wait for the next event',
             paragraphs: [
-                'wait_for_event long-polls up to ten webhook, email, approval or scheduled-job sources in one request. Pass each source kind and id, plus its last cursor as after. It returns batches and a cursor per source; pass those cursors back to avoid repeats. A timeout is normal. SMS sources remain unavailable until the phone phase is configured and validated.',
+                'wait_for_event long-polls up to ten webhook, email, approval or scheduled-job sources in one request. Pass each source kind and id, plus its last cursor as after. It returns batches and a cursor per source; pass those cursors back to avoid repeats. A timeout is normal. SMS needs an active phone add-on; check /api/capabilities phones before creating a number.',
                 'Scheduled JSON callbacks use POST /api/scheduled-jobs or the SDK createScheduledJob. One-off delays and bounded repeating intervals share a durable scheduler. Delivery is at least once: deduplicate X-Socket-Delivery-Id. SMTP captures use POST /api/smtp-inboxes, then the ordinary email list/wait routes. The capture service requires its own TLS listener and does not relay messages.',
             ],
             code: {

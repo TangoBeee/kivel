@@ -10,6 +10,7 @@ import {
     categoryRoadmap,
     categoryTints,
     categoryTools,
+    toolAvailability,
     searchTools,
 } from '../lib/catalog';
 import type { CatalogTool } from '../lib/catalog';
@@ -63,8 +64,15 @@ export function CatalogBrowser({
     const [query, setQuery] = useState('');
     const [availability, setAvailability] = useState('all');
     const { ids: saved } = useSavedTools();
+    const { capabilities } = useToolbox();
     const category = categories.find((item) => item.id === categoryId);
-    const source = useMemo(() => categoryTools(categoryId), [categoryId]);
+    const source = useMemo(
+        () =>
+            categoryTools(categoryId).map((tool) =>
+                capabilities ? toolAvailability(tool, capabilities) : tool,
+            ),
+        [categoryId, capabilities],
+    );
     const filtered = searchTools(query, source).filter(
         (tool) =>
             availability === 'all' ||

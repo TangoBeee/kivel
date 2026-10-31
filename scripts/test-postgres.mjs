@@ -28,6 +28,7 @@ const database = new EmbeddedPostgres({
         console.error(String(message));
     },
 });
+let testExitCode = 1;
 try {
     await database.initialise();
     await database.start();
@@ -39,7 +40,7 @@ try {
             TEST_DATABASE_URL: `postgres://socket_test:${password}@127.0.0.1:${port}/socket_test`,
         },
     });
-    process.exitCode = await new Promise((resolve, reject) => {
+    testExitCode = await new Promise((resolve, reject) => {
         child.once('error', reject);
         child.once('exit', (code) => resolve(code ?? 1));
     });
@@ -47,3 +48,5 @@ try {
     await database.stop().catch(() => {});
     await rm(directory, { recursive: true, force: true });
 }
+// The database exit hook otherwise replaces a pending process.exitCode with zero.
+process.exit(testExitCode);

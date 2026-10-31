@@ -3,7 +3,6 @@ import { HttpError, resourceToken } from './access.js';
 import type { Access } from './access.js';
 import type { ResourceRepository } from './resources.js';
 import type { MonitorRepository } from './monitors.js';
-import { entitlement } from './entitlements.js';
 import { isUuid } from './security.js';
 const escape = (input: string) =>
     input.replace(
@@ -18,8 +17,7 @@ export function registerStatusPages(
     monitors: MonitorRepository,
 ) {
     app.post('/api/status-pages', async (request, reply) => {
-        const actor = await access.scope(request, 'resources:write');
-        entitlement(actor.identity, { minimumPlan: 'free' }, access.origin);
+        const actor = await access.workspace(request, 'resources:write');
         await access.rate(request, true);
         const body = request.body as {
             name?: unknown;
@@ -65,7 +63,7 @@ export function registerStatusPages(
         });
     });
     app.put<{ Params: { id: string } }>('/api/status-pages/:id', async (request) => {
-        const actor = await access.scope(request, 'resources:write');
+        const actor = await access.workspace(request, 'resources:write');
         const page = await resources.read(
             request.params.id,
             'status',
@@ -112,7 +110,7 @@ export function registerStatusPages(
         return { saved: true };
     });
     app.get<{ Params: { id: string } }>('/api/status-pages/:id', async (request) => {
-        const actor = await access.scope(request, 'resources:read');
+        const actor = await access.workspace(request, 'resources:read');
         const resource = await resources.read(
             request.params.id,
             'status',
@@ -130,7 +128,7 @@ export function registerStatusPages(
         };
     });
     app.delete<{ Params: { id: string } }>('/api/status-pages/:id', async (request, reply) => {
-        const actor = await access.scope(request, 'resources:write');
+        const actor = await access.workspace(request, 'resources:write');
         if (
             !(await resources.delete(
                 request.params.id,

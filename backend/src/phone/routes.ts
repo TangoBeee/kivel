@@ -144,7 +144,7 @@ export function registerPhones(
     app.get<{ Querystring: { areaCode?: string } }>(
         '/api/phone-numbers/available',
         async (request) => {
-            const actor = await access.scope(request, 'resources:write');
+            const actor = await access.workspace(request, 'resources:write');
             entitlement(actor.identity, { minimumPlan: 'pro' }, access.origin);
             if (!provider || !enabled)
                 throw new HttpError(
@@ -162,7 +162,7 @@ export function registerPhones(
         },
     );
     app.post('/api/phone-numbers', async (request, reply) => {
-        const actor = await access.scope(request, 'resources:write');
+        const actor = await access.workspace(request, 'resources:write');
         entitlement(actor.identity, { minimumPlan: 'pro' }, access.origin);
         if (!provider || !enabled)
             throw new HttpError(

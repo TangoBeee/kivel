@@ -402,7 +402,7 @@ test('agents can block on a webhook over HTTP and MCP, and search utility tools'
     const hook = await app.inject({
         method: 'POST',
         url: `/hooks/${inbox.id}`,
-        headers: { 'x-access-token': inbox.accessToken, 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json' },
         payload: { event: 'paid' },
     });
     assert.equal(hook.statusCode, 200);
@@ -453,7 +453,6 @@ test('agents can block on a webhook over HTTP and MCP, and search utility tools'
     await app.inject({
         method: 'POST',
         url: `/hooks/${inbox.id}`,
-        headers: { 'x-access-token': inbox.accessToken },
         payload: 'second',
     });
     const second = JSON.parse((await mcpWait).json().result.content[0].text);

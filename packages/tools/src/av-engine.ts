@@ -21,7 +21,13 @@ const inputArgs = [
     '-threads',
     '1',
 ];
-function number(value: string | undefined, fallback: number, min: number, max: number) {
+function number(
+    field: string,
+    value: string | undefined,
+    fallback: number,
+    min: number,
+    max: number,
+) {
     const result = value === undefined ? fallback : Number(value);
     if (
         (value !== undefined && !value.trim()) ||
@@ -29,7 +35,7 @@ function number(value: string | undefined, fallback: number, min: number, max: n
         result < min ||
         result > max
     )
-        throw new ToolExecutionError(`Enter a number from ${min} to ${max}.`);
+        throw new ToolExecutionError(`${field} must be a number from ${min} to ${max}.`);
     return result;
 }
 export class AvRunner {
@@ -175,16 +181,17 @@ export class AvRunner {
             }
             const audio = id.includes('audio-'),
                 gif = id === 'everyday-gif-maker';
-            const start = number(options.start, 0, 0, 120),
+            const start = number('start', options.start, 0, 0, 120),
                 duration = number(
+                    'duration',
                     options.duration,
                     generated ? 3 : gif ? 3 : 120,
                     0.1,
                     generated || gif ? 10 : 120,
                 );
-            const width = number(options.width, gif ? 320 : 640, 64, gif ? 640 : 1280);
+            const width = number('width', options.width, gif ? 320 : 640, 64, gif ? 640 : 1280);
             if (!Number.isInteger(width))
-                throw new ToolExecutionError('Width must be a whole number of pixels.');
+                throw new ToolExecutionError('width must be a whole number of pixels.');
             const video = metadata.streams?.some((s) => s.codec_type === 'video'),
                 hasAudio = metadata.streams?.some((s) => s.codec_type === 'audio');
             if (!generated && (audio ? !hasAudio : !video))
@@ -274,7 +281,7 @@ export class AvRunner {
                         '-preset',
                         'ultrafast',
                         '-crf',
-                        String(number(options.quality, 28, 18, 40)),
+                        String(number('quality', options.quality, 28, 18, 40)),
                         '-movflags',
                         id === 'test-media-media-stream-fixtures'
                             ? '+frag_keyframe+empty_moov+default_base_moof'

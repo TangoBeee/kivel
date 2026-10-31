@@ -417,7 +417,7 @@ export function registerEmail({
             },
         },
         async (request, reply) => {
-            const actor = await access.scope(request, 'resources:write');
+            const actor = await access.workspace(request, 'resources:write');
             const plan = entitlement(actor.identity, 'emailInbox', access.origin);
             configured();
             const query = (request.query ?? {}) as Record<string, unknown>;
@@ -519,7 +519,7 @@ export function registerEmail({
     });
 
     app.put<{ Params: { id: string } }>('/api/email-inboxes/:id/forwarding', async (request) => {
-        const caller = await access.scope(request, 'resources:write');
+        const caller = await access.workspace(request, 'resources:write');
         entitlement(caller.identity, 'webhookForwarding', access.origin);
         const { inbox, actor } = await owned(request, request.params.id);
         if (inbox.payload.smtpCapture)

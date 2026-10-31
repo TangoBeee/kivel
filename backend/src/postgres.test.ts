@@ -2099,3 +2099,189 @@ test('rollback baseline accepts additive schemas through 19 and rejects unknown 
         await pool.query('DELETE FROM schema_migrations WHERE version > $1', [originalVersion]);
     }
 });
+
+test('approved workspace keys exercise agent memory, monitors, human approvals, jobs and status pages across PostgreSQL app instances', async (t) => {
+    const { PostgresJobs } = await import('./scheduled-jobs.js');
+    const identities = new PostgresIdentityRepository(pool);
+    const options = {
+        identityStore: identities,
+        recoveryStore: new PostgresRecoveryRepository(pool),
+        inboxStore: new PostgresInboxStore(pool),
+        resourceStore: new PostgresResourceStore(pool),
+        agentStore: new PostgresAgents(pool),
+        approvalStore: new PostgresApprovals(pool),
+        memory: new PostgresKv(pool),
+        monitorStore: new PostgresMonitors(pool),
+        jobStore: new PostgresJobs(pool),
+        jobSend: async () => 204,
+    };
+    const app = buildApp(options),
+        replica = buildApp(options);
+    t.after(async () => {
+        await app.close();
+        await replica.close();
+    });
+    const origin = 'http://localhost:3000';
+    const registered = await app.inject({
+        method: 'POST',
+        url: '/api/auth/register',
+        headers: { origin },
+        payload: {
+            username: 'launch-owner',
+            email: 'launch-owner@example.test',
+            password: 'correct-horse-battery-staple',
+        },
+    });
+    assert.equal(registered.statusCode, 201, registered.body);
+    const session = { origin, cookie: String(registered.headers['set-cookie']).split(';')[0]! };
+    const login = (
+        await app.inject({
+            method: 'POST',
+            url: '/api/agents/login',
+            payload: { name: 'Launch integration' },
+        })
+    ).json();
+    const approved = await app.inject({
+        method: 'POST',
+        url: `/api/agents/login/${login.userCode}/approve`,
+        headers: session,
+        payload: {},
+    });
+    assert.equal(approved.statusCode, 200, approved.body);
+    const key = (
+        await replica.inject({
+            method: 'POST',
+            url: '/api/agents/token',
+            payload: { deviceCode: login.deviceCode },
+        })
+    ).json().apiKey;
+    assert.match(key, /^sh_/);
+    const headers = { authorization: `Bearer ${key}` };
+    const trialResponse = await app.inject({
+        method: 'POST',
+        url: '/api/agents/trial',
+        payload: { name: 'Durable trial' },
+    });
+    assert.equal(trialResponse.statusCode, 201, trialResponse.body);
+    const trial = trialResponse.json();
+    const blocked = await replica.inject({
+        url: '/api/memory/audit/key',
+        headers: { authorization: `Bearer ${trial.trialKey}` },
+    });
+    assert.equal(blocked.statusCode, 401, blocked.body);
+    assert.ok(blocked.json().error.includes(trial.claim.claimUrl), blocked.body);
+    async function mcp(name: string, args: object, server = app) {
+        const response = await server.inject({
+            method: 'POST',
+            url: '/mcp',
+            headers: { ...headers, accept: 'application/json, text/event-stream' },
+            payload: {
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'tools/call',
+                params: { name, arguments: args },
+            },
+        });
+        const result = response.json().result;
+        assert.equal(result?.isError, false, `${name}: ${response.body}`);
+        return JSON.parse(result.content[0].text);
+    }
+    for (const namespace of ['kv', 'json', 'agent-state']) {
+        await mcp('memory_set', {
+            namespace,
+            key: 'state/current',
+            value: { step: 'ready', count: 1 },
+        });
+        assert.deepEqual(
+            (await mcp('memory_get', { namespace, key: 'state/current' }, replica)).value,
+            { step: 'ready', count: 1 },
+        );
+        assert.equal(
+            (await mcp('memory_list', { namespace }, replica)).keys[0].key,
+            'state/current',
+        );
+        await mcp('memory_delete', { namespace, key: 'state/current' }, replica);
+        assert.equal(
+            (await app.inject({ url: `/api/memory/${namespace}/state/current`, headers }))
+                .statusCode,
+            404,
+        );
+    }
+    const monitor = await mcp('create_monitor', {
+        kind: 'heartbeat',
+        name: 'Agent job',
+        intervalSeconds: 300,
+    });
+    const ping = new URL(monitor.pingUrl).pathname.split('/').at(-1)!;
+    assert.equal((await mcp('ping_monitor', { token: ping }, replica)).status, 'up');
+    const inspected = await mcp('inspect_monitor', { id: monitor.id });
+    assert.equal(inspected.status, 'up');
+    const page = await mcp('resource_request', {
+        kind: 'status-pages',
+        action: 'create',
+        config: { name: 'Launch status', monitorIds: [monitor.id] },
+        visibility: 'public',
+    });
+    const published = await replica.inject(`/status/${page.id}`);
+    assert.equal(published.statusCode, 200, published.body);
+    assert.match(published.body, /All published services are operational/);
+    const asked = await mcp('ask_human', {
+        question: 'Proceed with a local test?',
+        options: ['Approve', 'Deny'],
+    });
+    assert.equal(
+        (
+            await app.inject({
+                method: 'POST',
+                url: `/api/approvals/${asked.id}/answer`,
+                headers,
+                payload: { answer: 'Approve' },
+            })
+        ).statusCode,
+        403,
+    );
+    const answer = await app.inject({
+        method: 'POST',
+        url: `/api/approvals/${asked.id}/answer`,
+        headers: session,
+        payload: { answer: 'Approve' },
+    });
+    assert.equal(answer.statusCode, 200, answer.body);
+    const decision = await mcp('wait_for_approval', { id: asked.id, timeoutSeconds: 1 }, replica);
+    assert.equal(decision.answer, 'Approve');
+    const job = await mcp('resource_request', {
+        kind: 'scheduled-jobs',
+        action: 'create',
+        config: {
+            name: 'Callback',
+            url: 'https://example.com/callback',
+            delaySeconds: 5,
+            body: { test: true },
+        },
+    });
+    await replica.runScheduledJobs(Date.parse(job.nextRunAt) + 1);
+    const stored = await mcp('resource_request', {
+        kind: 'scheduled-jobs',
+        action: 'inspect',
+        id: job.id,
+    });
+    assert.equal(stored.status, 'completed');
+    assert.equal(stored.events[0].status, 204);
+    const events = await mcp(
+        'wait_for_event',
+        {
+            sources: [
+                { kind: 'job', id: job.id },
+                { kind: 'approval', id: asked.id },
+            ],
+            timeoutSeconds: 1,
+        },
+        replica,
+    );
+    assert.equal(events.events.length, 2);
+    const resources = await mcp('resource_request', { kind: 'status-pages', action: 'list' });
+    assert.ok(resources.resources.some((resource: { id: string }) => resource.id === page.id));
+    await mcp('resource_request', { kind: 'scheduled-jobs', action: 'delete', id: job.id });
+    await mcp('resource_request', { kind: 'status-pages', action: 'delete', id: page.id });
+    await mcp('delete_monitor', { id: monitor.id });
+});

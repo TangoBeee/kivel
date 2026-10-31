@@ -472,3 +472,27 @@ export function searchTools(query: string, list = catalog): CatalogTool[] {
 }
 
 export { tools } from './legacy-tools.js';
+
+export interface ServerCapabilities {
+    emailReceiving: boolean;
+    smtpCapture: boolean;
+    phones: boolean;
+}
+export function toolCapability(id: string): keyof ServerCapabilities | undefined {
+    if (id === 'email-mock-smtp') return 'smtpCapture';
+    if (['email-temporary-email-inbox', 'email-email-webhook-forwarding'].includes(id))
+        return 'emailReceiving';
+    if (id.startsWith('phone-') || id.startsWith('phones-')) return 'phones';
+    return undefined;
+}
+export function toolAvailability(tool: CatalogTool, capabilities: ServerCapabilities) {
+    const capability = toolCapability(tool.id);
+    return capability && !capabilities[capability]
+        ? {
+              ...tool,
+              status: 'coming-soon' as const,
+              availabilityReason: 'Not enabled on this server.',
+              capability,
+          }
+        : { ...tool, capability };
+}

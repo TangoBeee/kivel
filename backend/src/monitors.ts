@@ -1,3 +1,4 @@
+import { requireWorkspace } from './access.js';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { Pool } from 'pg';
@@ -368,8 +369,7 @@ export function registerMonitors({
     };
     async function owner(request: FastifyRequest, write: boolean) {
         const actor = await access.scope(request, write ? 'resources:write' : 'resources:read');
-        if (!actor.identity)
-            throw new HttpError(401, 'Monitors need a free account or an API key.');
+        requireWorkspace(actor);
         return { accountId: actor.identity.account.id, plan: actor.plan };
     }
 

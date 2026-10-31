@@ -57,7 +57,7 @@ export function openApi(origin: string) {
                 '## Credentials',
                 '- **Account:** `Authorization: Bearer sh_…`. Scoped keys share workspace access and allowances.',
                 '- **Anonymous management:** the returned inspection or management token, sent as Bearer or `X-Resource-Token` when an account key occupies Authorization.',
-                '- **Private callers:** a separate token in `X-Access-Token`, or authorized workspace access. New resources are private by default. Keep credentials out of URLs.',
+                '- **Private callers:** a separate token in `X-Access-Token`, or authorized workspace access. Webhook receiving is public by default; inspection is always private. Other resources are private by default. Keep credentials out of URLs.',
                 '## Lifetimes and usage',
                 'Resources start with one hour. Renewal and persistent leases follow the plan. Read `GET /api/plans` and `GET /api/usage` for allowances. Delete temporary resources when finished.',
                 'Browser utilities run locally. Hosted execution sends input to the server without saving execution history. Account administration and billing require a browser session.',
@@ -140,6 +140,8 @@ export function openApi(origin: string) {
                     operationId: 'createInbox',
                     tags: ['Webhook inboxes'],
                     summary: 'Create a temporary webhook inbox',
+                    description:
+                        'Returns webhookUrl. Senders can POST without credentials by default. Reading, inspecting and waiting always require workspace credentials or the private inspectionToken. Set visibility=private only to require X-Access-Token from senders.',
                     parameters: [
                         {
                             name: 'ttlSeconds',
@@ -821,10 +823,12 @@ export function openApi(origin: string) {
                             schema: {
                                 type: 'string',
                                 enum: ['public', 'private'],
-                                default: 'private',
+                                default: path === '/api/inboxes' ? 'public' : 'private',
                             },
                             description:
-                                'Choose private to require a distinct access token. All interfaces default to private; choose public explicitly for an endpoint without credentials.',
+                                path === '/api/inboxes'
+                                    ? 'Receiving is public by default. Private requires X-Access-Token from senders. Inspection stays private in either mode.'
+                                    : 'Private by default. Choose public explicitly for an endpoint without credentials.',
                         },
                     ];
             }

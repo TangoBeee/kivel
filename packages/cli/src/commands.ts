@@ -49,14 +49,14 @@ socket-help upload <filename> [--visibility private|public] [--max-downloads 1] 
 socket-help download <file-id> [--access-token token] > file.bin
 
 Set SOCKET_HELP_URL and SOCKET_HELP_API_KEY. Commands output JSON; downloads output binary; help is plain text. Mutations are never retried.
-Creation also accepts --ttl-seconds <n> and --persistent. Private access is the default.`;
+Creation also accepts --ttl-seconds <n> and --persistent. Webhook receiving is public by default; inspection always needs workspace credentials or the inspection token. Use inbox create --visibility private only when senders can add X-Access-Token. Other resources default to private.`;
 function settings(args: string[], file = false) {
     const result: {
-        visibility: 'private' | 'public';
+        visibility?: 'private' | 'public';
         ttlSeconds?: number;
         persistent?: boolean;
         maxDownloads?: number;
-    } = { visibility: 'private' };
+    } = {};
     const seen = new Set<string>();
     for (let index = 2; index < args.length; index++) {
         const flag = args[index]!;

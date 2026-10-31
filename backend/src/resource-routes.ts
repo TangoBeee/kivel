@@ -680,8 +680,16 @@ export function registerResources(
                                 .send({ error: 'Stream capacity reached. Try again shortly.' });
                         const controller = new AbortController(),
                             abort = () => controller.abort(),
-                            chunks = route.body.split(/\r\n|\r|\n/),
-                            behavior = route.stream;
+                            behavior = route.stream,
+                            formattedSse =
+                                behavior.mode === 'sse' &&
+                                /^(?:data|event|id|retry):|^:/m.test(route.body),
+                            chunks = formattedSse
+                                ? route.body
+                                      .replace(/\r\n|\r/g, '\n')
+                                      .split('\n\n')
+                                      .filter(Boolean)
+                                : route.body.split(/\r\n|\r|\n/);
                         streams.add(controller);
                         const output = Readable.from(
                             (async function* () {
@@ -696,7 +704,9 @@ export function registerResources(
                                         });
                                     if (controller.signal.aborted) return;
                                     yield behavior.mode === 'sse'
-                                        ? `id: ${i + 1}\nevent: message\ndata: ${chunks[i]}\n\n`
+                                        ? formattedSse
+                                            ? `${chunks[i]}\n\n`
+                                            : `id: ${i + 1}\nevent: message\ndata: ${chunks[i]}\n\n`
                                         : chunks[i] + (i < chunks.length - 1 ? '\n' : '');
                                 }
                             })(),

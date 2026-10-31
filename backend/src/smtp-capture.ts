@@ -5,7 +5,6 @@ import PostalMime from 'postal-mime';
 import type { FastifyInstance } from 'fastify';
 import type { Access } from './access.js';
 import { HttpError } from './access.js';
-import { entitlement } from './entitlements.js';
 import type { ResourceRepository } from './resources.js';
 import type { EmailMessageRepository } from './email.js';
 import { extractFromEmail } from './email.js';
@@ -35,8 +34,7 @@ export function registerSmtpCapture(
         ...(password ? { password } : {}),
     });
     app.post('/api/smtp-inboxes', async (request, reply) => {
-        const actor = await access.scope(request, 'resources:write');
-        entitlement(actor.identity, { minimumPlan: 'free' }, access.origin);
+        const actor = await access.workspace(request, 'resources:write');
         if (!config) throw new HttpError(503, 'SMTP capture is not configured on this server.');
         const allocation = await access.allocation(request);
         await access.rate(request, true);

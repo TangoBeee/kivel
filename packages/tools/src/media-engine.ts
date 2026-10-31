@@ -7,7 +7,13 @@ import type { MediaOperationId } from './media-definitions.js';
 import type { OperationOptions } from './definitions.js';
 sharp.cache(false);
 sharp.concurrency(1);
-function integer(value: string | undefined, fallback: number, min: number, max: number) {
+function integer(
+    field: string,
+    value: string | undefined,
+    fallback: number,
+    min: number,
+    max: number,
+) {
     const number = value === undefined ? fallback : Number(value);
     if (
         (!value?.trim() && value !== undefined) ||
@@ -15,7 +21,7 @@ function integer(value: string | undefined, fallback: number, min: number, max: 
         number < min ||
         number > max
     )
-        throw new Error(`Enter an integer from ${min} to ${max}.`);
+        throw new Error(`${field} must be an integer from ${min} to ${max}.`);
     return number;
 }
 export async function runMedia(
@@ -116,7 +122,7 @@ export async function runMedia(
         }
         const colors = [...bins.values()]
             .sort((a, b) => b.weight - a.weight)
-            .slice(0, integer(options.count, 8, 1, 16))
+            .slice(0, integer('count', options.count, 8, 1, 16))
             .map((bin) => ({
                 hex:
                     '#' +
@@ -140,10 +146,10 @@ export async function runMedia(
         );
     }
     if (id === 'everyday-image-cropper') {
-        const left = integer(options.x, 0, 0, 4095),
-            top = integer(options.y, 0, 0, 4095),
-            width = integer(options.width, 100, 1, 4096),
-            height = integer(options.height, 100, 1, 4096);
+        const left = integer('x', options.x, 0, 0, 4095),
+            top = integer('y', options.y, 0, 0, 4095),
+            width = integer('width', options.width, 100, 1, 4096),
+            height = integer('height', options.height, 100, 1, 4096);
         const rotated = [5, 6, 7, 8].includes(metadata.orientation ?? 1),
             imageWidth = rotated ? metadata.height : metadata.width,
             imageHeight = rotated ? metadata.width : metadata.height;
@@ -153,18 +159,18 @@ export async function runMedia(
     }
     if (id === 'everyday-image-resizer')
         pipeline = pipeline.resize(
-            integer(options.width, 800, 1, 4096),
-            integer(options.height, 800, 1, 4096),
+            integer('width', options.width, 800, 1, 4096),
+            integer('height', options.height, 800, 1, 4096),
             { fit: 'inside', withoutEnlargement: true },
         );
     if (id === 'everyday-simple-image-editor') {
-        pipeline = pipeline.rotate(integer(options.rotation, 0, 0, 270));
+        pipeline = pipeline.rotate(integer('rotation', options.rotation, 0, 0, 270));
         if (options.flip === 'horizontal') pipeline = pipeline.flop();
         if (options.flip === 'vertical') pipeline = pipeline.flip();
         if (options.mode === 'grayscale') pipeline = pipeline.grayscale();
     }
     const format = options.format ?? 'webp',
-        quality = format === 'png' ? 80 : integer(options.quality, 80, 1, 100);
+        quality = format === 'png' ? 80 : integer('quality', options.quality, 80, 1, 100);
     if (format === 'jpeg')
         pipeline = pipeline.flatten({ background: '#ffffff' }).jpeg({ quality, mozjpeg: true });
     else if (format === 'png') pipeline = pipeline.png({ compressionLevel: 9 });

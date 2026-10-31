@@ -59,10 +59,10 @@ export const networkOperations = {
                 defaultValue: '',
             },
         ],
-        intro: 'Send realistic synthetic Stripe, GitHub or Shopify events to your public test endpoint, signed with the test secret you supply.',
+        intro: 'Send realistic synthetic Stripe, GitHub or Shopify events to your public test endpoint, signed with required options.secret (1–256 bytes).',
         steps: [
             'Choose a provider, event and public test URL.',
-            'Enter the same test signing secret your receiver uses; optionally edit the JSON payload.',
+            'Set options.secret to the same test signing secret your receiver uses (required, 1–256 bytes); optionally edit the JSON payload.',
             'Send one event and inspect its exact headers, body and receiver response.',
         ],
         limits: 'One outbound POST per successful run, with the normal ten-second network deadline. Private/local targets and redirects are blocked. Custom JSON is limited to 4 KiB. The secret is used only to sign the event and is not returned or retained. Test endpoints may change state when they receive the event; this simulator does not contact provider APIs.',

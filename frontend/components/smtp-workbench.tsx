@@ -20,7 +20,7 @@ interface Message {
     html?: string;
     codes: string[];
     receivedAt: string;
-    attachments: { filename: string; size: number }[];
+    attachments: { id?: string; filename: string; size: number }[];
 }
 export function SmtpWorkbench({ toolId }: { toolId: string }) {
     const viewer = useViewer();
@@ -263,15 +263,42 @@ export function SmtpWorkbench({ toolId }: { toolId: string }) {
                                         </Tabs.Content>
                                     </Tabs.Root>
                                     {current.attachments.length > 0 && (
-                                        <p className="muted">
-                                            {current.attachments
-                                                .map(
-                                                    (file) =>
-                                                        `${file.filename || 'Attachment'} (${file.size} bytes)`,
-                                                )
-                                                .join(' · ')}
-                                            . Only attachment metadata is retained.
-                                        </p>
+                                        <div className="muted">
+                                            <p>Attachments are untrusted files.</p>
+                                            {current.attachments.map((file, index) => (
+                                                <p key={file.id ?? index}>
+                                                    {file.filename || 'Attachment'} (
+                                                    {file.size.toLocaleString()} bytes)
+                                                    {file.id ? (
+                                                        <Button
+                                                            size="1"
+                                                            variant="ghost"
+                                                            aria-label={`Download ${file.filename || 'attachment'}`}
+                                                            onClick={() => {
+                                                                void api(
+                                                                    `/api/email-inboxes/${capture!.id}/messages/${current.id}/attachments/${file.id}`,
+                                                                )
+                                                                    .then((response) =>
+                                                                        response.json(),
+                                                                    )
+                                                                    .then((link) =>
+                                                                        window.location.assign(
+                                                                            link.downloadUrl,
+                                                                        ),
+                                                                    )
+                                                                    .catch((failure) =>
+                                                                        setError(failure.message),
+                                                                    );
+                                                            }}
+                                                        >
+                                                            Download
+                                                        </Button>
+                                                    ) : (
+                                                        ' · Metadata only'
+                                                    )}
+                                                </p>
+                                            ))}
+                                        </div>
                                     )}
                                 </article>
                             )}

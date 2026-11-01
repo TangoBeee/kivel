@@ -1,3 +1,4 @@
+import { parseAttachments } from './email-attachments.js';
 import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { SMTPServer } from 'smtp-server';
@@ -164,28 +165,42 @@ export function registerSmtpCapture(
                     const text = (parsed.text ?? '').slice(0, 65536),
                         html = (parsed.html ?? '').slice(0, 65536);
                     const extraction = extractFromEmail(parsed.subject ?? '', text, html);
-                    const result = await messages.record(id, {
-                        id: randomUUID(),
-                        direction: 'inbound',
-                        receivedAt: new Date().toISOString(),
-                        from: parsed.from?.address ?? '',
-                        to: (parsed.to ?? [])
-                            .map((to) => ('address' in to ? to.address : ''))
-                            .join(', '),
-                        subject: (parsed.subject ?? '').slice(0, 998),
-                        text,
-                        html,
-                        ...extraction,
-                        attachments: (parsed.attachments ?? []).slice(0, 20).map((item) => ({
-                            filename: item.filename ?? '',
-                            mimeType: item.mimeType,
-                            size:
+                    const attachmentInput = parseAttachments(
+                        (parsed.attachments ?? []).map((item) => {
+                            const bytes =
                                 typeof item.content === 'string'
-                                    ? Buffer.byteLength(item.content)
-                                    : item.content.byteLength,
-                        })),
-                        ...(parsed.messageId ? { messageId: parsed.messageId } : {}),
-                    });
+                                    ? Buffer.from(item.content)
+                                    : item.content instanceof ArrayBuffer
+                                      ? Buffer.from(item.content)
+                                      : Buffer.from(item.content);
+                            return {
+                                filename: item.filename ?? '',
+                                mimeType: item.mimeType,
+                                size: bytes.length,
+                                base64: bytes.toString('base64'),
+                            };
+                        }),
+                        Boolean(current.ownerId),
+                    );
+                    const result = await messages.record(
+                        id,
+                        {
+                            id: randomUUID(),
+                            direction: 'inbound',
+                            receivedAt: new Date().toISOString(),
+                            from: parsed.from?.address ?? '',
+                            to: (parsed.to ?? [])
+                                .map((to) => ('address' in to ? to.address : ''))
+                                .join(', '),
+                            subject: (parsed.subject ?? '').slice(0, 998),
+                            text,
+                            html,
+                            ...extraction,
+                            attachments: attachmentInput.attachments,
+                            ...(parsed.messageId ? { messageId: parsed.messageId } : {}),
+                        },
+                        attachmentInput.bodies,
+                    );
                     callback(result === 'full' ? new Error('Capture inbox is full.') : null);
                 })().catch(() => callback(new Error('Message capture failed.')));
             });

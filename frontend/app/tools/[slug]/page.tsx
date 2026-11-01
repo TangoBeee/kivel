@@ -1,3 +1,4 @@
+import { AuthenticatorWorkbench } from '../../../components/authenticator-workbench';
 import { ScheduledJobWorkbench } from '../../../components/scheduled-job-workbench';
 import { SmtpWorkbench } from '../../../components/smtp-workbench';
 import { MemoryWorkbench } from '../../../components/memory-workbench';
@@ -89,7 +90,9 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
                     { name: tool.name, path: toolPageHref(tool) },
                 ])}
             />
-            {tool.status === 'coming-soon' ? (
+            {tool.id === 'agents-agent-authenticator' ? (
+                <AuthenticatorWorkbench toolId={tool.id} />
+            ) : tool.status === 'coming-soon' ? (
                 <div className="page-width work-page">
                     <ToolHeader toolId={tool.id}>
                         <span className="badge">Coming soon</span>

@@ -175,6 +175,14 @@ test('anonymous and trial callers get one actionable workspace error across HTTP
             'run_tool',
             { toolId: 'mock-apis-api-test-scenarios', input: '{}' },
         ],
+        [
+            'POST',
+            '/api/authenticators',
+            {},
+            'add_authenticator',
+            { name: 'Authorized account', secret: 'JBSWY3DPEHPK3PXP' },
+        ],
+        ['GET', `/api/authenticators/${id}/code`, undefined, 'get_totp_code', { id }],
         ['POST', '/api/email-inboxes', {}, 'create_email_inbox', {}],
     ];
     for (const auth of [{}, { authorization: `Bearer ${trial.trialKey}` }]) {

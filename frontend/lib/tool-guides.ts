@@ -11,6 +11,15 @@ interface Guide {
     limits: string;
 }
 const guides: Record<string, Guide> = {
+    'agents-agent-authenticator': {
+        intro: 'Store a TOTP authenticator for an account your human asked your agent to create or operate. Import the service setup URI, Base32 key or QR image, then request a code when the service asks for it.',
+        steps: [
+            'Sign in to your workspace and give the authenticator a recognizable name.',
+            'Import one setup URI, Base32 secret or PNG/JPEG QR image from the service.',
+            'Ask for a code at sign-in. Keep the human’s service recovery codes separate. Rename or delete authenticators in the account dashboard.',
+        ],
+        limits: 'Free allows 2 authenticators, Pro 25 and Team 100. SHA1, SHA256 and SHA512; 6–8 digits; 30 or 60 seconds. QR images are limited to 1 MiB and one million pixels. Secrets are encrypted and never returned, including after creation. Codes are limited to 30 requests per workspace per minute and every generation is logged. If fewer than five seconds remain, the API includes the next code. Authenticators stay until deleted; downgrading does not destroy your account access. Delete unused authenticators before adding beyond your current plan limit. This stores authenticator keys, not passwords or service recovery codes.',
+    },
     'files-temporary-json-storage': {
         intro: 'Store a small JSON document as an expiring private or public resource, with exact-byte downloads and a safe JSON preview.',
         steps: [
@@ -329,9 +338,9 @@ export function toolGuide(tool: CatalogTool): Guide {
             steps: [
                 'Create a workspace capture and save the SMTP host, port, username and password separately.',
                 'Configure your mail client to use TLS and SMTP authentication, then send a test email.',
-                'Inspect the captured subject, text, codes and attachment metadata. Delete the capture to revoke credentials.',
+                'Inspect the captured subject, text and codes. Download expected attachments as untrusted files. Delete the capture to revoke credentials.',
             ],
-            limits: 'The operator must enable the TLS SMTP listener first. Captures last one day in the browser and accept at most 100 messages of 128 KiB each. Only attachment metadata is stored. Password rotation revokes old SMTP credentials; API access still requires the workspace key. The server never forwards SMTP recipients or delivers mail externally. No real receiving-domain configuration is needed for SMTP capture.',
+            limits: 'The operator must enable the TLS SMTP listener first. Captures last one day in the browser and accept at most 100 messages of 128 KiB each. Attachment content counts against workspace storage and is removed with messages or the capture. Downloads use private links valid for two minutes. Password rotation revokes old SMTP credentials; API access still requires the workspace key. The server never forwards SMTP recipients or delivers mail externally. No real receiving-domain configuration is needed for SMTP capture.',
         };
     if (monitorToolIds.includes(tool.id))
         return {
@@ -371,7 +380,7 @@ export function toolGuide(tool: CatalogTool): Guide {
                 'Use the address to sign up, reset a password or receive any test email.',
                 'Copy the extracted code or open the verification link, or call wait_for_email from your agent.',
             ],
-            limits: 'An account is required. Free includes one random address for 1–7 days, default 3. Pro includes 10 and Team 50 addresses that remain active while subscribed. Upgrade before Free expiry to keep the same address. Lapsed paid inboxes pause immediately and are deleted after 30 days; explicit downgrades keep the newest inbox for 7 days. Retired addresses are never reused. Each inbox keeps up to 100 messages; text and HTML are stored up to 64 KiB each and attachments are listed but not stored. Outbound email is available only when the operator enables a separate mail relay, with verified Free ownership and per-plan sending caps. Workspace access is required for new inboxes. Forwarding to a public webhook requires Pro or Team, stops when the paid plan lapses, and makes one best-effort delivery attempt per received message.',
+            limits: 'An account is required. Free includes one random address for 1–7 days, default 3. Pro includes 10 and Team 50 addresses that remain active while subscribed. Upgrade before Free expiry to keep the same address. Lapsed paid inboxes pause immediately and are deleted after 30 days; explicit downgrades keep the newest inbox for 7 days. Retired addresses are never reused. Each inbox keeps up to 100 messages; text and HTML are stored up to 64 KiB each and owned inboxes store attachment contents, with a 10 MiB message limit and 25 MiB of attachments per inbox. Download links expire after two minutes. Attachment bytes count against workspace storage and are removed with messages or inbox expiry; files are always untrusted downloads. Outbound email is available only when the operator enables a separate mail relay, with verified Free ownership and per-plan sending caps. Workspace access is required for new inboxes. Forwarding to a public webhook requires Pro or Team, stops when the paid plan lapses, and makes one best-effort delivery attempt per received message.',
         };
     if (tool.id === 'agents-socket-help-mcp')
         return {
@@ -707,6 +716,12 @@ const examples: Record<string, { useCase: string; example: string }> = {
 };
 
 export function toolExample(id: string) {
+    if (id === 'agents-agent-authenticator')
+        return {
+            useCase: 'Complete a sign-in for an account your human asked your agent to operate.',
+            example:
+                'POST /api/authenticators with a name and otpauth URI → GET /api/authenticators/{id}/code → code and secondsRemaining',
+        };
     const extra = (
         {
             ...extraOperations,

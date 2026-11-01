@@ -41,6 +41,11 @@ const rows: { name: string; value: (id: PlanId) => string }[] = [
                 : `${plans[id].storageBytes / 1048576} MiB`,
     },
     { name: 'Maximum retention', value: (id) => retention(plans[id].maxRetentionSeconds) },
+    {
+        name: 'TOTP authenticators',
+        value: (id) =>
+            plans[id].authenticators ? number(plans[id].authenticators) : 'Not included',
+    },
     { name: 'Hosted utility runs / day', value: (id) => number(plans[id].runsPerDay) },
     { name: 'Utility input / request', value: (id) => `${plans[id].inputBytes / 1024} KiB` },
     { name: 'API requests / minute', value: (id) => number(plans[id].requestsPerMinute) },

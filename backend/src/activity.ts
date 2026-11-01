@@ -9,6 +9,7 @@ export interface ActivityEntry {
     ok: boolean;
     durationMs: number;
     keyId?: string;
+    resourceId?: string;
 }
 
 type MaybePromise<T> = T | Promise<T>;

@@ -26,7 +26,7 @@ interface EmailMessage {
     html?: string;
     codes: string[];
     links: { url: string; kind: 'verification' | 'other' }[];
-    attachments: { filename: string; mimeType: string; size: number }[];
+    attachments: { id?: string; filename: string; mimeType: string; size: number }[];
     direction?: 'inbound' | 'outbound';
     deliveryStatus?: 'pending' | 'sent';
 }
@@ -636,12 +636,44 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                                         </pre>
                                     )}
                                     {current.attachments.length > 0 && (
-                                        <p className="email-from">
-                                            Attachments (not stored):{' '}
-                                            {current.attachments
-                                                .map((item) => `${item.filename} (${item.size} B)`)
-                                                .join(', ')}
-                                        </p>
+                                        <div className="email-from">
+                                            <h3>Attachments</h3>
+                                            <p>
+                                                Untrusted files. Download only if you expect them.
+                                            </p>
+                                            {current.attachments.map((item, index) => (
+                                                <p key={item.id ?? index}>
+                                                    {item.filename || 'Unnamed file'} (
+                                                    {item.size.toLocaleString()} B)
+                                                    {item.id && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="1"
+                                                            aria-label={`Download ${item.filename || 'attachment'}`}
+                                                            onClick={() => {
+                                                                void api(
+                                                                    `/api/email-inboxes/${inbox!.id}/messages/${current.id}/attachments/${item.id}`,
+                                                                )
+                                                                    .then((response) =>
+                                                                        response.json(),
+                                                                    )
+                                                                    .then((link) => {
+                                                                        window.location.assign(
+                                                                            link.downloadUrl,
+                                                                        );
+                                                                    })
+                                                                    .catch((failure) =>
+                                                                        setError(failure.message),
+                                                                    );
+                                                            }}
+                                                        >
+                                                            Download
+                                                        </Button>
+                                                    )}
+                                                    {!item.id && ' · Metadata only'}
+                                                </p>
+                                            ))}
+                                        </div>
                                     )}
                                 </>
                             ) : (

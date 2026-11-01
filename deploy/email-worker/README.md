@@ -19,4 +19,4 @@ Receives mail for agent email inboxes on `socketspace.xyz` and delivers it to
    restart the app.
 
 The worker rejects unknown addresses and full inboxes back to the sender, and lets Cloudflare retry
-when socket.help is unavailable. Mail is receive-only; nothing is ever sent from this domain.
+when socket.help is unavailable. The receiving worker does not send mail. Redeploy it with attachment support before expecting attachment downloads. It forwards signed Base64 attachment bodies, while retaining the 10 MiB raw message cap, 20-attachment cap and 64 KiB text/HTML bounds. The server stores at most 25 MiB of attachment content per inbox and applies workspace storage limits.

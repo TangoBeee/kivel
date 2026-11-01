@@ -6,6 +6,7 @@ export function needsInput(args: string[]) {
         (args[0] === 'api' && !['GET', 'HEAD', 'OPTIONS', 'DELETE'].includes(args[1] ?? '')) ||
         (args[0] === 'agent' && args[1] === 'token') ||
         (args[0] === 'memory' && args[1] === 'set') ||
+        (args[0] === 'authenticator' && args[1] === 'add') ||
         (args[0] === 'approval' && args[1] === 'ask') ||
         (args[0] === 'monitor' && args[1] === 'create') ||
         (args[0] === 'event' && args[1] === 'wait') ||
@@ -130,6 +131,28 @@ export async function agentCommand(client: SocketHelp, args: string[], input: Ui
             exact(0);
             return client.agents();
         }
+    }
+    if (group === 'authenticator') {
+        if (action === 'add') {
+            exact(0);
+            return client.addAuthenticator(json());
+        }
+        if (action === 'list') {
+            exact(0);
+            return client.listAuthenticators();
+        }
+        if (action === 'code') return client.getTotpCode(id());
+        if (action === 'rename') {
+            exact(2);
+            return client.renameAuthenticator(positional[0]!, positional[1]!);
+        }
+        if (action === 'delete') return client.deleteAuthenticator(id());
+    }
+    if (group === 'email' && ['attachment', 'download-attachment'].includes(action ?? '')) {
+        exact(3);
+        return action === 'attachment'
+            ? client.getEmailAttachment(positional[0]!, positional[1]!, positional[2]!)
+            : client.downloadEmailAttachment(positional[0]!, positional[1]!, positional[2]!);
     }
     if (group === 'memory') {
         if (action === 'list') return client.memoryList(id(), prefix);

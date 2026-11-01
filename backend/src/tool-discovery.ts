@@ -28,6 +28,15 @@ export function catalogGuide(id: string, capabilities: ServerCapabilities) {
             http: `POST /api/tools/${id}/run`,
         };
     if (tool.status !== 'available') return base;
+    if (id === 'agents-agent-authenticator')
+        return {
+            ...base,
+            mcpTool: 'add_authenticator',
+            relatedTools: ['get_totp_code', 'list_authenticators', 'delete_authenticator'],
+            resourceRequest: { kind: 'authenticators', action: 'create' },
+            http: 'POST /api/authenticators',
+            next: 'Use only for accounts your human asked you to create or operate. Requires an approved workspace key.',
+        };
     if (id === 'agents-socket-help-mcp')
         return {
             ...base,

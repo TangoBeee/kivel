@@ -337,7 +337,7 @@ export function agentInterfaceOpenApi() {
             get: operation(
                 'listEmails',
                 'Email inboxes',
-                'Read messages with extracted codes and links and attachment metadata',
+                'Read messages with codes, links and attachment IDs for private downloads',
                 { security: token },
             ),
         },

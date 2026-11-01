@@ -1,3 +1,6 @@
+import { registerEmailAttachments } from './email-attachments.js';
+import { MemoryAuthenticators, registerAuthenticators } from './authenticators.js';
+import type { AuthenticatorRepository } from './authenticators.js';
 import { registerPhones } from './phone/routes.js';
 import type { PhoneEntitlements } from './phone/routes.js';
 import { MemoryPhones } from './phone/store.js';
@@ -14,7 +17,7 @@ import type { RecoveryRepository } from './recovery-store.js';
 import type { MailSender } from './mail.js';
 import type DodoPayments from 'dodopayments';
 import { isUtf8 } from 'node:buffer';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, randomBytes } from 'node:crypto';
 import fastify, { LogController } from 'fastify';
 import type { FastifyRequest } from 'fastify';
 import fastifyStatic from '@fastify/static';
@@ -79,6 +82,7 @@ interface AppOptions {
     production?: boolean;
     identityStore?: IdentityRepository;
     authSecret?: string;
+    authenticatorStore?: AuthenticatorRepository;
     billingRepository?: BillingRepository;
     billingConfig?: BillingConfig;
     dodoClient?: DodoPayments;
@@ -142,6 +146,7 @@ export function buildApp({
     production = false,
     identityStore = new MemoryIdentityRepository(),
     authSecret,
+    authenticatorStore = new MemoryAuthenticators(),
     billingRepository,
     billingConfig,
     dodoClient,
@@ -424,6 +429,7 @@ export function buildApp({
         emailReceiving: Boolean(mailDomain && emailIngestSecret),
         emailSending: Boolean(agentEmailConfig?.enabled),
         smtpCapture: Boolean(smtpCaptureConfig),
+        authenticators: Boolean(authSecret),
         phones: Boolean(phoneProvider && phoneEnabled),
         phoneAddonSales: Boolean(billingConfig?.phoneAddonEnabled),
     };
@@ -737,6 +743,7 @@ export function buildApp({
         ...(monitorChecks ? { checks: monitorChecks } : {}),
     });
     registerBilling(app, access, billingRepository, billingConfig, dodoClient, recovery.store);
+    registerAuthenticators(app, access, authenticatorStore, rateLimiter, activity, authSecret);
     registerTools(app, access, tools, capabilities);
     registerMusic(app, frontendDir);
     if (authSecret) setAgentPepper(authSecret);
@@ -779,6 +786,14 @@ export function buildApp({
         ...(mailDomain ? { mailDomain } : {}),
         ...(emailIngestSecret ? { ingestSecret: emailIngestSecret } : {}),
     });
+    registerEmailAttachments(
+        app,
+        access,
+        resourceStore,
+        emailMessages,
+        authSecret ?? randomBytes(32).toString('hex'),
+        (owner) => email.lifecycle.reconcile(owner),
+    );
     registerSmtpCapture(app, access, resourceStore, emailMessages, rateLimiter, smtpCaptureConfig);
     registerEmailSending({
         app,

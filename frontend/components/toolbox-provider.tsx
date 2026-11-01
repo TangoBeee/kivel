@@ -41,7 +41,12 @@ interface ToolboxContext {
     openSearch: () => void;
     previewTool: (tool: CatalogTool) => void;
     shortcut: string;
-    capabilities: { emailReceiving: boolean; smtpCapture: boolean; phones: boolean } | null;
+    capabilities: {
+        emailReceiving: boolean;
+        smtpCapture: boolean;
+        phones: boolean;
+        authenticators?: boolean;
+    } | null;
 }
 const Context = createContext<ToolboxContext | null>(null);
 export function useToolbox() {
@@ -465,8 +470,13 @@ export function ToolCapabilityNotice({ toolId }: { toolId: string }) {
     return pending ? (
         <p className="tool-notice" role="status">
             This server has not enabled{' '}
-            {toolId === 'email-mock-smtp' ? 'TLS SMTP capture' : 'agent mail receiving'} yet. This
-            page documents the feature; creating it will become available after operator setup.
+            {toolId === 'agents-agent-authenticator'
+                ? 'encrypted authenticator storage'
+                : toolId === 'email-mock-smtp'
+                  ? 'TLS SMTP capture'
+                  : 'agent mail receiving'}{' '}
+            yet. This page documents the feature; creating it will become available after operator
+            setup.
         </p>
     ) : null;
 }

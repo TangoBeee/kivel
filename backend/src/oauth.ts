@@ -539,6 +539,8 @@ export function registerOAuth(
                             403,
                         );
                     const page = (result?: Record<string, string>) => {
+                        // Keep form Origin intact without sending referrers to other origins.
+                        reply.header('Referrer-Policy', 'same-origin');
                         const data = Buffer.from(
                             JSON.stringify({
                                 parameters: auth,

@@ -191,6 +191,7 @@ test('public destinations require a same-origin Continue step for unsupported re
             assert.ok(response.body.includes(new URL(destination).origin));
             assert.match(response.body, />Continue<\/button>/);
             assert.match(String(response.headers['x-robots-tag']), /noindex/);
+            assert.equal(response.headers['referrer-policy'], 'same-origin');
             const consent = /name="consent" value="([^"]+)"/.exec(response.body)![1]!;
             const confirm = (requestOrigin?: string) =>
                 f.app.inject({
@@ -206,7 +207,7 @@ test('public destinations require a same-origin Continue step for unsupported re
                         decision: 'continue',
                     }).toString(),
                 });
-            for (const requestOrigin of [undefined, 'https://attacker.example']) {
+            for (const requestOrigin of [undefined, 'null', 'https://attacker.example']) {
                 const blocked = await confirm(requestOrigin);
                 assert.equal(blocked.statusCode, 403, blocked.body);
                 assert.equal(blocked.headers.location, undefined);

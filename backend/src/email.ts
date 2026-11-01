@@ -1,6 +1,12 @@
+import {
+    parseAttachments,
+    INBOX_ATTACHMENT_BYTES,
+    MESSAGE_ATTACHMENT_BYTES,
+} from './email-attachments.js';
+import type { AttachmentBody, EmailAttachment } from './email-attachments.js';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { Pool } from 'pg';
 import { HttpError, resourceToken } from './access.js';
 import type { Access } from './access.js';
@@ -77,7 +83,7 @@ export interface EmailMessage {
     html?: string;
     codes: string[];
     links: EmailLink[];
-    attachments: { filename: string; mimeType: string; size: number }[];
+    attachments: EmailAttachment[];
     direction?: 'inbound' | 'outbound';
     deliveryStatus?: 'pending' | 'sent';
     messageId?: string;
@@ -117,7 +123,16 @@ export function extractFromEmail(subject: string, text: string, html = '') {
 
 type MaybePromise<T> = T | Promise<T>;
 export interface EmailMessageRepository {
-    record(resourceId: string, message: EmailMessage): MaybePromise<'stored' | 'full'>;
+    attachment(
+        resourceId: string,
+        messageId: string,
+        attachmentId: string,
+    ): MaybePromise<{ filename: string; bytes: Buffer } | undefined>;
+    record(
+        resourceId: string,
+        message: EmailMessage,
+        bodies?: AttachmentBody[],
+    ): MaybePromise<'stored' | 'full'>;
     list(resourceId: string): MaybePromise<EmailMessage[]>;
     count(resourceId: string): MaybePromise<number>;
     cursor(resourceId: string): MaybePromise<string>;
@@ -125,8 +140,24 @@ export interface EmailMessageRepository {
     replace(resourceId: string, id: string, message: EmailMessage): MaybePromise<void>;
 }
 
+interface StoredEmailMessage extends EmailMessage {
+    attachmentBodies?: AttachmentBody[];
+}
+function publicMessage(message: StoredEmailMessage): EmailMessage {
+    const { attachmentBodies: _, ...value } = message;
+    return structuredClone(value);
+}
+function attachmentFile(message: StoredEmailMessage | undefined, id: string) {
+    const body = message?.attachmentBodies?.find((body) => body.id === id),
+        meta = message?.attachments.find((item) => item.id === id);
+    return body && meta
+        ? { filename: meta.filename, bytes: Buffer.from(body.base64, 'base64') }
+        : undefined;
+}
+const bodyBytes = (bodies: AttachmentBody[] = []) =>
+    bodies.reduce((sum, body) => sum + Buffer.byteLength(body.base64, 'base64'), 0);
 export class MemoryEmailMessages implements EmailMessageRepository {
-    private readonly messages = new Map<string, EmailMessage[]>();
+    private readonly messages = new Map<string, StoredEmailMessage[]>();
     private budget?: (id: string, bytes: number) => boolean;
     private live?: (id: string) => boolean;
     setBudget(budget: (id: string, bytes: number) => boolean, live: (id: string) => boolean) {
@@ -137,22 +168,42 @@ export class MemoryEmailMessages implements EmailMessageRepository {
         for (const id of this.messages.keys())
             if (this.live && !this.live(id)) this.messages.delete(id);
     }
-    record(resourceId: string, message: EmailMessage) {
+    attachment(resourceId: string, messageId: string, attachmentId: string) {
+        return attachmentFile(
+            this.messages.get(resourceId)?.find((message) => message.id === messageId),
+            attachmentId,
+        );
+    }
+    record(
+        resourceId: string,
+        input: EmailMessage,
+        bodies: AttachmentBody[] = [],
+    ): MaybePromise<'stored' | 'full'> {
+        const message: StoredEmailMessage = {
+            ...input,
+            ...(bodies.length ? { attachmentBodies: bodies } : {}),
+        };
         const list = this.messages.get(resourceId) ?? [];
         if (list.some((item) => item.id === message.id)) return 'stored' as const;
-        if (list.length >= EMAIL_MESSAGE_LIMIT) return 'full' as const;
+        if (
+            list.length >= EMAIL_MESSAGE_LIMIT ||
+            list.reduce((sum, message) => sum + bodyBytes(message.attachmentBodies), 0) +
+                bodyBytes(bodies) >
+                INBOX_ATTACHMENT_BYTES
+        )
+            return 'full' as const;
         try {
             if (this.budget && !this.budget(resourceId, Buffer.byteLength(JSON.stringify(message))))
                 return 'full' as const;
         } catch {
             return 'full' as const;
         }
-        list.push(message);
+        list.push(structuredClone(message));
         this.messages.set(resourceId, list);
         return 'stored' as const;
     }
     list(resourceId: string) {
-        return [...(this.messages.get(resourceId) ?? [])];
+        return (this.messages.get(resourceId) ?? []).map(publicMessage);
     }
     cursor(resourceId: string) {
         return this.messages.get(resourceId)?.at(-1)?.id ?? '';
@@ -172,12 +223,18 @@ export class MemoryEmailMessages implements EmailMessageRepository {
         const list = this.messages.get(resourceId);
         const index = list?.findIndex((item) => item.id === id) ?? -1;
         if (list && index !== -1) {
+            const stored = {
+                ...message,
+                ...(list[index]?.attachmentBodies
+                    ? { attachmentBodies: list[index]!.attachmentBodies }
+                    : {}),
+            };
             const delta =
-                Buffer.byteLength(JSON.stringify(message)) -
+                Buffer.byteLength(JSON.stringify(stored)) -
                 Buffer.byteLength(JSON.stringify(list[index]));
             if (this.budget && !this.budget(resourceId, delta))
                 throw new HttpError(429, 'Mail storage allowance reached.');
-            list[index] = structuredClone(message);
+            list[index] = structuredClone(stored);
         }
     }
 }
@@ -187,7 +244,17 @@ export class PostgresEmailMessages implements EmailMessageRepository {
         private readonly pool: Pool,
         private maxBytes = MAX_RESOURCE_BYTES,
     ) {}
-    async record(resourceId: string, message: EmailMessage) {
+    async attachment(resourceId: string, messageId: string, attachmentId: string) {
+        const row = (
+            await this.pool.query(
+                "SELECT message FROM email_messages WHERE resource_id=$1 AND message->>'id'=$2",
+                [resourceId, messageId],
+            )
+        ).rows[0];
+        return attachmentFile(row?.message, attachmentId);
+    }
+    async record(resourceId: string, input: EmailMessage, bodies: AttachmentBody[] = []) {
+        const message = { ...input, ...(bodies.length ? { attachmentBodies: bodies } : {}) };
         return transaction(this.pool, async (client) => {
             await client.query('SELECT id FROM resource_usage WHERE id=1 FOR UPDATE');
             const parent = await client.query(
@@ -213,6 +280,15 @@ export class PostgresEmailMessages implements EmailMessageRepository {
                 ).rows[0].count,
             );
             if (count >= EMAIL_MESSAGE_LIMIT) return 'full' as const;
+            const used = Number(
+                (
+                    await client.query(
+                        "SELECT COALESCE(sum((meta->>'size')::bigint),0) AS bytes FROM email_messages m CROSS JOIN LATERAL jsonb_array_elements(m.message->'attachments') meta WHERE m.resource_id=$1 AND meta ? 'id'",
+                        [resourceId],
+                    )
+                ).rows[0].bytes,
+            );
+            if (used + bodyBytes(bodies) > INBOX_ATTACHMENT_BYTES) return 'full' as const;
             const bytes = Number(
                 (await client.query('SELECT octet_length($1::jsonb::text) AS bytes', [message]))
                     .rows[0].bytes,
@@ -243,7 +319,7 @@ export class PostgresEmailMessages implements EmailMessageRepository {
     }
     async list(resourceId: string) {
         const result = await this.pool.query<{ message: EmailMessage }>(
-            'SELECT message FROM email_messages WHERE resource_id = $1 ORDER BY sequence',
+            "SELECT message - 'attachmentBodies' AS message FROM email_messages WHERE resource_id = $1 ORDER BY sequence",
             [resourceId],
         );
         return result.rows.map((row) => row.message);
@@ -297,11 +373,13 @@ export class PostgresEmailMessages implements EmailMessageRepository {
             if (!parent.rowCount) return;
             const old = (
                 await client.query(
-                    "SELECT stored_bytes FROM email_messages WHERE resource_id=$1 AND message->>'id'=$2",
+                    "SELECT stored_bytes,message->'attachmentBodies' AS bodies FROM email_messages WHERE resource_id=$1 AND message->>'id'=$2",
                     [resourceId, id],
                 )
             ).rows[0];
             if (!old) return;
+            if (old.bodies)
+                message = { ...message, attachmentBodies: old.bodies } as StoredEmailMessage;
             const bytes = Number(
                 (await client.query('SELECT octet_length($1::jsonb::text) AS bytes', [message]))
                     .rows[0].bytes,
@@ -633,10 +711,30 @@ export function registerEmail({
 
     // Mail arrives from the Cloudflare Email Worker, signed with the shared ingest secret.
     app.register(async (ingest) => {
+        const active = new Set<FastifyRequest>();
+        ingest.addHook('onRequest', async (request, reply) => {
+            const length = request.headers['content-length'];
+            // Unknown lengths use the large lane, so chunked uploads cannot bypass its limit.
+            const small =
+                typeof length === 'string' && /^\d+$/.test(length) && Number(length) <= 256 * 1024;
+            if (small) return;
+            if (active.size >= 4)
+                return reply
+                    .header('Retry-After', '2')
+                    .code(503)
+                    .send({ error: 'Email ingestion is busy. Retry shortly.' });
+            active.add(request);
+        });
+        ingest.addHook('onResponse', async (request) => {
+            active.delete(request);
+        });
+        ingest.addHook('onRequestAbort', async (request) => {
+            active.delete(request);
+        });
         ingest.removeAllContentTypeParsers();
         ingest.addContentTypeParser(
             '*',
-            { parseAs: 'buffer', bodyLimit: 1024 * 1024 },
+            { parseAs: 'buffer', bodyLimit: 8 * 1024 * 1024 },
             (_r, body, done) => done(null, body),
         );
         ingest.post('/hooks/email', async (request, reply) => {
@@ -657,6 +755,12 @@ export function registerEmail({
                 input = JSON.parse(raw.toString('utf8'));
             } catch {
                 return reply.code(400).send({ error: 'Invalid JSON.' });
+            }
+            if (input.rawSize !== undefined) {
+                if (!Number.isSafeInteger(input.rawSize) || Number(input.rawSize) < 0)
+                    throw new HttpError(400, 'rawSize must be a nonnegative integer.');
+                if (Number(input.rawSize) > MESSAGE_ATTACHMENT_BYTES)
+                    throw new HttpError(413, 'Message exceeds 5 MiB.');
             }
             if (feedback && (await feedback(input)))
                 return reply.code(202).send({ received: true });
@@ -680,6 +784,13 @@ export function registerEmail({
             const subject = text(input.subject, 998);
             const body = text(input.text, TEXT_LIMIT);
             const html = text(input.html, TEXT_LIMIT);
+            const attachmentInput = parseAttachments(input.attachments, Boolean(exists.ownerId));
+            if (
+                Buffer.byteLength(subject + body + html) +
+                    attachmentInput.attachments.reduce((sum, file) => sum + file.size, 0) >
+                MESSAGE_ATTACHMENT_BYTES
+            )
+                throw new HttpError(413, 'Message exceeds 5 MiB.');
             const message: EmailMessage = {
                 id: crypto.randomUUID(),
                 receivedAt: new Date().toISOString(),
@@ -709,15 +820,9 @@ export function registerEmail({
                 text: body,
                 ...(html ? { html } : {}),
                 ...extractFromEmail(subject, body, html),
-                attachments: (Array.isArray(input.attachments) ? input.attachments : [])
-                    .slice(0, 20)
-                    .map((item: Record<string, unknown>) => ({
-                        filename: text(item?.filename, 200),
-                        mimeType: text(item?.mimeType, 100),
-                        size: Number(item?.size) || 0,
-                    })),
+                attachments: attachmentInput.attachments,
             };
-            const stored = await messages.record(id, message);
+            const stored = await messages.record(id, message, attachmentInput.bodies);
             const owner = exists.ownerId
                 ? await access.identities.account(exists.ownerId)
                 : undefined;

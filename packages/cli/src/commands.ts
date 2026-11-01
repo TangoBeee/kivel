@@ -9,6 +9,10 @@ socket-help agent login <name> [--client <client>]
 socket-help agent token < login.json
 socket-help agent trial <name> [--human-email <email>] [--client <client>]
 socket-help agent list
+socket-help authenticator add < authenticator.json
+socket-help authenticator list|code|delete [id]
+socket-help authenticator rename <id> <name>
+socket-help email attachment|download-attachment <inbox-id> <message-id> <attachment-id>
 socket-help email create [--active-days <1-7>] [--local-part <paid-address>]
 socket-help email list
 socket-help email clear <id>
@@ -48,7 +52,7 @@ socket-help api <GET|HEAD|OPTIONS|POST|PUT|PATCH|DELETE> /api/path-or-/mock/path
 socket-help upload <filename> [--visibility private|public] [--max-downloads 1] < file.bin
 socket-help download <file-id> [--access-token token] > file.bin
 
-Set SOCKET_HELP_URL and SOCKET_HELP_API_KEY. Commands output JSON; downloads output binary; help is plain text. Mutations are never retried.
+Set SOCKET_HELP_URL and SOCKET_HELP_API_KEY. Commands output JSON; downloads output binary; help is plain text. Mutations are never retried. Authenticators are only for accounts your human asked you to create or operate. Attachment downloads output untrusted binary files; attachment links expire in two minutes.
 Creation also accepts --ttl-seconds <n> and --persistent. Webhook receiving is public by default; inspection always needs workspace credentials or the inspection token. Use inbox create --visibility private only when senders can add X-Access-Token. Other resources default to private.`;
 function settings(args: string[], file = false) {
     const result: {

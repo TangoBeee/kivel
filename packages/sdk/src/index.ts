@@ -1,5 +1,9 @@
 export * from './types.js';
 import type {
+    Authenticator,
+    AuthenticatorInput,
+    TotpCode,
+    EmailAttachmentLink,
     AgentLogin,
     AgentToken,
     AgentTrial,
@@ -251,6 +255,60 @@ export class SocketHelp {
     }
     agents() {
         return this.request('GET', '/api/agents');
+    }
+    /** Only for accounts your human asked you to create or operate. */
+    addAuthenticator(input: AuthenticatorInput) {
+        return this.request<Authenticator>('POST', '/api/authenticators', input);
+    }
+    listAuthenticators() {
+        return this.request<{ authenticators: Authenticator[]; limit: number }>(
+            'GET',
+            '/api/authenticators',
+        );
+    }
+    getTotpCode(id: string) {
+        return this.request<TotpCode>('GET', `/api/authenticators/${encodeURIComponent(id)}/code`);
+    }
+    renameAuthenticator(id: string, name: string) {
+        return this.request<{ id: string; name: string }>(
+            'PATCH',
+            `/api/authenticators/${encodeURIComponent(id)}`,
+            { name },
+        );
+    }
+    deleteAuthenticator(id: string) {
+        return this.request<void>('DELETE', `/api/authenticators/${encodeURIComponent(id)}`);
+    }
+    getEmailAttachment(id: string, messageId: string, attachmentId: string) {
+        return this.request<EmailAttachmentLink>(
+            'GET',
+            `/api/email-inboxes/${encodeURIComponent(id)}/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}`,
+        );
+    }
+    async downloadEmailAttachment(
+        id: string,
+        messageId: string,
+        attachmentId: string,
+    ): Promise<Uint8Array> {
+        const link = await this.getEmailAttachment(id, messageId, attachmentId);
+        const url = new URL(link.downloadUrl);
+        if (
+            url.origin !== new URL(this.baseUrl).origin ||
+            !url.pathname.startsWith('/api/email-inboxes/')
+        )
+            throw new Error('Invalid attachment download URL.');
+        const response = await this.fetcher(url, {
+            redirect: 'error',
+            credentials: 'omit',
+            signal: AbortSignal.timeout(this.timeoutMs),
+        });
+        if (!response.ok)
+            throw new SocketError(
+                'Attachment link expired or unavailable.',
+                response.status,
+                response.headers.get('x-request-id') ?? undefined,
+            );
+        return new Uint8Array(await response.arrayBuffer());
     }
     createEmailInbox(settings: import('./types.js').EmailInboxSettings = {}) {
         return this.request<EmailInbox>('POST', '/api/email-inboxes', settings);

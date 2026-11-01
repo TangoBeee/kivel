@@ -30,6 +30,7 @@ export interface Identity {
     account: Account;
     role: Role;
     keyId?: string;
+    keyName?: string;
     keyScopes: Scope[];
     sessionHash?: string;
 }
@@ -220,7 +221,7 @@ export class MemoryIdentityRepository implements IdentityRepository {
         if (!key || Date.parse(key.info.expiresAt) <= Date.now()) return undefined;
         key.info.lastUsedAt = new Date().toISOString();
         const identity = this.identity(key.userId, key.accountId, key.info.scopes);
-        return identity ? { ...identity, keyId: key.info.id } : undefined;
+        return identity ? { ...identity, keyId: key.info.id, keyName: key.info.name } : undefined;
     }
     revokeSession(token: string) {
         this.sessions.delete(digest(token).toString('hex'));
@@ -486,9 +487,12 @@ export class PostgresIdentityRepository implements IdentityRepository {
             return true;
         });
     }
-    private async authenticate(table: 'auth_sessions' | 'api_keys', token: string) {
+    private async authenticate(
+        table: 'auth_sessions' | 'api_keys',
+        token: string,
+    ): Promise<Identity | undefined> {
         const result = await this.pool.query(
-            `SELECT u.id AS user_id, u.username, a.id AS account_id, a.name, a.plan, a.plan_valid_until, a.quota_key, a.dodo_customer_id, m.role, t.${table === 'api_keys' ? 'id, t.scopes' : 'token_hash'} FROM ${table} t JOIN users u ON u.id = t.user_id JOIN accounts a ON a.id = t.account_id JOIN account_members m ON m.user_id = u.id AND m.account_id = a.id WHERE t.token_hash = $1 AND t.expires_at > clock_timestamp() AND u.disabled_at IS NULL ${table === 'api_keys' ? 'AND t.revoked_at IS NULL' : ''}`,
+            `SELECT u.id AS user_id, u.username, a.id AS account_id, a.name, a.plan, a.plan_valid_until, a.quota_key, a.dodo_customer_id, m.role, t.${table === 'api_keys' ? 'id, t.scopes, t.name AS key_name' : 'token_hash'} FROM ${table} t JOIN users u ON u.id = t.user_id JOIN accounts a ON a.id = t.account_id JOIN account_members m ON m.user_id = u.id AND m.account_id = a.id WHERE t.token_hash = $1 AND t.expires_at > clock_timestamp() AND u.disabled_at IS NULL ${table === 'api_keys' ? 'AND t.revoked_at IS NULL' : ''}`,
             [digest(token)],
         );
         const row = result.rows[0];
@@ -507,7 +511,7 @@ export class PostgresIdentityRepository implements IdentityRepository {
                 (scope) => !row.scopes || row.scopes.includes(scope),
             ),
             ...(table === 'api_keys'
-                ? { keyId: row.id }
+                ? { keyId: row.id, keyName: row.key_name }
                 : { sessionHash: digest(token).toString('hex') }),
         } satisfies Identity;
     }

@@ -1,4 +1,5 @@
 'use client';
+import { AuthenticatorsPanel } from './authenticator-workbench';
 import { PasswordField } from './password-field';
 import { AppSelect, SelectOption } from './app-select';
 import {
@@ -915,6 +916,7 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                             )}
                         </section>
                     )}
+                    {panel === 'authenticators' && <AuthenticatorsPanel />}
                     {panel === 'agents' && <AgentActivity keys={keys} />}
                     {panel === 'monitors' && (
                         <MonitorsPanel verifiedEmail={!!recoveryEmail?.verifiedAt} />

@@ -63,6 +63,13 @@ export const dashboardPanels = [
         icon: Key,
     },
     {
+        id: 'authenticators',
+        group: 'Build',
+        label: 'Authenticators',
+        description: 'Manage encrypted sign-in authenticators for your agents.',
+        icon: ShieldCheck,
+    },
+    {
         id: 'monitors',
         group: 'Build',
         label: 'Monitors',
@@ -100,13 +107,13 @@ export const dashboardPanels = [
 ] as const;
 export type DashboardPanel = (typeof dashboardPanels)[number]['id'];
 const settingsPanels: DashboardPanel[] = ['workspace', 'keys', 'billing', 'security'];
-// Five places in the sidebar; the settings pages share one entry and a tab row.
 const navItems = [
     { id: 'overview', label: 'Home', icon: House },
     { id: 'agents', label: 'Agents', icon: Robot },
     { id: 'resources', label: 'Resources', icon: FolderSimple },
     { id: 'tools', label: 'Tools', icon: Toolbox },
     { id: 'monitors', label: 'Monitors', icon: Pulse },
+    { id: 'authenticators', label: 'Authenticators', icon: ShieldCheck },
     { id: 'workspace', label: 'Settings', icon: GearSix },
 ] as const;
 export const isDashboardPanel = (value: string): value is DashboardPanel =>

@@ -1,3 +1,4 @@
+import { authenticatorOpenApi, attachmentOpenApi } from './authenticator-openapi.js';
 import { readinessOpenApi } from './readiness-openapi.js';
 import { agentInterfaceOpenApi } from './agent-interface-openapi.js';
 import { accountOpenApi } from './account-openapi.js';
@@ -764,7 +765,13 @@ export function openApi(origin: string) {
             },
         },
     };
-    Object.assign(spec.paths, agentInterfaceOpenApi(), readinessOpenApi());
+    Object.assign(
+        spec.paths,
+        agentInterfaceOpenApi(),
+        readinessOpenApi(),
+        authenticatorOpenApi(),
+        attachmentOpenApi(),
+    );
     for (const [path, methods] of Object.entries(spec.paths)) {
         for (const [method, definition] of Object.entries(methods)) {
             if (!definition || typeof definition !== 'object') continue;

@@ -68,7 +68,7 @@ export interface EmailMessage {
     html?: string;
     codes: string[];
     links: { url: string; kind: 'verification' | 'other' }[];
-    attachments: { filename: string; mimeType: string; size: number }[];
+    attachments: { id?: string; filename: string; mimeType: string; size: number }[];
     direction?: 'inbound' | 'outbound';
     deliveryStatus?: 'pending' | 'sent';
     messageId?: string;
@@ -140,4 +140,37 @@ export interface Approval {
     answerUrl: string;
     emailed?: boolean;
     next?: string;
+}
+
+export interface Authenticator {
+    id: string;
+    name: string;
+    issuer: string;
+    accountName: string;
+    algorithm: 'SHA1' | 'SHA256' | 'SHA512';
+    digits: 6 | 7 | 8;
+    period: 30 | 60;
+    createdAt: string;
+}
+export interface AuthenticatorInput {
+    name: string;
+    uri?: string;
+    secret?: string;
+    imageBase64?: string;
+    algorithm?: 'SHA1' | 'SHA256' | 'SHA512';
+    digits?: 6 | 7 | 8;
+    period?: 30 | 60;
+}
+export interface TotpCode {
+    id: string;
+    code: string;
+    secondsRemaining: number;
+    expiresAt: string;
+    nextCode?: string;
+}
+export interface EmailAttachmentLink {
+    filename: string;
+    size: number;
+    expiresAt: string;
+    downloadUrl: string;
 }

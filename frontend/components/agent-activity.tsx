@@ -11,6 +11,7 @@ interface Entry {
     ok: boolean;
     durationMs: number;
     keyId?: string;
+    resourceId?: string;
 }
 
 /** What the workspace's agents have been doing over MCP: tool, key, result and time. */
@@ -222,6 +223,12 @@ export function AgentActivity({ keys }: { keys: { id: string; name: string }[] }
                                             <td>{new Date(entry.at).toLocaleString()}</td>
                                             <td>
                                                 <code>{entry.tool}</code>
+                                                {entry.resourceId && (
+                                                    <small title={entry.resourceId}>
+                                                        {' '}
+                                                        · {entry.resourceId.slice(0, 8)}
+                                                    </small>
+                                                )}
                                             </td>
                                             <td>
                                                 {entry.keyId

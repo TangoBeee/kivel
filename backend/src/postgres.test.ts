@@ -2285,3 +2285,301 @@ test('approved workspace keys exercise agent memory, monitors, human approvals, 
     await mcp('resource_request', { kind: 'status-pages', action: 'delete', id: page.id });
     await mcp('delete_monitor', { id: monitor.id });
 });
+
+test('authenticators encrypt durable secrets, enforce concurrent plan caps and remain isolated from other workspaces and public memory', async (t) => {
+    const { PostgresAuthenticators } = await import('./authenticators.js');
+    const identities = new PostgresIdentityRepository(pool),
+        stores = [new PostgresAuthenticators(pool), new PostgresAuthenticators(pool)];
+    const owner = (await identities.register('totp-owner', 'test'))!,
+        other = (await identities.register('totp-other', 'test'))!;
+    async function key(user: typeof owner) {
+        const token = randomBytes(32).toString('base64url');
+        await identities.createSession(user.id, user.personalAccountId, token);
+        const identity = (await identities.authenticateSession(token))!;
+        return (
+            await identities.createKey(
+                identity,
+                'Authenticator',
+                ['resources:read', 'resources:write'],
+                new Date(Date.now() + 86400000).toISOString(),
+            )
+        ).key;
+    }
+    const ownerKey = await key(owner),
+        otherKey = await key(other),
+        headers = { authorization: `Bearer ${ownerKey}` };
+    const apps = stores.map((authenticatorStore) =>
+        buildApp({
+            identityStore: identities,
+            recoveryStore: new PostgresRecoveryRepository(pool),
+            authenticatorStore,
+            activity: new PostgresActivity(pool),
+            authSecret: 'durable-authenticator-key-32-characters',
+            memory: new PostgresKv(pool),
+        }),
+    );
+    t.after(async () => {
+        await Promise.all(apps.map((app) => app.close()));
+    });
+    const secret = 'JBSWY3DPEHPK3PXP';
+    const added = await Promise.all(
+        Array.from({ length: 6 }, (_, index) =>
+            apps[index % 2]!.inject({
+                method: 'POST',
+                url: '/api/authenticators',
+                headers,
+                payload: { name: `Account ${index}`, secret },
+            }),
+        ),
+    );
+    assert.equal(
+        added.filter((response) => response.statusCode === 201).length,
+        2,
+        added.map((response) => response.body).join('\n'),
+    );
+    assert.equal(added.filter((response) => response.statusCode === 429).length, 4);
+    const id = added.find((response) => response.statusCode === 201)!.json().id;
+    const stored = await pool.query(
+        "SELECT value::text AS value FROM kv_entries WHERE account_id=$1 AND namespace='$authenticators'",
+        [owner.personalAccountId],
+    );
+    assert.equal(stored.rows.length, 2);
+    assert.equal(
+        (await apps[0]!.inject({ url: '/api/memory/project', headers })).json().usedBytes,
+        0,
+    );
+    assert.ok(stored.rows.every((row) => !row.value.includes(secret)));
+    assert.match(
+        (await apps[1]!.inject({ url: `/api/authenticators/${id}/code`, headers })).json().code,
+        /^\d{6}$/,
+    );
+    assert.equal(
+        (
+            await apps[1]!.inject({
+                url: `/api/authenticators/${id}/code`,
+                headers: { authorization: `Bearer ${otherKey}` },
+            })
+        ).statusCode,
+        404,
+    );
+    const audit = await new PostgresActivity(pool).list(owner.personalAccountId);
+    assert.equal(audit[0]!.userId, owner.id);
+    assert.equal(audit[0]!.keyId, (await identities.authenticateKey(ownerKey))!.keyId);
+    assert.equal(audit[0]!.agentName, 'Authenticator');
+    assert.equal(
+        (await apps[0]!.inject({ url: `/api/memory/%24authenticators/${id}`, headers })).statusCode,
+        400,
+    );
+    assert.equal(
+        (
+            await apps[0]!.inject({
+                method: 'PUT',
+                url: `/api/memory/%24authenticators/${id}`,
+                headers,
+                payload: { value: { encrypted: 'tampered' } },
+            })
+        ).statusCode,
+        400,
+    );
+    assert.equal(
+        (
+            await apps[1]!.inject({
+                method: 'PATCH',
+                url: `/api/authenticators/${id}`,
+                headers,
+                payload: { name: 'Renamed account' },
+            })
+        ).statusCode,
+        200,
+    );
+    assert.ok(
+        (await stores[0]!.list(owner.personalAccountId)).some(
+            (entry) => entry.name === 'Renamed account',
+        ),
+    );
+    assert.equal(
+        (await apps[0]!.inject({ method: 'DELETE', url: `/api/authenticators/${id}`, headers }))
+            .statusCode,
+        204,
+    );
+    assert.equal((await stores[1]!.list(owner.personalAccountId)).length, 1);
+});
+
+test('owned attachment bytes persist, reserve workspace storage atomically and are reclaimed with expired messages', async (t) => {
+    const { parseAttachments } = await import('./email-attachments.js');
+    const identities = new PostgresIdentityRepository(pool),
+        owner = (await identities.register('attachment-storage', 'test'))!,
+        account = (await identities.account(owner.personalAccountId))!;
+    const resources = new PostgresResourceStore(pool),
+        messages = new PostgresEmailMessages(pool),
+        restarted = new PostgresEmailMessages(pool);
+    const inbox = (await resources.create(
+        'email',
+        { address: 'owned@socketspace.xyz' },
+        undefined,
+        { ownerId: account.id, quotaKey: account.quotaKey, plan: 'free' },
+    ))!;
+    const base = (await resources.read(inbox.id, 'email', '', account.id))!.storedBytes;
+    const input = parseAttachments(
+        [
+            {
+                filename: 'test.html',
+                mimeType: 'text/html',
+                size: 6,
+                base64: Buffer.from('bytes!').toString('base64'),
+            },
+        ],
+        true,
+    );
+    const message = {
+        id: randomBytes(16).toString('hex'),
+        receivedAt: new Date().toISOString(),
+        from: 'sender@example.test',
+        to: 'owned@socketspace.xyz',
+        subject: 'Attachment',
+        text: 'Body',
+        codes: [],
+        links: [],
+        attachments: input.attachments,
+    };
+    assert.equal(await messages.record(inbox.id, message, input.bodies), 'stored');
+    assert.deepEqual(
+        (await restarted.attachment(inbox.id, message.id, input.attachments[0]!.id!))?.bytes,
+        Buffer.from('bytes!'),
+    );
+    const previewQueries: string[] = [];
+    const previews = new PostgresEmailMessages({
+        async query(sql: string, values: unknown[]) {
+            previewQueries.push(sql);
+            const result = await pool.query(sql, values);
+            if (sql.includes('ORDER BY sequence')) {
+                assert.equal(result.rows[0].message.attachmentBodies, undefined);
+                assert.ok(!JSON.stringify(result.rows).includes(input.bodies[0]!.base64));
+            }
+            return result;
+        },
+    } as unknown as Pool);
+    const preview = (await previews.list(inbox.id))[0]!;
+    await previews.cursor(inbox.id);
+    assert.match(previewQueries[0]!, /SELECT message - 'attachmentBodies' AS message/);
+    assert.match(previewQueries[1]!, /max\(sequence\)/);
+    assert.equal((preview as unknown as Record<string, unknown>).attachmentBodies, undefined);
+    const stored = (await resources.read(inbox.id, 'email', '', account.id))!.storedBytes;
+    assert.ok(stored > base + 6);
+    assert.equal(
+        Number(
+            (
+                await pool.query('SELECT stored_bytes FROM principal_usage WHERE account_id=$1', [
+                    account.id,
+                ])
+            ).rows[0].stored_bytes,
+        ),
+        stored,
+    );
+    await restarted.replace(inbox.id, message.id, { ...preview, text: 'Updated body' });
+    assert.equal(
+        (
+            await restarted.attachment(inbox.id, message.id, input.attachments[0]!.id!)
+        )?.bytes.toString(),
+        'bytes!',
+    );
+    const current = (await resources.read(inbox.id, 'email', '', account.id))!.storedBytes;
+    const original = (await pool.query("SELECT settings FROM usage_plans WHERE id='free'")).rows[0]
+        .settings;
+    try {
+        await pool.query(
+            "UPDATE usage_plans SET settings=jsonb_set(settings,'{storageBytes}',$1::jsonb) WHERE id='free'",
+            [String(current + 1)],
+        );
+        const blocked = await messages.record(
+            inbox.id,
+            { ...message, id: 'rejected' },
+            input.bodies,
+        );
+        assert.equal(blocked, 'full');
+        assert.equal(await restarted.count(inbox.id), 1);
+        assert.equal(
+            (await resources.read(inbox.id, 'email', '', account.id))!.storedBytes,
+            current,
+        );
+    } finally {
+        await pool.query("UPDATE usage_plans SET settings=$1 WHERE id='free'", [original]);
+    }
+    await messages.delete(inbox.id);
+    assert.equal(
+        await restarted.attachment(inbox.id, message.id, input.attachments[0]!.id!),
+        undefined,
+    );
+    assert.equal((await resources.read(inbox.id, 'email', '', account.id))!.storedBytes, base);
+    assert.equal(await messages.record(inbox.id, message, input.bodies), 'stored');
+    await pool.query(
+        "UPDATE temporary_resources SET expires_at=clock_timestamp()-interval '1 second' WHERE id=$1",
+        [inbox.id],
+    );
+    await resources.deleteExpired();
+    assert.equal(
+        await restarted.attachment(inbox.id, message.id, input.attachments[0]!.id!),
+        undefined,
+    );
+    assert.equal(
+        Number((await pool.query('SELECT stored_bytes FROM resource_usage')).rows[0].stored_bytes),
+        0,
+    );
+    assert.equal(
+        Number(
+            (
+                await pool.query('SELECT stored_bytes FROM principal_usage WHERE account_id=$1', [
+                    account.id,
+                ])
+            ).rows[0].stored_bytes,
+        ),
+        0,
+    );
+});
+
+test('the attachment set cap holds across concurrent PostgreSQL writers', async () => {
+    const { parseAttachments } = await import('./email-attachments.js');
+    const identities = new PostgresIdentityRepository(pool),
+        user = (await identities.register('attachment-cap', 'test'))!,
+        account = (await identities.account(user.personalAccountId))!;
+    const resources = new PostgresResourceStore(pool),
+        inbox = (await resources.create('email', { name: 'Cap' }, undefined, {
+            ownerId: account.id,
+            quotaKey: account.quotaKey,
+            plan: 'free',
+        }))!;
+    const stores = [new PostgresEmailMessages(pool), new PostgresEmailMessages(pool)];
+    const input = parseAttachments(
+        [
+            {
+                filename: 'large.bin',
+                mimeType: 'application/octet-stream',
+                size: 4 * 1048576,
+                base64: Buffer.alloc(4 * 1048576, 65).toString('base64'),
+            },
+        ],
+        true,
+    );
+    const results = await Promise.all(
+        Array.from({ length: 7 }, (_, index) =>
+            stores[index % 2]!.record(
+                inbox.id,
+                {
+                    id: `attachment-${index}`,
+                    receivedAt: new Date().toISOString(),
+                    from: 'sender@example.test',
+                    to: 'owned@socketspace.xyz',
+                    subject: 'Cap',
+                    text: '',
+                    codes: [],
+                    links: [],
+                    attachments: input.attachments,
+                },
+                input.bodies,
+            ),
+        ),
+    );
+    assert.equal(results.filter((result) => result === 'stored').length, 6);
+    assert.equal(results.filter((result) => result === 'full').length, 1);
+    assert.equal(await stores[0]!.count(inbox.id), 6);
+});

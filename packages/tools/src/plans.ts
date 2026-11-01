@@ -1,3 +1,4 @@
+import { authenticatorLimits } from './billing-plans.js';
 export const plans = {
     anonymous: {
         name: 'Without an account',
@@ -11,6 +12,7 @@ export const plans = {
         fileBytes: 10 * 1024 * 1024,
         memoryBytes: 0,
         agents: 0,
+        authenticators: authenticatorLimits.anonymous,
         persistent: false,
         emailInboxes: 0,
         emailsPerMonth: 0,
@@ -30,6 +32,7 @@ export const plans = {
         fileBytes: 10 * 1024 * 1024,
         memoryBytes: 5 * 1024 * 1024,
         agents: 3,
+        authenticators: authenticatorLimits.free,
         persistent: false,
         emailInboxes: 1,
         emailsPerMonth: 30,
@@ -49,6 +52,7 @@ export const plans = {
         fileBytes: 10 * 1024 * 1024,
         memoryBytes: 100 * 1024 * 1024,
         agents: 25,
+        authenticators: authenticatorLimits.pro,
         persistent: true,
         emailInboxes: 10,
         emailsPerMonth: 500,
@@ -68,6 +72,7 @@ export const plans = {
         fileBytes: 10 * 1024 * 1024,
         memoryBytes: 1024 * 1024 * 1024,
         agents: 100,
+        authenticators: authenticatorLimits.team,
         persistent: true,
         emailInboxes: 50,
         emailsPerMonth: 3000,

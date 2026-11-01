@@ -50,3 +50,16 @@ commands; it does not provide this continuous listener or a shell/SCP/SFTP servi
 Licensed under Apache-2.0. Support: support@socket.help.
 
 `inbox create` returns a webhook URL that accepts senders without credentials. Inspection and `listen` require your workspace key or the returned inspection token. Use `inbox create --visibility private` only when the sender can add the returned access token in `X-Access-Token`.
+
+For accounts your human asked you to operate, pipe a private JSON setup file to
+`authenticator add`: `{ "name": "Project account", "uri": "otpauth://totp/..." }`.
+The input also accepts a Base32 `secret` or PNG/JPEG `imageBase64`. Use
+`authenticator list`, `authenticator code <id>`, `authenticator rename <id> <name>`
+and `authenticator delete <id>`. Secrets are encrypted and never returned; code
+requests are audited. Never put setup secrets in command arguments or logs.
+
+`email attachment <inbox-id> <message-id> <attachment-id>` returns a private URL
+valid for two minutes. `email download-attachment` with the same IDs outputs exact
+file bytes; redirect stdout to a file. Attachments are untrusted downloads. A
+message can be up to 5 MiB; an inbox can hold 25 MiB of attachment content, within
+workspace storage limits. Clearing messages or expiring the inbox removes files.

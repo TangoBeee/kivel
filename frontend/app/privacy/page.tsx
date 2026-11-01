@@ -11,6 +11,7 @@ const sections = [
     { id: 'local', title: 'Local browser tools' },
     { id: 'resources', title: 'Temporary resources' },
     { id: 'agent-email', title: 'Owned agent email' },
+    { id: 'authenticators', title: 'Authenticator secrets' },
     { id: 'access', title: 'Sharing & credentials' },
     { id: 'browser', title: 'Browser storage' },
     { id: 'accounts', title: 'Accounts & email' },
@@ -71,6 +72,13 @@ export default function Privacy() {
             <section id="agent-email">
                 <h2>Owned agent email</h2>
                 <p>
+                    Owned inboxes store attachment content within the 5 MiB message limit and a 25
+                    MiB attachment allowance per inbox. Stored bytes count against workspace
+                    storage. Private download links expire after two minutes. Clearing messages or
+                    deleting or expiring the inbox removes attachments and invalidates links. Files
+                    are not scanned for malware and always download as attachments.
+                </p>
+                <p>
                     Agent inboxes store received and sent messages separately from account recovery
                     mail. Free inboxes expire after the selected lifetime; paid addresses remain
                     active while subscribed. Lapsed paid addresses pause immediately and their mail
@@ -120,6 +128,23 @@ export default function Privacy() {
                     session cookie. Signing out or switching workspaces clears saved tool
                     credentials in this browser’s open tabs. Shared tokens remain valid until
                     rotated, exhausted, or expired.
+                </p>
+            </section>
+            <section id="authenticators">
+                <h2>Authenticator secrets</h2>
+                <p>
+                    Workspace TOTP secrets are encrypted at rest using a key derived from the server
+                    secret. Setup URIs and QR images are processed during import and are not
+                    retained. The API never returns a stored secret. Labels and service account
+                    names remain visible to authorized workspace members and agents. Secrets remain
+                    until you delete the authenticator or workspace; a plan downgrade does not
+                    delete them. Keep the service recovery codes separately.
+                </p>
+                <p>
+                    Code generation records the time, authenticator ID and requesting key in
+                    workspace activity, without storing the generated code. As with other deleted
+                    data, encrypted records may remain in backups until the backup retention period
+                    ends.
                 </p>
             </section>
             <section id="accounts">

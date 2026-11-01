@@ -102,7 +102,7 @@ export class PostgresKv implements MemoryRepository {
             // One writer per account at a time keeps the storage total exact.
             await client.query('SELECT id FROM accounts WHERE id = $1 FOR UPDATE', [accountId]);
             const others = await client.query<{ total: string | null }>(
-                `SELECT sum(bytes) AS total FROM kv_entries WHERE account_id = $1 AND ${unexpired}
+                `SELECT sum(bytes) AS total FROM kv_entries WHERE account_id = $1 AND ${unexpired} AND namespace NOT LIKE '$%'
                  AND NOT (namespace = $2 AND key = $3)`,
                 [accountId, entry.namespace, entry.key],
             );
@@ -148,7 +148,7 @@ export class PostgresKv implements MemoryRepository {
     }
     async usage(accountId: string) {
         const result = await this.pool.query<{ total: string | null }>(
-            `SELECT sum(bytes) AS total FROM kv_entries WHERE account_id = $1 AND ${unexpired}`,
+            `SELECT sum(bytes) AS total FROM kv_entries WHERE account_id = $1 AND ${unexpired} AND namespace NOT LIKE '$%'`,
             [accountId],
         );
         return Number(result.rows[0]!.total ?? 0);

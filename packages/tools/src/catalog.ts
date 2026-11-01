@@ -158,6 +158,10 @@ const planned: Record<Category['id'], [string, string][]> = {
         ['API test scenarios', 'Save and reuse collections of integration test cases.'],
     ],
     agents: [
+        [
+            'Agent authenticator',
+            'Store encrypted TOTP authenticators and get sign-in codes for accounts your human asked you to create or operate.',
+        ],
         ['Mock MCP server', 'Give agents a temporary MCP server with configurable tools.'],
         ['MCP tool-call inspector', 'Inspect tool calls, responses, and request history.'],
         ['MCP server inspector', 'Explore the capabilities exposed by a remote MCP server.'],
@@ -375,6 +379,7 @@ export const backendToolIds = [
         ...scheduledToolIds,
         'email-email-webhook-forwarding',
         'email-mock-smtp',
+        'agents-agent-authenticator',
         'test-media-music-library',
         ...Object.keys(networkOperations),
         ...Object.keys(mediaOperations),
@@ -433,6 +438,7 @@ export const catalog: CatalogTool[] = [
                 local,
                 ...([
                     'email-mock-smtp',
+                    'agents-agent-authenticator',
                     'email-temporary-email-inbox',
                     'email-email-webhook-forwarding',
                     'monitoring-public-status-page',
@@ -477,8 +483,10 @@ export interface ServerCapabilities {
     emailReceiving: boolean;
     smtpCapture: boolean;
     phones: boolean;
+    authenticators?: boolean;
 }
 export function toolCapability(id: string): keyof ServerCapabilities | undefined {
+    if (id === 'agents-agent-authenticator') return 'authenticators';
     if (id === 'email-mock-smtp') return 'smtpCapture';
     if (['email-temporary-email-inbox', 'email-email-webhook-forwarding'].includes(id))
         return 'emailReceiving';

@@ -169,6 +169,16 @@ export function accountOpenApi() {
                 security: [...auth, {}],
             },
         },
+        '/api/email-sending/usage': {
+            get: {
+                ...operation(
+                    'getEmailSendingUsage',
+                    'Read how many emails this workspace sent today and this month, with its limits',
+                    'Accounts',
+                ),
+                security: auth,
+            },
+        },
         '/api/auth/register': {
             post: operation(
                 'register',

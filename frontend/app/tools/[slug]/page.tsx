@@ -1,45 +1,13 @@
-import { AuthenticatorWorkbench } from '../../../components/authenticator-workbench';
-import { OAuthWorkbench } from '../../../components/oauth-workbench';
-import { ScheduledJobWorkbench } from '../../../components/scheduled-job-workbench';
-import { SmtpWorkbench } from '../../../components/smtp-workbench';
-import { MemoryWorkbench } from '../../../components/memory-workbench';
-import { MonitorWorkbench } from '../../../components/monitor-workbench';
-import { StatusPageWorkbench } from '../../../components/status-page-workbench';
-import { LlmWorkbench } from '../../../components/llm-workbench';
 import { toolDetails } from '../../../lib/tool-details';
-import { ApiScenarioWorkbench } from '../../../components/api-scenario-workbench';
-import { AudioComposer } from '../../../components/audio-composer';
-import { MusicLibrary } from '../../../components/music-library';
-import { mediaOperations } from '@socket-help/tools/media-definitions';
-import type { MediaOperationId } from '@socket-help/tools/media-definitions';
-import { networkOperations } from '@socket-help/tools/network-definitions';
-import type { NetworkOperationId } from '@socket-help/tools/network-definitions';
 import Link from 'next/link';
+import { ToolWorkbench } from '../../../components/tool-workbench';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import {
-    catalog,
-    categories,
-    toolSlug,
-    toolPageHref,
-    fileToolIds,
-    monitorToolIds,
-    memoryToolIds,
-    scheduledToolIds,
-} from '../../../lib/catalog';
-import { browserOperations } from '../../../lib/browser-tool-definitions';
-import type { BrowserOperationId } from '../../../lib/browser-tool-definitions';
+import { catalog, toolSlug, toolPageHref } from '../../../lib/catalog';
 import { toolGuide, toolExample, toolArticle } from '../../../lib/tool-guides';
-import { BrowserWorkbench } from '../../../components/browser-workbench';
-import { BrowserOperation } from '../../../components/browser-operation';
-import { ResourceWorkbench } from '../../../components/resource-workbench';
-import WebhookWorkbench from '../../../components/webhook-workbench';
-import { McpConnect } from '../../../components/mcp-connect';
-import { EmailInboxWorkbench } from '../../../components/email-inbox-workbench';
 import { CodeExample } from '../../../components/code-example';
 import { StructuredData } from '../../../components/content-layout';
 import { breadcrumbs, pageMetadata } from '../../../lib/seo';
-import { ToolHeader } from '../../../components/tool-header';
 
 export const dynamicParams = false;
 export function generateStaticParams() {
@@ -91,80 +59,7 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
                     { name: tool.name, path: toolPageHref(tool) },
                 ])}
             />
-            {tool.id === 'agents-agent-authenticator' ? (
-                <AuthenticatorWorkbench toolId={tool.id} />
-            ) : tool.status === 'coming-soon' ? (
-                <div className="page-width work-page">
-                    <ToolHeader toolId={tool.id}>
-                        <span className="badge">Coming soon</span>
-                    </ToolHeader>
-                    <p className="tool-notice">This tool is planned. It is not available yet.</p>
-                    <Link className="text-link" href={`/catalog/${tool.categoryId}/`}>
-                        Explore{' '}
-                        {categories.find((category) => category.id === tool.categoryId)?.name}
-                    </Link>
-                </div>
-            ) : tool.id === 'mock-apis-mock-oauth-provider' ? (
-                <OAuthWorkbench toolId={tool.id} />
-            ) : tool.id === 'email-mock-smtp' ? (
-                <SmtpWorkbench toolId={tool.id} />
-            ) : tool.id === 'monitoring-public-status-page' ? (
-                <StatusPageWorkbench toolId={tool.id} />
-            ) : [
-                  'agents-mock-llm-endpoint',
-                  'agents-mock-agents-llms',
-                  'agents-llm-streaming-simulator',
-              ].includes(tool.id) ? (
-                <LlmWorkbench toolId={tool.id} />
-            ) : scheduledToolIds.includes(tool.id) ? (
-                <ScheduledJobWorkbench toolId={tool.id} />
-            ) : memoryToolIds.includes(tool.id) ? (
-                <MemoryWorkbench toolId={tool.id} />
-            ) : monitorToolIds.includes(tool.id) ? (
-                <MonitorWorkbench toolId={tool.id} />
-            ) : tool.id === 'mock-apis-api-test-scenarios' ? (
-                <ApiScenarioWorkbench />
-            ) : ['test-media-audio-composer', 'test-media-sample-audio'].includes(tool.id) ? (
-                <AudioComposer toolId={tool.id} />
-            ) : tool.id === 'test-media-music-library' ? (
-                <MusicLibrary />
-            ) : ['email-temporary-email-inbox', 'email-email-webhook-forwarding'].includes(
-                  tool.id,
-              ) ? (
-                <EmailInboxWorkbench toolId={tool.id} />
-            ) : tool.id === 'agents-socket-help-mcp' ? (
-                <McpConnect />
-            ) : [
-                  'webhooks',
-                  'domains-temporary-callback-url',
-                  'network-request-forwarding',
-              ].includes(tool.id) ? (
-                <WebhookWorkbench toolId={tool.id} />
-            ) : Object.hasOwn(networkOperations, tool.id) ||
-              Object.hasOwn(mediaOperations, tool.id) ? (
-                <BrowserOperation
-                    key={tool.id}
-                    toolId={tool.id as NetworkOperationId | MediaOperationId}
-                />
-            ) : Object.hasOwn(browserOperations, tool.id) ? (
-                <BrowserOperation key={tool.id} toolId={tool.id as BrowserOperationId} />
-            ) : tool.local ? (
-                <BrowserWorkbench toolId={tool.id} />
-            ) : (
-                <ResourceWorkbench
-                    key={tool.id}
-                    toolId={tool.id}
-                    kind={
-                        fileToolIds.includes(tool.id)
-                            ? 'file'
-                            : ['agents-mock-mcp-server', 'agents-tool-failure-simulator'].includes(
-                                    tool.id,
-                                )
-                              ? 'mcp'
-                              : 'mock'
-                    }
-                />
-            )}
+            <ToolWorkbench toolId={tool.id} />
             {tool.status === 'available' && (
                 <div className="page-width">
                     <aside className="tool-agent" aria-label="Use it from an agent">

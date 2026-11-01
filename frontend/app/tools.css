@@ -2781,3 +2781,22 @@ and calmer editors. Loaded last. */
   font-family: var(--font-geist-mono), ui-monospace, monospace;
   color: var(--accent);
 }
+
+/* Opened from the dashboard: the tool and your data only */
+html[data-view='resource'] .tool-guide,
+html[data-view='resource'] .tool-agent,
+html[data-view='resource'] .site-footer,
+html[data-view='resource'] .tool-header .breadcrumb,
+html[data-view='resource'] .tool-header-copy p {
+  display: none;
+}
+html[data-view='resource'] .tool-header-copy h1 {
+  font-size: 1.75rem;
+}
+.tool-title-name,
+html[data-view='resource'] .tool-title-pitch {
+  display: none;
+}
+html[data-view='resource'] .tool-title-name {
+  display: inline;
+}

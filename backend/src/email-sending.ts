@@ -128,6 +128,19 @@ export function registerEmailSending({
     app.addHook('onClose', async () => {
         clearInterval(cleanup);
     });
+    // What the dashboard shows next to the sending limits.
+    app.get('/api/email-sending/usage', async (request) => {
+        const actor = await access.workspace(request, 'resources:read');
+        const [day, month] = await store.withOwner(actor.identity.account.id, (session) =>
+            Promise.all([session.usage(), session.usage('month')]),
+        );
+        return {
+            day,
+            month,
+            perDay: plans[actor.plan].emailsPerDay,
+            perMonth: plans[actor.plan].emailsPerMonth,
+        };
+    });
     app.post<{ Params: { id: string } }>(
         '/api/email-inboxes/:id/send',
         { bodyLimit: 1024 * 1024 },

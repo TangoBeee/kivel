@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Badge } from '@radix-ui/themes';
+import { DropdownMenu, IconButton } from '@radix-ui/themes';
+import { DotsThree } from '@phosphor-icons/react';
+import { activityLabel, timeAgo } from '../lib/activity-labels';
 import { api } from '../lib/api';
 
 interface Entry {
@@ -79,86 +81,119 @@ export function AgentActivity({ keys }: { keys: { id: string; name: string }[] }
         };
     }, []);
     const names = new Map([
-        ...keys.map((item) => [item.id, item.name] as const),
+        ...keys.map((item) => [item.id, item.name.replace(/^Agent: /, '')] as const),
         ...(agents ?? []).map((item) => [item.id, item.name] as const),
     ]);
     const shown = (entries ?? []).filter((entry) => key === 'all' || entry.keyId === key);
     const failures = shown.filter((entry) => !entry.ok).length;
+    const pending = questions.filter((item) => item.status === 'pending');
+    const past = questions.filter((item) => item.status !== 'pending');
+    const [allPast, setAllPast] = useState(false);
+    const [more, setMore] = useState(false);
+    const actors = (agents ?? []).filter((agent) =>
+        (entries ?? []).some((entry) => entry.keyId === agent.id),
+    );
     return (
-        <div className="settings-stack">
-            <section className="settings-card agent-activity">
-                <div className="agent-activity-heading">
-                    <div>
-                        <h2>
-                            Connected agents{' '}
-                            <Badge variant="soft" color="gray">
-                                {agents?.length ?? 0} / {limit}
-                            </Badge>
-                        </h2>
-                        <p>
-                            Each agent joined after you approved it and has its own key. Remove one
-                            and its key stops working right away.
-                        </p>
-                    </div>
-                    <Link className="button button-primary button-small" href="/connect/">
-                        Connect an agent
-                    </Link>
+        <div className="home-panels">
+            <section className="home-section" aria-labelledby="agents-heading">
+                <div className="home-section-head">
+                    <h2 id="agents-heading">
+                        Connected{' '}
+                        <span className="home-count">
+                            {agents?.length ?? 0} of {limit}
+                        </span>
+                    </h2>
                 </div>
-                {agents?.length ? (
-                    <ul className="agent-list">
+                {agents === null ? (
+                    <span className="skeleton" style={{ height: 120 }} />
+                ) : agents.length ? (
+                    <ul className="home-rows">
                         {agents.map((agent) => (
                             <li key={agent.id}>
-                                <div>
+                                <span className="home-row-main">
                                     <strong>{agent.name}</strong>
                                     <small>
                                         {agent.client ? `${agent.client} · ` : ''}
                                         {agent.lastUsedAt
-                                            ? `last active ${new Date(agent.lastUsedAt).toLocaleString()}`
+                                            ? `active ${timeAgo(agent.lastUsedAt)}`
                                             : 'not used yet'}
                                     </small>
-                                </div>
-                                <button
-                                    className="button button-small"
-                                    onClick={() => void remove(agent)}
-                                >
-                                    Disconnect
-                                </button>
+                                </span>
+                                <DropdownMenu.Root>
+                                    <DropdownMenu.Trigger>
+                                        <IconButton
+                                            aria-label={`More actions for ${agent.name}`}
+                                            variant="ghost"
+                                            color="gray"
+                                        >
+                                            <DotsThree size={20} />
+                                        </IconButton>
+                                    </DropdownMenu.Trigger>
+                                    <DropdownMenu.Content align="end">
+                                        <DropdownMenu.Item
+                                            onSelect={() => {
+                                                setKey(agent.id);
+                                                document
+                                                    .getElementById('activity-heading')
+                                                    ?.scrollIntoView({ behavior: 'smooth' });
+                                            }}
+                                        >
+                                            Show its activity
+                                        </DropdownMenu.Item>
+                                        <DropdownMenu.Separator />
+                                        <DropdownMenu.Item
+                                            color="red"
+                                            onSelect={() => void remove(agent)}
+                                        >
+                                            Disconnect
+                                        </DropdownMenu.Item>
+                                    </DropdownMenu.Content>
+                                </DropdownMenu.Root>
                             </li>
                         ))}
                     </ul>
                 ) : (
-                    <p className="tool-notice">
-                        No agents yet. Ask your agent to connect to socket.help; you will get a link
-                        to approve it.
+                    <p className="home-empty">
+                        No agents yet. Paste the setup prompt into your agent and approve it when it
+                        asks.{' '}
+                        <Link className="text-link" href="/connect/">
+                            How to connect
+                        </Link>
+                    </p>
+                )}
+                {agents && agents.length > 0 && (
+                    <p className="home-note">
+                        Each agent has its own key. Disconnecting one stops its key right away.
                     </p>
                 )}
             </section>
             {questions.length > 0 && (
-                <section className="settings-card agent-activity">
-                    <div className="agent-activity-heading">
-                        <div>
-                            <h2>Agent questions</h2>
-                            <p>
-                                Agents ask before risky steps. Only owners and admins can answer,
-                                and every answer is kept here.
-                            </p>
-                        </div>
+                <section className="home-section" aria-labelledby="questions-heading">
+                    <div className="home-section-head">
+                        <h2 id="questions-heading">
+                            Questions{' '}
+                            {pending.length > 0 && (
+                                <span className="home-count">{pending.length} waiting</span>
+                            )}
+                        </h2>
                     </div>
-                    <ul className="agent-list">
-                        {questions.map((item) => (
-                            <li key={item.id}>
-                                <div>
+                    <ul className="home-rows">
+                        {[...pending, ...(allPast ? past : past.slice(0, 3))].map((item) => (
+                            <li
+                                key={item.id}
+                                className={item.status === 'pending' ? '' : 'is-done'}
+                            >
+                                <span className="home-row-main">
                                     <strong>{item.question}</strong>
                                     <small>
-                                        {item.agentName} ·{' '}
-                                        {new Date(item.createdAt).toLocaleString()}
+                                        {item.agentName} · {timeAgo(item.createdAt)}
                                         {item.status === 'answered'
-                                            ? ` · ${item.answer}${item.answeredBy ? ` by ${item.answeredBy}` : ''}`
+                                            ? ` · answered “${item.answer}”${item.answeredBy ? ` by ${item.answeredBy}` : ''}`
                                             : item.status === 'expired'
-                                              ? ' · expired'
+                                              ? ' · expired without an answer'
                                               : ''}
                                     </small>
-                                </div>
+                                </span>
                                 {item.status === 'pending' && (
                                     <Link
                                         className="button button-primary button-small"
@@ -170,30 +205,42 @@ export function AgentActivity({ keys }: { keys: { id: string; name: string }[] }
                             </li>
                         ))}
                     </ul>
+                    {past.length > 3 && (
+                        <button
+                            type="button"
+                            className="home-panel-link home-more"
+                            onClick={() => setAllPast(!allPast)}
+                        >
+                            {allPast ? 'Show fewer' : `Show ${past.length - 3} older`}
+                        </button>
+                    )}
                 </section>
             )}
-            <section className="settings-card agent-activity">
-                <div className="agent-activity-heading">
-                    <div>
-                        <h2>What your agents did</h2>
-                        <p>
-                            Every MCP tool call made with this workspace’s API keys. Only the tool,
-                            result and timing are kept, never arguments or results.
-                        </p>
-                    </div>
+            <section className="home-section" aria-labelledby="activity-heading">
+                <div className="home-section-head">
+                    <h2 id="activity-heading">
+                        What your agents did{' '}
+                        {shown.length > 0 && (
+                            <span className="home-count">
+                                {shown.length} call{shown.length === 1 ? '' : 's'}
+                                {failures ? `, ${failures} failed` : ''}
+                            </span>
+                        )}
+                    </h2>
                 </div>
-                {keys.length > 1 && (
-                    <label className="agent-activity-filter">
-                        Key
-                        <select value={key} onChange={(event) => setKey(event.target.value)}>
-                            <option value="all">All keys</option>
-                            {keys.map((item) => (
-                                <option key={item.id} value={item.id}>
-                                    {item.name}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
+                {actors.length > 1 && (
+                    <div className="filter-chips" role="group" aria-label="Agent">
+                        {[{ id: 'all', name: 'All agents' }, ...actors].map((agent) => (
+                            <button
+                                key={agent.id}
+                                type="button"
+                                aria-pressed={key === agent.id}
+                                onClick={() => setKey(agent.id)}
+                            >
+                                {agent.name}
+                            </button>
+                        ))}
+                    </div>
                 )}
                 {entries === null ? (
                     <div className="activity-skeleton" role="status" aria-label="Loading activity">
@@ -203,49 +250,52 @@ export function AgentActivity({ keys }: { keys: { id: string; name: string }[] }
                     </div>
                 ) : shown.length ? (
                     <>
-                        <p className="tool-notice">
-                            {shown.length} recent call{shown.length === 1 ? '' : 's'}
-                            {failures ? ` · ${failures} failed` : ''}
+                        <ul className="home-rows">
+                            {shown.slice(0, more ? 200 : 25).map((entry, index) => (
+                                <li key={`${entry.at}-${index}`}>
+                                    <span
+                                        className={`activity-dot ${entry.ok ? '' : 'is-failed'}`}
+                                        aria-hidden="true"
+                                    />
+                                    <span className="home-row-main">
+                                        <strong>
+                                            {activityLabel(entry.tool)}
+                                            {!entry.ok && <em> · failed</em>}
+                                        </strong>
+                                        <small>
+                                            {entry.keyId
+                                                ? (names.get(entry.keyId) ?? 'Removed key')
+                                                : 'You, in the browser'}{' '}
+                                            · <code>{entry.tool}</code> · {entry.durationMs} ms
+                                        </small>
+                                    </span>
+                                    <time
+                                        dateTime={entry.at}
+                                        title={new Date(entry.at).toLocaleString()}
+                                    >
+                                        {timeAgo(entry.at)}
+                                    </time>
+                                </li>
+                            ))}
+                        </ul>
+                        {shown.length > 25 && (
+                            <button
+                                type="button"
+                                className="home-panel-link home-more"
+                                onClick={() => setMore(!more)}
+                            >
+                                {more
+                                    ? 'Show fewer'
+                                    : `Show ${Math.min(200, shown.length) - 25} more`}
+                            </button>
+                        )}
+                        <p className="home-note">
+                            Only the tool, result and timing are kept, never what was sent or
+                            returned.
                         </p>
-                        <div className="content-table-wrap">
-                            <table className="content-table">
-                                <thead>
-                                    <tr>
-                                        <th scope="col">When</th>
-                                        <th scope="col">Tool</th>
-                                        <th scope="col">Key</th>
-                                        <th scope="col">Result</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {shown.slice(0, 200).map((entry, index) => (
-                                        <tr key={`${entry.at}-${index}`}>
-                                            <td>{new Date(entry.at).toLocaleString()}</td>
-                                            <td>
-                                                <code>{entry.tool}</code>
-                                                {entry.resourceId && (
-                                                    <small title={entry.resourceId}>
-                                                        {' '}
-                                                        · {entry.resourceId.slice(0, 8)}
-                                                    </small>
-                                                )}
-                                            </td>
-                                            <td>
-                                                {entry.keyId
-                                                    ? (names.get(entry.keyId) ?? 'Deleted key')
-                                                    : 'Signed-in session'}
-                                            </td>
-                                            <td className={entry.ok ? 'replay-ok' : 'replay-error'}>
-                                                {entry.ok ? 'OK' : 'Failed'} · {entry.durationMs} ms
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
                     </>
                 ) : (
-                    <p className="tool-notice">
+                    <p className="home-empty">
                         No activity yet. Once an agent is connected, every tool it calls shows up
                         here.
                     </p>

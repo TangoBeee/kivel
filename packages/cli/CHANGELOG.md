@@ -1,5 +1,13 @@
 # @socket-help/cli
 
+## 0.4.1
+
+### Patch Changes
+
+- 4b9c802: Default webhook inboxes to receiving without sender credentials while keeping inspection private. Document explicit private receiving and its X-Access-Token requirement.
+- Updated dependencies [4b9c802]
+    - @socket-help/sdk@0.4.1
+
 ## 0.4.0
 
 ### Minor Changes

@@ -104,10 +104,14 @@ export function oauthOpenApi() {
                 ...operation('Update users, claims and failure scenario'),
                 security: management,
                 description:
-                    'Replaces the configuration. Saving rotated_signing_key generates a new signing key and removes the previous key from JWKS. Existing signed tokens then fail signature validation against the current JWKS.',
+                    'Replaces the configuration. Saving rotated_signing_key rotates at most once per provider per minute. Earlier public keys remain in JWKS until tokens signed with them expire. Requests within the rotation window return 429 with Retry-After. Private keys are encrypted at rest using AUTH_SECRET and bound to the provider ID.',
                 requestBody: { required: true, ...json(oauthSchema) },
                 responses: {
                     '204': { description: 'Updated' },
+                    '429': {
+                        description: 'Signing key rotation is limited to once per minute',
+                        headers: { 'Retry-After': { schema: { type: 'integer', minimum: 1 } } },
+                    },
                     '400': { description: 'Invalid configuration' },
                     '404': { description: 'Provider unavailable or access denied' },
                 },
@@ -155,10 +159,10 @@ export function oauthOpenApi() {
                     })),
                 ],
                 description:
-                    'Exact registered redirect URI required. Only code with S256 PKCE. Codes expire after 60 seconds and can be used once. For headless approval enable headless and supply prompt=none with a configured user email or subject as login_hint. Otherwise a clearly labeled test consent page is shown. No real user passwords.',
+                    'Exact registered redirect URI required. Only code with S256 PKCE. Codes expire after 60 seconds and can be used once. For headless approval enable headless and supply prompt=none with a configured user email or subject as login_hint. Immediate redirects, including error responses, are allowed only to localhost, 127.0.0.1 and [::1]. Public hosts always require a hosted page with the destination origin and an explicit Continue step; its confirmation POST must have the provider Origin. No real user passwords.',
                 responses: {
                     '200': {
-                        description: 'Hosted test consent page',
+                        description: 'Hosted test consent or destination confirmation page',
                         content: { 'text/html': { schema: { type: 'string' } } },
                     },
                     '302': { description: 'Redirect with code or OAuth error, and original state' },
@@ -173,11 +177,11 @@ export function oauthOpenApi() {
                         'application/x-www-form-urlencoded': {
                             schema: {
                                 type: 'object',
-                                required: ['consent', 'user', 'decision'],
+                                required: ['consent', 'decision'],
                                 properties: {
                                     consent: { type: 'string' },
                                     user: { type: 'string' },
-                                    decision: { enum: ['approve', 'deny'] },
+                                    decision: { enum: ['approve', 'deny', 'continue'] },
                                 },
                             },
                         },
@@ -186,6 +190,9 @@ export function oauthOpenApi() {
                 responses: {
                     '302': { description: 'Redirect to the registered callback' },
                     '400': { description: 'Invalid or expired form' },
+                    '403': {
+                        description: 'Confirm public redirects from the provider page origin',
+                    },
                 },
             },
         },
@@ -194,7 +201,7 @@ export function oauthOpenApi() {
                 ...operation('Exchange a code, rotate a refresh token or issue client credentials'),
                 requestBody: form,
                 description:
-                    'Form encoded. Authenticate with client_secret_basic or client_secret_post. Public code exchange may use client_id and S256 verifier without a secret. Access and ID tokens last 5 minutes. offline_access requests refresh tokens, which rotate on use and last 1 hour. Expiry never extends the provider lifetime. Client credentials do not return ID or refresh tokens. Test failures return standard OAuth errors.',
+                    'Form encoded. Authenticate with client_secret_basic or client_secret_post. Public code exchange may use client_id and S256 verifier without a secret. Public grants also support refresh without a secret; reusing an old refresh token revokes the entire family. Access and ID tokens last 5 minutes. offline_access requests refresh tokens, which rotate on use and last 1 hour. Expiry never extends the provider lifetime. Client credentials do not return ID or refresh tokens. Test failures return standard OAuth errors.',
                 responses: response({
                     type: 'object',
                     properties: {
@@ -223,7 +230,7 @@ export function oauthOpenApi() {
                 ...operation('Revoke an access or refresh token and its grant family'),
                 requestBody: form,
                 description:
-                    'Authenticate with the provider client secret. Unknown tokens succeed without revealing whether they existed. Locally validated JWTs remain cryptographically valid until expiry; userinfo and refresh reject revoked grants.',
+                    'Confidential grants require the provider client secret. Public PKCE grants accept client_id without a secret. Unknown tokens succeed without revealing whether they existed. Locally validated JWTs remain cryptographically valid until expiry; userinfo and refresh reject revoked grants.',
             },
         },
     };

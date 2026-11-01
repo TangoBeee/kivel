@@ -265,13 +265,16 @@ export function OAuthWorkbench({ toolId }: { toolId: string }) {
                             />
                             <p className="field-help">
                                 Use S256 PKCE. For headless testing enable it, then send prompt=none
-                                and login_hint matching a configured email or subject. Never use
-                                this issuer for real authentication.
+                                and login_hint matching a configured email or subject. Immediate
+                                redirects are limited to loopback callbacks. Public destinations
+                                require Continue on the hosted page. Never use this issuer for real
+                                authentication.
                             </p>
                             {scenario === 'rotated_signing_key' && (
                                 <p className="tool-notice">
-                                    Each save rotates the signing key. Refresh your client’s JWKS
-                                    cache to validate newly issued tokens.
+                                    Signing keys rotate at most once per minute. Previous keys stay
+                                    published until their tokens expire. Refresh your client’s JWKS
+                                    cache when a new key appears.
                                 </p>
                             )}
                             <MockCalls id={provider.id} token="" />

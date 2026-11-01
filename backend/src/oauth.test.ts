@@ -10,7 +10,7 @@ import { command, needsInput } from '@socket-help/cli';
 const origin = 'http://localhost:3000';
 const config = {
     name: 'Test app',
-    redirectUris: ['https://client.example/callback?app=test'],
+    redirectUris: ['http://localhost:3333/callback?app=test'],
     users: [
         {
             sub: 'user-1',
@@ -78,7 +78,7 @@ async function oauthFlow(
 }
 
 test('OAuth code and PKCE flow validates ID and access signatures against JWKS, rotates refresh tokens and revokes the family', async (t) => {
-    const app = buildApp();
+    const app = buildApp({ authSecret: 'oauth-test-server-secret-32-characters' });
     t.after(() => app.close());
     const headers = await oauthOwner(app);
     const created = await app.inject({
@@ -194,7 +194,7 @@ test('OAuth code and PKCE flow validates ID and access signatures against JWKS, 
 });
 
 test('OAuth failure scenarios are deterministic and key rotation invalidates cached signing keys', async (t) => {
-    const app = buildApp();
+    const app = buildApp({ authSecret: 'oauth-test-server-secret-32-characters' });
     t.after(() => app.close());
     const headers = await oauthOwner(app);
     const provider = (
@@ -275,7 +275,7 @@ test('OAuth failure scenarios are deterministic and key rotation invalidates cac
 });
 
 test('OAuth enforces exact redirects, S256 PKCE, consent and headless opt in without accepting real credentials', async (t) => {
-    const app = buildApp();
+    const app = buildApp({ authSecret: 'oauth-test-server-secret-32-characters' });
     t.after(() => app.close());
     const headers = await oauthOwner(app);
     const provider = (
@@ -344,7 +344,10 @@ test('OAuth enforces exact redirects, S256 PKCE, consent and headless opt in wit
 test('OAuth workspace limits, isolation, expiry and atomic code consumption apply to every adapter', async (t) => {
     let now = Date.now();
     const store = new ResourceStore(() => now);
-    const app = buildApp({ resourceStore: store });
+    const app = buildApp({
+        resourceStore: store,
+        authSecret: 'oauth-test-server-secret-32-characters',
+    });
     t.after(() => app.close());
     const headers = await oauthOwner(app),
         other = await oauthOwner(app, 'oauth-other');
@@ -432,7 +435,7 @@ test('OAuth workspace limits, isolation, expiry and atomic code consumption appl
 });
 
 test('MCP agents create, authorize, exchange and inspect a provider without leaving the mock tools', async (t) => {
-    const app = buildApp();
+    const app = buildApp({ authSecret: 'oauth-test-server-secret-32-characters' });
     t.after(() => app.close());
     const headers = await oauthOwner(app);
     const mcp = async (name: string, args: Record<string, unknown>) => {
@@ -535,7 +538,7 @@ test('provider plan counts enforce Free, Pro and Team limits and deletion restor
 });
 
 test('token endpoints reject mismatched redirects, incorrect verifiers, unknown clients and repeated form parameters', async (t) => {
-    const app = buildApp();
+    const app = buildApp({ authSecret: 'oauth-test-server-secret-32-characters' });
     t.after(() => app.close());
     const headers = await oauthOwner(app);
     const provider = (

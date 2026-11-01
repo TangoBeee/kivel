@@ -974,6 +974,7 @@ export function registerMcp({
     function nativeAvailability(name: string) {
         return (['add_authenticator', 'get_totp_code'].includes(name) &&
             !capabilities.authenticators) ||
+            (name === 'create_oauth_provider' && !capabilities.oauthProviders) ||
             (['create_phone_number'].includes(name) && !capabilities.phones) ||
             (name === 'create_email_inbox' && !capabilities.emailReceiving)
             ? 'coming-soon'
@@ -1333,6 +1334,8 @@ export function registerMcp({
             delete headers.cookie;
             delete headers.origin;
         }
+        if (oauth && value.method === 'POST' && String(value.path).split('?')[0] === '/authorize')
+            headers.origin = origin;
         if (oauth && typeof value.accessToken === 'string')
             headers.authorization = `Bearer ${value.accessToken}`;
         if (oauth && value.body !== undefined)

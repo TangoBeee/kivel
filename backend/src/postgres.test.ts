@@ -2584,18 +2584,26 @@ test('the attachment set cap holds across concurrent PostgreSQL writers', async 
     assert.equal(await stores[0]!.count(inbox.id), 6);
 });
 test('OAuth providers share durable grants, signing keys and atomic plan limits across replicas', async (t) => {
+    class DelayedMockCalls extends PostgresMockCalls {
+        override async record(...args: Parameters<PostgresMockCalls['record']>) {
+            await new Promise((resolve) => setTimeout(resolve, 20));
+            return super.record(...args);
+        }
+    }
     const identities = new PostgresIdentityRepository(pool);
     const a = buildApp({
         identityStore: identities,
+        authSecret: 'durable-oauth-test-secret-32-characters',
         recoveryStore: new PostgresRecoveryRepository(pool),
         resourceStore: new PostgresResourceStore(pool),
-        mockCalls: new PostgresMockCalls(pool),
+        mockCalls: new DelayedMockCalls(pool),
     });
     const b = buildApp({
         identityStore: new PostgresIdentityRepository(pool),
+        authSecret: 'durable-oauth-test-secret-32-characters',
         recoveryStore: new PostgresRecoveryRepository(pool),
         resourceStore: new PostgresResourceStore(pool),
-        mockCalls: new PostgresMockCalls(pool),
+        mockCalls: new DelayedMockCalls(pool),
     });
     t.after(async () => {
         await a.close();
@@ -2673,7 +2681,21 @@ test('OAuth providers share durable grants, signing keys and atomic plan limits 
     assert.deepEqual(refreshed.map((r) => r.statusCode).sort(), [200, 400]);
     const log = await b.inject({ url: `/api/mocks/${provider.id}/calls`, headers });
     assert.ok(log.json().calls.length >= 7);
+    assert.equal(log.json().calls.at(-1).status, 400);
     assert.ok(!log.body.includes(refresh));
+    const winner = refreshed.find((r) => r.statusCode === 200)!.json();
+    const reuseCheck = await b.inject({
+        method: 'POST',
+        url: `${path}/token`,
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        payload: new URLSearchParams({
+            grant_type: 'refresh_token',
+            client_id: provider.client_id,
+            client_secret: provider.client_secret,
+            refresh_token: winner.refresh_token,
+        }).toString(),
+    });
+    assert.equal(reuseCheck.json().error, 'invalid_grant');
     await pool.query(
         "UPDATE temporary_resources SET expires_at = clock_timestamp() - interval '1 second' WHERE id = $1",
         [provider.id],

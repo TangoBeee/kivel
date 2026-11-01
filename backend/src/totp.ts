@@ -1,4 +1,5 @@
-import { createCipheriv, createDecipheriv, createHmac, hkdfSync, randomBytes } from 'node:crypto';
+import { createHmac } from 'node:crypto';
+import { secretVault } from './secret-vault.js';
 import { HttpError } from './errors.js';
 
 export interface TotpConfig {
@@ -121,32 +122,13 @@ export function totp(config: TotpConfig, now = Date.now()) {
     };
 }
 export function totpVault(serverSecret: string) {
-    const key = Buffer.from(
-        hkdfSync('sha256', serverSecret, 'socket.help', 'authenticator-v1', 32),
-    );
+    const vault = secretVault(serverSecret, 'authenticator-v1');
     return {
         encrypt(config: TotpConfig, owner: string, id: string) {
-            const iv = randomBytes(12),
-                cipher = createCipheriv('aes-256-gcm', key, iv);
-            cipher.setAAD(Buffer.from(`${owner}:${id}`));
-            return Buffer.concat([
-                iv,
-                cipher.update(JSON.stringify(config)),
-                cipher.final(),
-                cipher.getAuthTag(),
-            ]).toString('base64');
+            return vault.encrypt(JSON.stringify(config), `${owner}:${id}`);
         },
         decrypt(value: string, owner: string, id: string): TotpConfig {
-            const bytes = Buffer.from(value, 'base64'),
-                decipher = createDecipheriv('aes-256-gcm', key, bytes.subarray(0, 12));
-            decipher.setAAD(Buffer.from(`${owner}:${id}`));
-            decipher.setAuthTag(bytes.subarray(-16));
-            return JSON.parse(
-                Buffer.concat([
-                    decipher.update(bytes.subarray(12, -16)),
-                    decipher.final(),
-                ]).toString('utf8'),
-            );
+            return JSON.parse(vault.decrypt(value, `${owner}:${id}`));
         },
     };
 }

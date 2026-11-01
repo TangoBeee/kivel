@@ -25,7 +25,7 @@ const guides: Record<string, Guide> = {
         steps: [
             'Register exact callback URLs and synthetic users.',
             'Create the provider and save its client secret. Configure your client with the discovery URL and S256 PKCE.',
-            'Approve or deny on the hosted test page, or enable headless mode with prompt=none and login_hint.',
+            'Approve or deny on the hosted test page. Headless prompt=none with login_hint redirects immediately only to loopback callbacks; public destinations require Continue.',
             'Switch failure scenarios, inspect requests and delete the provider when testing is complete.',
         ],
         limits: 'Free allows 1 active provider, Pro 10 and Team 50. Mock retention and workspace storage limits apply. Codes last 60 seconds, access and ID tokens 5 minutes, refresh tokens 1 hour. Refresh tokens rotate on use. Each provider accepts 120 requests per minute and keeps its last 100 calls with sensitive parameters redacted. Use synthetic data only. This is a test service, never a source of real account identity.',

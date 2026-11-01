@@ -35,6 +35,9 @@ import {
     ChartBar,
 } from '@phosphor-icons/react';
 import { categoryTints } from '../lib/catalog';
+import { useSavedTools } from '../lib/saved-tools';
+import { Icon as ToolIcon } from './icons';
+import { NavCustomize, useHiddenNav } from './nav-customize';
 import type { Icon } from '@phosphor-icons/react';
 
 type Section = {
@@ -317,6 +320,8 @@ export function DashboardShell({
     busy,
     badges,
     search,
+    activeTool,
+    onTool,
     title,
     actions,
     children,
@@ -334,12 +339,17 @@ export function DashboardShell({
     /** Usage next to each sidebar item, such as "1/1"; full ones are highlighted. */
     badges: Partial<Record<DashboardPanel, { text: string; full?: boolean; hidden?: boolean }>>;
     search: ReactNode;
+    /** The utility open on the Utilities page, so a pinned one shows as current. */
+    activeTool?: string;
+    onTool: (toolId: string) => void;
     title?: string;
     actions?: ReactNode;
     children: ReactNode;
 }) {
     const current = panelInfo(panel);
     const settings = settingsTabs.includes(panel);
+    const { hidden } = useHiddenNav();
+    const pinned = useSavedTools().tools;
     const [navOpen, setNavOpen] = useState(false);
     useEffect(() => {
         if (!navOpen) return;
@@ -361,7 +371,7 @@ export function DashboardShell({
     const item = (entry: Section) => {
         const active = entry.id === 'workspace' ? settings : panel === entry.id;
         const badge = badges[entry.id as DashboardPanel];
-        if (badge?.hidden && !active) return null;
+        if ((badge?.hidden || hidden.includes(entry.id)) && !active) return null;
         return (
             <button
                 key={entry.id}
@@ -452,8 +462,54 @@ export function DashboardShell({
                 {search}
                 <nav className="dashboard-nav" aria-label="Workspace sections">
                     {group('main')}
-                    <p className="nav-group">Your tools</p>
+                    <div className="nav-group">
+                        Your tools
+                        <NavCustomize
+                            pages={(dashboardPanels as readonly Section[])
+                                .filter((entry) => entry.group === 'tools')
+                                .map((entry) => ({
+                                    id: entry.id,
+                                    label: entry.label,
+                                    icon: (
+                                        <span
+                                            className="nav-chip"
+                                            style={
+                                                {
+                                                    '--tint': categoryTints[entry.category!],
+                                                } as React.CSSProperties
+                                            }
+                                        >
+                                            <entry.icon size={12} />
+                                        </span>
+                                    ),
+                                }))}
+                        />
+                    </div>
                     {group('tools')}
+                    {pinned.map((tool) => (
+                        <button
+                            key={tool.id}
+                            aria-current={
+                                panel === 'tools' && activeTool === tool.id ? 'page' : undefined
+                            }
+                            onClick={() => {
+                                onTool(tool.id);
+                                setNavOpen(false);
+                            }}
+                        >
+                            <span
+                                className="nav-chip"
+                                style={
+                                    {
+                                        '--tint': categoryTints[tool.categoryId],
+                                    } as React.CSSProperties
+                                }
+                            >
+                                <ToolIcon name={tool.icon} size={12} />
+                            </span>
+                            <span className="nav-label">{tool.name}</span>
+                        </button>
+                    ))}
                     <p className="nav-group">Everything else</p>
                     {group('more')}
                     {item(dashboardPanels.find((entry) => entry.id === 'workspace')!)}

@@ -13,11 +13,14 @@ export function UsagePanel({
     resources,
     usage,
     onPlans,
+    onUpgrade,
 }: {
     plan: string;
     resources: Resource[];
     usage: WorkspaceUsage;
     onPlans: () => void;
+    /** Starts checkout for Pro; missing when this person cannot upgrade here. */
+    onUpgrade?: () => void;
 }) {
     const limits = usage.limits;
     const stored = resources.reduce((sum, item) => sum + item.storedBytes, 0);
@@ -120,7 +123,11 @@ export function UsagePanel({
                         ? 'Pro is $2 a month: 10 email inboxes, 500 emails a month, 25 agents, 100 resources, and everything kept while you are subscribed.'
                         : 'Thanks for supporting socket.help. Manage billing in Settings › Plan.'}
                 </p>
-                <Button size="2" variant={free ? 'solid' : 'soft'} onClick={onPlans}>
+                <Button
+                    size="2"
+                    variant={free ? 'solid' : 'soft'}
+                    onClick={free && onUpgrade ? onUpgrade : onPlans}
+                >
                     {free ? 'Upgrade to Pro' : 'Manage plan'}
                 </Button>
             </div>

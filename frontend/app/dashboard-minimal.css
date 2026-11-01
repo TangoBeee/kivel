@@ -1226,3 +1226,100 @@ button.resource-title {
   text-align: left;
   cursor: pointer;
 }
+
+/* Utilities fill the screen; the list and the tool scroll inside, the page never does */
+.dashboard-content:has(.utilities) {
+  padding-bottom: 24px;
+}
+.utilities {
+  height: calc(100dvh - 200px);
+  min-height: 460px;
+  overflow: hidden;
+}
+.utility-list {
+  overflow: hidden;
+}
+.utility-scroll {
+  max-height: none;
+  min-height: 0;
+}
+.utility-run {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+/* Sidebar customisation */
+.nav-group {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.nav-edit {
+  opacity: 0.7;
+}
+.nav-edit:hover {
+  opacity: 1;
+}
+.nav-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nav-customize h3 {
+  display: flex;
+  gap: 6px;
+  margin: 20px 0 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #8b8b88;
+}
+.nav-customize h3 span {
+  font-weight: 400;
+}
+.nav-customize-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.nav-customize-list {
+  display: grid;
+  gap: 2px;
+}
+.nav-customize-list.is-scroll {
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 4px 0;
+}
+.nav-customize-list label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.nav-customize-list label:hover {
+  background: #fafafa;
+}
+.nav-customize-search {
+  margin-bottom: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  height: 38px;
+}
+
+@media (max-width: 1000px) {
+  .utilities {
+    height: auto;
+    overflow: visible;
+  }
+  .utility-run {
+    overflow: visible;
+  }
+}

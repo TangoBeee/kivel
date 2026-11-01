@@ -593,6 +593,8 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                     onSignOut={signOut}
                     busy={busy}
                     badges={badges}
+                    activeTool={open.tool}
+                    onTool={(toolId) => navigate('tools', { tool: toolId })}
                     search={
                         <DashboardSearch
                             resources={resources}
@@ -662,6 +664,19 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                             resources={resources}
                             usage={workspaceUsage}
                             onPlans={() => changePanel('billing')}
+                            onUpgrade={
+                                billing.enabled && session.role === 'owner'
+                                    ? () =>
+                                          void action(async () => {
+                                              const result = await json(
+                                                  '/api/billing/checkout',
+                                                  'POST',
+                                                  { plan: 'pro' },
+                                              );
+                                              location.assign(result.url);
+                                          })
+                                    : undefined
+                            }
                         />
                     )}
                     {isToolPanel(panel) && (
@@ -1337,9 +1352,9 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                     </>
                                 ) : (
                                     <p>
-                                        You are using the free beta. No card is required, and this
-                                        account will not be charged or upgraded automatically. Paid
-                                        subscriptions are not open.
+                                        Upgrades are not available on this server right now. You are
+                                        on the Free plan, no card is needed, and you will not be
+                                        charged.
                                     </p>
                                 )}
                             </SettingsSection>

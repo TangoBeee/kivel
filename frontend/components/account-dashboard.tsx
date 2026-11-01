@@ -2,38 +2,24 @@
 import { AuthenticatorsPanel } from './authenticator-workbench';
 import { PasswordField } from './password-field';
 import { AppSelect, SelectOption } from './app-select';
+import { Button, TextField, Dialog, AlertDialog, Tabs, Badge } from '@radix-ui/themes';
 import {
-    Button,
-    TextField,
-    IconButton,
-    DropdownMenu,
-    Dialog,
-    AlertDialog,
-    Tabs,
-    Badge,
-} from '@radix-ui/themes';
-import {
-    FolderSimple,
-    HardDrives,
     Lightning,
-    MagnifyingGlass,
     ArrowsClockwise,
-    DotsThree,
-    ArrowUpRight,
-    File,
-    WebhooksLogo,
-    EnvelopeSimple,
-    BracketsCurly,
-    Plugs,
-    ShieldCheck,
-    ArrowRight,
     Check,
     Key as KeyIcon,
     UsersThree,
     WarningCircle,
 } from '@phosphor-icons/react';
-import { DashboardShell, isDashboardPanel, Meter, SettingsSection } from './dashboard-shell';
-import { DashboardTools, RecentTools, SavedTools } from './dashboard-tools';
+import {
+    DashboardShell,
+    isDashboardPanel,
+    Meter,
+    NewResourceMenu,
+    quickCreate,
+    SettingsSection,
+} from './dashboard-shell';
+import { DashboardTools } from './dashboard-tools';
 import { AgentActivity } from './agent-activity';
 import { AgentOverview } from './agent-overview';
 import { MonitorsPanel } from './monitors-panel';
@@ -41,7 +27,6 @@ import { refreshViewer } from '../lib/viewer';
 import type { DashboardPanel } from './dashboard-shell';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { catalog, toolPageHref } from '../lib/catalog';
 import { PasswordRecovery, AccountSecurity } from './account-security';
 import { clearPrivateSession } from '../lib/private-session';
 import { api, ApiError } from '../lib/api';
@@ -50,6 +35,9 @@ import type { Visibility } from './sharing-control';
 import { RemoteFilePreview } from './file-preview';
 import { ResultPreview } from './result-preview';
 import { CopyButton } from './copy-button';
+import { ResourceList, resourceTool } from './dashboard-resources';
+import { timeLeft } from '../lib/activity-labels';
+import type { Resource } from './dashboard-resources';
 type Session = {
     user: { username: string };
     account: { id: string; name: string; effectivePlan: string; planValidUntil: string | null };
@@ -57,18 +45,6 @@ type Session = {
     scopes: string[];
 };
 type Key = { id: string; name: string; prefix: string; scopes: string[]; expiresAt: string };
-type Resource = {
-    toolId?: string;
-    id: string;
-    kind: 'inbox' | 'mock' | 'file' | 'mcp' | 'email' | 'status' | 'job';
-    visibility: Visibility;
-    name?: string;
-    expiresAt: string;
-    persistent: boolean;
-    status?: 'active' | 'paused';
-    storedBytes: number;
-    available?: boolean;
-};
 const paths = {
     inbox: 'inboxes',
     mock: 'mocks',
@@ -78,17 +54,14 @@ const paths = {
     status: 'status-pages',
     job: 'scheduled-jobs',
 };
-const resourceTools = {
-    inbox: 'webhooks',
-    mock: 'mock-apis-mock-rest-api',
-    file: 'files-temporary-file-transfer',
-    mcp: 'agents-mock-mcp-server',
-    email: 'email-temporary-email-inbox',
-    status: 'monitoring-public-status-page',
-    job: 'automation-delayed-webhooks',
-};
 const formatBytes = (value: number) =>
     value < 1048576 ? `${Math.ceil(value / 1024)} KiB` : `${(value / 1048576).toFixed(1)} MiB`;
+const keyAccess = (scopes: string[]) =>
+    scopes.includes('resources:write')
+        ? 'Full access'
+        : scopes.includes('tools:run')
+          ? 'Runs tools only'
+          : 'Read only';
 const date = (value: string) =>
     new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 async function json(path: string, method = 'GET', body?: unknown) {
@@ -353,41 +326,25 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
         });
     }
     const storedBytes = resources.reduce((sum, item) => sum + item.storedBytes, 0);
-    const filteredResources = resources.filter(
-        (item) =>
-            (resourceKind === 'all' || item.kind === resourceKind) &&
-            `${item.name ?? ''} ${item.kind} ${item.id}`
-                .toLowerCase()
-                .includes(resourceQuery.toLowerCase()),
+    // Agents get their keys when approved; those are managed on the Agents page.
+    const ownKeys = keys.filter((key) => !key.name.startsWith('Agent: '));
+    const agentKeys = keys.length - ownKeys.length;
+    const resourcesEmpty = (
+        <div className="home-empty-block">
+            <p>
+                Nothing here yet. Inboxes, mocks, files and everything else you or your agents
+                create shows up here.
+            </p>
+            <div className="quick-create">
+                {quickCreate.slice(0, 4).map((item) => (
+                    <Link key={item.href} href={item.href}>
+                        <item.icon size={16} />
+                        {item.name}
+                    </Link>
+                ))}
+            </div>
+        </div>
     );
-    const visibleResources = panel === 'overview' ? resources.slice(0, 5) : filteredResources;
-    const resourceNames = {
-        inbox: 'Webhook inbox',
-        file: 'File',
-        mock: 'Mock API',
-        mcp: 'MCP server',
-        email: 'Email inbox',
-        status: 'Status page',
-        job: 'Scheduled job',
-    };
-    const bar = (value: number, max: number) => (
-        <span className="metric-bar" aria-hidden="true">
-            <span
-                style={{
-                    width: `${max > 0 ? Math.min(100, Math.max((value / max) * 100, value > 0 ? 3 : 0)) : 0}%`,
-                }}
-            />
-        </span>
-    );
-    const resourceIcons = {
-        inbox: WebhooksLogo,
-        file: File,
-        mock: BracketsCurly,
-        mcp: Plugs,
-        email: EnvelopeSimple,
-        status: ShieldCheck,
-        job: Lightning,
-    };
     const messages = (
         <>
             {error && (
@@ -587,334 +544,73 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                     role={session.role}
                     onSignOut={signOut}
                     busy={busy}
+                    actions={
+                        ['overview', 'resources', 'tools'].includes(panel) ? (
+                            <NewResourceMenu onBrowse={() => changePanel('tools')} />
+                        ) : panel === 'agents' ? (
+                            <Link className="button button-primary button-small" href="/connect/">
+                                Connect an agent
+                            </Link>
+                        ) : undefined
+                    }
                 >
                     {messages}
                     {panel === 'overview' && (
-                        <>
-                            <AgentOverview
-                                onOpen={changePanel}
-                                plan={planName}
-                                resources={resources.length}
-                                maxResources={usage?.limits.maxResources ?? 0}
+                        <AgentOverview
+                            onOpen={changePanel}
+                            plan={planName}
+                            resources={resources.length}
+                            maxResources={usage?.limits.maxResources ?? 0}
+                            needs={
+                                recoveryEmail.verifiedAt
+                                    ? []
+                                    : [
+                                          {
+                                              id: 'recovery',
+                                              title: recoveryEmail.email
+                                                  ? 'Verify your email'
+                                                  : 'Add a recovery email',
+                                              detail: recoveryEmail.email
+                                                  ? `So you can reset your password and get monitor alerts at ${recoveryEmail.email}.`
+                                                  : 'So you can get back in if you forget your password.',
+                                              action: recoveryEmail.email ? 'Verify' : 'Add email',
+                                              onAction: () => changePanel('security'),
+                                          },
+                                      ]
+                            }
+                        >
+                            <ResourceList
+                                resources={resources}
+                                compact
+                                canWrite={session.scopes.includes('resources:write')}
+                                canKeep={subscribed}
+                                busy={busy}
+                                refreshing={refreshing}
+                                onRefresh={() => void reload()}
+                                onViewAll={() => changePanel('resources')}
+                                onDetails={(resource) => void inspect(resource)}
+                                onRenew={renew}
+                                onDelete={setDeleteTarget}
+                                empty={resourcesEmpty}
                             />
-                            {!recoveryEmail.verifiedAt && (
-                                <div className="dashboard-security-note">
-                                    <ShieldCheck size={22} />
-                                    <div>
-                                        <strong>
-                                            {recoveryEmail.email
-                                                ? 'Verify your email'
-                                                : 'Add a recovery email'}
-                                        </strong>
-                                        <p>
-                                            {recoveryEmail.email
-                                                ? `Recovery email: ${recoveryEmail.email}`
-                                                : 'Keep access to your account if you forget your password.'}
-                                        </p>
-                                    </div>
-                                    <Button variant="soft" onClick={() => changePanel('security')}>
-                                        Review
-                                        <ArrowRight size={15} />
-                                    </Button>
-                                </div>
-                            )}
-                        </>
+                        </AgentOverview>
                     )}
                     {panel === 'tools' && <DashboardTools glyphs={glyphs} />}
-                    {(panel === 'overview' || panel === 'resources') && (
-                        <section className="account-card dashboard-resources">
-                            <div className="account-section-heading">
-                                <div>
-                                    <h2>
-                                        {panel === 'overview'
-                                            ? 'Recent resources'
-                                            : 'All resources'}
-                                        <Badge variant="soft" color="gray">
-                                            {resources.length}
-                                        </Badge>
-                                    </h2>
-                                    <p>
-                                        Your temporary files and endpoints, ready when you need
-                                        them.
-                                    </p>
-                                </div>
-                                <div className="dashboard-section-actions">
-                                    {panel === 'overview' && resources.length > 0 && (
-                                        <Button
-                                            variant="ghost"
-                                            onClick={() => changePanel('resources')}
-                                        >
-                                            View all
-                                        </Button>
-                                    )}
-                                    <IconButton
-                                        aria-label={
-                                            refreshing
-                                                ? 'Refreshing resources'
-                                                : 'Refresh resources'
-                                        }
-                                        variant="ghost"
-                                        color="gray"
-                                        disabled={refreshing}
-                                        onClick={() => void reload()}
-                                    >
-                                        <ArrowsClockwise
-                                            size={18}
-                                            className={refreshing ? 'spin' : undefined}
-                                        />
-                                    </IconButton>
-                                </div>
-                            </div>
-                            {panel === 'resources' && (
-                                <div className="dashboard-resource-filters">
-                                    <TextField.Root
-                                        placeholder="Find a resource…"
-                                        aria-label="Find a resource"
-                                        value={resourceQuery}
-                                        onChange={(event) => setResourceQuery(event.target.value)}
-                                    >
-                                        <TextField.Slot>
-                                            <MagnifyingGlass size={16} />
-                                        </TextField.Slot>
-                                    </TextField.Root>
-                                    <AppSelect
-                                        aria-label="Resource type"
-                                        value={resourceKind}
-                                        onChange={(event) => setResourceKind(event.target.value)}
-                                    >
-                                        <SelectOption value="all">All types</SelectOption>
-                                        <SelectOption value="file">Files</SelectOption>
-                                        <SelectOption value="inbox">Webhooks</SelectOption>
-                                        <SelectOption value="mock">Mock APIs</SelectOption>
-                                        <SelectOption value="mcp">MCP servers</SelectOption>
-                                    </AppSelect>
-                                </div>
-                            )}
-                            {visibleResources.length ? (
-                                <div className="account-table-wrap">
-                                    <table className="account-table dashboard-resource-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Resource</th>
-                                                <th>Access</th>
-                                                <th>Expires</th>
-                                                <th>Size</th>
-                                                <th>
-                                                    <span className="sr-only">Actions</span>
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {visibleResources.map((resource) => {
-                                                const ResourceIcon = resourceIcons[resource.kind];
-                                                return (
-                                                    <tr key={resource.id}>
-                                                        <td>
-                                                            <div className="dashboard-resource-name">
-                                                                <span className="dashboard-resource-icon">
-                                                                    <ResourceIcon size={21} />
-                                                                </span>
-                                                                <div>
-                                                                    <button
-                                                                        onClick={() =>
-                                                                            void inspect(resource)
-                                                                        }
-                                                                        disabled={busy}
-                                                                    >
-                                                                        {resource.name ??
-                                                                            resourceNames[
-                                                                                resource.kind
-                                                                            ]}
-                                                                    </button>
-                                                                    <small>
-                                                                        {
-                                                                            resourceNames[
-                                                                                resource.kind
-                                                                            ]
-                                                                        }{' '}
-                                                                        · {resource.id.slice(0, 8)}
-                                                                    </small>
-                                                                </div>
-                                                            </div>
-                                                        </td>
-                                                        <td>
-                                                            <Badge
-                                                                color={
-                                                                    resource.visibility ===
-                                                                    'private'
-                                                                        ? 'green'
-                                                                        : 'gray'
-                                                                }
-                                                                variant="soft"
-                                                            >
-                                                                {resource.kind === 'email' &&
-                                                                resource.status === 'paused'
-                                                                    ? 'Paused'
-                                                                    : resource.available === false
-                                                                      ? 'Used up'
-                                                                      : resource.visibility ===
-                                                                          'private'
-                                                                        ? 'Private'
-                                                                        : 'Public'}
-                                                            </Badge>
-                                                        </td>
-                                                        <td>
-                                                            <span title={date(resource.expiresAt)}>
-                                                                {resource.status === 'paused'
-                                                                    ? 'Paused · grace period'
-                                                                    : resource.persistent
-                                                                      ? 'While subscribed'
-                                                                      : `${Math.max(0, Math.ceil((Date.parse(resource.expiresAt) - Date.now()) / 60000))} min left`}
-                                                            </span>
-                                                        </td>
-                                                        <td>{formatBytes(resource.storedBytes)}</td>
-                                                        <td>
-                                                            <div className="dashboard-resource-actions">
-                                                                <Button
-                                                                    asChild
-                                                                    variant="soft"
-                                                                    color="gray"
-                                                                    size="1"
-                                                                >
-                                                                    <a
-                                                                        href={`${toolPageHref(catalog.find((tool) => tool.id === resource.toolId) ?? catalog.find((tool) => tool.id === resourceTools[resource.kind])!)}?resource=${resource.id}`}
-                                                                    >
-                                                                        Open
-                                                                        <ArrowUpRight size={13} />
-                                                                    </a>
-                                                                </Button>
-                                                                <DropdownMenu.Root>
-                                                                    <DropdownMenu.Trigger>
-                                                                        <IconButton
-                                                                            aria-label={`Actions for ${resource.name ?? resource.id}`}
-                                                                            variant="ghost"
-                                                                            color="gray"
-                                                                            size="2"
-                                                                            disabled={busy}
-                                                                        >
-                                                                            <DotsThree size={20} />
-                                                                        </IconButton>
-                                                                    </DropdownMenu.Trigger>
-                                                                    <DropdownMenu.Content align="end">
-                                                                        <DropdownMenu.Item
-                                                                            onSelect={() =>
-                                                                                void inspect(
-                                                                                    resource,
-                                                                                )
-                                                                            }
-                                                                        >
-                                                                            View details
-                                                                        </DropdownMenu.Item>
-                                                                        {!['email', 'job'].includes(
-                                                                            resource.kind,
-                                                                        ) && (
-                                                                            <DropdownMenu.Item
-                                                                                disabled={
-                                                                                    !session.scopes.includes(
-                                                                                        'resources:write',
-                                                                                    )
-                                                                                }
-                                                                                onSelect={() =>
-                                                                                    renew(resource)
-                                                                                }
-                                                                            >
-                                                                                Renew retention
-                                                                            </DropdownMenu.Item>
-                                                                        )}
-                                                                        {!['email', 'job'].includes(
-                                                                            resource.kind,
-                                                                        ) &&
-                                                                            [
-                                                                                'pro',
-                                                                                'team',
-                                                                            ].includes(
-                                                                                session.account
-                                                                                    .effectivePlan,
-                                                                            ) && (
-                                                                                <DropdownMenu.Item
-                                                                                    disabled={
-                                                                                        !session.scopes.includes(
-                                                                                            'resources:write',
-                                                                                        )
-                                                                                    }
-                                                                                    onSelect={() =>
-                                                                                        renew(
-                                                                                            resource,
-                                                                                            !resource.persistent,
-                                                                                        )
-                                                                                    }
-                                                                                >
-                                                                                    {resource.persistent
-                                                                                        ? 'Make temporary'
-                                                                                        : 'Keep while subscribed'}
-                                                                                </DropdownMenu.Item>
-                                                                            )}
-                                                                        <DropdownMenu.Separator />
-                                                                        <DropdownMenu.Item
-                                                                            color="red"
-                                                                            disabled={
-                                                                                !session.scopes.includes(
-                                                                                    'resources:write',
-                                                                                )
-                                                                            }
-                                                                            onSelect={() =>
-                                                                                setDeleteTarget(
-                                                                                    resource,
-                                                                                )
-                                                                            }
-                                                                        >
-                                                                            Delete resource
-                                                                        </DropdownMenu.Item>
-                                                                    </DropdownMenu.Content>
-                                                                </DropdownMenu.Root>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            ) : (
-                                <div className="dashboard-empty">
-                                    <span className="dashboard-empty-icon">
-                                        <FolderSimple size={28} />
-                                    </span>
-                                    <h3>
-                                        {resources.length
-                                            ? 'No matching resources'
-                                            : 'Your workspace is ready.'}
-                                    </h3>
-                                    <p>
-                                        {resources.length
-                                            ? 'Try another name or resource type.'
-                                            : 'Create a webhook endpoint, mock an API, or share a file. Your resources will appear here.'}
-                                    </p>
-                                    {resources.length ? (
-                                        <Button
-                                            variant="soft"
-                                            onClick={() => {
-                                                setResourceQuery('');
-                                                setResourceKind('all');
-                                            }}
-                                        >
-                                            Clear filters
-                                        </Button>
-                                    ) : (
-                                        <div className="dashboard-empty-links">
-                                            <Link href="/tools/temporary-file-transfer/">
-                                                Upload a file
-                                                <ArrowUpRight size={14} />
-                                            </Link>
-                                            <Link href="/tools/webhook-inbox/">
-                                                Create a webhook
-                                                <ArrowUpRight size={14} />
-                                            </Link>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </section>
+                    {panel === 'resources' && (
+                        <ResourceList
+                            resources={resources}
+
+                            canWrite={session.scopes.includes('resources:write')}
+                            canKeep={subscribed}
+                            busy={busy}
+                            refreshing={refreshing}
+                            onRefresh={() => void reload()}
+                            onViewAll={() => changePanel('resources')}
+                            onDetails={(resource) => void inspect(resource)}
+                            onRenew={renew}
+                            onDelete={setDeleteTarget}
+                            empty={resourcesEmpty}
+                        />
                     )}
                     {panel === 'authenticators' && <AuthenticatorsPanel />}
                     {panel === 'agents' && <AgentActivity keys={keys} />}
@@ -938,6 +634,58 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                     </div>
                                 </div>
                             )}
+                            <SettingsSection
+                                title="Your keys"
+                                description={
+                                    agentKeys
+                                        ? `Revoke a key to stop it working right away. ${agentKeys} agent key${agentKeys === 1 ? ' is' : 's are'} managed on the Agents page.`
+                                        : 'Revoke a key to stop it working right away.'
+                                }
+                            >
+                                {ownKeys.length ? (
+                                    <ul className="settings-list">
+                                        {ownKeys.map((key) => (
+                                            <li key={key.id}>
+                                                <span className="settings-list-icon">
+                                                    <KeyIcon size={16} />
+                                                </span>
+                                                <div>
+                                                    <strong>{key.name}</strong>
+                                                    <small>
+                                                        <code>{key.prefix}…</code> ·{' '}
+                                                        {keyAccess(key.scopes)} · expires{' '}
+                                                        {timeLeft(key.expiresAt)}
+                                                    </small>
+                                                </div>
+                                                <button
+                                                    className="button button-small button-danger"
+                                                    disabled={busy}
+                                                    onClick={() =>
+                                                        action(async () => {
+                                                            await json(
+                                                                `/api/account/keys/${key.id}`,
+                                                                'DELETE',
+                                                            );
+                                                            setSecret('');
+                                                            await refresh();
+                                                        })
+                                                    }
+                                                >
+                                                    Revoke
+                                                </button>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <div className="settings-empty">
+                                        <KeyIcon size={20} />
+                                        <p>
+                                            No keys yet. Create one to use socket.help from your own
+                                            scripts or the CLI.
+                                        </p>
+                                    </div>
+                                )}
+                            </SettingsSection>
                             <SettingsSection
                                 title="Create a key"
                                 description={
@@ -1029,54 +777,6 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                         </button>
                                     </div>
                                 </form>
-                            </SettingsSection>
-                            <SettingsSection
-                                title="Active keys"
-                                description="Revoke a key to stop it working immediately."
-                            >
-                                {keys.length ? (
-                                    <ul className="settings-list">
-                                        {keys.map((key) => (
-                                            <li key={key.id}>
-                                                <span className="settings-list-icon">
-                                                    <KeyIcon size={16} />
-                                                </span>
-                                                <div>
-                                                    <strong>{key.name}</strong>
-                                                    <small>
-                                                        <code>{key.prefix}…</code> ·{' '}
-                                                        {key.scopes.join(', ')} · Expires{' '}
-                                                        {date(key.expiresAt)}
-                                                    </small>
-                                                </div>
-                                                <button
-                                                    className="button button-small button-danger"
-                                                    disabled={busy}
-                                                    onClick={() =>
-                                                        action(async () => {
-                                                            await json(
-                                                                `/api/account/keys/${key.id}`,
-                                                                'DELETE',
-                                                            );
-                                                            setSecret('');
-                                                            await refresh();
-                                                        })
-                                                    }
-                                                >
-                                                    Revoke
-                                                </button>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                ) : (
-                                    <div className="settings-empty">
-                                        <KeyIcon size={20} />
-                                        <p>
-                                            No keys yet. Create one to use socket.help from your
-                                            code, terminal, or agent.
-                                        </p>
-                                    </div>
-                                )}
                             </SettingsSection>
                         </div>
                     )}
@@ -1559,12 +1259,12 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                             <Dialog.Title>
                                 {selectedResource?.name ??
                                     (selectedResource
-                                        ? resourceNames[selectedResource.kind]
+                                        ? resourceTool(selectedResource).name
                                         : 'Workspace invitation')}
                             </Dialog.Title>
                             <Dialog.Description size="2">
                                 {selectedResource
-                                    ? `Manage access and inspect this ${resourceNames[selectedResource.kind].toLowerCase()}.`
+                                    ? `Manage access and inspect this ${resourceTool(selectedResource).name.toLowerCase()}.`
                                     : 'Share this invitation only with the intended workspace member.'}
                             </Dialog.Description>
                             {selectedResource ? (

@@ -37,7 +37,16 @@ export function ToolHeader({
                     <Icon name={tool.icon} size={24} />
                 </span>
                 <div className="tool-header-copy">
-                    <h1>{title ?? tool.name}</h1>
+                    <h1>
+                        {title && title !== tool.name ? (
+                            <>
+                                <span className="tool-title-pitch">{title}</span>
+                                <span className="tool-title-name">{tool.name}</span>
+                            </>
+                        ) : (
+                            tool.name
+                        )}
+                    </h1>
                     <p>{description ?? tool.description}</p>
                 </div>
                 <div className="tool-header-actions">

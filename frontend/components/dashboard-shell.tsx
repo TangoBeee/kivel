@@ -30,7 +30,10 @@ import {
     Pulse,
     X,
     GearSix,
+    EnvelopeSimple,
+    LockKey,
 } from '@phosphor-icons/react';
+import type { Icon } from '@phosphor-icons/react';
 
 export const dashboardPanels = [
     {
@@ -51,22 +54,21 @@ export const dashboardPanels = [
         id: 'resources',
         group: 'Build',
         label: 'Resources',
-        description: 'Webhook inboxes, email inboxes, mocks and files your agents made.',
+        description: 'Everything you and your agents created: inboxes, mocks, files and more.',
         icon: FolderSimple,
     },
     {
         id: 'keys',
         group: 'Build',
         label: 'API keys',
-        description:
-            'Keys for scripts and the CLI. Agents get their own keys when you approve them.',
+        description: 'Your workspace, keys, plan and sign-in.',
         icon: Key,
     },
     {
         id: 'authenticators',
         group: 'Build',
         label: 'Authenticators',
-        description: 'Manage encrypted sign-in authenticators for your agents.',
+        description: 'Two-factor codes your agents can use to sign in.',
         icon: ShieldCheck,
     },
     {
@@ -80,57 +82,67 @@ export const dashboardPanels = [
         id: 'agents',
         group: 'Build',
         label: 'Agents',
-        description: 'Connect, review and disconnect your agents.',
+        description: 'Who is connected, what they asked you and what they did.',
         icon: Robot,
     },
     {
         id: 'workspace',
         group: 'Settings',
         label: 'Workspace',
-        description: 'Name, members and invitations.',
+        description: 'Your workspace, keys, plan and sign-in.',
         icon: UsersThree,
     },
     {
         id: 'security',
         group: 'Settings',
         label: 'Security',
-        description: 'Recovery email and password.',
+        description: 'Your workspace, keys, plan and sign-in.',
         icon: ShieldCheck,
     },
     {
         id: 'billing',
         group: 'Settings',
         label: 'Plan',
-        description: 'Your plan and what it includes.',
+        description: 'Your workspace, keys, plan and sign-in.',
         icon: CreditCard,
     },
 ] as const;
 export type DashboardPanel = (typeof dashboardPanels)[number]['id'];
-const settingsPanels: DashboardPanel[] = ['workspace', 'keys', 'billing', 'security'];
-const navItems = [
+// Sections with more than one page show them as tabs under one sidebar item.
+const sections: { id: DashboardPanel; label: string; icon: Icon; tabs?: DashboardPanel[] }[] = [
     { id: 'overview', label: 'Home', icon: House },
     { id: 'agents', label: 'Agents', icon: Robot },
-    { id: 'resources', label: 'Resources', icon: FolderSimple },
+    {
+        id: 'resources',
+        label: 'Resources',
+        icon: FolderSimple,
+        tabs: ['resources', 'monitors', 'authenticators'],
+    },
     { id: 'tools', label: 'Tools', icon: Toolbox },
-    { id: 'monitors', label: 'Monitors', icon: Pulse },
-    { id: 'authenticators', label: 'Authenticators', icon: ShieldCheck },
-    { id: 'workspace', label: 'Settings', icon: GearSix },
-] as const;
+    {
+        id: 'workspace',
+        label: 'Settings',
+        icon: GearSix,
+        tabs: ['workspace', 'keys', 'billing', 'security'],
+    },
+];
+const sectionOf = (panel: DashboardPanel) =>
+    sections.find((section) => section.id === panel || section.tabs?.includes(panel))!;
 export const isDashboardPanel = (value: string): value is DashboardPanel =>
     dashboardPanels.some((item) => item.id === value);
 
 export const quickCreate = [
     {
-        href: '/tools/temporary-file-transfer/',
-        name: 'Upload a file',
-        description: 'Share it privately or publicly.',
-        icon: UploadSimple,
-    },
-    {
         href: '/tools/webhook-inbox/',
         name: 'Webhook inbox',
         description: 'Catch and inspect callbacks.',
         icon: WebhooksLogo,
+    },
+    {
+        href: '/tools/temporary-email-inbox/',
+        name: 'Email inbox',
+        description: 'A real address for sign-ups and codes.',
+        icon: EnvelopeSimple,
     },
     {
         href: '/tools/mock-rest-api/',
@@ -139,24 +151,42 @@ export const quickCreate = [
         icon: BracketsCurly,
     },
     {
+        href: '/tools/mock-oauth-provider/',
+        name: 'Mock OAuth provider',
+        description: 'Test sign-in with fake users.',
+        icon: LockKey,
+    },
+    {
         href: '/tools/mock-mcp-server/',
         name: 'Mock MCP server',
         description: 'Give an agent a sandbox.',
         icon: Plugs,
     },
+    {
+        href: '/tools/temporary-file-transfer/',
+        name: 'Upload a file',
+        description: 'Share it privately or publicly.',
+        icon: UploadSimple,
+    },
+    {
+        href: '/tools/uptime-monitor/',
+        name: 'Uptime monitor',
+        description: 'Get an email when a site goes down.',
+        icon: Pulse,
+    },
 ];
 
-export function NewResourceMenu() {
+export function NewResourceMenu({ onBrowse }: { onBrowse?: () => void }) {
     return (
         <DropdownMenu.Root>
             <DropdownMenu.Trigger>
                 <Button size="2">
                     <Plus size={16} />
-                    New resource
+                    New
                     <CaretDown size={14} />
                 </Button>
             </DropdownMenu.Trigger>
-            <DropdownMenu.Content align="end">
+            <DropdownMenu.Content align="end" className="dashboard-new-menu">
                 {quickCreate.map((item) => (
                     <DropdownMenu.Item asChild key={item.href}>
                         <Link href={item.href}>
@@ -165,6 +195,15 @@ export function NewResourceMenu() {
                         </Link>
                     </DropdownMenu.Item>
                 ))}
+                {onBrowse && (
+                    <>
+                        <DropdownMenu.Separator />
+                        <DropdownMenu.Item onSelect={onBrowse}>
+                            <Toolbox size={16} />
+                            Browse all tools
+                        </DropdownMenu.Item>
+                    </>
+                )}
             </DropdownMenu.Content>
         </DropdownMenu.Root>
     );
@@ -236,6 +275,7 @@ export function DashboardShell({
     onSignOut,
     busy,
     title,
+    actions,
     children,
 }: {
     panel: DashboardPanel;
@@ -249,9 +289,11 @@ export function DashboardShell({
     onSignOut: () => void;
     busy: boolean;
     title?: string;
+    actions?: ReactNode;
     children: ReactNode;
 }) {
     const current = dashboardPanels.find((item) => item.id === panel)!;
+    const section = sectionOf(panel);
     const [navOpen, setNavOpen] = useState(false);
     useEffect(() => {
         if (!navOpen) return;
@@ -333,11 +375,8 @@ export function DashboardShell({
                     </DropdownMenu.Content>
                 </DropdownMenu.Root>
                 <nav className="dashboard-nav" aria-label="Workspace sections">
-                    {navItems.map((item) => {
-                        const active =
-                            item.id === 'workspace'
-                                ? settingsPanels.includes(panel)
-                                : panel === item.id;
+                    {sections.map((item) => {
+                        const active = sectionOf(panel).id === item.id;
                         return (
                             <button
                                 key={item.id}
@@ -410,7 +449,7 @@ export function DashboardShell({
                     <span className="dashboard-breadcrumb">
                         <span>{workspace.name}</span>
                         <span aria-hidden="true">/</span>
-                        <strong>{current.label}</strong>
+                        <strong>{section.label}</strong>
                     </span>
                     <div className="dashboard-topbar-actions">
                         <SearchLaunch compact />
@@ -422,25 +461,27 @@ export function DashboardShell({
                     </div>
                 </div>
                 <div className="dashboard-content">
-                    <header key={`h-${panel}`} className="dashboard-heading dashboard-panel-enter">
+                    <header
+                        key={`h-${section.id}`}
+                        className="dashboard-heading dashboard-panel-enter"
+                    >
                         <div>
-                            <h1>
-                                {title ??
-                                    (settingsPanels.includes(panel) ? 'Settings' : current.label)}
-                            </h1>
+                            <h1>{title ?? section.label}</h1>
                             <p>{current.description}</p>
                         </div>
-                        {(panel === 'overview' || panel === 'resources') && <NewResourceMenu />}
+                        {actions}
                     </header>
-                    {settingsPanels.includes(panel) && (
-                        <nav className="dashboard-tabs" aria-label="Settings">
-                            {settingsPanels.map((id) => (
+                    {section.tabs && (
+                        <nav className="dashboard-tabs" aria-label={section.label}>
+                            {section.tabs.map((id) => (
                                 <button
                                     key={id}
                                     aria-current={panel === id ? 'page' : undefined}
                                     onClick={() => go(id)}
                                 >
-                                    {dashboardPanels.find((item) => item.id === id)!.label}
+                                    {id === 'resources'
+                                        ? 'All resources'
+                                        : dashboardPanels.find((item) => item.id === id)!.label}
                                 </button>
                             ))}
                         </nav>

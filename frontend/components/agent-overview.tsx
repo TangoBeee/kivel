@@ -6,6 +6,7 @@ import { Button } from '@radix-ui/themes';
 import { Check, Copy } from '@phosphor-icons/react';
 import { api } from '../lib/api';
 import { setupPrompt } from '../lib/setup-prompt';
+import { activityLabel, timeAgo } from '../lib/activity-labels';
 import type { DashboardPanel } from './dashboard-shell';
 
 interface Agent {
@@ -20,13 +21,6 @@ interface Activity {
     ok: boolean;
     keyId?: string;
 }
-const since = (value: string) => {
-    const seconds = Math.max(1, Math.round((Date.now() - Date.parse(value)) / 1000));
-    if (seconds < 60) return `${seconds}s ago`;
-    if (seconds < 3600) return `${Math.round(seconds / 60)}m ago`;
-    if (seconds < 86400) return `${Math.round(seconds / 3600)}h ago`;
-    return `${Math.round(seconds / 86400)}d ago`;
-};
 interface Question {
     id: string;
     agentName: string;
@@ -60,17 +54,22 @@ function CopySetup({
     );
 }
 
-/** Home: a summary line, what needs you, your agents and what they did. */
+/** Home: what needs you, what you have, what your agents did, and a quiet usage line. */
 export function AgentOverview({
     onOpen,
     plan,
     resources,
     maxResources,
+    needs = [],
+    children,
 }: {
     onOpen: (panel: DashboardPanel) => void;
     plan: string;
     resources: number;
     maxResources: number;
+    /** Other things waiting on the person, such as verifying their email. */
+    needs?: { id: string; title: string; detail: string; action: string; onAction: () => void }[];
+    children?: React.ReactNode;
 }) {
     const [agents, setAgents] = useState<Agent[] | null>(null);
     const [limit, setLimit] = useState(0);
@@ -106,122 +105,127 @@ export function AgentOverview({
 
     if (agents === null)
         return (
-            <div className="home-panels" role="status" aria-label="Loading your agents">
-                <span className="skeleton" style={{ height: 76 }} />
+            <div className="home-panels" role="status" aria-label="Loading your workspace">
+                <span className="skeleton" style={{ height: 120 }} />
                 <span className="skeleton" style={{ height: 200 }} />
             </div>
         );
-    if (agents.length === 0)
-        return (
-            <section className="home-panel home-panel-empty" aria-labelledby="connect-heading">
-                <h2 id="connect-heading">Connect your first agent</h2>
-                <p>
-                    Paste the setup prompt into Claude Code, Cursor or Codex. Your agent asks to
-                    join, and you approve it here.
-                </p>
-                <div className="home-panel-actions">
-                    <CopySetup />
-                    <Link href="/connect/" className="home-panel-link">
-                        Set it up by hand
-                    </Link>
-                </div>
-            </section>
-        );
-    const summary: { label: string; value: string; panel: DashboardPanel }[] = [
-        { label: 'Agents', value: `${agents.length} of ${limit}`, panel: 'agents' },
-        { label: 'Waiting on you', value: String(questions.length), panel: 'agents' },
-        { label: 'Resources', value: `${resources} of ${maxResources || '-'}`, panel: 'resources' },
-        { label: 'Plan', value: plan, panel: 'billing' },
-    ];
+    const waiting = questions.length + needs.length;
     return (
         <div className="home-panels">
-            <div className="home-summary">
-                {summary.map((item) => (
-                    <button key={item.label} type="button" onClick={() => onOpen(item.panel)}>
-                        <small>{item.label}</small>
-                        <strong>{item.value}</strong>
-                    </button>
-                ))}
-            </div>
-            {questions.length > 0 && (
-                <section className="home-panel" aria-labelledby="waiting-heading">
-                    <h2 id="waiting-heading">Waiting on you</h2>
-                    <ul>
+            {agents.length === 0 && (
+                <section className="home-connect" aria-labelledby="connect-heading">
+                    <div>
+                        <h2 id="connect-heading">Connect your first agent</h2>
+                        <p>
+                            Paste the setup prompt into Claude Code, Cursor or Codex. Your agent
+                            asks to join, and you approve it here.
+                        </p>
+                    </div>
+                    <div className="home-panel-actions">
+                        <CopySetup />
+                        <Link href="/connect/" className="home-panel-link">
+                            Set it up by hand
+                        </Link>
+                    </div>
+                </section>
+            )}
+            {waiting > 0 && (
+                <section className="home-section" aria-labelledby="waiting-heading">
+                    <div className="home-section-head">
+                        <h2 id="waiting-heading">
+                            Needs you <span className="home-count">{waiting}</span>
+                        </h2>
+                    </div>
+                    <ul className="home-rows">
                         {questions.map((item) => (
                             <li key={item.id}>
-                                <span>
+                                <span className="home-row-main">
                                     <strong>{item.question}</strong>
-                                    <small>{item.agentName}</small>
+                                    <small>{item.agentName} is waiting for your answer</small>
                                 </span>
                                 <Link
-                                    className="button button-primary"
+                                    className="button button-primary button-small"
                                     href={`/approve/?id=${item.id}`}
                                 >
                                     Answer
                                 </Link>
                             </li>
                         ))}
+                        {needs.map((item) => (
+                            <li key={item.id}>
+                                <span className="home-row-main">
+                                    <strong>{item.title}</strong>
+                                    <small>{item.detail}</small>
+                                </span>
+                                <button className="button button-small" onClick={item.onAction}>
+                                    {item.action}
+                                </button>
+                            </li>
+                        ))}
                     </ul>
                 </section>
             )}
-            <div className="home-columns">
-                <section className="home-panel" aria-labelledby="agents-heading">
-                    <div className="home-panel-head">
-                        <h2 id="agents-heading">
-                            Agents{' '}
-                            <span>
-                                {agents.length} of {limit}
-                            </span>
-                        </h2>
+            {children}
+            <section className="home-section" aria-labelledby="activity-heading">
+                <div className="home-section-head">
+                    <h2 id="activity-heading">What your agents did</h2>
+                    {activity.length > 0 && (
                         <button
                             type="button"
                             className="home-panel-link"
                             onClick={() => onOpen('agents')}
                         >
-                            Manage
+                            View all
                         </button>
-                    </div>
-                    <ul>
-                        {agents.map((agent) => (
-                            <li key={agent.id}>
-                                <span>
-                                    <strong>{agent.name}</strong>
+                    )}
+                </div>
+                {activity.length ? (
+                    <ul className="home-rows">
+                        {activity.map((entry, index) => (
+                            <li key={`${entry.at}-${index}`}>
+                                <span
+                                    className={`activity-dot ${entry.ok ? '' : 'is-failed'}`}
+                                    aria-hidden="true"
+                                />
+                                <span className="home-row-main">
+                                    <strong>
+                                        {activityLabel(entry.tool)}
+                                        {!entry.ok && <em> · failed</em>}
+                                    </strong>
                                     <small>
-                                        {agent.lastUsedAt
-                                            ? `Active ${since(agent.lastUsedAt)}`
-                                            : 'Not used yet'}
+                                        {agents.find((agent) => agent.id === entry.keyId)?.name ??
+                                            (entry.keyId ? 'API key' : 'You')}
                                     </small>
                                 </span>
+                                <time
+                                    dateTime={entry.at}
+                                    title={new Date(entry.at).toLocaleString()}
+                                >
+                                    {timeAgo(entry.at)}
+                                </time>
                             </li>
                         ))}
                     </ul>
-                    {agents.length < limit && <CopySetup label="Connect another agent" quiet />}
-                </section>
-                <section className="home-panel" aria-labelledby="activity-heading">
-                    <h2 id="activity-heading">Recent activity</h2>
-                    {activity.length ? (
-                        <ul>
-                            {activity.map((entry, index) => (
-                                <li key={`${entry.at}-${index}`}>
-                                    <span>
-                                        <strong>
-                                            <code>{entry.tool}</code>
-                                            {!entry.ok && <em> failed</em>}
-                                        </strong>
-                                        <small>
-                                            {agents.find((agent) => agent.id === entry.keyId)
-                                                ?.name ?? 'API key'}
-                                        </small>
-                                    </span>
-                                    <time dateTime={entry.at}>{since(entry.at)}</time>
-                                </li>
-                            ))}
-                        </ul>
-                    ) : (
-                        <p>Every tool your agents call shows up here.</p>
-                    )}
-                </section>
-            </div>
+                ) : (
+                    <p className="home-empty">
+                        Nothing yet. Every tool your agents call shows up here.
+                    </p>
+                )}
+            </section>
+            <p className="home-usage">
+                <button type="button" onClick={() => onOpen('agents')}>
+                    {agents.length} of {limit} agents
+                </button>
+                <span aria-hidden="true">·</span>
+                <button type="button" onClick={() => onOpen('resources')}>
+                    {resources} of {maxResources || '-'} resources
+                </button>
+                <span aria-hidden="true">·</span>
+                <button type="button" onClick={() => onOpen('billing')}>
+                    {plan} plan
+                </button>
+            </p>
         </div>
     );
 }

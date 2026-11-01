@@ -1764,6 +1764,8 @@ test('email send reservations serialize across replicas and persist retry keys, 
         ),
     );
     assert.equal(attempts.filter(Boolean).length, 3);
+    // Which three requests win the race varies; continue with one that did.
+    const sent = `request-${attempts.indexOf(true)}`;
     await stores[0]!.withOwner(owner, async (session) => {
         const old = newSendJob({
             ownerId: owner,
@@ -1779,7 +1781,7 @@ test('email send reservations serialize across replicas and persist retry keys, 
         old.createdAt = new Date(Date.now() - 31 * 86400000).toISOString();
         old.status = 'sent';
         await session.save(old);
-        const job = (await session.job('request-0'))!;
+        const job = (await session.job(sent))!;
         assert.ok(job);
         job.recipients[0]!.providerId = 'provider-accepted';
         job.recipients[0]!.bounced = true;
@@ -1791,10 +1793,7 @@ test('email send reservations serialize across replicas and persist retry keys, 
     const restarted = new PostgresEmailSending(pool);
     await restarted.withOwner(owner, async (session) => {
         assert.equal(await session.usage(), 3);
-        assert.equal(
-            (await session.job('request-0'))!.recipients[0]!.providerId,
-            'provider-accepted',
-        );
+        assert.equal((await session.job(sent))!.recipients[0]!.providerId, 'provider-accepted');
         assert.deepEqual(await session.reputation(), {
             sent: 1,
             bounced: 1,
@@ -2681,7 +2680,13 @@ test('OAuth providers share durable grants, signing keys and atomic plan limits 
     assert.deepEqual(refreshed.map((r) => r.statusCode).sort(), [200, 400]);
     const log = await b.inject({ url: `/api/mocks/${provider.id}/calls`, headers });
     assert.ok(log.json().calls.length >= 7);
-    assert.equal(log.json().calls.at(-1).status, 400);
+    // The two refreshes race, so the rejected one is either of the last two log entries.
+    assert.ok(
+        log
+            .json()
+            .calls.slice(-2)
+            .some((call: { status: number }) => call.status === 400),
+    );
     assert.ok(!log.body.includes(refresh));
     const winner = refreshed.find((r) => r.statusCode === 200)!.json();
     const reuseCheck = await b.inject({

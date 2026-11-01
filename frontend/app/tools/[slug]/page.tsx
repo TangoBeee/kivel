@@ -1,4 +1,5 @@
 import { AuthenticatorWorkbench } from '../../../components/authenticator-workbench';
+import { OAuthWorkbench } from '../../../components/oauth-workbench';
 import { ScheduledJobWorkbench } from '../../../components/scheduled-job-workbench';
 import { SmtpWorkbench } from '../../../components/smtp-workbench';
 import { MemoryWorkbench } from '../../../components/memory-workbench';
@@ -103,6 +104,8 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
                         {categories.find((category) => category.id === tool.categoryId)?.name}
                     </Link>
                 </div>
+            ) : tool.id === 'mock-apis-mock-oauth-provider' ? (
+                <OAuthWorkbench toolId={tool.id} />
             ) : tool.id === 'email-mock-smtp' ? (
                 <SmtpWorkbench toolId={tool.id} />
             ) : tool.id === 'monitoring-public-status-page' ? (

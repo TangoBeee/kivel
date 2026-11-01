@@ -174,3 +174,34 @@ export interface EmailAttachmentLink {
     expiresAt: string;
     downloadUrl: string;
 }
+
+export type OAuthScenario =
+    | 'none'
+    | 'access_denied'
+    | 'invalid_grant'
+    | 'expired_code'
+    | 'wrong_redirect_uri'
+    | 'invalid_pkce_verifier'
+    | 'expired_tokens'
+    | 'slow_token_endpoint'
+    | 'rotated_signing_key';
+export interface OAuthProviderInput {
+    name: string;
+    redirectUris: string[];
+    users: { sub: string; email: string; name: string; claims?: Record<string, unknown> }[];
+    claims?: Record<string, unknown>;
+    headless?: boolean;
+    scenario?: OAuthScenario;
+}
+export interface OAuthProvider {
+    id: string;
+    issuer: string;
+    endpointUrl: string;
+    discoveryUrl: string;
+    client_id: string;
+    expiresAt: string;
+    oauth: OAuthProviderInput;
+}
+export interface CreatedOAuthProvider extends OAuthProvider {
+    client_secret: string;
+}

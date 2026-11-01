@@ -572,3 +572,16 @@ test('QR decoder capacity is held until worker exit after timeout and successful
     workers[2]!.emit('exit', 1);
     assert.equal(await successful, `otpauth://totp/test?secret=${secret}`);
 });
+
+test('shared vault reads authenticators encrypted before the OAuth key-storage refactor', () => {
+    const encrypted =
+        'AAAAAAAAAAAAAAAA0cjvd0BwYxtnAt7tC3RXCfLoEmBacOuaGGByJ4LevvDRySTyGmREZf6EsPmXkqWfq5rGJKG/Z4CJ3UNjtL88fzGcIGD0DIiyKGKmhXfH5/d7vtRO6dGN';
+    assert.deepEqual(
+        totpVault('legacy-encryption-secret-32-characters').decrypt(
+            encrypted,
+            'legacy-workspace',
+            'legacy-record',
+        ),
+        { secret: 'JBSWY3DPEHPK3PXP', algorithm: 'SHA1', digits: 6, period: 30 },
+    );
+});

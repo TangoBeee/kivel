@@ -1,4 +1,5 @@
 import { authenticatorOpenApi, attachmentOpenApi } from './authenticator-openapi.js';
+import { oauthOpenApi } from './oauth-openapi.js';
 import { readinessOpenApi } from './readiness-openapi.js';
 import { agentInterfaceOpenApi } from './agent-interface-openapi.js';
 import { accountOpenApi } from './account-openapi.js';
@@ -73,6 +74,11 @@ export function openApi(origin: string) {
             },
             { name: 'Webhook inboxes', description: 'Capture and inspect callbacks.' },
             { name: 'Mock APIs', description: 'Manage temporary API configurations.' },
+            {
+                name: 'OAuth test providers',
+                description:
+                    'Test OAuth and OpenID Connect with synthetic users and controlled failures.',
+            },
             { name: 'Mock endpoints', description: 'Call your configured routes.' },
             { name: 'Files', description: 'Share temporary attachments.' },
             { name: 'Platform', description: 'Service health.' },
@@ -135,6 +141,7 @@ export function openApi(origin: string) {
             },
             ...accounts.paths,
             ...resources.paths,
+            ...oauthOpenApi(),
             ...mcp.paths,
             '/api/inboxes': {
                 post: {
@@ -666,6 +673,12 @@ export function openApi(origin: string) {
         },
         components: {
             securitySchemes: {
+                oauthTestToken: {
+                    type: 'http',
+                    scheme: 'bearer',
+                    bearerFormat: 'JWT',
+                    description: 'Access token from a mock OAuth provider. Test identity only.',
+                },
                 shareAccess: {
                     type: 'apiKey',
                     in: 'header',

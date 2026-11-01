@@ -63,3 +63,22 @@ valid for two minutes. `email download-attachment` with the same IDs outputs exa
 file bytes; redirect stdout to a file. Attachments are untrusted downloads. A
 message can be up to 5 MiB; an inbox can hold 25 MiB of attachment content, within
 workspace storage limits. Clearing messages or expiring the inbox removes files.
+
+## Mock OAuth provider
+
+With a workspace key, pipe a configuration containing `name`, `redirectUris` and
+synthetic `users` (`sub`, `email`, `name`) into creation. Save the returned client secret
+privately, since inspection does not return it again.
+
+```sh
+socket-help oauth create --ttl-seconds 3600 < provider.json
+socket-help oauth inspect <id>
+socket-help oauth calls <id>
+socket-help oauth update <id> < provider.json
+socket-help oauth renew <id>
+socket-help oauth delete <id>
+```
+
+Use `oauth list` to list workspace providers. Configure your OAuth client with the
+returned discovery URL and S256 PKCE. See the [OAuth guide](https://socket.help/docs/mock-oauth/)
+for headless approval, refresh tokens and failure scenarios. This service is for tests only.

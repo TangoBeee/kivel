@@ -44,15 +44,17 @@ export function registerLifecycle(
                           status: emailRows.get(resource.id)!.pausedAt ? 'paused' : 'active',
                       }
                     : {}),
-                ...(resource.kind === 'email' && resource.payload.smtpCapture
-                    ? { toolId: 'email-mock-smtp' }
-                    : resource.kind === 'mock' && resource.payload.llm
-                      ? { toolId: 'agents-mock-llm-endpoint' }
-                      : resource.kind === 'mock' && resource.payload.crud
-                        ? { toolId: 'mock-apis-stateful-crud-api' }
-                        : resource.kind === 'mock' && resource.payload.echo
-                          ? { toolId: 'network-http-echo' }
-                          : {}),
+                ...(resource.kind === 'mock' && resource.payload.oauth
+                    ? { toolId: 'mock-apis-mock-oauth-provider' }
+                    : resource.kind === 'email' && resource.payload.smtpCapture
+                      ? { toolId: 'email-mock-smtp' }
+                      : resource.kind === 'mock' && resource.payload.llm
+                        ? { toolId: 'agents-mock-llm-endpoint' }
+                        : resource.kind === 'mock' && resource.payload.crud
+                          ? { toolId: 'mock-apis-stateful-crud-api' }
+                          : resource.kind === 'mock' && resource.payload.echo
+                            ? { toolId: 'network-http-echo' }
+                            : {}),
                 ...(typeof resource.payload.name === 'string'
                     ? { name: resource.payload.name }
                     : {}),
@@ -90,6 +92,19 @@ export function registerLifecycle(
             if (body?.visibility !== 'public' && body?.visibility !== 'private')
                 throw new HttpError(400, 'visibility must be public or private.');
             const visibility: Visibility = body.visibility;
+            if (kind === 'mock' && visibility === 'private') {
+                const resource = await resources.read(
+                    request.params.id,
+                    kind,
+                    resourceToken(request),
+                    actor.identity?.account.id,
+                );
+                if (resource?.payload.oauth)
+                    throw new HttpError(
+                        400,
+                        'OAuth test endpoints must stay public. Configuration and history remain private to your workspace.',
+                    );
+            }
             const result =
                 kind === 'inbox'
                     ? await inboxes.setSharing(

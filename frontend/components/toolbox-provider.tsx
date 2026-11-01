@@ -46,6 +46,7 @@ interface ToolboxContext {
         smtpCapture: boolean;
         phones: boolean;
         authenticators?: boolean;
+        oauthProviders?: boolean;
     } | null;
 }
 const Context = createContext<ToolboxContext | null>(null);

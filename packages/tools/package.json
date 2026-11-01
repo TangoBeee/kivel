@@ -33,7 +33,8 @@
     "./api-scenarios": "./dist/api-scenarios.js",
     "./mock-crud": "./dist/mock-crud.js",
     "./billing-plans": "./dist/billing-plans.js",
-    "./llm-mock": "./dist/llm-mock.js"
+    "./llm-mock": "./dist/llm-mock.js",
+    "./oauth": "./dist/oauth.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

@@ -164,6 +164,10 @@ for (const path of ['contact', 'refunds', 'terms', 'privacy', 'beta']) {
 console.log('Verified beta checkout messaging and public contact/refund policies.');
 
 const robotsText = await readFile('out/robots.txt', 'utf8');
+assert.ok(
+    robotsText.includes('Disallow: /oauth/'),
+    'OAuth test endpoints are excluded from crawling',
+);
 for (const path of ['/account/', '/link/', '/approve/', '/share/', '/webhooks/', '/tools/']) {
     const html = await readFile(join('out', path, 'index.html'), 'utf8');
     assert.match(

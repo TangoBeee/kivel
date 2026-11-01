@@ -1,5 +1,7 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
+import { oauthLimits } from '@socket-help/tools/billing-plans';
+import { QuotaError } from './allocations.js';
 import { transaction } from './database.js';
 import { sharingCredentials, publicAccessAllowed, tokenHash } from './sharing.js';
 import type { PublicAccess, Sharing, SharingCredentials, Visibility } from './sharing.js';
@@ -25,6 +27,7 @@ export interface Resource extends Sharing {
     ownerId?: string;
     maxUses?: number;
 }
+export type ResourcePayload = Record<string, unknown> | ((id: string) => Record<string, unknown>);
 export type ResourceInfo = Omit<Resource, 'data'>;
 export interface ResourceCredentials extends SharingCredentials {
     id: string;
@@ -35,7 +38,7 @@ type MaybePromise<T> = T | Promise<T>;
 export interface ResourceRepository {
     create(
         kind: ResourceKind,
-        payload: Record<string, unknown>,
+        input: ResourcePayload,
         data?: Buffer,
         allocation?: AllocationContext,
     ): MaybePromise<ResourceCredentials | null>;
@@ -128,11 +131,19 @@ export class ResourceStore implements ResourceRepository {
     }
     create(
         kind: ResourceKind,
-        payload: Record<string, unknown>,
+        input: ResourcePayload,
         data = Buffer.alloc(0),
         allocation?: AllocationContext,
     ): ResourceCredentials | null {
         this.deleteExpired();
+        const id = randomUUID(),
+            payload = typeof input === 'function' ? input(id) : input;
+        if (payload.oauth && allocation) {
+            const count = [...this.resources.values()].filter(
+                (r) => r.ownerId === allocation.ownerId && r.payload.oauth,
+            ).length;
+            if (count >= oauthLimits[allocation.plan]) throw new QuotaError('resources');
+        }
         const storedBytes = size(payload, data);
         if (
             this.resources.size >= this.maxResources ||
@@ -141,8 +152,7 @@ export class ResourceStore implements ResourceRepository {
                 this.maxBytes
         )
             return null;
-        const id = randomUUID(),
-            managementToken = randomBytes(32).toString('base64url');
+        const managementToken = randomBytes(32).toString('base64url');
         const expiresAt =
             allocation?.expiresAt ?? new Date(this.now() + RESOURCE_TTL_MS).toISOString();
         this.allocations?.reserve(allocation, 1, storedBytes);
@@ -427,21 +437,30 @@ export class PostgresResourceStore implements ResourceRepository {
     }
     async create(
         kind: ResourceKind,
-        payload: Record<string, unknown>,
+        input: ResourcePayload,
         data = Buffer.alloc(0),
         allocation?: AllocationContext,
     ): Promise<ResourceCredentials | null> {
+        const id = randomUUID(),
+            payload = typeof input === 'function' ? input(id) : input;
         if (this.requireAllocation && !allocation) throw new Error('A quota context is required.');
         return transaction(this.pool, async (client) => {
             await reclaim(client);
+            if (payload.oauth && allocation) {
+                const count = await client.query(
+                    "SELECT count(*) FROM temporary_resources WHERE owner_id = $1 AND payload::jsonb ? 'oauth'",
+                    [allocation.ownerId],
+                );
+                if (Number(count.rows[0].count) >= oauthLimits[allocation.plan])
+                    throw new QuotaError('resources');
+            }
             const storedBytes = size(payload, data);
             const budget = await client.query(
                 'UPDATE resource_usage SET resource_count = resource_count + 1, stored_bytes = stored_bytes + $1 WHERE id = 1 AND resource_count < $2 AND stored_bytes + $1 <= $3 RETURNING id',
                 [storedBytes, this.maxResources, this.maxBytes],
             );
             if (!budget.rowCount) return null;
-            const id = randomUUID(),
-                managementToken = randomBytes(32).toString('base64url');
+            const managementToken = randomBytes(32).toString('base64url');
             const { accessToken, ...sharing } = sharingCredentials(allocation?.visibility);
             const result = await client.query(
                 "INSERT INTO temporary_resources (id, kind, token_hash, payload, data, stored_bytes, expires_at, owner_id, quota_key, persistent, use_limit, visibility, access_token_hash, access_version) VALUES ($1, $2, $3, $4, $5, $6, COALESCE($8::timestamptz, clock_timestamp() + $7::integer * interval '1 millisecond'), $9, $10, $11, $12, $13, $14, $15) RETURNING expires_at",

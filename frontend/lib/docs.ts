@@ -1,3 +1,4 @@
+import { oauthDoc } from './oauth-content';
 import { agentDoc } from './agent-doc';
 import { echoDoc } from './echo-content';
 import { crudDoc } from './crud-content';
@@ -33,6 +34,7 @@ export const docGroups = ['Get started', 'Resources', 'Interfaces', 'Reference']
 const updatedAt = '2026-10-27';
 
 export const docPages: DocPage[] = [
+    oauthDoc,
     agentDoc,
     echoDoc,
     crudDoc,
@@ -1615,12 +1617,20 @@ console.log(result.output, result.usage.used);`,
                 id: 'methods',
                 title: 'Methods',
                 paragraphs: [
-                    'Creation methods send visibility: private unless you pass visibility: public. Methods that take a token send it in X-Resource-Token, so they work alongside an API key.',
+                    'Most resource creation methods default to private visibility. Webhook receivers are public by default, and OAuth test endpoints are always public while their management and logs stay private. Methods that take a token send it in X-Resource-Token, so they work alongside an API key.',
                 ],
                 table: {
                     caption: 'SocketHelp methods',
                     headers: ['Method', 'Request'],
                     rows: [
+                        [
+                            'createOAuthProvider(config, settings?)',
+                            'Create an OAuth test issuer and receive its client secret once.',
+                        ],
+                        [
+                            'oauthProvider(id), oauthProviders(), updateOAuthProvider(id, config), deleteOAuthProvider(id)',
+                            'Inspect, list, configure and delete workspace test providers.',
+                        ],
                         ['tools()', 'GET /api/tools'],
                         ['tool(id)', 'GET /api/tools/{id}'],
                         ['run(toolId, input?, options?, file?)', 'POST /api/tools/{id}/run'],
@@ -1754,7 +1764,7 @@ await socket.remove('inboxes', inbox.id);`,
             },
             {
                 question: 'Does the SDK create public resources?',
-                answer: 'Only when you ask. Creation and upload methods send visibility=private unless settings.visibility is "public".',
+                answer: 'Most resource creation and upload methods default to private visibility. Webhook receivers default to public and OAuth test endpoints stay public; inspection and management remain private.',
             },
             {
                 question: 'How do I pass files to run()?',

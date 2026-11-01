@@ -1576,36 +1576,42 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                         </Tabs.Trigger>
                                     </Tabs.List>
                                     <Tabs.Content value="manage">
-                                        {!['email', 'job'].includes(selectedResource.kind) && (
-                                            <SharingControl
-                                                value={selectedResource.visibility}
-                                                disabled={
-                                                    busy ||
-                                                    !session.scopes.includes('resources:write')
-                                                }
-                                                onChange={(visibility) =>
-                                                    void action(async () => {
-                                                        const result = await json(
-                                                            `/api/${paths[selectedResource.kind]}/${selectedResource.id}/sharing`,
-                                                            'POST',
-                                                            { visibility },
-                                                        );
-                                                        setSelectedResource({
-                                                            ...selectedResource,
-                                                            visibility,
-                                                        });
-                                                        setSharedAccess(result.accessToken ?? '');
-                                                        await refresh();
-                                                        setNotice(
-                                                            visibility === 'private'
-                                                                ? 'Private sharing enabled. Previous access tokens are revoked.'
-                                                                : 'Public sharing enabled.',
-                                                        );
-                                                    })
-                                                }
-                                            />
-                                        )}
                                         {!['email', 'job'].includes(selectedResource.kind) &&
+                                            selectedResource.toolId !==
+                                                'mock-apis-mock-oauth-provider' && (
+                                                <SharingControl
+                                                    value={selectedResource.visibility}
+                                                    disabled={
+                                                        busy ||
+                                                        !session.scopes.includes('resources:write')
+                                                    }
+                                                    onChange={(visibility) =>
+                                                        void action(async () => {
+                                                            const result = await json(
+                                                                `/api/${paths[selectedResource.kind]}/${selectedResource.id}/sharing`,
+                                                                'POST',
+                                                                { visibility },
+                                                            );
+                                                            setSelectedResource({
+                                                                ...selectedResource,
+                                                                visibility,
+                                                            });
+                                                            setSharedAccess(
+                                                                result.accessToken ?? '',
+                                                            );
+                                                            await refresh();
+                                                            setNotice(
+                                                                visibility === 'private'
+                                                                    ? 'Private sharing enabled. Previous access tokens are revoked.'
+                                                                    : 'Public sharing enabled.',
+                                                            );
+                                                        })
+                                                    }
+                                                />
+                                            )}
+                                        {!['email', 'job'].includes(selectedResource.kind) &&
+                                            selectedResource.toolId !==
+                                                'mock-apis-mock-oauth-provider' &&
                                             selectedResource.visibility === 'private' && (
                                                 <div className="account-secret">
                                                     <p>

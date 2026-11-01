@@ -10,7 +10,7 @@ export function needsInput(args: string[]) {
         (args[0] === 'approval' && args[1] === 'ask') ||
         (args[0] === 'monitor' && args[1] === 'create') ||
         (args[0] === 'event' && args[1] === 'wait') ||
-        (['mock', 'mcp-server', 'status-page', 'job'].includes(args[0] ?? '') &&
+        (['oauth', 'mock', 'mcp-server', 'status-page', 'job'].includes(args[0] ?? '') &&
             ['create', 'update'].includes(args[1] ?? '')) ||
         (['inbox', 'email'].includes(args[0] ?? '') &&
             ['response', 'forward', 'send'].includes(args[1] ?? ''))
@@ -23,6 +23,7 @@ export async function agentCommand(client: SocketHelp, args: string[], input: Ui
         'inbox',
         'email',
         'mock',
+        'oauth',
         'mcp-server',
         'file',
         'status-page',
@@ -30,7 +31,7 @@ export async function agentCommand(client: SocketHelp, args: string[], input: Ui
         'smtp',
     ].includes(group ?? '');
     const allowed = new Set<string>();
-    if (resource && action !== 'create') allowed.add('--token');
+    if (resource && action !== 'create' && group !== 'oauth') allowed.add('--token');
     if ((group === 'email' && action === 'send') || (group === 'phone' && action === 'create'))
         allowed.add('--idempotency-key');
     if (resource && action === 'create') {
@@ -40,7 +41,7 @@ export async function agentCommand(client: SocketHelp, args: string[], input: Ui
         } else {
             allowed.add('--ttl-seconds');
             allowed.add('--persistent');
-            allowed.add('--visibility');
+            if (group !== 'oauth') allowed.add('--visibility');
         }
     }
     if (resource && action === 'renew') allowed.add('--persistent');
@@ -109,6 +110,25 @@ export async function agentCommand(client: SocketHelp, args: string[], input: Ui
         return positional[0]!;
     };
     const json = () => JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(input));
+    if (group === 'oauth') {
+        if (action === 'create') {
+            exact(0);
+            return client.createOAuthProvider(json(), settings);
+        }
+        if (action === 'list') {
+            exact(0);
+            return client.oauthProviders();
+        }
+        if (action === 'inspect') return client.oauthProvider(id());
+        if (action === 'update') return client.updateOAuthProvider(id(), json());
+        if (action === 'delete') return client.deleteOAuthProvider(id());
+        if (action === 'calls')
+            return client.request('GET', `/api/mocks/${encodeURIComponent(id())}/calls`);
+        if (action === 'renew')
+            return client.request('POST', `/api/mocks/${encodeURIComponent(id())}/renew`, {
+                persistent: settings.persistent ?? false,
+            });
+    }
     if (group === 'event' && action === 'wait') {
         exact(0);
         const value = json();

@@ -6,6 +6,7 @@ export const roadmap = {
     ],
     'mock-apis': [
         'REST and CRUD mock APIs',
+        'OAuth and OpenID Connect test providers',
         'OpenAPI import and GraphQL mocks',
         'Signed test webhook events',
         'Reusable API test scenarios',

@@ -39,6 +39,9 @@ socket-help approval ask < question.json
 socket-help approval list|pending|inspect|wait [id] [--timeout-seconds <n>]
 socket-help inbox requests|wait|deliveries <id> [--token <token>]
 socket-help inbox response|forward <id> [--token <token>] < settings.json
+socket-help oauth create [--ttl-seconds <n>] < provider.json
+socket-help oauth update <id> < provider.json
+socket-help oauth list|inspect|calls|renew|delete [id]
 socket-help mock create|update [id] < config.json
 socket-help mock calls|reset <id> [--token <token>]
 socket-help mcp-server create < config.json

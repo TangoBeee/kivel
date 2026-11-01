@@ -1,3 +1,4 @@
+import { publicMockPayload } from './oauth.js';
 import { sendLlmMock } from './llm-mock.js';
 import { matchMockCondition, renderMockBody } from '@socket-help/tools/mock-behavior';
 import { MemoryMockCalls, mockCall } from './mock-calls.js';
@@ -133,6 +134,8 @@ export function registerResources(
             request.params.id,
             { managementToken: token(request), ...(ownerId ? { ownerId } : {}) },
             (previous) => {
+                if (previous.oauth)
+                    throw new HttpError(400, 'Use /api/oauth-providers to update this provider.');
                 const payload = mockPayload(config);
                 if (config.crud || previous.crudState)
                     payload.crudState = {
@@ -204,7 +207,7 @@ export function registerResources(
                 accessVersion: resource.accessVersion,
                 expiresAt: resource.expiresAt,
                 uses: resource.uses,
-                ...resource.payload,
+                ...publicMockPayload(resource.payload),
                 ...(kind === 'file'
                     ? {
                           downloadUrl: `${origin}/files/${resource.id}`,
@@ -213,7 +216,18 @@ export function registerResources(
                               (resource.maxUses ?? 100) - resource.uses,
                           ),
                       }
-                    : { endpointUrl: `${origin}/mock/${resource.id}` }),
+                    : {
+                          endpointUrl: resource.payload.oauth
+                              ? `${origin}/oauth/${resource.id}`
+                              : `${origin}/mock/${resource.id}`,
+                          ...(resource.payload.oauth
+                              ? {
+                                    issuer: `${origin}/oauth/${resource.id}`,
+                                    client_id: (resource.payload.oauthState as { clientId: string })
+                                        .clientId,
+                                }
+                              : {}),
+                      }),
             };
         });
         app.delete<IdRoute>(`/api/${path}/:id`, async (request, reply) => {
@@ -450,6 +464,8 @@ export function registerResources(
                     const metadata = await store.peek(request.params.id, 'mock', caller);
                     if (!metadata) return reply.code(404).send(missing);
                     const path = `/${request.params['*'] ?? ''}`;
+                    if (metadata.payload.oauth)
+                        return reply.code(404).send({ error: 'Use this provider’s issuer URL.' });
                     const initialConfig = metadata.payload as unknown as MockConfig;
                     if (initialConfig.crud && crudPath(initialConfig.crud, path)) {
                         if (request.method === 'OPTIONS')

@@ -1,6 +1,7 @@
 import { registerEmailAttachments } from './email-attachments.js';
 import { MemoryAuthenticators, registerAuthenticators } from './authenticators.js';
 import type { AuthenticatorRepository } from './authenticators.js';
+import { registerOAuth } from './oauth.js';
 import { registerPhones } from './phone/routes.js';
 import type { PhoneEntitlements } from './phone/routes.js';
 import { MemoryPhones } from './phone/store.js';
@@ -331,7 +332,7 @@ export function buildApp({
             reply.statusCode < 400 ||
             typeof payload !== 'string' ||
             !payload.startsWith('{"error":') ||
-            /^\/mock\//.test(request.url)
+            /^\/(mock|oauth)\//.test(request.url)
         )
             return payload;
         try {
@@ -361,7 +362,7 @@ export function buildApp({
         reply.header('X-Request-Id', request.id);
         reply.header('Referrer-Policy', 'no-referrer');
         if (
-            /^\/(api|hooks|mock|mcp|files|billing)(\/|$)/.test(
+            /^\/(api|hooks|mock|oauth|mcp|files|billing)(\/|$)/.test(
                 new URL(request.url, baseUrl).pathname,
             )
         )
@@ -430,6 +431,7 @@ export function buildApp({
         emailSending: Boolean(agentEmailConfig?.enabled),
         smtpCapture: Boolean(smtpCaptureConfig),
         authenticators: Boolean(authSecret),
+        oauthProviders: Boolean(authSecret),
         phones: Boolean(phoneProvider && phoneEnabled),
         phoneAddonSales: Boolean(billingConfig?.phoneAddonEnabled),
     };
@@ -840,6 +842,7 @@ export function buildApp({
         phones,
         waiters,
     });
+    registerOAuth(app, access, resourceStore, rateLimiter, mockCalls, baseUrl.origin, authSecret);
     registerResources(
         app,
         resourceStore,

@@ -142,6 +142,10 @@ const planned: Record<Category['id'], [string, string][]> = {
         ['Rate-limit simulator', 'Test retry and backoff behavior against quotas.'],
     ],
     'mock-apis': [
+        [
+            'Mock OAuth provider',
+            'Test OAuth and OpenID Connect sign in with synthetic users, PKCE and failure scenarios.',
+        ],
         ['Mock REST API', 'Create configurable REST endpoints for integration testing.'],
         [
             'Stateful CRUD API',
@@ -390,6 +394,7 @@ export const backendToolIds = [
         'test-media-sse-generator',
         'agents-tool-failure-simulator',
         'mock-apis-mock-rest-api',
+        'mock-apis-mock-oauth-provider',
         'network-response-builder',
         'network-request-forwarding',
         'agents-mock-llm-endpoint',
@@ -484,8 +489,10 @@ export interface ServerCapabilities {
     smtpCapture: boolean;
     phones: boolean;
     authenticators?: boolean;
+    oauthProviders?: boolean;
 }
 export function toolCapability(id: string): keyof ServerCapabilities | undefined {
+    if (id === 'mock-apis-mock-oauth-provider') return 'oauthProviders';
     if (id === 'agents-agent-authenticator') return 'authenticators';
     if (id === 'email-mock-smtp') return 'smtpCapture';
     if (['email-temporary-email-inbox', 'email-email-webhook-forwarding'].includes(id))

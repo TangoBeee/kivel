@@ -8,6 +8,7 @@ import { command } from '@socket-help/cli';
 import { buildApp } from './app.js';
 import { MemoryIdentityRepository } from './identity.js';
 import { MemoryAuthenticators } from './authenticators.js';
+import { MemoryAgents } from './agents.js';
 import { MemoryActivity } from './activity.js';
 import { decodeBase32, parseTotp, totp, totpVault } from './totp.js';
 import { decodeTotpQr } from './totp-qr.js';
@@ -59,7 +60,8 @@ async function fixture(
 ) {
     const identities = new MemoryIdentityRepository(),
         store = new MemoryAuthenticators(),
-        activity = new MemoryActivity();
+        activity = new MemoryActivity(),
+        agents = new MemoryAgents();
     const user = identities.register('auth-owner', 'test')!;
     identities.setEntitlement(
         user.personalAccountId,
@@ -88,6 +90,7 @@ async function fixture(
         identityStore: identities,
         authenticatorStore: store,
         activity,
+        agentStore: agents,
         authSecret: 'test-authenticator-encryption-key-32-characters',
     });
     t.after(() => app.close());
@@ -95,6 +98,7 @@ async function fixture(
         app,
         store,
         activity,
+        agents,
         owner: identity.account.id,
         headers: { authorization: `Bearer ${key.key}` },
         otherHeaders: { authorization: `Bearer ${otherKey.key}` },
@@ -282,6 +286,11 @@ test('authenticator secrets stay private, generation is audited and limited, and
     const entries = f.activity.list(f.owner);
     assert.equal(entries.length, 30);
     assert.ok(entries.every((entry) => entry.tool === 'get_totp_code'));
+    assert.ok(
+        entries.every(
+            (entry) => entry.agentName === 'Authenticator test' && !!entry.userId && !!entry.keyId,
+        ),
+    );
     assert.ok(!JSON.stringify(entries).includes(secret));
     assert.equal(
         (
@@ -386,4 +395,180 @@ test('MCP discovery, resource_request, SDK and CLI expose the same authenticator
     await client.deleteAuthenticator(sdk.id);
     await rpc('delete_authenticator', { id: imported.id });
     assert.equal((await client.listAuthenticators()).authenticators.length, 0);
+});
+
+test('only write credentials generate codes and audit records identify sessions and agents over HTTP and MCP', async (t) => {
+    const f = await fixture(t, 'team');
+    const owner = f.identities.findUser('auth-owner')!;
+    const ownerIdentity = f.identities.authenticateSession('a'.repeat(43))!;
+    const readKey = f.identities.createKey(
+        ownerIdentity,
+        'Read only agent',
+        ['resources:read'],
+        new Date(Date.now() + 86400000).toISOString(),
+    );
+    const sessions = new Map<string, { cookie: string; origin: string }>();
+    for (const role of ['viewer', 'admin'] as const) {
+        const user = f.identities.register(`auth-${role}`, 'test')!;
+        const invite = `${role}-invitation`,
+            session = (role === 'admin' ? 'c' : 'v').repeat(43);
+        assert.ok(f.identities.invite(f.owner, user.username, role, invite));
+        assert.equal(f.identities.acceptInvite(user.id, user.username, invite), f.owner);
+        assert.ok(f.identities.createSession(user.id, f.owner, session));
+        sessions.set(role, {
+            cookie: `socket_session=${session}`,
+            origin: 'http://localhost:3000',
+        });
+    }
+    const created = await f.app.inject({
+        method: 'POST',
+        url: '/api/authenticators',
+        headers: f.headers,
+        payload: { name: 'Team account', secret },
+    });
+    assert.equal(created.statusCode, 201, created.body);
+    const id = created.json().id;
+    const mcp = (headers: Record<string, string>) =>
+        f.app.inject({
+            method: 'POST',
+            url: '/mcp',
+            headers: { ...headers, accept: 'application/json, text/event-stream' },
+            payload: {
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'tools/call',
+                params: { name: 'get_totp_code', arguments: { id } },
+            },
+        });
+    for (const headers of [sessions.get('viewer')!, { authorization: `Bearer ${readKey.key}` }]) {
+        assert.equal((await f.app.inject({ url: '/api/authenticators', headers })).statusCode, 200);
+        assert.equal(
+            (await f.app.inject({ url: `/api/authenticators/${id}/code`, headers })).statusCode,
+            403,
+        );
+        const refused = (await mcp(headers)).json();
+        assert.equal(refused.result?.isError, true, JSON.stringify(refused));
+        assert.match(refused.result.content[0].text, /403/);
+    }
+    assert.equal(f.activity.list(f.owner).length, 0);
+    const writeIdentity = f.identities.authenticateKey(f.headers.authorization.slice(7))!;
+    f.agents.addAgent({
+        keyId: writeIdentity.keyId!,
+        accountId: f.owner,
+        name: 'Approved coding agent',
+        createdAt: new Date().toISOString(),
+    });
+    const browserOwner = {
+        cookie: `socket_session=${'a'.repeat(43)}`,
+        origin: 'http://localhost:3000',
+    };
+    for (const headers of [browserOwner, sessions.get('admin')!, f.headers]) {
+        assert.equal(
+            (await f.app.inject({ url: `/api/authenticators/${id}/code`, headers })).statusCode,
+            200,
+        );
+        const generated = (await mcp(headers)).json();
+        assert.equal(generated.result?.isError, false, JSON.stringify(generated));
+    }
+    const entries = f.activity.list(f.owner);
+    assert.equal(entries.length, 6);
+    const browserEntries = entries.filter((entry) => !entry.keyId);
+    assert.equal(browserEntries.filter((entry) => entry.userId === owner.id).length, 2);
+    assert.equal(
+        browserEntries.filter((entry) => entry.userId === f.identities.findUser('auth-admin')!.id)
+            .length,
+        2,
+    );
+    const keyIdentity = f.identities.authenticateKey(f.headers.authorization.slice(7))!;
+    for (const entry of entries.filter((entry) => entry.keyId)) {
+        assert.equal(entry.keyId, keyIdentity.keyId);
+        assert.equal(entry.agentName, 'Approved coding agent');
+        assert.equal(entry.userId, owner.id);
+    }
+});
+
+test('changed encryption keys return an actionable conflict without deleting the authenticator', async (t) => {
+    const f = await fixture(t);
+    const created = await f.app.inject({
+        method: 'POST',
+        url: '/api/authenticators',
+        headers: f.headers,
+        payload: { name: 'Encrypted account', secret },
+    });
+    const id = created.json().id;
+    const rotated = buildApp({
+        identityStore: f.identities,
+        authenticatorStore: f.store,
+        activity: f.activity,
+        authSecret: 'different-authenticator-server-secret-32-characters',
+    });
+    t.after(() => rotated.close());
+    const response = await rotated.inject({
+        url: `/api/authenticators/${id}/code`,
+        headers: f.headers,
+    });
+    assert.equal(response.statusCode, 409, response.body);
+    assert.match(response.json().error, /must be re-added/);
+    assert.ok(!response.body.includes(secret));
+    assert.equal((await f.store.list(f.owner)).length, 1);
+    assert.equal(f.activity.list(f.owner).length, 0);
+    assert.equal(
+        (
+            await rotated.inject({
+                method: 'DELETE',
+                url: `/api/authenticators/${id}`,
+                headers: f.headers,
+            })
+        ).statusCode,
+        204,
+    );
+    const added = await rotated.inject({
+        method: 'POST',
+        url: '/api/authenticators',
+        headers: f.headers,
+        payload: { name: 'Re-added account', secret },
+    });
+    assert.equal(
+        (
+            await rotated.inject({
+                url: `/api/authenticators/${added.json().id}/code`,
+                headers: f.headers,
+            })
+        ).statusCode,
+        200,
+    );
+});
+
+test('QR decoder capacity is held until worker exit after timeout and successful decoding', async (t) => {
+    const { EventEmitter } = await import('node:events');
+    const { TotpQrDecoder } = await import('./totp-qr.js');
+    class TestWorker extends EventEmitter {
+        stopping = false;
+        terminate() {
+            this.stopping = true;
+            return new Promise<number>((resolve) => this.once('exit', () => resolve(1)));
+        }
+    }
+    const workers: TestWorker[] = [];
+    const decoder = new TotpQrDecoder(() => {
+        const worker = new TestWorker();
+        workers.push(worker);
+        return worker;
+    });
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    const image = Buffer.from('synthetic worker input').toString('base64');
+    const first = assert.rejects(decoder.decode(image), /timed out/);
+    const second = assert.rejects(decoder.decode(image), /timed out/);
+    t.mock.timers.tick(5000);
+    assert.ok(workers.every((worker) => worker.stopping));
+    await assert.rejects(decoder.decode(image), /busy/);
+    workers[0]!.emit('exit', 1);
+    await first;
+    const successful = decoder.decode(image);
+    workers[2]!.emit('message', { text: `otpauth://totp/test?secret=${secret}` });
+    await assert.rejects(decoder.decode(image), /busy/);
+    workers[1]!.emit('exit', 1);
+    await second;
+    workers[2]!.emit('exit', 1);
+    assert.equal(await successful, `otpauth://totp/test?secret=${secret}`);
 });

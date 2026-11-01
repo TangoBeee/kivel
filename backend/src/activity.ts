@@ -8,7 +8,9 @@ export interface ActivityEntry {
     tool: string;
     ok: boolean;
     durationMs: number;
+    userId?: string;
     keyId?: string;
+    agentName?: string;
     resourceId?: string;
 }
 

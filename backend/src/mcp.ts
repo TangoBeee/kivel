@@ -75,7 +75,7 @@ export const platformTools = [
     {
         name: 'get_totp_code',
         description:
-            'Generate a code from a stored TOTP authenticator only for an account your human asked you to create or operate. Requires an approved workspace key. Returns code, secondsRemaining and nextCode when fewer than five seconds remain. Every generation is logged; at most 30 per workspace per minute. Never print codes in public logs.',
+            'Generate a code from a stored TOTP authenticator only for an account your human asked you to create or operate. Requires an approved workspace key. Requires resources:write; viewers and read-only keys cannot generate codes. Returns code, secondsRemaining and nextCode when fewer than five seconds remain. Every generation is logged; at most 30 per workspace per minute. Never print codes in public logs.',
         inputSchema: schema({ id: access.id }),
         annotations: { ...creates, idempotentHint: true },
     },
@@ -1025,6 +1025,10 @@ export function registerMcp({
         value: Record<string, unknown>,
         request: FastifyRequest,
     ) {
+        await access.workspace(
+            request,
+            name === 'list_authenticators' ? 'resources:read' : 'resources:write',
+        );
         const headers: Record<string, string> = {};
         for (const key of ['authorization', 'cookie', 'origin'])
             if (typeof request.headers[key] === 'string') headers[key] = request.headers[key];

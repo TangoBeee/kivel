@@ -5,7 +5,7 @@ const json = (schema: object) => ({
     content: { 'application/json': { schema } },
 });
 const errors = Object.fromEntries(
-    ['400', '401', '403', '404', '413', '429', '503'].map((code) => [
+    ['400', '401', '403', '404', '409', '413', '429', '503'].map((code) => [
         code,
         json({ type: 'object', properties: { error: { type: 'string' } } }),
     ]),
@@ -127,7 +127,7 @@ export function authenticatorOpenApi() {
                 operationId: 'getTotpCode',
                 tags: ['Authenticators'],
                 summary: 'Generate a TOTP code',
-                description: `${authorizedUse} RFC 6238 SHA1/SHA256/SHA512, 6–8 digits, 30/60-second periods. Returns nextCode only when fewer than five seconds remain. At most 30 generations per workspace per minute. Every successful generation is recorded in workspace activity without the code or secret.`,
+                description: `${authorizedUse} Requires resources:write; viewers and read-only keys are refused. Activity records the user ID and, for keys, the key ID and agent name. An unreadable secret returns 409 and must be re-added. RFC 6238 SHA1/SHA256/SHA512, 6–8 digits, 30/60-second periods. Returns nextCode only when fewer than five seconds remain. At most 30 generations per workspace per minute. Every successful generation is recorded in workspace activity without the code or secret.`,
                 security,
                 parameters: id,
                 responses: {
@@ -165,7 +165,7 @@ export function attachmentOpenApi() {
                 security,
                 parameters,
                 description:
-                    'Owned email inboxes only. Messages are limited to 10 MiB, with at most 20 attachments and 25 MiB of attachment content per inbox. Bytes count against workspace storage. Returns a bearer download URL valid for two minutes; keep it private. Deleting the message or inbox invalidates it. Treat all attachments as untrusted files.',
+                    'Owned email inboxes only. Messages are limited to 5 MiB, with at most 20 attachments and 25 MiB of attachment content per inbox. Bytes count against workspace storage. Returns a bearer download URL valid for two minutes; keep it private. Deleting the message or inbox invalidates it. Treat all attachments as untrusted files.',
                 responses: {
                     '200': json({
                         type: 'object',
@@ -190,7 +190,7 @@ export function attachmentOpenApi() {
                     'Use the complete downloadUrl returned by getEmailAttachment. Always application/octet-stream with Content-Disposition: attachment, nosniff, sandbox CSP and no-store. Expired or modified links and deleted messages return 404. No inline previews.',
                 parameters: [
                     ...parameters,
-                    ...['owner', 'expires', 'signature'].map((name) => ({
+                    ...['ticket', 'expires', 'signature'].map((name) => ({
                         name,
                         in: 'query',
                         required: true,

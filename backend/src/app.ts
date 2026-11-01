@@ -743,7 +743,15 @@ export function buildApp({
         ...(monitorChecks ? { checks: monitorChecks } : {}),
     });
     registerBilling(app, access, billingRepository, billingConfig, dodoClient, recovery.store);
-    registerAuthenticators(app, access, authenticatorStore, rateLimiter, activity, authSecret);
+    registerAuthenticators(
+        app,
+        access,
+        authenticatorStore,
+        rateLimiter,
+        activity,
+        authSecret,
+        agentStore,
+    );
     registerTools(app, access, tools, capabilities);
     registerMusic(app, frontendDir);
     if (authSecret) setAgentPepper(authSecret);

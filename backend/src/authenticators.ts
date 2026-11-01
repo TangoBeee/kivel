@@ -5,6 +5,7 @@ import { plans } from '@socket-help/tools/plans';
 import { transaction } from './database.js';
 import { HttpError } from './errors.js';
 import type { Access } from './access.js';
+import type { AgentRepository } from './agents.js';
 import type { ActivityRepository } from './activity.js';
 import type { RateLimitRepository } from './rate-limit.js';
 import { parseTotp, totp, totpVault } from './totp.js';
@@ -119,6 +120,7 @@ export function registerAuthenticators(
     limits: RateLimitRepository,
     activity: ActivityRepository,
     secret?: string,
+    agents?: Pick<AgentRepository, 'agents'>,
 ) {
     const vault = secret ? totpVault(secret) : undefined;
     const configured = () => {
@@ -214,7 +216,7 @@ export function registerAuthenticators(
         },
     );
     app.get<{ Params: { id: string } }>('/api/authenticators/:id/code', async (request) => {
-        const actor = await access.workspace(request, 'resources:read'),
+        const actor = await access.workspace(request, 'resources:write'),
             owner = actor.identity.account.id;
         const vault = configured();
         const retry = await limits.consume(`totp-code:${owner}`, 30);
@@ -226,14 +228,29 @@ export function registerAuthenticators(
             );
         const entry = (await store.list(owner)).find((entry) => entry.id === request.params.id);
         if (!entry) throw new HttpError(404, 'Authenticator unavailable or access denied.');
-        const code = totp(vault.decrypt(entry.encrypted, owner, entry.id));
+        let config;
+        try {
+            config = vault.decrypt(entry.encrypted, owner, entry.id);
+        } catch {
+            throw new HttpError(
+                409,
+                'This authenticator must be re-added. Its stored secret cannot be decrypted with the current server key.',
+            );
+        }
+        const code = totp(config);
+        const agent = actor.identity.keyId
+            ? (await agents?.agents(owner))?.find((agent) => agent.keyId === actor.identity.keyId)
+            : undefined;
         await activity.record(owner, {
             at: new Date().toISOString(),
             tool: 'get_totp_code',
             resourceId: entry.id,
             ok: true,
             durationMs: 0,
-            ...(actor.identity.keyId ? { keyId: actor.identity.keyId } : {}),
+            userId: actor.identity.userId,
+            ...(actor.identity.keyId
+                ? { keyId: actor.identity.keyId, agentName: agent?.name ?? actor.identity.keyName }
+                : {}),
         });
         return { id: entry.id, ...code };
     });

@@ -2313,6 +2313,7 @@ test('authenticators encrypt durable secrets, enforce concurrent plan caps and r
             identityStore: identities,
             recoveryStore: new PostgresRecoveryRepository(pool),
             authenticatorStore,
+            activity: new PostgresActivity(pool),
             authSecret: 'durable-authenticator-key-32-characters',
             memory: new PostgresKv(pool),
         }),
@@ -2361,6 +2362,10 @@ test('authenticators encrypt durable secrets, enforce concurrent plan caps and r
         ).statusCode,
         404,
     );
+    const audit = await new PostgresActivity(pool).list(owner.personalAccountId);
+    assert.equal(audit[0]!.userId, owner.id);
+    assert.equal(audit[0]!.keyId, (await identities.authenticateKey(ownerKey))!.keyId);
+    assert.equal(audit[0]!.agentName, 'Authenticator');
     assert.equal(
         (await apps[0]!.inject({ url: `/api/memory/%24authenticators/${id}`, headers })).statusCode,
         400,
@@ -2442,7 +2447,22 @@ test('owned attachment bytes persist, reserve workspace storage atomically and a
         (await restarted.attachment(inbox.id, message.id, input.attachments[0]!.id!))?.bytes,
         Buffer.from('bytes!'),
     );
-    const preview = (await restarted.list(inbox.id))[0]!;
+    const previewQueries: string[] = [];
+    const previews = new PostgresEmailMessages({
+        async query(sql: string, values: unknown[]) {
+            previewQueries.push(sql);
+            const result = await pool.query(sql, values);
+            if (sql.includes('ORDER BY sequence')) {
+                assert.equal(result.rows[0].message.attachmentBodies, undefined);
+                assert.ok(!JSON.stringify(result.rows).includes(input.bodies[0]!.base64));
+            }
+            return result;
+        },
+    } as unknown as Pool);
+    const preview = (await previews.list(inbox.id))[0]!;
+    await previews.cursor(inbox.id);
+    assert.match(previewQueries[0]!, /SELECT message - 'attachmentBodies' AS message/);
+    assert.match(previewQueries[1]!, /max\(sequence\)/);
     assert.equal((preview as unknown as Record<string, unknown>).attachmentBodies, undefined);
     const stored = (await resources.read(inbox.id, 'email', '', account.id))!.storedBytes;
     assert.ok(stored > base + 6);
@@ -2534,14 +2554,14 @@ test('the attachment set cap holds across concurrent PostgreSQL writers', async 
             {
                 filename: 'large.bin',
                 mimeType: 'application/octet-stream',
-                size: 8 * 1048576,
-                base64: Buffer.alloc(8 * 1048576, 65).toString('base64'),
+                size: 4 * 1048576,
+                base64: Buffer.alloc(4 * 1048576, 65).toString('base64'),
             },
         ],
         true,
     );
     const results = await Promise.all(
-        Array.from({ length: 4 }, (_, index) =>
+        Array.from({ length: 7 }, (_, index) =>
             stores[index % 2]!.record(
                 inbox.id,
                 {
@@ -2559,7 +2579,7 @@ test('the attachment set cap holds across concurrent PostgreSQL writers', async 
             ),
         ),
     );
-    assert.equal(results.filter((result) => result === 'stored').length, 3);
+    assert.equal(results.filter((result) => result === 'stored').length, 6);
     assert.equal(results.filter((result) => result === 'full').length, 1);
-    assert.equal(await stores[0]!.count(inbox.id), 3);
+    assert.equal(await stores[0]!.count(inbox.id), 6);
 });

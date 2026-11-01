@@ -53,12 +53,13 @@ Use `addAuthenticator({ name, uri })`, `getTotpCode(id)`, `listAuthenticators()`
 human asked you to create or operate. Import also accepts `secret` (Base32) or
 `imageBase64` (PNG/JPEG QR up to 1 MiB and one million pixels). Secrets are never
 returned. Free supports 2, Pro 25 and Team 100 authenticators. Every code generation
-is audited and limited to 30 per workspace per minute; `nextCode` is included when
-fewer than five seconds remain. Keep the service recovery codes separately.
+requires `resources:write` and is audited with the user ID, key ID and agent name
+(or the key name for a key without an approved agent). The limit is 30 per workspace
+per minute; `nextCode` is included when fewer than five seconds remain. Keep the service recovery codes separately.
 
 `getEmailAttachment(inboxId, messageId, attachmentId)` returns a private download
 URL valid for two minutes. `downloadEmailAttachment(...)` fetches its exact bytes.
-Attachment IDs come from email message metadata. Messages are limited to 10 MiB,
+Attachment IDs come from email message metadata. Messages are limited to 5 MiB,
 with 25 MiB of attachment content per inbox, counted against workspace storage.
 Deletion and inbox expiry remove files and invalidate links. Treat every file as
 untrusted; this SDK does not scan or execute attachments.

@@ -72,7 +72,7 @@ export default function Privacy() {
             <section id="agent-email">
                 <h2>Owned agent email</h2>
                 <p>
-                    Owned inboxes store attachment content within the 10 MiB message limit and a 25
+                    Owned inboxes store attachment content within the 5 MiB message limit and a 25
                     MiB attachment allowance per inbox. Stored bytes count against workspace
                     storage. Private download links expire after two minutes. Clearing messages or
                     deleting or expiring the inbox removes attachments and invalidates links. Files

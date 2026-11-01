@@ -19,6 +19,7 @@ const origin = 'http://localhost:3000',
 async function fixture(
     t: { after(fn: () => Promise<unknown>): void },
     messages = new MemoryEmailMessages(),
+    configure?: (app: ReturnType<typeof buildApp>) => void,
 ) {
     const identities = new MemoryIdentityRepository();
     const addresses = new MemoryEmailAddresses();
@@ -52,6 +53,7 @@ async function fixture(
         emailIngestSecret: ingestSecret,
         authSecret: 'test-attachment-signing-secret-32-characters',
     });
+    configure?.(app);
     t.after(() => app.close());
     const headers = { authorization: `Bearer ${key.key}` },
         otherHeaders = { authorization: `Bearer ${otherKey.key}` };
@@ -148,6 +150,9 @@ test('owned attachments are stored without leaking bytes to previews and downloa
     const stored = f.messages.attachment(f.inbox.id, message.id, attachment.id);
     assert.deepEqual(stored?.bytes, bytes);
     const link = await f.client.getEmailAttachment(f.inbox.id, message.id, attachment.id);
+    assert.ok(!link.downloadUrl.includes(f.owner));
+    assert.equal(new URL(link.downloadUrl).searchParams.has('owner'), false);
+    assert.match(new URL(link.downloadUrl).searchParams.get('ticket')!, /^[A-Za-z0-9_-]{86}$/);
     const url = new URL(link.downloadUrl),
         response = await f.app.inject(url.pathname + url.search);
     assert.equal(response.statusCode, 200, response.body);
@@ -205,6 +210,18 @@ test('attachment access is workspace isolated, links expire and deletion revokes
     const tampered = new URL(url);
     tampered.searchParams.set('expires', String(Number(tampered.searchParams.get('expires')) + 1));
     assert.equal((await f.app.inject(tampered.pathname + tampered.search)).statusCode, 404);
+    const changedTicket = new URL(url);
+    const ticket = changedTicket.searchParams.get('ticket')!;
+    changedTicket.searchParams.set('ticket', `${ticket[0] === 'a' ? 'b' : 'a'}${ticket.slice(1)}`);
+    assert.equal(
+        (await f.app.inject(changedTicket.pathname + changedTicket.search)).statusCode,
+        404,
+    );
+    const changedPath = new URL(url);
+    changedPath.pathname = changedPath.pathname.replace(message.id, crypto.randomUUID());
+    assert.equal((await f.app.inject(changedPath.pathname + changedPath.search)).statusCode, 404);
+    const repeated = await f.client.getEmailAttachment(f.inbox.id, message.id, attachment.id);
+    assert.notEqual(new URL(repeated.downloadUrl).searchParams.get('ticket'), ticket);
     const actual = Date.now;
     Date.now = () => actual() + 121000;
     try {
@@ -231,7 +248,7 @@ test('attachment access is workspace isolated, links expire and deletion revokes
 test('attachment validation and per-inbox storage caps reject complete messages atomically', async (t) => {
     assert.throws(
         () => parseAttachments([file(Buffer.alloc(MESSAGE_ATTACHMENT_BYTES + 1))], true),
-        /10 MiB/,
+        /5 MiB/,
     );
     assert.throws(
         () =>
@@ -250,16 +267,16 @@ test('attachment validation and per-inbox storage caps reject complete messages 
         /20 files/,
     );
     const f = await fixture(t),
-        payload = file(Buffer.alloc(8 * 1048576, 65), 'large.bin');
-    for (let i = 0; i < 3; i++) {
+        payload = file(Buffer.alloc(4 * 1048576, 65), 'large.bin');
+    for (let i = 0; i < 6; i++) {
         const response = await f.deliver([payload]);
         assert.equal(response.statusCode, 202, response.body);
     }
-    assert.equal(f.messages.count(f.inbox.id), 3);
+    assert.equal(f.messages.count(f.inbox.id), 6);
     assert.equal((await f.deliver([payload])).statusCode, 429);
-    assert.equal(f.messages.count(f.inbox.id), 3);
+    assert.equal(f.messages.count(f.inbox.id), 6);
     assert.equal((await f.deliver([file(Buffer.alloc(MESSAGE_ATTACHMENT_BYTES))])).statusCode, 413);
-    assert.equal(f.messages.count(f.inbox.id), 3);
+    assert.equal(f.messages.count(f.inbox.id), 6);
 });
 test('the receiving worker forwards exact attachment bytes and retains raw message limits', async (t) => {
     const f = await fixture(t),
@@ -303,7 +320,7 @@ test('the receiving worker forwards exact attachment bytes and retains raw messa
     let rejected = '';
     await worker.email(
         {
-            rawSize: 10 * 1048576 + 1,
+            rawSize: 5 * 1048576 + 1,
             setReject: (reason: string) => {
                 rejected = reason;
             },
@@ -350,17 +367,68 @@ test('mail ingestion bounds concurrent large requests and releases capacity afte
         }
     }
     const f = await fixture(t, new DelayedMessages());
+    const deadline = setTimeout(() => {
+        release();
+        reached();
+    }, 2000);
     const pending = Array.from({ length: 4 }, () =>
-        f.deliver([file(Buffer.from('Concurrent message'))]),
+        f.deliver([file(Buffer.alloc(512 * 1024, 65))]),
     );
     try {
         await ready;
-        const busy = await f.deliver([file(Buffer.from('Over capacity'))]);
+        const busy = await f.deliver([file(Buffer.alloc(512 * 1024, 65))]);
         assert.equal(busy.statusCode, 503, busy.body);
         assert.equal(busy.headers['retry-after'], '2');
     } finally {
+        clearTimeout(deadline);
         release();
         await Promise.all(pending);
     }
-    assert.equal((await f.deliver([file(Buffer.from('Capacity released'))])).statusCode, 202);
+    assert.equal((await f.deliver([file(Buffer.alloc(512 * 1024, 65))])).statusCode, 202);
+});
+
+test('four large ingests cannot block small messages and large capacity is released on completion', async (t) => {
+    const held: (() => void)[] = [];
+    const ready = Promise.withResolvers<void>();
+    const f = await fixture(t, new MemoryEmailMessages(), (app) => {
+        app.addHook('preParsing', (request, _reply, payload, done) => {
+            if (
+                request.url === '/hooks/email' &&
+                Number(request.headers['content-length']) > 256 * 1024
+            ) {
+                held.push(() => done(null, payload));
+                if (held.length === 4) ready.resolve();
+            } else done(null, payload);
+        });
+    });
+    const large = file(Buffer.alloc(512 * 1024, 65));
+    const deadline = setTimeout(() => {
+        ready.reject(new Error('Large requests did not reach the parsing boundary.'));
+        for (const release of held) release();
+    }, 2000);
+    const pending = Array.from({ length: 4 }, () => f.deliver([large]));
+    try {
+        await ready.promise;
+        assert.equal((await f.deliver([large])).statusCode, 503);
+        const small = await f.deliver([], {
+            subject: 'Small verification message',
+            text: 'Verification code: 123456',
+        });
+        assert.equal(small.statusCode, 202, small.body);
+        assert.equal((await f.preview()).messages.length, 1);
+    } finally {
+        clearTimeout(deadline);
+        for (const release of held) release();
+    }
+    assert.ok((await Promise.all(pending)).every((response) => response.statusCode === 202));
+});
+
+test('message size checks reject oversized raw and decoded messages at the five MiB boundary', async (t) => {
+    const f = await fixture(t);
+    assert.equal((await f.deliver([], { rawSize: 5 * 1048576 + 1 })).statusCode, 413);
+    assert.equal((await f.deliver([file(Buffer.alloc(5 * 1048576))])).statusCode, 413);
+    assert.equal((await f.deliver([], { rawSize: 5 * 1048576 })).statusCode, 202);
+    assert.equal((await f.deliver([], { rawSize: -1 })).statusCode, 400);
+    assert.equal((await f.deliver([], { rawSize: '5242880' })).statusCode, 400);
+    assert.equal(f.messages.count(f.inbox.id), 1);
 });

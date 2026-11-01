@@ -61,7 +61,7 @@ www.{$DOMAIN} {
 	@inbound_mail path /hooks/email
 	handle @inbound_mail {
 		request_body {
-			max_size 15728640
+			max_size 8388608
 		}
 		import socket_upstream
 	}

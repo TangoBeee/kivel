@@ -322,7 +322,7 @@ export class PostgresEmailMessages implements EmailMessageRepository {
             "SELECT message - 'attachmentBodies' AS message FROM email_messages WHERE resource_id = $1 ORDER BY sequence",
             [resourceId],
         );
-        return result.rows.map((row) => publicMessage(row.message));
+        return result.rows.map((row) => row.message);
     }
     async cursor(resourceId: string) {
         return (
@@ -713,6 +713,11 @@ export function registerEmail({
     app.register(async (ingest) => {
         const active = new Set<FastifyRequest>();
         ingest.addHook('onRequest', async (request, reply) => {
+            const length = request.headers['content-length'];
+            // Unknown lengths use the large lane, so chunked uploads cannot bypass its limit.
+            const small =
+                typeof length === 'string' && /^\d+$/.test(length) && Number(length) <= 256 * 1024;
+            if (small) return;
             if (active.size >= 4)
                 return reply
                     .header('Retry-After', '2')
@@ -729,7 +734,7 @@ export function registerEmail({
         ingest.removeAllContentTypeParsers();
         ingest.addContentTypeParser(
             '*',
-            { parseAs: 'buffer', bodyLimit: 15 * 1024 * 1024 },
+            { parseAs: 'buffer', bodyLimit: 8 * 1024 * 1024 },
             (_r, body, done) => done(null, body),
         );
         ingest.post('/hooks/email', async (request, reply) => {
@@ -750,6 +755,12 @@ export function registerEmail({
                 input = JSON.parse(raw.toString('utf8'));
             } catch {
                 return reply.code(400).send({ error: 'Invalid JSON.' });
+            }
+            if (input.rawSize !== undefined) {
+                if (!Number.isSafeInteger(input.rawSize) || Number(input.rawSize) < 0)
+                    throw new HttpError(400, 'rawSize must be a nonnegative integer.');
+                if (Number(input.rawSize) > MESSAGE_ATTACHMENT_BYTES)
+                    throw new HttpError(413, 'Message exceeds 5 MiB.');
             }
             if (feedback && (await feedback(input)))
                 return reply.code(202).send({ received: true });
@@ -779,7 +790,7 @@ export function registerEmail({
                     attachmentInput.attachments.reduce((sum, file) => sum + file.size, 0) >
                 MESSAGE_ATTACHMENT_BYTES
             )
-                throw new HttpError(413, 'Message exceeds 10 MiB.');
+                throw new HttpError(413, 'Message exceeds 5 MiB.');
             const message: EmailMessage = {
                 id: crypto.randomUUID(),
                 receivedAt: new Date().toISOString(),

@@ -1,6 +1,6 @@
 import { deliveryFeedback } from './feedback.js';
 
-const MAX_RAW = 10 * 1024 * 1024;
+const MAX_RAW = 5 * 1024 * 1024;
 const MAX_TEXT = 64 * 1024;
 const encoder = new TextEncoder();
 function base64(content) {

@@ -61,5 +61,5 @@ requests are audited. Never put setup secrets in command arguments or logs.
 `email attachment <inbox-id> <message-id> <attachment-id>` returns a private URL
 valid for two minutes. `email download-attachment` with the same IDs outputs exact
 file bytes; redirect stdout to a file. Attachments are untrusted downloads. A
-message can be up to 10 MiB; an inbox can hold 25 MiB of attachment content, within
+message can be up to 5 MiB; an inbox can hold 25 MiB of attachment content, within
 workspace storage limits. Clearing messages or expiring the inbox removes files.

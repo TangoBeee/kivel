@@ -1,6 +1,5 @@
 'use client';
 import { useState } from 'react';
-import Link from 'next/link';
 import { DropdownMenu, IconButton, TextField } from '@radix-ui/themes';
 import {
     ArrowsClockwise,
@@ -97,6 +96,8 @@ export function ResourceList({
     onDetails,
     onRenew,
     onDelete,
+    onOpen,
+    heading,
     empty,
 }: {
     resources: Resource[];
@@ -111,6 +112,9 @@ export function ResourceList({
     onDetails: (resource: Resource) => void;
     onRenew: (resource: Resource, persistent?: boolean) => void;
     onDelete: (resource: Resource) => void;
+    /** Opens the resource inside the dashboard. */
+    onOpen: (resource: Resource) => void;
+    heading?: string;
     empty: React.ReactNode;
 }) {
     const [query, setQuery] = useState('');
@@ -132,7 +136,11 @@ export function ResourceList({
         <section className="home-section" aria-labelledby="resources-heading">
             <div className="home-section-head">
                 <h2 id="resources-heading">
-                    {compact ? (
+                    {heading ? (
+                        <>
+                            {heading} <span className="home-count">{resources.length}</span>
+                        </>
+                    ) : compact ? (
                         <>
                             Recent resources <span className="home-count">{resources.length}</span>
                         </>
@@ -200,9 +208,13 @@ export function ResourceList({
                                     <ResourceIcon size={18} />
                                 </span>
                                 <div className="resource-main">
-                                    <Link href={resourceHref(resource)} className="resource-title">
+                                    <button
+                                        type="button"
+                                        className="resource-title"
+                                        onClick={() => onOpen(resource)}
+                                    >
                                         {title}
-                                    </Link>
+                                    </button>
                                     {copy ? (
                                         <span className="resource-address">
                                             <code title={copy}>{copy}</code>
@@ -228,12 +240,13 @@ export function ResourceList({
                                     {expiry(resource)}
                                 </span>
                                 <div className="resource-actions">
-                                    <Link
+                                    <button
+                                        type="button"
                                         className="button button-small"
-                                        href={resourceHref(resource)}
+                                        onClick={() => onOpen(resource)}
                                     >
                                         Open
-                                    </Link>
+                                    </button>
                                     <DropdownMenu.Root>
                                         <DropdownMenu.Trigger>
                                             <IconButton

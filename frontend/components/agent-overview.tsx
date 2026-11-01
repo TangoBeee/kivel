@@ -54,19 +54,13 @@ function CopySetup({
     );
 }
 
-/** Home: what needs you, what you have, what your agents did, and a quiet usage line. */
+/** Overview: what needs you, your tools (passed in as children), and what your agents did. */
 export function AgentOverview({
     onOpen,
-    plan,
-    resources,
-    maxResources,
     needs = [],
     children,
 }: {
     onOpen: (panel: DashboardPanel) => void;
-    plan: string;
-    resources: number;
-    maxResources: number;
     /** Other things waiting on the person, such as verifying their email. */
     needs?: { id: string; title: string; detail: string; action: string; onAction: () => void }[];
     children?: React.ReactNode;
@@ -213,19 +207,6 @@ export function AgentOverview({
                     </p>
                 )}
             </section>
-            <p className="home-usage">
-                <button type="button" onClick={() => onOpen('agents')}>
-                    {agents.length} of {limit} agents
-                </button>
-                <span aria-hidden="true">·</span>
-                <button type="button" onClick={() => onOpen('resources')}>
-                    {resources} of {maxResources || '-'} resources
-                </button>
-                <span aria-hidden="true">·</span>
-                <button type="button" onClick={() => onOpen('billing')}>
-                    {plan} plan
-                </button>
-            </p>
         </div>
     );
 }

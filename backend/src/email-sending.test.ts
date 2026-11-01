@@ -179,6 +179,10 @@ test('Free sending needs verified account mail, enforces recipient/daily/minute 
     );
     assert.equal(await f.store.withOwner(f.identity.account.id, (session) => session.usage()), 0);
     for (let index = 0; index < 3; index++) assert.equal((await f.send()).statusCode, 202);
+    assert.deepEqual(
+        (await f.app.inject({ url: '/api/email-sending/usage', headers: f.headers })).json(),
+        { day: 3, month: 3, perDay: 3, perMonth: 30 },
+    );
     assert.equal((await f.send()).statusCode, 429);
     f.advance();
     const capped = await f.send();

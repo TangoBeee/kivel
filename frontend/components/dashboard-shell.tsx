@@ -7,9 +7,7 @@ import { SearchLaunch } from './toolbox-provider';
 import { rememberReturn } from '../lib/return-path';
 import { Button, DropdownMenu, IconButton } from '@radix-ui/themes';
 import {
-    SquaresFour,
     Toolbox,
-    FolderSimple,
     Key,
     ShieldCheck,
     UsersThree,
@@ -31,152 +29,203 @@ import {
     X,
     GearSix,
     EnvelopeSimple,
-    LockKey,
+    File,
+    Database,
+    Lightning,
+    ChartBar,
 } from '@phosphor-icons/react';
+import { categoryTints } from '../lib/catalog';
 import type { Icon } from '@phosphor-icons/react';
 
+type Section = {
+    id: string;
+    label: string;
+    description: string;
+    icon: Icon;
+    /** Tool pages: the catalog category that gives the icon its colour. */
+    category?: keyof typeof categoryTints;
+    /** Resource kinds listed on the page. */
+    kinds?: string[];
+    /** Tools the page's New button can open. */
+    create?: string[];
+    group: 'main' | 'tools' | 'more' | 'settings';
+};
+// The sidebar, top to bottom. Tool pages list what you made with that tool and its limits.
 export const dashboardPanels = [
     {
         id: 'overview',
-        group: 'Build',
-        label: 'Home',
-        description: 'What needs you, and what your agents did.',
-        icon: SquaresFour,
-    },
-    {
-        id: 'tools',
-        group: 'Build',
-        label: 'Tools',
-        description: 'Every tool your agents can call, and the ones you can run here yourself.',
-        icon: Toolbox,
-    },
-    {
-        id: 'resources',
-        group: 'Build',
-        label: 'Resources',
-        description: 'Everything you and your agents created: inboxes, mocks, files and more.',
-        icon: FolderSimple,
-    },
-    {
-        id: 'keys',
-        group: 'Build',
-        label: 'API keys',
-        description: 'Your workspace, keys, plan and sign-in.',
-        icon: Key,
-    },
-    {
-        id: 'authenticators',
-        group: 'Build',
-        label: 'Authenticators',
-        description: 'Two-factor codes your agents can use to sign in.',
-        icon: ShieldCheck,
-    },
-    {
-        id: 'monitors',
-        group: 'Build',
-        label: 'Monitors',
-        description: 'Checks that email you when a site, certificate or cron job breaks.',
-        icon: Pulse,
+        group: 'main',
+        label: 'Overview',
+        description: 'What needs you, and how your tools are doing.',
+        icon: House,
     },
     {
         id: 'agents',
-        group: 'Build',
+        group: 'main',
         label: 'Agents',
         description: 'Who is connected, what they asked you and what they did.',
         icon: Robot,
     },
     {
-        id: 'workspace',
-        group: 'Settings',
-        label: 'Workspace',
-        description: 'Your workspace, keys, plan and sign-in.',
-        icon: UsersThree,
+        id: 'email',
+        group: 'tools',
+        label: 'Email inboxes',
+        description: 'Real addresses your agents use to sign up, get codes and send mail.',
+        icon: EnvelopeSimple,
+        category: 'email',
+        kinds: ['email'],
+        create: ['email-temporary-email-inbox', 'email-mock-smtp'],
     },
     {
-        id: 'security',
-        group: 'Settings',
-        label: 'Security',
-        description: 'Your workspace, keys, plan and sign-in.',
+        id: 'webhooks',
+        group: 'tools',
+        label: 'Webhooks',
+        description: 'URLs that catch any request, so you can see exactly what a service sends.',
+        icon: WebhooksLogo,
+        category: 'network',
+        kinds: ['inbox'],
+        create: ['webhooks'],
+    },
+    {
+        id: 'mocks',
+        group: 'tools',
+        label: 'Mock APIs',
+        description: 'Fake APIs, sign-in providers and MCP servers for your tests.',
+        icon: BracketsCurly,
+        category: 'mock-apis',
+        kinds: ['mock', 'mcp'],
+        create: [
+            'mock-apis-mock-rest-api',
+            'mock-apis-stateful-crud-api',
+            'mock-apis-mock-oauth-provider',
+            'agents-mock-mcp-server',
+            'agents-mock-llm-endpoint',
+        ],
+    },
+    {
+        id: 'files',
+        group: 'tools',
+        label: 'Files',
+        description: 'Files you or your agents shared, behind private links that expire.',
+        icon: File,
+        category: 'files',
+        kinds: ['file'],
+        create: ['files-temporary-file-transfer'],
+    },
+    {
+        id: 'monitors',
+        group: 'tools',
+        label: 'Monitors',
+        description: 'Checks that email you when a site, certificate or cron job breaks.',
+        icon: Pulse,
+        category: 'monitoring',
+    },
+    {
+        id: 'memory',
+        group: 'tools',
+        label: 'Memory',
+        description: 'What your agents saved to remember between sessions.',
+        icon: Database,
+        category: 'databases',
+    },
+    {
+        id: 'authenticators',
+        group: 'tools',
+        label: 'Authenticators',
+        description: 'Two-factor codes your agents can use to sign in.',
         icon: ShieldCheck,
+        category: 'agents',
+    },
+    {
+        id: 'automation',
+        group: 'tools',
+        label: 'Jobs & status pages',
+        description: 'Scheduled jobs and public status pages.',
+        icon: Lightning,
+        category: 'automation',
+        kinds: ['job', 'status'],
+        create: ['automation-temporary-scheduled-jobs', 'monitoring-public-status-page'],
+    },
+    {
+        id: 'tools',
+        group: 'more',
+        label: 'Utilities',
+        description: 'Run any tool here. Your agents run the same ones with run_tool.',
+        icon: Toolbox,
+    },
+    {
+        id: 'usage',
+        group: 'more',
+        label: 'Usage & plan',
+        description: 'What your plan includes and how much of it you used.',
+        icon: ChartBar,
+    },
+    {
+        id: 'workspace',
+        group: 'settings',
+        label: 'Workspace',
+        description: 'Your workspace, keys, plan and sign-in.',
+        icon: GearSix,
+    },
+    {
+        id: 'keys',
+        group: 'settings',
+        label: 'API keys',
+        description: 'Your workspace, keys, plan and sign-in.',
+        icon: Key,
     },
     {
         id: 'billing',
-        group: 'Settings',
+        group: 'settings',
         label: 'Plan',
         description: 'Your workspace, keys, plan and sign-in.',
         icon: CreditCard,
     },
-] as const;
+    {
+        id: 'security',
+        group: 'settings',
+        label: 'Security',
+        description: 'Your workspace, keys, plan and sign-in.',
+        icon: ShieldCheck,
+    },
+] as const satisfies readonly Section[];
 export type DashboardPanel = (typeof dashboardPanels)[number]['id'];
-// Sections with more than one page show them as tabs under one sidebar item.
-const sections: { id: DashboardPanel; label: string; icon: Icon; tabs?: DashboardPanel[] }[] = [
-    { id: 'overview', label: 'Home', icon: House },
-    { id: 'agents', label: 'Agents', icon: Robot },
-    {
-        id: 'resources',
-        label: 'Resources',
-        icon: FolderSimple,
-        tabs: ['resources', 'monitors', 'authenticators'],
-    },
-    { id: 'tools', label: 'Tools', icon: Toolbox },
-    {
-        id: 'workspace',
-        label: 'Settings',
-        icon: GearSix,
-        tabs: ['workspace', 'keys', 'billing', 'security'],
-    },
-];
-const sectionOf = (panel: DashboardPanel) =>
-    sections.find((section) => section.id === panel || section.tabs?.includes(panel))!;
+export const panelInfo = (panel: DashboardPanel): Section =>
+    dashboardPanels.find((item) => item.id === panel)!;
+const settingsTabs: DashboardPanel[] = ['workspace', 'keys', 'billing', 'security'];
+// Old links (#resources) land on the overview.
 export const isDashboardPanel = (value: string): value is DashboardPanel =>
     dashboardPanels.some((item) => item.id === value);
 
-export const quickCreate = [
+// What "New" offers everywhere: the tool opens inside its dashboard page.
+export const quickCreate: { panel: DashboardPanel; toolId: string; name: string; icon: Icon }[] = [
     {
-        href: '/tools/webhook-inbox/',
-        name: 'Webhook inbox',
-        description: 'Catch and inspect callbacks.',
-        icon: WebhooksLogo,
-    },
-    {
-        href: '/tools/temporary-email-inbox/',
+        panel: 'email',
+        toolId: 'email-temporary-email-inbox',
         name: 'Email inbox',
-        description: 'A real address for sign-ups and codes.',
         icon: EnvelopeSimple,
     },
+    { panel: 'webhooks', toolId: 'webhooks', name: 'Webhook URL', icon: WebhooksLogo },
     {
-        href: '/tools/mock-rest-api/',
-        name: 'Mock REST API',
-        description: 'Serve test responses.',
+        panel: 'mocks',
+        toolId: 'mock-apis-mock-rest-api',
+        name: 'Mock API',
         icon: BracketsCurly,
     },
     {
-        href: '/tools/mock-oauth-provider/',
-        name: 'Mock OAuth provider',
-        description: 'Test sign-in with fake users.',
-        icon: LockKey,
-    },
-    {
-        href: '/tools/mock-mcp-server/',
-        name: 'Mock MCP server',
-        description: 'Give an agent a sandbox.',
-        icon: Plugs,
-    },
-    {
-        href: '/tools/temporary-file-transfer/',
+        panel: 'files',
+        toolId: 'files-temporary-file-transfer',
         name: 'Upload a file',
-        description: 'Share it privately or publicly.',
         icon: UploadSimple,
     },
-    {
-        href: '/tools/uptime-monitor/',
-        name: 'Uptime monitor',
-        description: 'Get an email when a site goes down.',
-        icon: Pulse,
-    },
+    { panel: 'monitors', toolId: '', name: 'Monitor', icon: Pulse },
 ];
 
-export function NewResourceMenu({ onBrowse }: { onBrowse?: () => void }) {
+export function NewResourceMenu({
+    onCreate,
+}: {
+    onCreate: (panel: DashboardPanel, toolId: string) => void;
+}) {
     return (
         <DropdownMenu.Root>
             <DropdownMenu.Trigger>
@@ -186,24 +235,16 @@ export function NewResourceMenu({ onBrowse }: { onBrowse?: () => void }) {
                     <CaretDown size={14} />
                 </Button>
             </DropdownMenu.Trigger>
-            <DropdownMenu.Content align="end" className="dashboard-new-menu">
+            <DropdownMenu.Content align="end">
                 {quickCreate.map((item) => (
-                    <DropdownMenu.Item asChild key={item.href}>
-                        <Link href={item.href}>
-                            <item.icon size={16} />
-                            {item.name}
-                        </Link>
+                    <DropdownMenu.Item
+                        key={item.name}
+                        onSelect={() => onCreate(item.panel, item.toolId)}
+                    >
+                        <item.icon size={16} />
+                        {item.name}
                     </DropdownMenu.Item>
                 ))}
-                {onBrowse && (
-                    <>
-                        <DropdownMenu.Separator />
-                        <DropdownMenu.Item onSelect={onBrowse}>
-                            <Toolbox size={16} />
-                            Browse all tools
-                        </DropdownMenu.Item>
-                    </>
-                )}
             </DropdownMenu.Content>
         </DropdownMenu.Root>
     );
@@ -274,6 +315,8 @@ export function DashboardShell({
     role,
     onSignOut,
     busy,
+    badges,
+    search,
     title,
     actions,
     children,
@@ -288,12 +331,15 @@ export function DashboardShell({
     role: string;
     onSignOut: () => void;
     busy: boolean;
+    /** Usage next to each sidebar item, such as "1/1"; full ones are highlighted. */
+    badges: Partial<Record<DashboardPanel, { text: string; full?: boolean; hidden?: boolean }>>;
+    search: ReactNode;
     title?: string;
     actions?: ReactNode;
     children: ReactNode;
 }) {
-    const current = dashboardPanels.find((item) => item.id === panel)!;
-    const section = sectionOf(panel);
+    const current = panelInfo(panel);
+    const settings = settingsTabs.includes(panel);
     const [navOpen, setNavOpen] = useState(false);
     useEffect(() => {
         if (!navOpen) return;
@@ -301,7 +347,7 @@ export function DashboardShell({
         addEventListener('keydown', onKey);
         return () => removeEventListener('keydown', onKey);
     }, [navOpen]);
-    // Tools opened from here offer a way back to this exact panel.
+    // Links to public pages offer a way back to this exact panel.
     function onLinkClick(event: React.MouseEvent) {
         const link = (event.target as Element).closest('a[href^="/tools/"]');
         if (!link) return;
@@ -312,6 +358,35 @@ export function DashboardShell({
         onPanelChange(next);
         setNavOpen(false);
     };
+    const item = (entry: Section) => {
+        const active = entry.id === 'workspace' ? settings : panel === entry.id;
+        const badge = badges[entry.id as DashboardPanel];
+        if (badge?.hidden && !active) return null;
+        return (
+            <button
+                key={entry.id}
+                aria-current={active ? 'page' : undefined}
+                onClick={() => go(entry.id as DashboardPanel)}
+            >
+                {entry.category ? (
+                    <span
+                        className="nav-chip"
+                        style={{ '--tint': categoryTints[entry.category] } as React.CSSProperties}
+                    >
+                        <entry.icon size={13} />
+                    </span>
+                ) : (
+                    <entry.icon size={18} weight={active ? 'fill' : 'regular'} />
+                )}
+                {entry.id === 'workspace' ? 'Settings' : entry.label}
+                {badge && !badge.hidden && (
+                    <span className={`nav-count ${badge.full ? 'is-full' : ''}`}>{badge.text}</span>
+                )}
+            </button>
+        );
+    };
+    const group = (name: Section['group']) =>
+        (dashboardPanels as readonly Section[]).filter((entry) => entry.group === name).map(item);
     return (
         <div
             className={`dashboard-layout ${navOpen ? 'is-nav-open' : ''}`}
@@ -320,7 +395,7 @@ export function DashboardShell({
             <aside className="dashboard-sidebar" aria-label="Dashboard">
                 <div className="dashboard-sidebar-top">
                     <Link href="/" className="dashboard-brand">
-                        <LiveLogo size={28} />
+                        <LiveLogo size={26} />
                         <span>
                             socket<span className="island-dot">.</span>help
                         </span>
@@ -344,7 +419,7 @@ export function DashboardShell({
                             <span>
                                 <strong>{workspace.name}</strong>
                                 <small>
-                                    {plan} plan · {role}
+                                    {plan[0]!.toUpperCase() + plan.slice(1)} plan · {role}
                                 </small>
                             </span>
                             <CaretUpDown size={16} />
@@ -374,20 +449,14 @@ export function DashboardShell({
                         </DropdownMenu.Item>
                     </DropdownMenu.Content>
                 </DropdownMenu.Root>
+                {search}
                 <nav className="dashboard-nav" aria-label="Workspace sections">
-                    {sections.map((item) => {
-                        const active = sectionOf(panel).id === item.id;
-                        return (
-                            <button
-                                key={item.id}
-                                aria-current={active ? 'page' : undefined}
-                                onClick={() => go(item.id)}
-                            >
-                                <item.icon size={18} weight={active ? 'fill' : 'regular'} />
-                                {item.label}
-                            </button>
-                        );
-                    })}
+                    {group('main')}
+                    <p className="nav-group">Your tools</p>
+                    {group('tools')}
+                    <p className="nav-group">Everything else</p>
+                    {group('more')}
+                    {item(dashboardPanels.find((entry) => entry.id === 'workspace')!)}
                 </nav>
                 <DropdownMenu.Root>
                     <DropdownMenu.Trigger>
@@ -447,41 +516,56 @@ export function DashboardShell({
                         <List size={20} />
                     </IconButton>
                     <span className="dashboard-breadcrumb">
-                        <span>{workspace.name}</span>
-                        <span aria-hidden="true">/</span>
-                        <strong>{section.label}</strong>
+                        {current.group === 'tools' && (
+                            <>
+                                <span>Your tools</span>
+                                <span aria-hidden="true">/</span>
+                            </>
+                        )}
+                        <strong>{settings ? 'Settings' : current.label}</strong>
                     </span>
                     <div className="dashboard-topbar-actions">
-                        <SearchLaunch compact />
-                        <IconButton asChild variant="ghost" color="gray" aria-label="Documentation">
-                            <Link href="/docs/">
-                                <BookOpen size={18} />
-                            </Link>
-                        </IconButton>
+                        <Link className="dashboard-topbar-link" href="/docs/">
+                            <BookOpen size={16} />
+                            Docs
+                        </Link>
+                        <Link className="dashboard-topbar-link" href="/connect/">
+                            <Plugs size={16} />
+                            Connect an agent
+                        </Link>
                     </div>
                 </div>
                 <div className="dashboard-content">
-                    <header
-                        key={`h-${section.id}`}
-                        className="dashboard-heading dashboard-panel-enter"
-                    >
-                        <div>
-                            <h1>{title ?? section.label}</h1>
-                            <p>{current.description}</p>
+                    <header key={`h-${panel}`} className="dashboard-heading">
+                        <div className="dashboard-heading-title">
+                            {current.category && (
+                                <span
+                                    className="nav-chip is-large"
+                                    style={
+                                        {
+                                            '--tint': categoryTints[current.category],
+                                        } as React.CSSProperties
+                                    }
+                                >
+                                    <current.icon size={19} />
+                                </span>
+                            )}
+                            <div>
+                                <h1>{title ?? (settings ? 'Settings' : current.label)}</h1>
+                                <p>{current.description}</p>
+                            </div>
                         </div>
                         {actions}
                     </header>
-                    {section.tabs && (
-                        <nav className="dashboard-tabs" aria-label={section.label}>
-                            {section.tabs.map((id) => (
+                    {settings && (
+                        <nav className="dashboard-tabs" aria-label="Settings">
+                            {settingsTabs.map((id) => (
                                 <button
                                     key={id}
                                     aria-current={panel === id ? 'page' : undefined}
                                     onClick={() => go(id)}
                                 >
-                                    {id === 'resources'
-                                        ? 'All resources'
-                                        : dashboardPanels.find((item) => item.id === id)!.label}
+                                    {panelInfo(id).label}
                                 </button>
                             ))}
                         </nav>

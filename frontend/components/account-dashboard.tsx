@@ -16,9 +16,22 @@ import {
     isDashboardPanel,
     Meter,
     NewResourceMenu,
-    quickCreate,
+    panelInfo,
     SettingsSection,
 } from './dashboard-shell';
+import { DashboardSearch } from './dashboard-search';
+import {
+    EmbeddedTool,
+    isToolPanel,
+    panelResources,
+    ToolCards,
+    ToolNew,
+    ToolPage,
+    toolPanels,
+} from './tool-page';
+import type { ToolPanel } from './tool-page';
+import { UsagePanel } from './usage-panel';
+import { formatBytes as formatSize, useWorkspaceUsage } from '../lib/workspace-usage';
 import { DashboardTools } from './dashboard-tools';
 import { AgentActivity } from './agent-activity';
 import { AgentOverview } from './agent-overview';
@@ -75,6 +88,8 @@ async function json(path: string, method = 'GET', body?: unknown) {
 }
 export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, React.ReactNode> }) {
     const [panel, setPanel] = useState<DashboardPanel>('overview');
+    // What is open inside a page: a resource, or a tool (to create something or run a utility).
+    const [open, setOpen] = useState<{ resource?: string; tool?: string }>({});
     const [resourceQuery, setResourceQuery] = useState(''),
         [resourceKind, setResourceKind] = useState('all'),
         [deleteTarget, setDeleteTarget] = useState<Resource | null>(null),
@@ -157,7 +172,12 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
     useEffect(() => {
         const applyHash = () => {
             const hash = location.hash.slice(1);
-            if (isDashboardPanel(hash)) setPanel(hash);
+            const search = new URLSearchParams(location.search);
+            setPanel(isDashboardPanel(hash) ? hash : 'overview');
+            setOpen({
+                resource: search.get('resource') ?? undefined,
+                tool: search.get('tool') ?? undefined,
+            });
             if (hash === 'register') setMode('register');
             if (hash === 'signin') setMode('login');
         };
@@ -177,12 +197,16 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
         }
         applyHash();
         addEventListener('hashchange', applyHash);
+        addEventListener('popstate', applyHash);
         void refresh();
         void api('/api/auth/recovery')
             .then((response) => response.json())
             .then((value) => setEmailEnabled(value.enabled))
             .catch(() => {});
-        return () => removeEventListener('hashchange', applyHash);
+        return () => {
+            removeEventListener('hashchange', applyHash);
+            removeEventListener('popstate', applyHash);
+        };
     }, []);
     const plan = session?.account.effectivePlan ?? 'free',
         subscribed = plan === 'pro' || plan === 'team',
@@ -273,12 +297,29 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                 );
         });
     }
-    function changePanel(next: DashboardPanel) {
+    function navigate(next: DashboardPanel, target: { resource?: string; tool?: string } = {}) {
+        // Leaving a tool screen: it may have created or deleted something.
+        if (open.resource || open.tool) void reload();
         setPanel(next);
-        history.replaceState(null, '', next === 'overview' ? location.pathname : `#${next}`);
+        setOpen(target);
+        const query = target.resource
+            ? `?resource=${target.resource}`
+            : target.tool
+              ? `?tool=${encodeURIComponent(target.tool)}`
+              : '';
+        history.pushState(
+            null,
+            '',
+            `${location.pathname}${query}${next === 'overview' && !query ? '' : `#${next}`}`,
+        );
         setError('');
         setNotice('');
     }
+    const changePanel = (next: DashboardPanel) => navigate(next);
+    const openResource = (resource: Resource) =>
+        navigate(toolPanels.find((item) => panelResources(item, [resource]).length) ?? 'overview', {
+            resource: resource.id,
+        });
     function closeDetail() {
         setDetail('');
         setSelectedResource(null);
@@ -329,22 +370,29 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
     // Agents get their keys when approved; those are managed on the Agents page.
     const ownKeys = keys.filter((key) => !key.name.startsWith('Agent: '));
     const agentKeys = keys.length - ownKeys.length;
-    const resourcesEmpty = (
-        <div className="home-empty-block">
-            <p>
-                Nothing here yet. Inboxes, mocks, files and everything else you or your agents
-                create shows up here.
-            </p>
-            <div className="quick-create">
-                {quickCreate.slice(0, 4).map((item) => (
-                    <Link key={item.href} href={item.href}>
-                        <item.icon size={16} />
-                        {item.name}
-                    </Link>
-                ))}
-            </div>
-        </div>
-    );
+    const workspaceUsage = useWorkspaceUsage(resources.length);
+    const count = (item: ToolPanel) => panelResources(item, resources).length;
+    const ratio = (used?: number, limit?: number) =>
+        used !== undefined && limit ? { text: `${used}/${limit}`, full: used >= limit } : undefined;
+    const badges: Partial<
+        Record<DashboardPanel, { text: string; full?: boolean; hidden?: boolean }>
+    > = {
+        agents: ratio(workspaceUsage.agents?.used, workspaceUsage.agents?.limit),
+        email: ratio(count('email'), workspaceUsage.limits?.emailInboxes),
+        webhooks: { text: String(count('webhooks')) },
+        mocks: { text: String(count('mocks')) },
+        files: { text: String(count('files')) },
+        monitors: ratio(workspaceUsage.monitors?.used, workspaceUsage.monitors?.limit),
+        memory: workspaceUsage.memory && {
+            text: formatSize(workspaceUsage.memory.used),
+            full: workspaceUsage.memory.used >= workspaceUsage.memory.limit,
+        },
+        authenticators: ratio(
+            workspaceUsage.authenticators?.used,
+            workspaceUsage.authenticators?.limit,
+        ),
+        automation: { text: String(count('automation')), hidden: !count('automation') },
+    };
     const messages = (
         <>
             {error && (
@@ -544,9 +592,27 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                     role={session.role}
                     onSignOut={signOut}
                     busy={busy}
+                    badges={badges}
+                    search={
+                        <DashboardSearch
+                            resources={resources}
+                            onPanel={changePanel}
+                            onResource={openResource}
+                            onTool={(toolId) => navigate('tools', { tool: toolId })}
+                        />
+                    }
                     actions={
-                        ['overview', 'resources', 'tools'].includes(panel) ? (
-                            <NewResourceMenu onBrowse={() => changePanel('tools')} />
+                        panel === 'overview' ? (
+                            <NewResourceMenu
+                                onCreate={(next, toolId) =>
+                                    navigate(next, toolId ? { tool: toolId } : {})
+                                }
+                            />
+                        ) : isToolPanel(panel) && !open.resource && !open.tool ? (
+                            <ToolNew
+                                panel={panel}
+                                onNew={(toolId) => navigate(panel, { tool: toolId })}
+                            />
                         ) : panel === 'agents' ? (
                             <Link className="button button-primary button-small" href="/connect/">
                                 Connect an agent
@@ -558,9 +624,6 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                     {panel === 'overview' && (
                         <AgentOverview
                             onOpen={changePanel}
-                            plan={planName}
-                            resources={resources.length}
-                            maxResources={usage?.limits.maxResources ?? 0}
                             needs={
                                 recoveryEmail.verifiedAt
                                     ? []
@@ -579,44 +642,77 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                       ]
                             }
                         >
-                            <ResourceList
+                            <ToolCards
                                 resources={resources}
-                                compact
-                                canWrite={session.scopes.includes('resources:write')}
-                                canKeep={subscribed}
-                                busy={busy}
-                                refreshing={refreshing}
-                                onRefresh={() => void reload()}
-                                onViewAll={() => changePanel('resources')}
-                                onDetails={(resource) => void inspect(resource)}
-                                onRenew={renew}
-                                onDelete={setDeleteTarget}
-                                empty={resourcesEmpty}
+                                usage={workspaceUsage}
+                                onOpen={changePanel}
                             />
                         </AgentOverview>
                     )}
-                    {panel === 'tools' && <DashboardTools glyphs={glyphs} />}
-                    {panel === 'resources' && (
-                        <ResourceList
-                            resources={resources}
-
-                            canWrite={session.scopes.includes('resources:write')}
-                            canKeep={subscribed}
-                            busy={busy}
-                            refreshing={refreshing}
-                            onRefresh={() => void reload()}
-                            onViewAll={() => changePanel('resources')}
-                            onDetails={(resource) => void inspect(resource)}
-                            onRenew={renew}
-                            onDelete={setDeleteTarget}
-                            empty={resourcesEmpty}
+                    {panel === 'tools' && (
+                        <DashboardTools
+                            glyphs={glyphs}
+                            selected={open.tool}
+                            onSelect={(toolId) => navigate('tools', { tool: toolId })}
                         />
                     )}
-                    {panel === 'authenticators' && <AuthenticatorsPanel />}
-                    {panel === 'agents' && <AgentActivity keys={keys} />}
-                    {panel === 'monitors' && (
-                        <MonitorsPanel verifiedEmail={!!recoveryEmail?.verifiedAt} />
+                    {panel === 'usage' && (
+                        <UsagePanel
+                            plan={plan}
+                            resources={resources}
+                            usage={workspaceUsage}
+                            onPlans={() => changePanel('billing')}
+                        />
                     )}
+                    {isToolPanel(panel) && (
+                        <ToolPage
+                            panel={panel}
+                            resources={resources}
+                            usage={workspaceUsage}
+                            open={open}
+                            onNew={(toolId) => navigate(panel, { tool: toolId })}
+                            onBack={() => navigate(panel)}
+                            onPlans={() => changePanel('usage')}
+                            list={
+                                panel === 'monitors' ? (
+                                    <MonitorsPanel verifiedEmail={!!recoveryEmail?.verifiedAt} />
+                                ) : panel === 'authenticators' ? (
+                                    <AuthenticatorsPanel />
+                                ) : panel === 'memory' ? (
+                                    <EmbeddedTool toolId="databases-agent-state-store" />
+                                ) : (
+                                    <ResourceList
+                                        resources={panelResources(panel, resources)}
+                                        heading="In this workspace"
+                                        canWrite={session.scopes.includes('resources:write')}
+                                        canKeep={subscribed}
+                                        busy={busy}
+                                        refreshing={refreshing}
+                                        onRefresh={() => void reload()}
+                                        onDetails={(resource) => void inspect(resource)}
+                                        onRenew={renew}
+                                        onDelete={setDeleteTarget}
+                                        onOpen={openResource}
+                                        empty={
+                                            <div className="home-empty-block">
+                                                <p>
+                                                    Nothing here yet. Create one yourself, or ask
+                                                    your agent to.
+                                                </p>
+                                                <ToolNew
+                                                    panel={panel}
+                                                    onNew={(toolId) =>
+                                                        navigate(panel, { tool: toolId })
+                                                    }
+                                                />
+                                            </div>
+                                        }
+                                    />
+                                )
+                            }
+                        />
+                    )}
+                    {panel === 'agents' && <AgentActivity keys={keys} />}
                     {panel === 'keys' && (
                         <div className="settings-stack">
                             {secret && (

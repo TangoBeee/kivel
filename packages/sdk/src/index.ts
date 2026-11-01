@@ -4,6 +4,9 @@ import type {
     AuthenticatorInput,
     TotpCode,
     EmailAttachmentLink,
+    OAuthProviderInput,
+    OAuthProvider,
+    CreatedOAuthProvider,
     AgentLogin,
     AgentToken,
     AgentTrial,
@@ -661,6 +664,28 @@ export class SocketHelp {
             response ?? undefined,
             token,
         );
+    }
+    createOAuthProvider(
+        config: OAuthProviderInput,
+        settings: Omit<ResourceSettings, 'visibility'> = {},
+    ) {
+        return this.request<CreatedOAuthProvider>(
+            'POST',
+            `/api/oauth-providers${creationQuery(settings)}`,
+            config,
+        );
+    }
+    oauthProvider(id: string) {
+        return this.request<OAuthProvider>('GET', `/api/oauth-providers/${encodeURIComponent(id)}`);
+    }
+    oauthProviders() {
+        return this.request<{ providers: OAuthProvider[] }>('GET', '/api/oauth-providers');
+    }
+    updateOAuthProvider(id: string, config: OAuthProviderInput) {
+        return this.request<void>('PUT', `/api/oauth-providers/${encodeURIComponent(id)}`, config);
+    }
+    deleteOAuthProvider(id: string) {
+        return this.request<void>('DELETE', `/api/oauth-providers/${encodeURIComponent(id)}`);
     }
     createMock(config: unknown, settings: ResourceSettings = {}) {
         return this.request<ResourceCredentials & { endpointUrl: string }>(

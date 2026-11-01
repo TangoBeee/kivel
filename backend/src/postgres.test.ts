@@ -2583,3 +2583,111 @@ test('the attachment set cap holds across concurrent PostgreSQL writers', async 
     assert.equal(results.filter((result) => result === 'full').length, 1);
     assert.equal(await stores[0]!.count(inbox.id), 6);
 });
+test('OAuth providers share durable grants, signing keys and atomic plan limits across replicas', async (t) => {
+    const identities = new PostgresIdentityRepository(pool);
+    const a = buildApp({
+        identityStore: identities,
+        recoveryStore: new PostgresRecoveryRepository(pool),
+        resourceStore: new PostgresResourceStore(pool),
+        mockCalls: new PostgresMockCalls(pool),
+    });
+    const b = buildApp({
+        identityStore: new PostgresIdentityRepository(pool),
+        recoveryStore: new PostgresRecoveryRepository(pool),
+        resourceStore: new PostgresResourceStore(pool),
+        mockCalls: new PostgresMockCalls(pool),
+    });
+    t.after(async () => {
+        await a.close();
+        await b.close();
+    });
+    const origin = 'http://localhost:3000';
+    const registration = await a.inject({
+        method: 'POST',
+        url: '/api/auth/register',
+        headers: { origin },
+        payload: {
+            username: 'oauth-durable',
+            email: 'oauth-durable@example.test',
+            password: 'correct-horse-battery-staple',
+        },
+    });
+    assert.equal(registration.statusCode, 201, registration.body);
+    const headers = { origin, cookie: String(registration.headers['set-cookie']).split(';')[0]! };
+    const config = {
+        name: 'Durable OAuth',
+        redirectUris: ['http://localhost:3333/callback'],
+        users: [{ sub: 'test-user', email: 'test@example.test', name: 'Test user' }],
+        headless: true,
+    };
+    const created = await Promise.all(
+        [a, b].map((app) =>
+            app.inject({ method: 'POST', url: '/api/oauth-providers', headers, payload: config }),
+        ),
+    );
+    assert.deepEqual(created.map((r) => r.statusCode).sort(), [201, 429]);
+    const provider = created.find((r) => r.statusCode === 201)!.json(),
+        path = `/oauth/${provider.id}`;
+    const jwks = await a.inject(`${path}/jwks`);
+    assert.equal((await b.inject(`${path}/jwks`)).body, jwks.body);
+    const verifier = 'a'.repeat(43),
+        challenge = createHash('sha256').update(verifier).digest('base64url');
+    const authorize = await a.inject(
+        `${path}/authorize?${new URLSearchParams({ client_id: provider.client_id, redirect_uri: config.redirectUris[0]!, response_type: 'code', scope: 'openid offline_access', code_challenge: challenge, code_challenge_method: 'S256', prompt: 'none', login_hint: 'test-user' })}`,
+    );
+    const code = new URL(String(authorize.headers.location)).searchParams.get('code')!;
+    const exchanged = await Promise.all(
+        [a, b].map((app) =>
+            app.inject({
+                method: 'POST',
+                url: `${path}/token`,
+                headers: { 'content-type': 'application/x-www-form-urlencoded' },
+                payload: new URLSearchParams({
+                    grant_type: 'authorization_code',
+                    client_id: provider.client_id,
+                    client_secret: provider.client_secret,
+                    redirect_uri: config.redirectUris[0]!,
+                    code_verifier: verifier,
+                    code,
+                }).toString(),
+            }),
+        ),
+    );
+    assert.deepEqual(exchanged.map((r) => r.statusCode).sort(), [200, 400]);
+    const refresh = exchanged.find((r) => r.statusCode === 200)!.json().refresh_token;
+    const refreshed = await Promise.all(
+        [a, b].map((app) =>
+            app.inject({
+                method: 'POST',
+                url: `${path}/token`,
+                headers: { 'content-type': 'application/x-www-form-urlencoded' },
+                payload: new URLSearchParams({
+                    grant_type: 'refresh_token',
+                    client_id: provider.client_id,
+                    client_secret: provider.client_secret,
+                    refresh_token: refresh,
+                }).toString(),
+            }),
+        ),
+    );
+    assert.deepEqual(refreshed.map((r) => r.statusCode).sort(), [200, 400]);
+    const log = await b.inject({ url: `/api/mocks/${provider.id}/calls`, headers });
+    assert.ok(log.json().calls.length >= 7);
+    assert.ok(!log.body.includes(refresh));
+    await pool.query(
+        "UPDATE temporary_resources SET expires_at = clock_timestamp() - interval '1 second' WHERE id = $1",
+        [provider.id],
+    );
+    await new PostgresResourceStore(pool).deleteExpired();
+    assert.equal((await b.inject(`${path}/jwks`)).statusCode, 404);
+    assert.equal(
+        (await pool.query('SELECT count(*) FROM mock_calls WHERE resource_id=$1', [provider.id]))
+            .rows[0].count,
+        '0',
+    );
+    assert.equal(
+        (await pool.query('SELECT count(*) FROM temporary_resources WHERE id=$1', [provider.id]))
+            .rows[0].count,
+        '0',
+    );
+});

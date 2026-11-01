@@ -63,3 +63,25 @@ Attachment IDs come from email message metadata. Messages are limited to 5 MiB,
 with 25 MiB of attachment content per inbox, counted against workspace storage.
 Deletion and inbox expiry remove files and invalidate links. Treat every file as
 untrusted; this SDK does not scan or execute attachments.
+
+## Mock OAuth provider
+
+Use an approved workspace key and synthetic users to test sign in. The issuer exposes
+OIDC discovery, JWKS, authorization, token, userinfo and revocation endpoints.
+
+```ts
+const provider = await socket.createOAuthProvider({
+    name: 'Test app',
+    redirectUris: ['http://localhost:3000/auth/callback'],
+    users: [{ sub: 'test-user', email: 'alex@example.test', name: 'Alex' }],
+});
+// Save provider.client_secret privately at creation.
+// Configure your OAuth client with provider.discoveryUrl and S256 PKCE.
+await socket.oauthProvider(provider.id);
+await socket.mockCalls(provider.id);
+await socket.deleteOAuthProvider(provider.id);
+```
+
+`oauthProviders()` lists workspace providers; `updateOAuthProvider(id, config)` replaces
+the users, claims and test scenario. Endpoint use is public; management stays private.
+See the [OAuth guide](https://socket.help/docs/mock-oauth/) for token flows and failure scenarios.

@@ -20,6 +20,16 @@ const guides: Record<string, Guide> = {
         ],
         limits: 'Free allows 2 authenticators, Pro 25 and Team 100. SHA1, SHA256 and SHA512; 6–8 digits; 30 or 60 seconds. QR images are limited to 1 MiB and one million pixels. Secrets are encrypted and never returned, including after creation. Codes are limited to 30 requests per workspace per minute and every generation is logged. If fewer than five seconds remain, the API includes the next code. Authenticators stay until deleted; downgrading does not destroy your account access. Delete unused authenticators before adding beyond your current plan limit. This stores authenticator keys, not passwords or service recovery codes.',
     },
+    'mock-apis-mock-oauth-provider': {
+        intro: 'Test OAuth 2.0 and OpenID Connect sign in without registering a real identity account. Each workspace provider has its own issuer, discovery document, RS256 signing key and synthetic users.',
+        steps: [
+            'Register exact callback URLs and synthetic users.',
+            'Create the provider and save its client secret. Configure your client with the discovery URL and S256 PKCE.',
+            'Approve or deny on the hosted test page, or enable headless mode with prompt=none and login_hint.',
+            'Switch failure scenarios, inspect requests and delete the provider when testing is complete.',
+        ],
+        limits: 'Free allows 1 active provider, Pro 10 and Team 50. Mock retention and workspace storage limits apply. Codes last 60 seconds, access and ID tokens 5 minutes, refresh tokens 1 hour. Refresh tokens rotate on use. Each provider accepts 120 requests per minute and keeps its last 100 calls with sensitive parameters redacted. Use synthetic data only. This is a test service, never a source of real account identity.',
+    },
     'files-temporary-json-storage': {
         intro: 'Store a small JSON document as an expiring private or public resource, with exact-byte downloads and a safe JSON preview.',
         steps: [
@@ -721,6 +731,13 @@ export function toolExample(id: string) {
             useCase: 'Complete a sign-in for an account your human asked your agent to operate.',
             example:
                 'POST /api/authenticators with a name and otpauth URI → GET /api/authenticators/{id}/code → code and secondsRemaining',
+        };
+    if (id === 'mock-apis-mock-oauth-provider')
+        return {
+            useCase:
+                'Test your sign in callback, PKCE validation and expired token handling without an external identity account.',
+            example:
+                'POST /api/oauth-providers\n{"name":"Test app","redirectUris":["http://localhost:3000/auth/callback"],"users":[{"sub":"test-user","email":"alex@example.test","name":"Alex"}]}\n\nGET {issuer}/.well-known/openid-configuration',
         };
     const extra = (
         {

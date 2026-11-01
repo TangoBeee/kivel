@@ -55,7 +55,10 @@ export function catalogGuide(id: string, capabilities: ServerCapabilities) {
     }
     let kind = 'mocks',
         mcpTool = 'create_mock_api';
-    if (['webhooks', 'domains-temporary-callback-url'].includes(id)) {
+    if (id === 'mock-apis-mock-oauth-provider') {
+        kind = 'oauth-providers';
+        mcpTool = 'create_oauth_provider';
+    } else if (['webhooks', 'domains-temporary-callback-url'].includes(id)) {
         kind = 'inboxes';
         mcpTool = 'create_webhook_inbox';
     } else if (id === 'agents-mock-mcp-server') {

@@ -1,5 +1,7 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
+import { oauthLimits } from '@socket-help/tools/billing-plans';
+import { QuotaError } from './allocations.js';
 import { transaction } from './database.js';
 import { sharingCredentials, publicAccessAllowed, tokenHash } from './sharing.js';
 import type { PublicAccess, Sharing, SharingCredentials, Visibility } from './sharing.js';
@@ -133,6 +135,12 @@ export class ResourceStore implements ResourceRepository {
         allocation?: AllocationContext,
     ): ResourceCredentials | null {
         this.deleteExpired();
+        if (payload.oauth && allocation) {
+            const count = [...this.resources.values()].filter(
+                (r) => r.ownerId === allocation.ownerId && r.payload.oauth,
+            ).length;
+            if (count >= oauthLimits[allocation.plan]) throw new QuotaError('resources');
+        }
         const storedBytes = size(payload, data);
         if (
             this.resources.size >= this.maxResources ||
@@ -434,6 +442,14 @@ export class PostgresResourceStore implements ResourceRepository {
         if (this.requireAllocation && !allocation) throw new Error('A quota context is required.');
         return transaction(this.pool, async (client) => {
             await reclaim(client);
+            if (payload.oauth && allocation) {
+                const count = await client.query(
+                    "SELECT count(*) FROM temporary_resources WHERE owner_id = $1 AND payload::jsonb ? 'oauth'",
+                    [allocation.ownerId],
+                );
+                if (Number(count.rows[0].count) >= oauthLimits[allocation.plan])
+                    throw new QuotaError('resources');
+            }
             const storedBytes = size(payload, data);
             const budget = await client.query(
                 'UPDATE resource_usage SET resource_count = resource_count + 1, stored_bytes = stored_bytes + $1 WHERE id = 1 AND resource_count < $2 AND stored_bytes + $1 <= $3 RETURNING id',

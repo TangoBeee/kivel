@@ -1,6 +1,7 @@
-import { authenticatorLimits } from './billing-plans.js';
+import { authenticatorLimits, oauthLimits } from './billing-plans.js';
 export const plans = {
     anonymous: {
+        oauthProviders: oauthLimits.anonymous,
         name: 'Without an account',
         maxResources: 5,
         storageBytes: 32 * 1024 * 1024,
@@ -21,6 +22,7 @@ export const plans = {
         emailRecipients: 0,
     },
     free: {
+        oauthProviders: oauthLimits.free,
         name: 'Free account',
         maxResources: 20,
         storageBytes: 64 * 1024 * 1024,
@@ -41,6 +43,7 @@ export const plans = {
         emailRecipients: 3,
     },
     pro: {
+        oauthProviders: oauthLimits.pro,
         name: 'Pro',
         maxResources: 100,
         storageBytes: 512 * 1024 * 1024,
@@ -61,6 +64,7 @@ export const plans = {
         emailRecipients: 10,
     },
     team: {
+        oauthProviders: oauthLimits.team,
         name: 'Team',
         maxResources: 500,
         storageBytes: 2 * 1024 * 1024 * 1024,

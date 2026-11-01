@@ -1,6 +1,7 @@
 import { registerEmailAttachments } from './email-attachments.js';
 import { MemoryAuthenticators, registerAuthenticators } from './authenticators.js';
 import type { AuthenticatorRepository } from './authenticators.js';
+import { registerOAuth } from './oauth.js';
 import { registerPhones } from './phone/routes.js';
 import type { PhoneEntitlements } from './phone/routes.js';
 import { MemoryPhones } from './phone/store.js';
@@ -840,6 +841,7 @@ export function buildApp({
         phones,
         waiters,
     });
+    registerOAuth(app, access, resourceStore, rateLimiter, mockCalls, baseUrl.origin);
     registerResources(
         app,
         resourceStore,

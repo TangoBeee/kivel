@@ -1,3 +1,5 @@
+import { oauthSchema } from '@socket-help/tools/oauth';
+import { publicMockPayload } from './oauth.js';
 import { catalog, toolAvailability } from '@socket-help/tools/catalog';
 import type { ServerCapabilities } from '@socket-help/tools/catalog';
 import { catalogGuide } from './tool-discovery.js';
@@ -106,6 +108,20 @@ export const platformTools = [
     },
 
     {
+        name: 'create_oauth_provider',
+        description:
+            'Create a mock OAuth 2.0 and OpenID Connect test provider with synthetic users, S256 PKCE, client credentials and refresh tokens. Test accounts only. Never ask for real credentials. Inspect and delete with existing mock tools; configure through resource_request kind oauth-providers.',
+        inputSchema: {
+            ...oauthSchema,
+            properties: {
+                ...oauthSchema.properties,
+                ttlSeconds: { type: 'integer' },
+                persistent: { type: 'boolean' },
+            },
+        },
+        annotations: creates,
+    },
+    {
         name: 'create_phone_number',
         description:
             'Buy a US number using an already-paid phone add-on slot. Operator-enabled Telnyx only. Obtain a number from the phone inventory API first. Keep the idempotencyKey; uncertain purchases must be reconciled, never retried with a new key.',
@@ -154,7 +170,7 @@ export const platformTools = [
     {
         name: 'call_mock_api',
         description:
-            'Call a hosted mock route or mutate its CRUD records. Uses the same caller access, limits and revision checks as HTTP. Management tokens do not grant caller access.',
+            'Call a hosted mock route or mutate its CRUD records. Uses the same caller access, limits and revision checks as HTTP. Management tokens do not grant caller access. Owned OAuth providers also accept protocol paths, form fields in body and a userinfo bearer accessToken; authorization redirects include location.',
         inputSchema: schema(
             {
                 id: stringProperty('Mock resource UUID.'),
@@ -699,6 +715,7 @@ export const platformTools = [
                     enum: [
                         'inboxes',
                         'mocks',
+                        'oauth-providers',
                         'files',
                         'mcp-servers',
                         'email-inboxes',
@@ -1132,6 +1149,17 @@ export function registerMcp({
                     ? result({ deleted: true })
                     : result({ error: 'Inbox unavailable or access denied.' }, true);
             }
+            case 'create_oauth_provider':
+                return resourceRequest(
+                    {
+                        kind: 'oauth-providers',
+                        action: 'create',
+                        config: value,
+                        ...(value.ttlSeconds !== undefined ? { ttlSeconds: value.ttlSeconds } : {}),
+                        ...(value.persistent !== undefined ? { persistent: value.persistent } : {}),
+                    },
+                    request,
+                );
             case 'create_mock_api': {
                 let config;
                 try {
@@ -1158,14 +1186,24 @@ export function registerMcp({
                 return item
                     ? result({
                           id,
-                          ...item.payload,
+                          ...publicMockPayload(item.payload),
                           visibility: item.visibility,
                           accessVersion: item.accessVersion,
                           expiresAt: item.expiresAt,
                           uses: item.uses,
                           ...(kind === 'mock'
                               ? {
-                                    endpointUrl: `${origin}/mock/${id}`,
+                                    endpointUrl: item.payload.oauth
+                                        ? `${origin}/oauth/${id}`
+                                        : `${origin}/mock/${id}`,
+                                    ...(item.payload.oauth
+                                        ? {
+                                              issuer: `${origin}/oauth/${id}`,
+                                              client_id: (
+                                                  item.payload.oauthState as { clientId: string }
+                                              ).clientId,
+                                          }
+                                        : {}),
                                     recentCalls: (await mockCalls.list(id)).slice(-20),
                                 }
                               : {
@@ -1262,9 +1300,9 @@ export function registerMcp({
             typeof value.id !== 'string' ||
             !/^[a-f0-9-]{36}$/i.test(value.id) ||
             typeof value.path !== 'string' ||
-            !/^\/[a-zA-Z0-9_/?=&%.,:-]*$/.test(value.path) ||
-            value.path.includes('..') ||
-            /%2f|%5c|%2e/i.test(value.path) ||
+            !/^\/[a-zA-Z0-9_/?=&%.,:+~-]*$/.test(value.path) ||
+            value.path.split('?')[0]!.includes('..') ||
+            /%2f|%5c|%2e/i.test(value.path.split('?')[0]!) ||
             !['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'].includes(
                 String(value.method),
             )
@@ -1285,13 +1323,33 @@ export function registerMcp({
         if (value.revision !== undefined) headers['x-mock-if-revision'] = String(value.revision);
         if (value.body !== undefined && !object(value.body))
             throw new RpcError(-32602, 'Body must be a JSON object.');
+        const actor = await access.actor(request);
+        const owned = actor.identity
+            ? await resources.read(String(value.id), 'mock', '', actor.identity.account.id)
+            : undefined;
+        const oauth = Boolean(owned?.payload.oauth);
+        if (oauth) {
+            delete headers.authorization;
+            delete headers.cookie;
+            delete headers.origin;
+        }
+        if (oauth && typeof value.accessToken === 'string')
+            headers.authorization = `Bearer ${value.accessToken}`;
+        if (oauth && value.body !== undefined)
+            headers['content-type'] = 'application/x-www-form-urlencoded';
         const response = await app.inject({
             method: value.method as
                 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS',
-            url: `/mock/${value.id}${value.path}`,
+            url: `/${oauth ? 'oauth' : 'mock'}/${value.id}${value.path}`,
             headers,
             remoteAddress: request.ip,
-            ...(value.body !== undefined ? { payload: value.body as Record<string, unknown> } : {}),
+            ...(value.body !== undefined
+                ? {
+                      payload: oauth
+                          ? new URLSearchParams(value.body as Record<string, string>).toString()
+                          : (value.body as Record<string, unknown>),
+                  }
+                : {}),
         });
         let body: unknown = response.body;
         try {
@@ -1300,6 +1358,9 @@ export function registerMcp({
         return result(
             {
                 status: response.statusCode,
+                ...(oauth && response.headers.location
+                    ? { location: response.headers.location }
+                    : {}),
                 ...(response.headers['x-mock-revision'] !== undefined
                     ? { revision: Number(response.headers['x-mock-revision']) }
                     : {}),
@@ -1605,6 +1666,7 @@ export function registerMcp({
                 ![
                     'inboxes',
                     'mocks',
+                    'oauth-providers',
                     'files',
                     'mcp-servers',
                     'email-inboxes',
@@ -1616,10 +1678,13 @@ export function registerMcp({
         )
             throw new RpcError(-32602, 'Choose a resource kind and action.');
         if (
-            (['calls', 'reset'].includes(action) && kind !== 'mocks') ||
+            (['calls', 'reset'].includes(action) &&
+                kind !== 'mocks' &&
+                !(kind === 'oauth-providers' && action === 'calls')) ||
             (['response', 'deliveries'].includes(action) && kind !== 'inboxes') ||
             (action === 'forward' && !['inboxes', 'email-inboxes'].includes(kind)) ||
-            (action === 'update' && !['mocks', 'status-pages', 'authenticators'].includes(kind)) ||
+            (action === 'update' &&
+                !['mocks', 'status-pages', 'authenticators', 'oauth-providers'].includes(kind)) ||
             (['sharing', 'renew', 'update'].includes(action) && kind === 'scheduled-jobs') ||
             (action === 'clear' && kind !== 'email-inboxes') ||
             (action === 'sharing' && kind === 'email-inboxes')
@@ -1666,11 +1731,11 @@ export function registerMcp({
                     ? '/requests'
                     : '';
         const path =
-            kind === 'authenticators' && action === 'list'
-                ? '/api/authenticators'
-                : action === 'list'
-                  ? '/api/account/resources'
-                  : `/api/${kind}${action === 'create' ? '' : `/${value.id}`}${suffix}${query.size ? `?${query}` : ''}`;
+            action === 'list'
+                ? ['authenticators', 'oauth-providers'].includes(kind)
+                    ? `/api/${kind}`
+                    : '/api/account/resources'
+                : `/api/${kind === 'oauth-providers' && ['calls', 'renew', 'sharing'].includes(action) ? 'mocks' : kind}${action === 'create' ? '' : `/${value.id}`}${suffix}${query.size ? `?${query}` : ''}`;
         const headers: Record<string, string> = {};
         for (const key of ['authorization', 'cookie', 'origin'])
             if (typeof request.headers[key] === 'string') headers[key] = request.headers[key];

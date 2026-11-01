@@ -1,5 +1,18 @@
 # @socket-help/cli
 
+## 0.5.0
+
+### Minor Changes
+
+- 026f194: Add workspace TOTP authenticators and private email attachment links and downloads.
+- 2f1574b: Add mock OAuth and OpenID Connect provider creation, configuration and lifecycle commands.
+
+### Patch Changes
+
+- Updated dependencies [026f194]
+- Updated dependencies [2f1574b]
+    - @socket-help/sdk@0.5.0
+
 ## 0.4.1
 
 ### Patch Changes

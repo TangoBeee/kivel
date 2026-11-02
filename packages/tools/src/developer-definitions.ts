@@ -120,7 +120,7 @@ export const developerOperations = {
             'Review structural errors and operation warnings.',
             'Fix the source at the reported line and validate again.',
         ],
-        limits: '64 KiB source, 64 nesting levels and 100 diagnostics. OpenAPI 3.0, 3.1 and 3.2. External references are reported but never fetched; bundle them first for complete validation. No document repair or code execution. Numbers that would lose precision are rejected. Source is not retained.',
+        limits: '64 KiB source, 64 nesting levels, up to 100 errors and 100 warnings. OpenAPI 3.0, 3.1 and 3.2. External references are reported but never fetched; bundle them first for complete validation. No document repair or code execution. Numbers that would lose precision are rejected. Source is not retained.',
         useCase: 'Check an API contract before importing it into a mock or client generator.',
         example: 'Missing info.version → source path, line and validation reason',
     },
@@ -136,7 +136,7 @@ export const developerOperations = {
             'Inspect masked findings with provider names and source locations.',
             'Revoke confirmed exposed credentials at their provider, then remove them from the source.',
         ],
-        limits: '64 KiB text. Browser execution is local. API executions are not logged or retained. Findings never include a complete secret. Pattern checks cover common cloud, payment, source control and AI tokens, JWTs and private keys; no findings does not prove the text is safe.',
+        limits: '64 KiB text and up to 100 reported findings. Browser execution is local. Hosted input is not logged or retained. Findings never include a complete secret. Pattern checks cover common cloud, payment, source control and AI tokens, JWTs and private keys; no findings does not prove the text is safe.',
         useCase: 'Check an agent generated configuration before sharing it.',
         example: 'A token assignment → provider, masked value, line and column',
     },
@@ -206,8 +206,8 @@ export const developerOperations = {
                 label: 'Calculation',
                 defaultValue: 'add',
                 choices: [
-                    ['add', 'Add calendar duration'],
-                    ['difference', 'Difference between dates'],
+                    ['add', 'Add duration'],
+                    ['difference', 'Date difference'],
                 ],
             },
             {

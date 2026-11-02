@@ -273,13 +273,19 @@ test('email diagnostics distinguish optional BIMI, missing DKIM, unsafe SPF and 
     const report = emailAuthenticationReport(
         'example.com',
         [
-            { type: 'SPF', name: 'example.com', values: ['v=spf1 +all'], status: 0 },
+            {
+                type: 'SPF',
+                name: 'example.com',
+                values: ['v=spf1 +all', 'unrelated-site-verification=fixture'],
+                status: 0,
+            },
             { type: 'DMARC', name: '_dmarc.example.com', values: ['v=DMARC1; p=none'], status: 0 },
             { type: 'DKIM', name: 's._domainkey.example.com', values: ['v=DKIM1; p='], status: 0 },
             { type: 'MX', name: 'example.com', values: ['0 .'], status: 0 },
         ],
         's',
     );
+    assert.equal(report.records[0]!.values.length, 1);
     assert.ok(report.findings.some((row) => row.message.includes('+all')));
     assert.ok(report.findings.some((row) => row.message.includes('p=none')));
     assert.ok(report.findings.some((row) => row.message.includes('empty p=')));

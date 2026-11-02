@@ -93,6 +93,11 @@ export async function pageToMarkdown(input: string, signal: AbortSignal) {
 }
 type MailRecord = { name: string; type: string; values: string[]; status: number };
 export function emailAuthenticationReport(domain: string, records: MailRecord[], selector: string) {
+    records = records.map((record) =>
+        record.type === 'SPF'
+            ? { ...record, values: record.values.filter((value) => /^v=spf1(?:\s|$)/i.test(value)) }
+            : record,
+    );
     const findings: { check: string; status: string; message: string }[] = [];
     const values = (type: string) => records.find((record) => record.type === type)?.values ?? [];
     const spf = values('SPF').filter((value) => /^v=spf1(?:\s|$)/i.test(value));

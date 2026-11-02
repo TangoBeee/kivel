@@ -1,3 +1,4 @@
+import { parseJsonSafely } from './engine.js';
 import type { OperationOptions } from './definitions.js';
 import { Temporal } from '@js-temporal/polyfill';
 import { parsePhoneNumberFromString, isSupportedCountry } from 'libphonenumber-js/max';
@@ -279,8 +280,9 @@ export function boundedJson(input: string) {
         throw new Error('Use at most 64 KiB of JSON.');
     let value: unknown;
     try {
-        value = JSON.parse(input);
-    } catch {
+        value = parseJsonSafely(input);
+    } catch (error) {
+        if (!(error instanceof SyntaxError)) throw error;
         throw new Error('Enter valid JSON.');
     }
     let nodes = 0;
@@ -410,7 +412,7 @@ async function validateSchema(input: string, options: OperationOptions) {
     }
 }
 async function openapi(input: string) {
-    const { parseDocument, LineCounter, isMap, isSeq } = await import('yaml');
+    const { parseDocument, LineCounter, isMap, isSeq, visit } = await import('yaml');
     const lineCounter = new LineCounter();
     const parsed = parseDocument(input, { lineCounter, uniqueKeys: true });
     if (parsed.errors.length)
@@ -423,6 +425,24 @@ async function openapi(input: string) {
             })),
             warnings: [],
         };
+    visit(parsed, {
+        Scalar(_key, node) {
+            if (typeof node.value !== 'number') return;
+            if (!Number.isFinite(node.value))
+                throw new Error('OpenAPI numbers must be finite and preserve numeric precision.');
+            let source = (node.source ?? String(node.value)).replaceAll('_', '').replace(/^\+/, '');
+            if (/^-?0[xob]/i.test(source))
+                source = (
+                    (source.startsWith('-') ? -1n : 1n) * BigInt(source.replace(/^-/, ''))
+                ).toString();
+            else if (/^-?\d+$/.test(source)) source = BigInt(source).toString();
+            else
+                source = source
+                    .replace(/^(-?)\./, (_match, sign: string) => `${sign}0.`)
+                    .replace(/\.(?=[eE]|$)/, '.0');
+            parseJsonSafely(source);
+        },
+    });
     let document: any;
     try {
         document = parsed.toJS({ maxAliasCount: 0 });

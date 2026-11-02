@@ -398,3 +398,24 @@ test('new tools appear in HTTP discovery and describe with their options', async
     assert.equal(scan.statusCode, 200, scan.body);
     assert.ok(!scan.body.includes('a'.repeat(36)));
 });
+
+test('schema tools reject numeric rounding instead of reporting a false validation match', async () => {
+    await assert.rejects(
+        result('developer-json-schema-validator', '9007199254740993', {
+            schema: '{"const":9007199254740992}',
+        }),
+        /numeric precision/,
+    );
+    await assert.rejects(
+        result('developer-json-schema-from-sample', '1.0000000000000000000001'),
+        /numeric precision/,
+    );
+    const source =
+        'openapi: 3.1.0\ninfo:\n  title: Example\n  version: 1.0.0\npaths: {}\ncomponents:\n  schemas:\n    Amount:\n      type: integer\n      minimum: 9007199254740993';
+    await assert.rejects(result('developer-openapi-validator', source), /numeric precision/);
+    assert.equal(
+        (await result('developer-openapi-validator', source.replace('9007199254740993', '0x100')))
+            .valid,
+        true,
+    );
+});

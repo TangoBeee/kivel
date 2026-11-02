@@ -386,6 +386,7 @@ async function validateSchema(input: string, options: OperationOptions) {
     try {
         const ajv = new (draft.includes('2020-12') ? Ajv2020 : Ajv)({
             allErrors: true,
+            ownProperties: true,
             strict: false,
             validateFormats: true,
             code: { regExp },

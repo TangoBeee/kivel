@@ -87,6 +87,22 @@ test('schema inference merges array shapes, nullable types and required intersec
 test('JSON Schema validation supports drafts, formats, local refs and safe patterns', async (t) => {
     const runner = new ToolRunner();
     t.after(() => runner.close());
+    assert.equal(
+        (
+            await result('developer-json-schema-validator', '{}', {
+                schema: '{"type":"object","required":["toString"]}',
+            })
+        ).valid,
+        false,
+    );
+    assert.equal(
+        (
+            await result('developer-json-schema-validator', '{"toString":"fixture"}', {
+                schema: '{"type":"object","required":["toString"]}',
+            })
+        ).valid,
+        true,
+    );
     const schema = {
         $schema: 'https://json-schema.org/draft/2020-12/schema',
         type: 'object',

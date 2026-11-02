@@ -1,3 +1,4 @@
+import { developerNetworkOperations } from './developer-definitions.js';
 import type { ExtraDefinition, UtilityField } from './extra-definitions.js';
 import { sampleScenario } from './api-scenarios.js';
 const record: UtilityField = {
@@ -20,6 +21,7 @@ const domainLimits =
 const webLimits =
     'Only public HTTP/HTTPS targets on ports 80, 443, 8080, or 8443. Private, loopback, link-local, and reserved IP ranges are blocked on every hop. Up to five redirects, 256 KiB response data, and a ten-second overall deadline. No cookies or user credentials are sent.';
 export const networkOperations = {
+    ...developerNetworkOperations,
     'mock-apis-webhook-event-simulator': {
         action: 'Send test event',
         input: true,

@@ -2800,3 +2800,10 @@ html[data-view='resource'] .tool-title-pitch {
 html[data-view='resource'] .tool-title-name {
   display: inline;
 }
+
+@media (max-width: 600px) {
+  .timezone-fields {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

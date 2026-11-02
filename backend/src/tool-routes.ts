@@ -81,6 +81,12 @@ const optionKeys = [
     'max',
     'algorithm',
     'unit',
+    'locale',
+    'country',
+    'schema',
+    'selector',
+    'disambiguation',
+    'userAgent',
 ];
 export function executionGuide(id: string) {
     const definition = (

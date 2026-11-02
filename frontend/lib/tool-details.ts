@@ -34,7 +34,118 @@ const composer: ToolDetail[] = [
         ],
     },
 ];
+const developerDetails: Record<string, ToolDetail[]> = {
+    'network-web-page-to-markdown': [
+        {
+            title: 'A readable source for agents',
+            paragraphs: [
+                'The extractor follows public redirects, then looks for a main or article element before falling back to the page body. It removes navigation, forms, scripts and images, keeps headings, lists and code blocks, and resolves page links to absolute URLs. Title, description and canonical metadata stay alongside the content rather than being mixed into the Markdown.',
+                'Use the Markdown for an agent context or fixture and the isolated preview to check what was extracted. The plain text and link list are available separately. Pages that depend on JavaScript, authentication or a paywall may return little useful content. The extractor does not bypass those restrictions or download linked assets.',
+            ],
+        },
+    ],
+    'email-email-authentication-checker': [
+        {
+            title: 'Read the published mail configuration',
+            paragraphs: [
+                'SPF describes authorized sending infrastructure, DKIM publishes a selector specific signing key, and DMARC tells receivers how to handle alignment failures. MX describes incoming mail delivery. BIMI is an optional brand indicator. These records solve different problems; a missing BIMI record is not a mail authentication failure.',
+                'Enter the exact domain you want to check and ask your mail provider for its DKIM selector. The report distinguishes missing records, resolver errors and policies that only monitor mail. It does not send a message, verify a signature, expand every SPF include or look up inherited DMARC policies. Confirm the findings with your provider before editing DNS.',
+            ],
+        },
+    ],
+    'network-robots-and-sitemap-checker': [
+        {
+            title: 'Check crawl access before publishing',
+            paragraphs: [
+                'Enter a page URL, rather than just the domain, so the robots decision applies to the path you care about. The report shows the matching rule, line and crawler name. A server error leaves the decision unknown because crawlers should defer while robots.txt is unavailable. An ordinary missing robots file applies no restrictions.',
+                'The checker reads up to two declared sitemaps, or tries /sitemap.xml when none are declared. URL sets list page locations and sitemap indexes list child documents without crawling them. Review response errors, malformed XML and invalid locations. Allowing a page and publishing a sitemap help discovery but cannot guarantee indexing or ranking.',
+            ],
+        },
+    ],
+    'developer-fake-identity-generator': [
+        {
+            title: 'Keep personal data out of fixtures',
+            paragraphs: [
+                'Choose a locale to get a consistent country, address format and diverse names. Every record in a batch has a distinct name, email, phone and company. Emails use example.test, so a test suite cannot accidentally send messages to an actual customer at those addresses.',
+                'These records are fictional form fixtures. They are not identity documents, verified contact details or proof of residence, and address or phone format does not guarantee a deliverable or unassigned destination. Never use them to contact people. Use an owned inbox for tests that need actual email delivery.',
+            ],
+        },
+    ],
+    'developer-test-bank-account-generator': [
+        {
+            title: 'Separate format testing from payment testing',
+            paragraphs: [
+                'An IBAN combines a country code, check digits and a country specific account string. These fixtures have the expected country length and a valid mod 97 checksum. US records have a nine digit routing number with an ABA checksum and a separate account number. Each account in one batch is distinct.',
+                'Checksums detect common typing mistakes; they do not prove that a bank or account exists. These fixtures do not claim real issuers and are not official payment sandbox credentials. Use them for parsers, input masks and API fixtures. Use your payment provider\u2019s documented sandbox accounts when testing transfers or account verification.',
+            ],
+        },
+    ],
+    'developer-json-schema-validator': [
+        {
+            title: 'Validate without changing the payload',
+            paragraphs: [
+                'Paste the document in the main editor and its JSON Schema in the schema field. Select the draft through the schema\u2019s $schema value, or omit it for draft 7. Errors include the instance path, validation keyword and details such as the missing property. Empty error lists mean the supplied document matches that schema.',
+                'The validator does not coerce values, remove properties or insert defaults. Common format checks are enabled. Local references are supported, while external references must be bundled first. Pattern validation uses RE2, which intentionally excludes backreferences and lookarounds. Hosted runs use the normal tool allowance and do not retain source documents.',
+            ],
+        },
+    ],
+    'developer-json-schema-from-sample': [
+        {
+            title: 'Start with evidence, then refine the contract',
+            paragraphs: [
+                'Inference combines every array item instead of assuming the first row is representative. Object keys become required only when present in every observed object of that shape. Mixed values become alternatives, and integer and decimal samples are combined into a number type. Empty arrays leave their item schema open.',
+                'The resulting draft 2020-12 schema is a starting point. A sample cannot reveal a missing optional field, a business range or a future enum value. Review required properties and add those rules deliberately. Object keys remain open so an observed sample does not silently become a ban on every additional property.',
+            ],
+        },
+    ],
+    'developer-openapi-validator': [
+        {
+            title: 'Fix a contract at its source',
+            paragraphs: [
+                'Paste JSON or YAML for OpenAPI 3.0, 3.1 or 3.2. Structural validation checks the document and local references, while source locations point back to the original editor lines. Separate warnings identify missing summaries, missing operation IDs and repeated operation IDs that can make generated clients difficult to use.',
+                'External references are never fetched from URLs or the filesystem. Bundle a multi file specification before relying on a complete validation result. The tool does not repair missing required fields or upgrade your document. Fix validation errors before importing the contract into OpenAPI to mock, then review warnings for a clearer client and documentation experience.',
+            ],
+        },
+    ],
+    'developer-secret-scanner': [
+        {
+            title: 'Review findings without exposing another copy',
+            paragraphs: [
+                'The scanner recognizes common cloud access keys, source control tokens, payment secrets, AI keys, Slack and SendGrid credentials, JWTs, private key headers and credential assignments. Findings include a masked value and source location. The full matching value is excluded from results, downloads and workspace activity.',
+                'Web scans run locally in your browser. API, SDK, CLI and MCP calls use the same patterns on the server without retaining input. Pattern checks can miss unusual or split secrets and can flag fixtures that only look real. If a finding is a live credential, revoke it at its provider; deleting it from a file does not invalidate an exposed key.',
+            ],
+        },
+    ],
+    'developer-phone-number-validator': [
+        {
+            title: 'Normalize a number before using it',
+            paragraphs: [
+                'International input starts with a plus sign and calling code. A national number needs its default country, supplied as a two letter ISO code. The result separates whether a number is possible by length from whether it matches current numbering metadata, and shows E.164, national and international forms.',
+                'Number type uses full metadata, although some plans share fixed line and mobile ranges. Extensions are preserved separately and in the telephone URI. This is a format check, not an SMS or call test. It cannot confirm that a number is assigned, reachable or owned by the person entering it.',
+            ],
+        },
+    ],
+    'developer-timezone-converter': [
+        {
+            title: 'Make daylight saving choices explicit',
+            paragraphs: [
+                'An offset timestamp identifies one instant. A local timestamp needs a source IANA timezone such as America/New_York, and the converter then shows the same instant in the destination zone and UTC. Unix seconds and milliseconds make the result usable in API payloads and schedulers.',
+                'Daylight saving can make a local time occur twice or not occur at all. The default rejects both cases so an agent cannot silently choose the wrong instant. Select earlier or later only when you intend that interpretation. Timezone rules come from the runtime and may change when governments update their calendars.',
+            ],
+        },
+    ],
+    'developer-date-calculator': [
+        {
+            title: 'Use calendar arithmetic for calendar rules',
+            paragraphs: [
+                'Add ISO date durations such as P1M, P2W or -P10D to a Gregorian date. Month and year arithmetic constrains an invalid day to the last valid day of the destination month. For example, adding one month to January 31 can produce February 28 or 29 rather than overflowing into March.',
+                'Difference mode reports whole days and a calendar duration between two dates, including negative results when the end precedes the start. Dates have no timezone or clock time here. Use the timezone converter for exact instants and daylight saving behavior; a calendar day is not always twenty four elapsed hours.',
+            ],
+        },
+    ],
+};
 export function toolDetails(id: string): ToolDetail[] {
+    if (developerDetails[id]) return developerDetails[id];
     if (id === 'network-http-echo') return echoDetails;
     if (id === 'mock-apis-stateful-crud-api') return crudDetails;
     if (id === 'mock-apis-api-test-scenarios') return scenarioDetails;

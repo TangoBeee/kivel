@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { parseJsonSafely, formatJson } from '@socket-help/tools/engine';
 import { csvPreview } from '@socket-help/tools/csv-preview';
 import { parseSse } from '@socket-help/tools/sse';
+import { MarkdownPreview } from './generated-preview';
 import { ResultPreview } from './result-preview';
 import { CodeExample } from './code-example';
 import { CopyButton } from './copy-button';
@@ -14,6 +15,11 @@ const title = (key: string) =>
     (
         ({
             ttl: 'TTL',
+            iban: 'IBAN',
+            bban: 'BBAN',
+            e164: 'E.164',
+            utc: 'UTC',
+            uri: 'Telephone URI',
             sha256: 'SHA-256',
             mimeType: 'MIME type',
             httpStatus: 'HTTP status',
@@ -269,6 +275,253 @@ function Events({ events }: { events: any[] }) {
     );
 }
 export function renderToolResult(toolId: string, text: string, input?: string): ReactNode | null {
+    if (
+        [
+            'developer-fake-identity-generator',
+            'developer-test-bank-account-generator',
+            'developer-json-schema-validator',
+            'developer-json-schema-from-sample',
+            'developer-openapi-validator',
+            'developer-secret-scanner',
+            'developer-phone-number-validator',
+            'developer-timezone-converter',
+            'developer-date-calculator',
+            'network-web-page-to-markdown',
+            'email-email-authentication-checker',
+            'network-robots-and-sitemap-checker',
+        ].includes(toolId)
+    ) {
+        const result = JSON.parse(text);
+        if (toolId === 'developer-fake-identity-generator')
+            return (
+                <Panel title="Test identities" detail={`${result.count} records`}>
+                    <p className="tool-notice">{result.notice}</p>
+                    {result.identities.map((row: any) => (
+                        <section className="result-group" key={row.email}>
+                            <div className="result-group-heading">
+                                <h3>{row.name}</h3>
+                                <CopyButton
+                                    text={JSON.stringify(row, null, 2)}
+                                    label={`Copy ${row.name}`}
+                                    compact
+                                />
+                            </div>
+                            <Facts
+                                value={{
+                                    email: row.email,
+                                    phone: row.phone,
+                                    company: row.company,
+                                    address: `${row.address.line1}, ${row.address.city} ${row.address.postalCode}`,
+                                    country: row.address.country,
+                                }}
+                            />
+                        </section>
+                    ))}
+                </Panel>
+            );
+        if (toolId === 'developer-test-bank-account-generator')
+            return (
+                <Panel title="Test bank accounts" detail={result.country}>
+                    <p className="tool-notice">{result.notice}</p>
+                    <Table
+                        rows={result.accounts.map((row: any) =>
+                            row.iban
+                                ? { country: row.country, iban: row.formatted, bban: row.bban }
+                                : row,
+                        )}
+                    />
+                </Panel>
+            );
+        if (toolId === 'developer-json-schema-from-sample')
+            return (
+                <Panel title="Inferred JSON Schema">
+                    <p className="tool-notice">{result.notice}</p>
+                    <ResultPreview
+                        text={JSON.stringify(result.schema, null, 2)}
+                        title="Draft 2020-12 schema"
+                        filename="schema.json"
+                    />
+                </Panel>
+            );
+        if (
+            toolId === 'developer-json-schema-validator' ||
+            toolId === 'developer-openapi-validator'
+        )
+            return (
+                <Panel
+                    title={
+                        toolId === 'developer-openapi-validator'
+                            ? 'OpenAPI validation'
+                            : 'JSON validation'
+                    }
+                >
+                    <Status passed={result.valid}>
+                        {result.valid ? 'Valid document' : 'Validation failed'}
+                    </Status>
+                    {result.version && (
+                        <Facts
+                            value={{
+                                version: result.version,
+                                title: result.title,
+                                operations: result.operations,
+                            }}
+                        />
+                    )}
+                    <section className="result-group">
+                        <h3>Errors</h3>
+                        {result.errors.length ? (
+                            <Table
+                                rows={result.errors}
+                                columns={
+                                    toolId === 'developer-openapi-validator'
+                                        ? ['line', 'path', 'message']
+                                        : ['path', 'keyword', 'message', 'details']
+                                }
+                            />
+                        ) : (
+                            <p className="result-empty">No validation errors.</p>
+                        )}
+                    </section>
+                    {result.warnings?.length > 0 && (
+                        <section className="result-group">
+                            <h3>Review</h3>
+                            <Table rows={result.warnings} columns={['line', 'path', 'message']} />
+                        </section>
+                    )}
+                </Panel>
+            );
+        if (toolId === 'developer-secret-scanner')
+            return (
+                <Panel
+                    title="Credential scan"
+                    detail={`${result.count} finding${result.count === 1 ? '' : 's'}`}
+                >
+                    <p className="tool-notice">{result.notice}</p>
+                    {result.count ? (
+                        <Table
+                            rows={result.findings}
+                            columns={['provider', 'masked', 'line', 'column', 'severity']}
+                        />
+                    ) : (
+                        <p className="result-empty">No matching credential patterns found.</p>
+                    )}
+                </Panel>
+            );
+        if (toolId === 'network-web-page-to-markdown')
+            return (
+                <Panel title={result.title || 'Extracted page'}>
+                    <p className="tool-notice">{result.description || result.notice}</p>
+                    <Facts
+                        value={{
+                            url: result.url,
+                            canonical: result.canonical,
+                            links: result.links.length,
+                            headings: result.headings.length,
+                        }}
+                    />
+                    <MarkdownPreview html={result.html} title="Extracted page preview" />
+                    <details className="result-group">
+                        <summary>Markdown and plain text</summary>
+                        <ResultPreview text={result.markdown} title="Markdown" filename="page.md" />
+                        <ResultPreview text={result.text} title="Plain text" filename="page.txt" />
+                    </details>
+                    <details className="result-group">
+                        <summary>Page links</summary>
+                        <Table rows={result.links} columns={['text', 'url']} />
+                    </details>
+                </Panel>
+            );
+        if (toolId === 'email-email-authentication-checker')
+            return (
+                <Panel title="Email authentication" detail={result.domain}>
+                    <p className="tool-notice">{result.notice}</p>
+                    <Table rows={result.findings} columns={['check', 'status', 'message']} />
+                    <section className="result-group">
+                        <h3>Published records</h3>
+                        <Table
+                            rows={result.records.map((row: any) => ({
+                                type: row.type,
+                                name: row.name,
+                                values: row.values.join('\n') || 'No records',
+                                resolverStatus: row.status,
+                            }))}
+                        />
+                    </section>
+                </Panel>
+            );
+        if (toolId === 'network-robots-and-sitemap-checker')
+            return (
+                <Panel title="Crawl rules">
+                    <Status passed={result.allowed === true}>
+                        {result.allowed === null
+                            ? 'Crawl decision unavailable'
+                            : result.allowed
+                              ? 'Page allowed'
+                              : 'Page blocked'}
+                    </Status>
+                    <Facts
+                        value={{
+                            url: result.url,
+                            userAgent: result.userAgent,
+                            robotsStatus: result.robotsStatus,
+                            matchingLine: result.matchingLine,
+                            matchingRule: result.matchingRule,
+                            crawlDelay: result.crawlDelay,
+                        }}
+                    />
+                    <p className="tool-notice">{result.notice}</p>
+                    {result.sitemaps.map((sitemap: any) => (
+                        <section className="result-group" key={sitemap.url}>
+                            <h3>Sitemap</h3>
+                            <Facts
+                                value={{
+                                    url: sitemap.url,
+                                    status: sitemap.status,
+                                    kind: sitemap.kind,
+                                    entries: sitemap.totalEntries,
+                                    truncated: sitemap.truncated,
+                                }}
+                            />
+                            {sitemap.problems.map((problem: string) => (
+                                <p className="tool-notice" key={problem}>
+                                    {problem}
+                                </p>
+                            ))}
+                            <Table rows={sitemap.entries} columns={['url', 'lastModified']} />
+                        </section>
+                    ))}
+                </Panel>
+            );
+        const label =
+            toolId === 'developer-phone-number-validator'
+                ? 'Phone number'
+                : toolId === 'developer-timezone-converter'
+                  ? 'Converted time'
+                  : 'Calendar result';
+        return (
+            <Panel title={label}>
+                {typeof result.valid === 'boolean' && (
+                    <Status passed={result.valid}>
+                        {result.valid ? 'Valid format' : 'Invalid format'}
+                    </Status>
+                )}
+                <Facts
+                    value={Object.fromEntries(
+                        Object.entries(result).filter(
+                            ([key]) => !['notice', 'valid'].includes(key),
+                        ),
+                    )}
+                />
+                {result.e164 && <CopyButton text={result.e164} label="Copy E.164" />}
+                {result.destination && (
+                    <CopyButton text={result.destination} label="Copy converted time" />
+                )}
+                {result.result && <CopyButton text={result.result} label="Copy result date" />}
+                {result.notice && <p className="tool-notice">{result.notice}</p>}
+            </Panel>
+        );
+    }
+
     if (toolId === 'databases-seed-data-generator' && text.startsWith('INSERT'))
         return (
             <Panel title="SQL seed script">

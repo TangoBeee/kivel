@@ -886,3 +886,78 @@ test('temporary inbox domains cannot sign up, and short but valid passwords can'
     assert.equal((await register('short-pass', 'short@example.test', 'seven77')).statusCode, 400);
     assert.equal((await register('eight-pass', 'eight@example.test')).statusCode, 201);
 });
+
+test('developer tools share SDK, CLI and MCP options without retaining scanner input', async (t) => {
+    const app = buildApp();
+    t.after(() => app.close());
+    const owner = await signup(app, 'developer-tools-user'),
+        credential = await key(app, owner.cookie);
+    const fetcher: typeof fetch = async (url, init) => {
+        const target = new URL(String(url));
+        const response = await app.inject({
+            method: init?.method as 'POST',
+            url: target.pathname + target.search,
+            headers: Object.fromEntries(new Headers(init?.headers).entries()),
+            ...(init?.body !== undefined ? { payload: String(init.body) } : {}),
+        });
+        return new Response(response.body, {
+            status: response.statusCode,
+            headers: Object.fromEntries(
+                Object.entries(response.headers).map(([key, value]) => [key, String(value)]),
+            ),
+        });
+    };
+    const client = new SocketHelp({ baseUrl: origin, apiKey: credential.key, fetch: fetcher });
+    const identity = JSON.parse(
+        (await client.run('developer-fake-identity-generator', '', { locale: 'fr-FR', count: '2' }))
+            .output,
+    );
+    assert.equal(identity.count, 2);
+    assert.equal(identity.identities[0].address.country, 'FR');
+    const phone = (await command(
+        client,
+        ['run', 'developer-phone-number-validator', '--options', '{"country":"GB"}'],
+        Buffer.from('020 7946 0958'),
+    )) as { output: string };
+    assert.equal(JSON.parse(phone.output).e164, '+442079460958');
+    const headers = {
+        authorization: `Bearer ${credential.key}`,
+        accept: 'application/json, text/event-stream',
+    };
+    const rpc = async (name: string, args: object) => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/mcp',
+            headers,
+            payload: {
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'tools/call',
+                params: { name, arguments: args },
+            },
+        });
+        assert.equal(response.statusCode, 200, response.body);
+        assert.equal(response.json().result.isError, false, response.body);
+        return JSON.parse(response.json().result.content[0].text);
+    };
+    const schema = await rpc('run_tool', {
+        toolId: 'developer-json-schema-validator',
+        input: '4',
+        options: { schema: '{"type":"integer"}' },
+    });
+    assert.equal(JSON.parse(schema.output).valid, true);
+    const description = await rpc('describe_tool', { toolId: 'developer-json-schema-validator' });
+    assert.ok(JSON.stringify(description).includes('schema'));
+    const search = await rpc('search_tools', { query: 'timezone' });
+    assert.ok(JSON.stringify(search).includes('developer-timezone-converter'));
+    const secret = 'ghp_' + 'b'.repeat(36);
+    const scan = await rpc('run_tool', { toolId: 'developer-secret-scanner', input: secret });
+    assert.ok(!JSON.stringify(scan).includes(secret));
+    const activity = await app.inject({
+        url: '/api/account/activity',
+        headers: { origin, cookie: owner.cookie },
+    });
+    assert.equal(activity.statusCode, 200);
+    assert.ok(!activity.body.includes(secret));
+    assert.ok(activity.json().activity.some((entry: any) => entry.tool === 'run_tool'));
+});

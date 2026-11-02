@@ -1,3 +1,4 @@
+import { pageToMarkdown, checkRobots, emailAuthenticationReport } from './developer-network.js';
 import { simulateWebhook } from './webhook-events.js';
 import { inspectMcp } from './mcp-inspector.js';
 import { runScenario } from './api-scenarios.js';
@@ -322,6 +323,43 @@ export class NetworkRunner {
         signal: AbortSignal,
     ): Promise<unknown> {
         switch (id) {
+            case 'network-web-page-to-markdown':
+                return pageToMarkdown(input, signal);
+            case 'network-robots-and-sitemap-checker':
+                return checkRobots(input, options.userAgent ?? '*', signal);
+            case 'email-email-authentication-checker': {
+                const host = domain(input),
+                    selector = options.selector?.trim() ?? '';
+                if (
+                    selector.length > 128 ||
+                    (selector && `${selector}._domainkey.${host}`.length > 253) ||
+                    (selector && !/^[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)*$/.test(selector))
+                )
+                    throw new ToolExecutionError(
+                        'Use a DKIM selector with letters, digits, dots, underscores or hyphens.',
+                    );
+                const queries = [
+                    ['SPF', host, 'TXT'],
+                    ['DMARC', `_dmarc.${host}`, 'TXT'],
+                    ['MX', host, 'MX'],
+                    ['BIMI', `default._bimi.${host}`, 'TXT'],
+                    ...(selector ? [['DKIM', `${selector}._domainkey.${host}`, 'TXT']] : []),
+                ];
+                const records = await Promise.all(
+                    queries.map(async ([type, name, query]) => {
+                        const response = await dnsAnswer(name!, query!, 'google', signal);
+                        return {
+                            name: name!,
+                            type: type!,
+                            status: response.status,
+                            values: response.answers
+                                .filter((item) => item.type === (query === 'MX' ? 15 : 16))
+                                .map((item) => (query === 'TXT' ? txtValue(item.data) : item.data)),
+                        };
+                    }),
+                );
+                return emailAuthenticationReport(host, records, selector);
+            }
             case 'mock-apis-webhook-event-simulator':
                 return simulateWebhook(input, options, signal, this.eventSend);
             case 'mock-apis-api-test-scenarios':

@@ -110,7 +110,7 @@ export function LiveWebhook() {
             await fetch(`${inbox.webhookUrl}?source=socket.help`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: 'payment.succeeded', amount: 4200, currency: 'usd' }),
+                body: JSON.stringify({ type: 'order.created', id: 'demo-001', test: true }),
             });
         } catch {}
         setSending(false);
@@ -129,7 +129,7 @@ export function LiveWebhook() {
                 <div className="home-live-empty">
                     <p>
                         A working webhook URL, the same one an agent gets over MCP. No account
-                        needed.
+                        needed. Works with GitHub, Shopify, Slack, Twilio, Stripe and your own apps.
                     </p>
                     {state === 'creating' ? (
                         <span

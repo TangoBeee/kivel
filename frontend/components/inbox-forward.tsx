@@ -96,7 +96,7 @@ export function InboxForwardSettings({
                         <input
                             type="url"
                             required
-                            placeholder="https://api.example.com/webhooks/stripe"
+                            placeholder="https://api.example.com/webhooks/events"
                             value={url}
                             onChange={(event) => setUrl(event.target.value)}
                         />

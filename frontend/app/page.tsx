@@ -35,7 +35,7 @@ export const metadata: Metadata = {
 const features = [
     {
         title: 'Webhook inboxes',
-        body: 'A private URL your agent waits on until Stripe or GitHub calls.',
+        body: 'A URL for GitHub, Shopify, Slack, Twilio, Stripe or your own app.',
     },
     { title: 'Email inboxes', body: 'Signup codes and verification links, extracted.' },
     { title: 'Ask you first', body: 'Risky steps wait until you answer.' },
@@ -132,8 +132,8 @@ export default function Home() {
                     <h1 id="hero-heading">Webhooks, email and approvals for your coding agent.</h1>
                     <div className="home-hero-side">
                         <p>
-                            Your agent can&apos;t catch a Stripe webhook or read a signup email on
-                            its own. socket.help gives it both, and asks you before risky steps.
+                            Your agent can&apos;t catch an incoming webhook or read a signup email
+                            on its own. socket.help gives it both, and asks you before risky steps.
                         </p>
                         <div className="home-actions">
                             <CopyPrompt prompt={setupPrompt} />

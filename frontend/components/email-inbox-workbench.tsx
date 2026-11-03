@@ -280,7 +280,7 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
             <ToolHeader
                 toolId={toolId}
                 title="An inbox your agent can read."
-                description="An owned address for your agent. Read messages, codes and verification links in one place."
+                description="An owned address for any sign-up, verification or application test flow. Read messages, codes and links in one place."
             >
                 {inbox && (
                     <Link className="text-link" href="/account/#resources">

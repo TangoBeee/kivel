@@ -17,6 +17,8 @@ import { useViewer } from '../lib/viewer';
 import { InboxResponseSettings } from './inbox-response';
 import { InboxForwardSettings } from './inbox-forward';
 import { ReplayRequest } from './replay-request';
+import { WebhookBody } from './webhook-body';
+import { WebhookSignature } from './webhook-signature';
 import type { RequestSearchScope } from '../lib/request-filter';
 
 function timeLeft(seconds: number) {
@@ -110,7 +112,7 @@ function Detail({
                 </p>
             </div>
         );
-    const tabs = ['Body', 'Headers', 'Query', 'Details'];
+    const tabs = ['Body', 'Headers', 'Query', 'Details', 'Signature'];
     function saveBody() {
         const bytes =
             request!.bodyEncoding === 'base64'
@@ -156,7 +158,7 @@ function Detail({
                                                         setPretty(checked === true)
                                                     }
                                                 />{' '}
-                                                Pretty
+                                                Parsed view
                                             </label>
                                         )}
                                         <IconButton
@@ -172,11 +174,22 @@ function Detail({
                                     </div>
                                 </div>
                                 {request.body ? (
-                                    <pre>{displayed}</pre>
+                                    pretty ? (
+                                        <WebhookBody
+                                            key={request.id}
+                                            request={request}
+                                            formattedJson={displayed}
+                                        />
+                                    ) : (
+                                        <pre>{displayed}</pre>
+                                    )
                                 ) : (
                                     <p className="small muted">This request has no body.</p>
                                 )}
                             </>
+                        )}
+                        {tab === 'Signature' && (
+                            <WebhookSignature key={request.id} request={request} />
                         )}
                         {tab === 'Headers' && <DataTable values={request.headers} />}
                         {tab === 'Query' && <DataTable values={request.query} />}
@@ -186,6 +199,11 @@ function Detail({
                                     'Request ID': request.id,
                                     Method: request.method,
                                     Path: request.path,
+                                    'Original query':
+                                        request.rawQuery ??
+                                        new URLSearchParams(
+                                            request.query as Record<string, string>,
+                                        ).toString(),
                                     Received: new Date(request.timestamp).toISOString(),
                                     'Body size': `${request.bodySize} bytes`,
                                     Encoding: request.bodyEncoding,
@@ -218,6 +236,7 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
     const [existingToken, setExistingToken] = useState('');
     const [showToken, setShowToken] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
+    const [settingsTab, setSettingsTab] = useState('access');
     const [confirmation, setConfirmation] = useState<'create' | 'delete' | null>(null);
     const etag = useRef('');
     const inFlight = useRef(false);
@@ -639,6 +658,17 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
                         <div className="button-row">
                             <Button
                                 size="2"
+                                variant="surface"
+                                color="gray"
+                                onClick={() => {
+                                    setSettingsOpen(true);
+                                    setSettingsTab('response');
+                                }}
+                            >
+                                Response
+                            </Button>
+                            <Button
+                                size="2"
                                 variant={settingsOpen ? 'soft' : 'surface'}
                                 color="gray"
                                 aria-expanded={settingsOpen}
@@ -680,7 +710,7 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
                     </div>
                     {settingsOpen && (
                         <section className="inbox-settings" aria-label="Inbox settings">
-                            <Tabs.Root defaultValue="access">
+                            <Tabs.Root value={settingsTab} onValueChange={setSettingsTab}>
                                 <Tabs.List size="2">
                                     <Tabs.Trigger value="access">Access</Tabs.Trigger>
                                     <Tabs.Trigger value="response">Response</Tabs.Trigger>

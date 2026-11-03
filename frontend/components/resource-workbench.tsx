@@ -529,6 +529,15 @@ export function ResourceWorkbench({
                     <Icon name="clock" size={13} /> Expires after 1 hour
                 </span>
             </ToolHeader>
+            {kind === 'mock' && (
+                <p className="tool-notice">
+                    <span>
+                        Start with routes or{' '}
+                        <a href="/tools/openapi-to-mock/">import an OpenAPI document</a> to build
+                        your mock.
+                    </span>
+                </p>
+            )}
             {!ready && <p role="status">Checking this session…</p>}
             {error && (
                 <div className="alert" role="alert">

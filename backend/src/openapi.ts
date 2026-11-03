@@ -167,32 +167,57 @@ export function openApi(origin: string) {
                     responses: { '201': json(reference('InboxCredentials')), ...limited },
                 },
             },
-            '/hooks/{id}': Object.fromEntries(
-                ['get', 'head', 'post', 'put', 'patch', 'delete', 'options'].map((method) => [
-                    method,
-                    {
-                        ...capture,
-                        operationId: `capture${method[0]!.toUpperCase()}${method.slice(1)}`,
-                        ...(method === 'head'
-                            ? {
-                                  responses: {
-                                      ...capture.responses,
-                                      '200': { description: 'Captured; response has no body' },
-                                  },
-                              }
-                            : {}),
-                        ...(['post', 'put', 'patch', 'delete', 'options'].includes(method)
-                            ? {
-                                  requestBody: {
-                                      required: false,
-                                      content: {
-                                          '*/*': { schema: { type: 'string', format: 'binary' } },
-                                      },
-                                  },
-                              }
-                            : {}),
+            '/hooks/{id}/{path}': {
+                post: {
+                    ...capture,
+                    operationId: 'captureSubpath',
+                    summary: 'Capture any ordinary HTTP method at a nested inbox path',
+                    parameters: [
+                        ...id,
+                        {
+                            name: 'path',
+                            in: 'path',
+                            required: true,
+                            schema: { type: 'string' },
+                            description:
+                                'Any nested path, for example github/events. All non-tunneling HTTP methods are supported.',
+                        },
+                    ],
+                    requestBody: {
+                        content: { '*/*': { schema: { type: 'string', format: 'binary' } } },
                     },
-                ]),
+                },
+            },
+            '/hooks/{id}': Object.fromEntries(
+                ['get', 'head', 'post', 'put', 'patch', 'delete', 'options', 'trace'].map(
+                    (method) => [
+                        method,
+                        {
+                            ...capture,
+                            operationId: `capture${method[0]!.toUpperCase()}${method.slice(1)}`,
+                            ...(method === 'head'
+                                ? {
+                                      responses: {
+                                          ...capture.responses,
+                                          '200': { description: 'Captured; response has no body' },
+                                      },
+                                  }
+                                : {}),
+                            ...(['post', 'put', 'patch', 'delete', 'options'].includes(method)
+                                ? {
+                                      requestBody: {
+                                          required: false,
+                                          content: {
+                                              '*/*': {
+                                                  schema: { type: 'string', format: 'binary' },
+                                              },
+                                          },
+                                      },
+                                  }
+                                : {}),
+                        },
+                    ],
+                ),
             ),
             '/api/inboxes/{id}': {
                 get: {
@@ -765,6 +790,11 @@ export function openApi(origin: string) {
                         headers: values,
                         query: values,
                         body: { type: 'string' },
+                        rawQuery: {
+                            type: 'string',
+                            description:
+                                'Original query string without the question mark, preserving order and encoding.',
+                        },
                         bodyEncoding: { enum: ['utf8', 'base64'] },
                         bodySize: { type: 'integer', minimum: 0 },
                         timestamp: { type: 'string', format: 'date-time' },

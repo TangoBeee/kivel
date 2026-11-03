@@ -23,7 +23,7 @@ const guides: Record<string, Guide> = {
     'mock-apis-mock-oauth-provider': {
         intro: 'Test OAuth 2.0 and OpenID Connect sign in without registering a real identity account. Each workspace provider has its own issuer, discovery document, RS256 signing key and synthetic users.',
         steps: [
-            'Register exact callback URLs and synthetic users.',
+            'Choose generic, Google-style, GitHub-style, Okta-style or Auth0-style claims, then register exact callback URLs and synthetic users. These presets never impersonate a real identity service.',
             'Create the provider and save its client secret. Configure your client with the discovery URL and S256 PKCE.',
             'Approve or deny on the hosted test page. Headless prompt=none with login_hint redirects immediately only to loopback callbacks; public destinations require Continue.',
             'Switch failure scenarios, inspect requests and delete the provider when testing is complete.',
@@ -122,13 +122,13 @@ const guides: Record<string, Guide> = {
         limits: 'A passing checksum does not verify issuance, ownership, funds, or payment acceptance. Brand and funding labels are provided only for exact known test fixtures. Browser checks run locally. Use synthetic data; hosted checks send the input to the server for processing.',
     },
     webhooks: {
-        intro: 'A webhook inbox gives callbacks a temporary destination while you build an integration. Inspect the original body, headers, query parameters, and arrival time without maintaining a receiver.',
+        intro: 'Capture callbacks from GitHub, Shopify, Slack, Twilio, Stripe or any application. Inspect JSON, form fields, multipart file metadata, XML, text and binary payloads, including nested paths and exact query strings.',
         steps: [
             'Create an inbox and copy its endpoint.',
             'Send a request from your application or terminal.',
-            'Select the request to inspect or export its contents.',
+            'Select a request to inspect its parsed body or original bytes. Use Signature to verify a provider signature locally; your secret is never sent or saved. Open Response to set status, headers, body and delay.',
         ],
-        limits: 'Anonymous inboxes last one hour and hold up to 100 requests. Accounts receive the limits shown on the plans page. Each body is limited to 100 KiB. Choose public or private receiver access. Private senders use the X-Access-Token header; inspection uses a separate credential. Sensitive headers are redacted.',
+        limits: 'Anonymous inboxes last one hour and hold up to 100 requests. Accounts receive the limits shown on the plans page. Each body is limited to 100 KiB. Choose public or private receiver access. Private senders use the X-Access-Token header; inspection uses a separate credential. Sensitive headers are redacted. Signature presets cover Stripe, GitHub, Shopify, Slack, Twilio, Svix, Paddle, Dodo Payments, Linear and custom HMAC. Timestamp checks use receipt time. Custom HMAC signs raw bytes and optionally checks a Unix-seconds header. CONNECT tunneling is not supported; ordinary and extended HTTP methods are captured.',
     },
     json: {
         intro: 'Make JSON easier to read, check its syntax, or remove unnecessary whitespace before using it in a request or configuration file.',
@@ -502,7 +502,7 @@ const examples: Record<string, { useCase: string; example: string }> = {
     },
     webhooks: {
         useCase:
-            'Inspect a sandbox payment callback or check what a form sends before building a receiver.',
+            'Inspect callbacks from GitHub, Shopify, Slack, Twilio, Stripe or your own app, including form submissions and file uploads.',
         example:
             'POST your inbox endpoint\nContent-Type: application/json\n\n{"event":"order.created","id":"test-001"}',
     },

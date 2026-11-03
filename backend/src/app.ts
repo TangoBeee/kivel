@@ -18,6 +18,7 @@ import type { RecoveryRepository } from './recovery-store.js';
 import type { MailSender } from './mail.js';
 import type DodoPayments from 'dodopayments';
 import { isUtf8 } from 'node:buffer';
+import { METHODS } from 'node:http';
 import { randomUUID, randomBytes } from 'node:crypto';
 import fastify, { LogController } from 'fastify';
 import type { FastifyRequest } from 'fastify';
@@ -477,88 +478,103 @@ export function buildApp({
             done(null, body),
         );
 
-        hooks.route<InboxRoute>({
-            method: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-            url: '/hooks/:id',
-            onRequest: async (request, reply) => {
-                if (
-                    !(await inboxStore.has(
-                        request.params.id,
-                        await access.publicCredential(request, 'resources:write'),
-                    ))
-                )
-                    return reply.code(404).send(NOT_FOUND);
-                const retryAfter = await rateLimiter.consume(
-                    `hook:${request.params.id}`,
-                    REQUESTS_PER_MINUTE,
-                );
-                if (retryAfter) {
-                    return reply
-                        .header('Retry-After', retryAfter)
-                        .code(429)
-                        .send({ error: 'Webhook rate limit exceeded.' });
-                }
-            },
-            handler: async (request, reply) => {
-                const body = Buffer.isBuffer(request.body) ? request.body : Buffer.alloc(0);
-                const encoding = isUtf8(body) ? 'utf8' : 'base64';
-                const result = await inboxStore.capture(
-                    request.params.id,
-                    {
-                        method: request.method,
-                        path: request.url.split('?')[0]!,
-                        headers: capturedHeaders(request),
-                        query: request.query as Record<string, string | string[]>,
-                        body: body.toString(encoding),
-                        bodyEncoding: encoding,
-                        bodySize: body.length,
-                    },
-                    await access.publicCredential(request, 'resources:write'),
-                );
-
-                switch (result.status) {
-                    case 'not-found':
+        const methods = METHODS.filter((method) => method !== 'CONNECT');
+        for (const method of methods)
+            if (!hooks.supportedMethods.includes(method))
+                hooks.addHttpMethod(method, { hasBody: true });
+        for (const url of ['/hooks/:id', '/hooks/:id/*'])
+            hooks.route<InboxRoute>({
+                method: methods,
+                url,
+                onRequest: async (request, reply) => {
+                    if (
+                        !(await inboxStore.has(
+                            request.params.id,
+                            await access.publicCredential(request, 'resources:write'),
+                        ))
+                    )
                         return reply.code(404).send(NOT_FOUND);
-                    case 'inbox-full':
-                        return reply.code(429).send({
-                            error: 'Inbox history is full. Create another inbox or delete this one.',
-                        });
-                    case 'storage-full':
+                    const retryAfter = await rateLimiter.consume(
+                        `hook:${request.params.id}`,
+                        REQUESTS_PER_MINUTE,
+                    );
+                    if (retryAfter) {
                         return reply
-                            .code(503)
-                            .send({ error: 'Capture storage capacity reached. Try again later.' });
-                    case 'captured':
-                        reply.header('X-Webhook-Request-Id', result.requestId);
-                        if (result.forwardUrl && (await ownerIsPaid(result.ownerId)))
-                            forwarder
-                                .deliver(request.params.id, result.forwardUrl, {
-                                    id: result.requestId,
-                                    method: request.method,
-                                    query: request.url.split('?')[1] ?? '',
-                                    headers: request.headers,
-                                    body,
-                                    utf8: encoding === 'utf8',
-                                })
-                                .catch((error) =>
-                                    request.log.warn({ err: error }, 'Webhook forwarding failed.'),
-                                );
-                        if (result.response) {
-                            const custom = result.response;
-                            if (custom.delayMs)
-                                await new Promise((resolve) => setTimeout(resolve, custom.delayMs));
-                            reply.code(custom.status).headers(custom.headers);
-                            if (request.method === 'HEAD') return reply.send();
+                            .header('Retry-After', retryAfter)
+                            .code(429)
+                            .send({ error: 'Webhook rate limit exceeded.' });
+                    }
+                },
+                handler: async (request, reply) => {
+                    const body = Buffer.isBuffer(request.body) ? request.body : Buffer.alloc(0);
+                    const encoding = isUtf8(body) ? 'utf8' : 'base64';
+                    const result = await inboxStore.capture(
+                        request.params.id,
+                        {
+                            method: request.method,
+                            path: request.url.split('?')[0]!,
+                            rawQuery: request.url.includes('?')
+                                ? request.url.slice(request.url.indexOf('?') + 1)
+                                : '',
+                            headers: capturedHeaders(request),
+                            query: request.query as Record<string, string | string[]>,
+                            body: body.toString(encoding),
+                            bodyEncoding: encoding,
+                            bodySize: body.length,
+                        },
+                        await access.publicCredential(request, 'resources:write'),
+                    );
+
+                    switch (result.status) {
+                        case 'not-found':
+                            return reply.code(404).send(NOT_FOUND);
+                        case 'inbox-full':
+                            return reply.code(429).send({
+                                error: 'Inbox history is full. Create another inbox or delete this one.',
+                            });
+                        case 'storage-full':
                             return reply
-                                .header('Content-Type', `${custom.contentType}; charset=utf-8`)
-                                .send(custom.body);
-                        }
-                        if (request.method === 'HEAD') return reply.code(200).send();
-                        return reply
-                            .code(200)
-                            .send({ received: true, requestId: result.requestId });
-                }
-            },
-        });
+                                .code(503)
+                                .send({
+                                    error: 'Capture storage capacity reached. Try again later.',
+                                });
+                        case 'captured':
+                            reply.header('X-Webhook-Request-Id', result.requestId);
+                            if (result.forwardUrl && (await ownerIsPaid(result.ownerId)))
+                                forwarder
+                                    .deliver(request.params.id, result.forwardUrl, {
+                                        id: result.requestId,
+                                        method: request.method,
+                                        query: request.url.split('?')[1] ?? '',
+                                        headers: request.headers,
+                                        body,
+                                        utf8: encoding === 'utf8',
+                                    })
+                                    .catch((error) =>
+                                        request.log.warn(
+                                            { err: error },
+                                            'Webhook forwarding failed.',
+                                        ),
+                                    );
+                            if (result.response) {
+                                const custom = result.response;
+                                if (custom.delayMs)
+                                    await new Promise((resolve) =>
+                                        setTimeout(resolve, custom.delayMs),
+                                    );
+                                reply.code(custom.status).headers(custom.headers);
+                                if (request.method === 'HEAD') return reply.send();
+                                return reply
+                                    .header('Content-Type', `${custom.contentType}; charset=utf-8`)
+                                    .send(custom.body);
+                            }
+                            if (request.method === 'HEAD') return reply.code(200).send();
+                            return reply
+                                .code(200)
+                                .send({ received: true, requestId: result.requestId });
+                    }
+                },
+            });
     });
 
     app.get<InboxRoute>('/api/inboxes/:id/requests', async (request, reply) => {

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@radix-ui/themes';
 import { api, resourceHeaders } from '../lib/api';
+import { AppSelect, SelectOption } from './app-select';
 import type { Inbox, InboxResponse } from '../lib/api';
 
 const types = ['application/json', 'text/plain', 'application/xml', 'text/xml'];
@@ -22,6 +23,9 @@ export function InboxResponseSettings({
     const [contentType, setContentType] = useState(current?.contentType ?? 'application/json');
     const [body, setBody] = useState(current?.body ?? '{"ok":true}');
     const [delay, setDelay] = useState(String(current?.delayMs ?? 0));
+    const [responseHeaders, setResponseHeaders] = useState(
+        JSON.stringify(current?.headers ?? {}, null, 2),
+    );
     const [busy, setBusy] = useState(false);
     const summary = current
         ? `${current.status} ${current.contentType}${current.delayMs ? ` after ${current.delayMs} ms` : ''}`
@@ -45,12 +49,19 @@ export function InboxResponseSettings({
                         contentType,
                         body,
                         delayMs: Number(delay),
+                        headers: JSON.parse(responseHeaders),
                     }),
                 })
             ).json();
             onSaved(saved.response);
         } catch (failure) {
-            onError(failure instanceof Error ? failure.message : 'Unable to save the response.');
+            onError(
+                failure instanceof SyntaxError
+                    ? 'Enter response headers as a JSON object.'
+                    : failure instanceof Error
+                      ? failure.message
+                      : 'Unable to save the response.',
+            );
         } finally {
             setBusy(false);
         }
@@ -84,14 +95,16 @@ export function InboxResponseSettings({
                     </label>
                     <label>
                         Content type
-                        <select
+                        <AppSelect
                             value={contentType}
                             onChange={(event) => setContentType(event.target.value)}
                         >
                             {types.map((type) => (
-                                <option key={type}>{type}</option>
+                                <SelectOption key={type} value={type}>
+                                    {type}
+                                </SelectOption>
                             ))}
-                        </select>
+                        </AppSelect>
                     </label>
                     <label>
                         Delay (ms)
@@ -113,6 +126,20 @@ export function InboxResponseSettings({
                         value={body}
                         onChange={(event) => setBody(event.target.value)}
                     />
+                </label>
+                <label>
+                    Response headers (JSON)
+                    <textarea
+                        rows={3}
+                        maxLength={8192}
+                        value={responseHeaders}
+                        onChange={(event) => setResponseHeaders(event.target.value)}
+                        placeholder={'{"X-Test-Result":"accepted"}'}
+                        spellCheck={false}
+                    />
+                    <span className="small muted">
+                        Up to 10 X- headers. Cookies, redirects and HTML responses are blocked.
+                    </span>
                 </label>
                 <div className="button-row">
                     <Button size="2" color="green" type="submit" disabled={busy}>

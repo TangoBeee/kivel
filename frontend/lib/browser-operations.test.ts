@@ -526,3 +526,258 @@ test('environment serialization round-trips values containing all quote styles a
         original,
     );
 });
+
+test('webhook signatures verify each preset against independently generated HMACs', async () => {
+    const { createHmac, createHash } = await import('node:crypto');
+    const { verifyWebhookSignature } = await import('@socket-help/tools/webhooks');
+    const now = Date.now(),
+        timestamp = String(Math.floor(now / 1000)),
+        secret = 'test-signing-secret';
+    const body = new TextEncoder().encode('{"event":"created","webhookTimestamp":' + now + '}');
+    const text = new TextDecoder().decode(body);
+    const hmac = (
+        content: string,
+        algorithm = 'sha256',
+        encoding: 'hex' | 'base64' = 'hex',
+        key: string | Buffer = secret,
+    ) => createHmac(algorithm, key).update(content).digest(encoding);
+    const fixtures = [
+        {
+            provider: 'stripe',
+            headers: {
+                'stripe-signature': `t=${timestamp},v1=invalid,v1=${hmac(`${timestamp}.${text}`)}`,
+            },
+        },
+        { provider: 'github', headers: { 'x-hub-signature-256': `sha256=${hmac(text)}` } },
+        {
+            provider: 'shopify',
+            headers: { 'x-shopify-hmac-sha256': hmac(text, 'sha256', 'base64') },
+        },
+        {
+            provider: 'slack',
+            headers: {
+                'x-slack-request-timestamp': timestamp,
+                'x-slack-signature': `v0=${hmac(`v0:${timestamp}:${text}`)}`,
+            },
+        },
+        {
+            provider: 'paddle',
+            headers: {
+                'paddle-signature': `ts=${timestamp};h1=bad;h1=${hmac(`${timestamp}:${text}`)}`,
+            },
+        },
+        { provider: 'linear', headers: { 'linear-signature': hmac(text) } },
+    ] as const;
+    for (const fixture of fixtures) {
+        const result = await verifyWebhookSignature({ ...fixture, secret, body, now });
+        assert.equal(result.valid, true, fixture.provider + ': ' + result.reason);
+        assert.equal(
+            (await verifyWebhookSignature({ ...fixture, secret: 'wrong', body, now })).valid,
+            false,
+        );
+        assert.equal(
+            (
+                await verifyWebhookSignature({
+                    ...fixture,
+                    secret,
+                    body: new TextEncoder().encode(text + ' '),
+                    now,
+                })
+            ).valid,
+            false,
+        );
+    }
+    for (const provider of ['svix', 'dodo'] as const) {
+        const key = Buffer.from('a deterministic binary signing secret');
+        const header = `v1,wrong v1,${hmac(`msg_test.${timestamp}.${text}`, 'sha256', 'base64', key)}`;
+        const result = await verifyWebhookSignature({
+            provider,
+            body,
+            secret: 'whsec_' + key.toString('base64'),
+            headers: {
+                'webhook-id': 'msg_test',
+                'webhook-timestamp': timestamp,
+                'webhook-signature': header,
+            },
+            now,
+        });
+        assert.equal(result.valid, true, result.reason);
+    }
+    const svixVector = await verifyWebhookSignature({
+        provider: 'svix',
+        secret: 'whsec_plJ3nmyCDGBKInavdOK15jsl',
+        body: new TextEncoder().encode('{"event_type":"ping","data":{"success":true}}'),
+        headers: {
+            'svix-id': 'msg_loFOjxBNrRLzqYUf',
+            'svix-timestamp': '1731705121',
+            'svix-signature': 'v1,rAvfW3dJ/X/qxhsaXPOyyCGmRKsaKWcsNccKXlIktD0=',
+        },
+        now: 1731705121000,
+    });
+    assert.equal(svixVector.valid, true, svixVector.reason);
+    const form = 'Body=hello&From=%2B12025550101&Tag=b&Tag=a',
+        url = 'https://example.test/hooks/callback?b=2&a=%2F';
+    const formSignature = hmac(url + 'BodyhelloFrom+12025550101TagaTagb', 'sha1', 'base64');
+    assert.equal(
+        (
+            await verifyWebhookSignature({
+                provider: 'twilio',
+                secret,
+                body: new TextEncoder().encode(form),
+                headers: {
+                    'content-type': 'application/x-www-form-urlencoded',
+                    'x-twilio-signature': formSignature,
+                },
+                url,
+            })
+        ).valid,
+        true,
+    );
+    const jsonUrl = url + '&bodySHA256=' + createHash('sha256').update(body).digest('hex');
+    const twilio = {
+        provider: 'twilio' as const,
+        secret,
+        body,
+        headers: {
+            'content-type': 'application/json',
+            'x-twilio-signature': hmac(jsonUrl, 'sha1', 'base64'),
+        },
+        url: jsonUrl,
+    };
+    assert.equal((await verifyWebhookSignature(twilio)).valid, true);
+    assert.equal(
+        (await verifyWebhookSignature({ ...twilio, url: url + '&bodySHA256=bad' })).valid,
+        false,
+    );
+    for (const algorithm of ['SHA-256', 'SHA-1'] as const)
+        for (const encoding of ['hex', 'base64'] as const) {
+            assert.equal(
+                (
+                    await verifyWebhookSignature({
+                        provider: 'custom',
+                        secret,
+                        body,
+                        headers: {
+                            'x-check': hmac(
+                                text,
+                                algorithm === 'SHA-1' ? 'sha1' : 'sha256',
+                                encoding,
+                            ),
+                        },
+                        headerName: 'x-check',
+                        algorithm,
+                        encoding,
+                    })
+                ).valid,
+                true,
+            );
+        }
+});
+
+test('webhook signature failures explain stale timestamps, missing headers and exact-byte mismatches', async () => {
+    const { createHmac } = await import('node:crypto');
+    const { verifyWebhookSignature } = await import('@socket-help/tools/webhooks');
+    const secret = 'fixture',
+        body = new Uint8Array([0, 255, 128]),
+        timestamp = '1731705121';
+    const digest = createHmac('sha256', secret)
+        .update(Buffer.concat([Buffer.from(timestamp + '.'), body]))
+        .digest('hex');
+    const base = {
+        provider: 'stripe' as const,
+        secret,
+        body,
+        headers: { 'stripe-signature': `t=${timestamp},v1=${digest}` },
+    };
+    assert.equal((await verifyWebhookSignature({ ...base, now: 1731705121000 })).valid, true);
+    assert.match((await verifyWebhookSignature({ ...base, now: 1731705521000 })).reason, /outside/);
+    assert.equal((await verifyWebhookSignature({ ...base, now: 1731704721000 })).valid, false);
+    assert.match(
+        (await verifyWebhookSignature({ ...base, headers: {}, now: 1731705121000 })).reason,
+        /Missing/,
+    );
+    assert.equal(
+        (
+            await verifyWebhookSignature({
+                ...base,
+                body: new TextEncoder().encode('\u0000�'),
+                now: 1731705121000,
+            })
+        ).valid,
+        false,
+    );
+    assert.equal(
+        (
+            await verifyWebhookSignature({
+                ...base,
+                headers: { 'stripe-signature': `t=${timestamp},t=${timestamp},v1=${digest}` },
+            })
+        ).valid,
+        false,
+    );
+    assert.equal(
+        (await verifyWebhookSignature({ ...base, body: new Uint8Array(102401) })).valid,
+        false,
+    );
+});
+
+test('webhook body previews preserve duplicate fields, list multipart files and never render untrusted markup', async () => {
+    const { parseWebhookBody } = await import('@socket-help/tools/webhooks');
+    const bytes = (text: string) => new TextEncoder().encode(text);
+    assert.deepEqual(
+        (await parseWebhookBody(bytes('{"hello":"world"}'), 'application/vnd.test+json')).data,
+        { hello: 'world' },
+    );
+    assert.deepEqual(
+        (
+            await parseWebhookBody(
+                bytes('tag=a&tag=b&name=Alex+Example'),
+                'application/x-www-form-urlencoded',
+            )
+        ).fields,
+        [
+            { name: 'tag', value: 'a' },
+            { name: 'tag', value: 'b' },
+            { name: 'name', value: 'Alex Example' },
+        ],
+    );
+    const form = new FormData();
+    form.append('label', 'test');
+    form.append('file', new Blob([new Uint8Array([0, 255, 128])]), 'sample.bin');
+    const request = new Request('https://example.test', { method: 'POST', body: form });
+    const parsed = await parseWebhookBody(
+        new Uint8Array(await request.arrayBuffer()),
+        request.headers.get('content-type')!,
+    );
+    assert.deepEqual(
+        parsed.parts?.map((part) => part.kind),
+        ['field', 'file'],
+    );
+    assert.equal(parsed.parts?.[1]?.bytes, 3);
+    assert.equal(
+        (await parseWebhookBody(bytes('<event><name>created</name></event>'), 'application/xml'))
+            .kind,
+        'XML',
+    );
+    assert.equal(
+        (
+            await parseWebhookBody(
+                bytes('<!DOCTYPE x [<!ENTITY x "unsafe">]><x>&x;</x>'),
+                'application/xml',
+            )
+        ).kind,
+        'Unparsed body',
+    );
+    assert.equal(
+        (await parseWebhookBody(bytes('<script>alert(1)</script>'), 'text/html')).text,
+        '<script>alert(1)</script>',
+    );
+    assert.equal(
+        (await parseWebhookBody(new Uint8Array([0, 255, 128]), 'application/octet-stream')).hex,
+        '00 ff 80',
+    );
+    assert.equal(
+        (await parseWebhookBody(bytes('broken'), 'application/json')).kind,
+        'Unparsed body',
+    );
+});

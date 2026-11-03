@@ -4,7 +4,8 @@ import { runBrowserOperation as run } from '@socket-help/tools/engine';
 import type { BrowserOperationId, OperationOptions } from '@socket-help/tools/definitions';
 import { ToolRunner } from '@socket-help/tools/node';
 import { catalog, toolPageHref } from '@socket-help/tools/catalog';
-import { readablePage, emailAuthenticationReport, sitemapContents } from './developer-network.js';
+import { emailAuthenticationReport } from './developer-network.js';
+import { readablePage, sitemapContents } from '@socket-help/tools/network-parsers';
 import { NetworkRunner } from './network-tools.js';
 import { buildApp } from './app.js';
 const result = async (id: BrowserOperationId, input = '', options: OperationOptions = {}) =>
@@ -434,4 +435,293 @@ test('schema tools reject numeric rounding instead of reporting a false validati
             .valid,
         true,
     );
+});
+
+test('timezone offsets and annotations select the correct instant or reject a conflicting zone', async () => {
+    const options = { from: 'America/New_York', timezone: 'UTC' };
+    for (const [input, expected] of [
+        ['2026-11-03T10:00+0530', '2026-11-03T04:30:00Z'],
+        ['2026-11-03T10:00+05', '2026-11-03T05:00:00Z'],
+        ['2026-11-03T10:00-03:00', '2026-11-03T13:00:00Z'],
+        ['2026-11-03T10:00+09:00[Asia/Tokyo]', '2026-11-03T01:00:00Z'],
+        ['2026-11-03T10:00[Asia/Tokyo]', '2026-11-03T01:00:00Z'],
+        ['2026-11-03T10:00Z', '2026-11-03T10:00:00Z'],
+    ] as const)
+        assert.equal(
+            (await result('developer-timezone-converter', input!, options)).utc,
+            expected,
+            input,
+        );
+    await assert.rejects(
+        result('developer-timezone-converter', '2026-11-03T10:00-03:00[Asia/Tokyo]', options),
+        /annotations must agree/,
+    );
+});
+test('generated phone numbers stay in reserved fiction ranges for every locale', async () => {
+    const ranges = {
+        'en-US': /^\+120255501\d{2}$/,
+        'en-GB': /^\+441632960\d{3}$/,
+        'de-DE': /^\+493023125\d{3}$/,
+        'fr-FR': /^\+3319900\d{4}$/,
+    };
+    for (const [locale, range] of Object.entries(ranges)) {
+        const { identities } = await result('developer-fake-identity-generator', '', {
+            locale,
+            count: '50',
+        });
+        for (const identity of identities) assert.match(identity.phone, range);
+        assert.equal(new Set(identities.map((identity: any) => identity.phone)).size, 50);
+    }
+});
+test('IBAN fixtures satisfy national checksum rules and country structures', async () => {
+    for (const country of ['BE', 'ES', 'FR', 'DE', 'GB', 'NL']) {
+        const { accounts } = await result('developer-test-bank-account-generator', '', {
+            country,
+            count: '50',
+        });
+        for (const { bban, iban } of accounts) {
+            assert.equal(remainder(iban.slice(4) + iban.slice(0, 4)), 1);
+            if (country === 'BE')
+                assert.equal(Number(bban.slice(10)), Number(BigInt(bban.slice(0, 10)) % 97n) || 97);
+            if (country === 'FR')
+                assert.equal(
+                    (89n * BigInt(bban.slice(0, 5)) +
+                        15n * BigInt(bban.slice(5, 10)) +
+                        3n * BigInt(bban.slice(10, 21)) +
+                        BigInt(bban.slice(21))) %
+                        97n,
+                    0n,
+                );
+            if (country === 'ES') {
+                const weights = [1, 2, 4, 8, 5, 10, 9, 7, 3, 6];
+                const controls = ['00' + bban.slice(0, 8), bban.slice(10)].map((value) => {
+                    const check =
+                        (11 -
+                            ([...value].reduce(
+                                (sum, digit, index) => sum + Number(digit) * weights[index]!,
+                                0,
+                            ) %
+                                11)) %
+                        11;
+                    return check === 10 ? 1 : check;
+                });
+                assert.equal(bban.slice(8, 10), controls.join(''));
+            }
+            if (country === 'DE') assert.match(bban, /^\d{18}$/);
+            if (country === 'GB') assert.match(bban, /^[A-Z]{4}\d{6}\d{8}$/);
+            if (country === 'NL') assert.match(bban, /^[A-Z]{4}\d{10}$/);
+        }
+    }
+});
+test('generic credentials reveal only length while recognizable token prefixes remain identifiable', async () => {
+    for (const length of [12, 16, 17, 24, 64])
+        for (const field of ['password', 'secret', 'client_secret', 'api_key']) {
+            const secret = 'A'.repeat(length);
+            const scan = await result('developer-secret-scanner', `${field}=${secret}`);
+            assert.equal(scan.count, 1);
+            assert.equal(scan.findings[0].masked, `${length} characters`);
+            assert.ok(!JSON.stringify(scan).includes('AAAA'));
+        }
+    assert.equal(
+        (await result('developer-secret-scanner', 'ghp_' + 'a'.repeat(36))).findings[0].masked,
+        'ghp_••••aaaa',
+    );
+});
+test('readable HTML strips navigation elements, redirects and executable attributes', () => {
+    const page = readablePage(
+        '<main><meta http-equiv="refresh" content="0;url=https://other.example"><base href="https://other.example"><link rel="stylesheet" href="/x.css"><style>body{display:none}</style><script>alert(1)</script><p STYLE="color:red" onmouseover="alert(2)">Safe <strong onclick="alert(3)">text</strong></p></main>',
+        'https://example.com',
+    );
+    assert.match(page.html, /<p>Safe <strong>text<\/strong><\/p>/);
+    assert.doesNotMatch(page.html, /<(meta|base|link|script|style)\b|\s(?:on\w+|style)=/i);
+    assert.match(page.markdown, /Safe \*\*text\*\*/);
+});
+
+test(
+    'complex public pages fail quickly while the API continues serving other requests',
+    { timeout: 5000 },
+    async (t) => {
+        const { default: http } = await import('node:http');
+        const { syncBuiltinESMExports } = await import('node:module');
+        const fixture = http.createServer((request, response) => {
+            if (request.url === '/robots.txt') {
+                response.end('User-agent: *\nAllow: /\nSitemap: http://8.8.8.8/deep.xml');
+                return;
+            }
+            response.setHeader(
+                'content-type',
+                request.url?.endsWith('.xml') ? 'application/xml' : 'text/html',
+            );
+            response.end('<div>'.repeat(23830) + 'x' + '</div>'.repeat(23830));
+        });
+        await new Promise<void>((resolve) => fixture.listen(0, '127.0.0.1', resolve));
+        const port = (fixture.address() as { port: number }).port;
+        const send = http.request;
+        t.mock.method(http, 'request', ((options: any, callback: any) => {
+            assert.equal(options.hostname, '8.8.8.8');
+            return send({ ...options, hostname: '127.0.0.1', port }, callback);
+        }) as typeof http.request);
+        syncBuiltinESMExports();
+        const app = buildApp();
+        t.after(async () => {
+            await app.close();
+            await new Promise<void>((resolve) => fixture.close(() => resolve()));
+            t.mock.restoreAll();
+            syncBuiltinESMExports();
+        });
+        const execute = ToolRunner.prototype.run;
+        let parsing: () => void = () => {};
+        t.mock.method(
+            ToolRunner.prototype,
+            'run',
+            function (this: ToolRunner, ...args: Parameters<ToolRunner['run']>) {
+                if (args[0].startsWith('parse-')) parsing();
+                return execute.apply(this, args);
+            },
+        );
+        for (const id of [
+            'network-web-page-to-markdown',
+            'network-link-preview-inspector',
+            'network-robots-and-sitemap-checker',
+        ]) {
+            const ready = new Promise<void>((resolve) => {
+                parsing = resolve;
+            });
+            const start = performance.now();
+            const response = app.inject({
+                method: 'POST',
+                url: `/api/tools/${id}/run`,
+                payload: { input: 'http://8.8.8.8/deep' },
+            });
+            // Start inject before waiting for the parser dispatch.
+            const pending = response.then((value) => value);
+            await Promise.race([
+                ready,
+                pending.then(() => {
+                    throw new Error('Parsing was not dispatched to the worker pool.');
+                }),
+            ]);
+            const healthStart = performance.now();
+            assert.equal((await app.inject('/health')).statusCode, 200);
+            const healthMs = performance.now() - healthStart;
+            const result = await pending;
+            const totalMs = performance.now() - start;
+            if (id === 'network-robots-and-sitemap-checker') {
+                assert.equal(result.statusCode, 200, result.body);
+                assert.match(
+                    JSON.parse(result.json().output).sitemaps[0].problems[0],
+                    /too complex/,
+                );
+            } else {
+                assert.equal(result.statusCode, 400, result.body);
+                assert.match(result.json().error, /too complex/);
+            }
+            assert.ok(healthMs < 500, `Health blocked for ${healthMs} ms`);
+            assert.ok(totalMs < 2000, `Complex page took ${totalMs} ms`);
+            t.diagnostic(
+                `${id}: reject ${Math.round(totalMs)} ms, concurrent health ${Math.round(healthMs)} ms`,
+            );
+        }
+        assert.equal(
+            (
+                await app.inject({
+                    method: 'POST',
+                    url: '/api/tools/parse-web-page/run',
+                    payload: { input: '<p>not public</p>' },
+                })
+            ).statusCode,
+            404,
+        );
+    },
+);
+test('worker parsers cap nesting and element count for HTML, XML and link previews', async (t) => {
+    const runner = new ToolRunner();
+    t.after(() => runner.close());
+    const nested = '<x>'.repeat(20000) + 'x' + '</x>'.repeat(20000);
+    for (const id of ['parse-web-page', 'parse-link-preview', 'parse-sitemap'] as const) {
+        await assert.rejects(
+            runner.run(id, nested, { origin: 'https://example.com' }),
+            /too complex/,
+        );
+        await assert.rejects(
+            runner.run(id, '<p>x</p>'.repeat(32000), { origin: 'https://example.com' }),
+            /too complex/,
+        );
+    }
+    const page = JSON.parse(
+        await runner.run('parse-web-page', '<main><h1>OK</h1><p>Bounded content.</p></main>', {
+            origin: 'https://example.com',
+        }),
+    );
+    assert.match(page.markdown, /# OK/);
+    const preview = JSON.parse(
+        await runner.run(
+            'parse-link-preview',
+            '<title>Test</title><meta property="og:title" content="Example">',
+            { origin: 'https://example.com' },
+        ),
+    );
+    assert.equal(preview.title, 'Test');
+    assert.equal(preview.metadata['og:title'], 'Example');
+});
+test('compressed sitemap declarations and redirected gzip bodies report a clear limitation', async (t) => {
+    const { default: http } = await import('node:http');
+    const { syncBuiltinESMExports } = await import('node:module');
+    let declared = 'http://8.8.8.8/sitemap.xml.gz';
+    const fetched: string[] = [];
+    const fixture = http.createServer((request, response) => {
+        fetched.push(request.url!);
+        if (request.url === '/robots.txt')
+            response.end(`User-agent: *\nAllow: /\nSitemap: ${declared}\n`);
+        else if (request.url === '/redirect.xml') {
+            response.writeHead(302, { location: '/sitemap.xml.gz' });
+            response.end();
+        } else {
+            response.setHeader('content-type', 'application/gzip');
+            response.end(Buffer.from([0x1f, 0x8b, 8, 0]));
+        }
+    });
+    await new Promise<void>((resolve) => fixture.listen(0, '127.0.0.1', resolve));
+    const port = (fixture.address() as { port: number }).port,
+        send = http.request;
+    t.mock.method(http, 'request', ((options: any, callback: any) =>
+        send({ ...options, hostname: '127.0.0.1', port }, callback)) as typeof http.request);
+    syncBuiltinESMExports();
+    const runner = new NetworkRunner();
+    t.after(async () => {
+        await runner.close();
+        await new Promise<void>((resolve) => fixture.close(() => resolve()));
+        t.mock.restoreAll();
+        syncBuiltinESMExports();
+    });
+    const first = JSON.parse(
+        await runner.run(
+            'network-robots-and-sitemap-checker',
+            'http://8.8.8.8/docs',
+            {},
+            new AbortController().signal,
+        ),
+    );
+    assert.match(first.sitemaps[0].problems[0], /Compressed sitemaps are not supported/);
+    assert.ok(!fetched.includes('/sitemap.xml.gz'));
+    declared = 'http://8.8.8.8/redirect.xml';
+    const redirected = JSON.parse(
+        await runner.run(
+            'network-robots-and-sitemap-checker',
+            'http://8.8.8.8/docs',
+            {},
+            new AbortController().signal,
+        ),
+    );
+    assert.match(redirected.sitemaps[0].problems[0], /Compressed sitemaps are not supported/);
+    declared = 'http://8.8.8.8/binary';
+    const binary = JSON.parse(
+        await runner.run(
+            'network-robots-and-sitemap-checker',
+            'http://8.8.8.8/docs',
+            {},
+            new AbortController().signal,
+        ),
+    );
+    assert.match(binary.sitemaps[0].problems[0], /Compressed sitemaps are not supported/);
 });

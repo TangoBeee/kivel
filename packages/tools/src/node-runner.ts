@@ -2,7 +2,8 @@ import { Worker } from 'node:worker_threads';
 import { randomUUID } from 'node:crypto';
 import type { ToolId as BrowserToolId } from './engine.js';
 import type { MediaOperationId } from './media-definitions.js';
-type ToolId = BrowserToolId | MediaOperationId;
+import type { NetworkParseId } from './network-parsers.js';
+type ToolId = BrowserToolId | MediaOperationId | NetworkParseId;
 export type ToolInputFile = { name: string; bytes: Uint8Array };
 import type { OperationOptions } from './definitions.js';
 export class ToolExecutionError extends Error {

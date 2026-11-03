@@ -6,12 +6,11 @@ import { parseSse } from '@socket-help/tools/sse';
 import { connect, checkServerIdentity } from 'node:tls';
 import { isIP } from 'node:net';
 import { domainToASCII } from 'node:url';
-import { load } from 'cheerio';
 import { networkOperations } from '@socket-help/tools/network-definitions';
 import type { NetworkOperationId } from '@socket-help/tools/network-definitions';
 import type { ExtraDefinition } from '@socket-help/tools/extra-definitions';
 import type { OperationOptions } from '@socket-help/tools/definitions';
-import { ToolExecutionError } from '@socket-help/tools/node';
+import { ToolRunner, ToolExecutionError } from '@socket-help/tools/node';
 import { followPublic, publicRequest, publicUrl, resolvePublic } from './public-network.js';
 export function dnsResponseKey(response: {
     status: number;
@@ -248,7 +247,10 @@ export async function inspectTls(input: string, signal: AbortSignal) {
     });
 }
 export class NetworkRunner {
-    constructor(private eventSend: typeof publicRequest = publicRequest) {}
+    constructor(
+        private eventSend: typeof publicRequest = publicRequest,
+        private runner = new ToolRunner(),
+    ) {}
     private active = new Set<AbortController>();
     async run(
         id: NetworkOperationId,
@@ -315,6 +317,7 @@ export class NetworkRunner {
     close() {
         for (const controller of this.active) controller.abort();
         this.active.clear();
+        return this.runner.close();
     }
     private async execute(
         id: NetworkOperationId,
@@ -324,9 +327,9 @@ export class NetworkRunner {
     ): Promise<unknown> {
         switch (id) {
             case 'network-web-page-to-markdown':
-                return pageToMarkdown(input, signal);
+                return pageToMarkdown(input, signal, this.runner);
             case 'network-robots-and-sitemap-checker':
-                return checkRobots(input, options.userAgent ?? '*', signal);
+                return checkRobots(input, options.userAgent ?? '*', signal, this.runner);
             case 'email-email-authentication-checker': {
                 const host = domain(input),
                     selector = options.selector?.trim() ?? '';
@@ -597,35 +600,18 @@ export class NetworkRunner {
                     )
                 )
                     throw new ToolExecutionError('The endpoint did not return HTML.');
-                const $ = load(response.body.toString('utf8')),
-                    meta: Record<string, string> = {};
-                $('meta')
-                    .slice(0, 200)
-                    .each((_index, element) => {
-                        const key = $(element).attr('property') ?? $(element).attr('name'),
-                            value = $(element).attr('content');
-                        if (
-                            key &&
-                            value &&
-                            (key.startsWith('og:') ||
-                                key.startsWith('twitter:') ||
-                                key === 'description')
-                        )
-                            meta[key.slice(0, 100)] = value.slice(0, 4096);
-                    });
-                const canonical = $('link[rel="canonical"]').first().attr('href');
-                let canonicalUrl: string | null = null;
-                if (canonical)
-                    try {
-                        canonicalUrl = new URL(canonical, response.url).href;
-                    } catch {}
                 return {
                     url: response.url,
                     status: response.status,
-                    title: $('title').first().text().trim().slice(0, 500),
-                    description: meta.description ?? null,
-                    canonical: canonicalUrl,
-                    metadata: meta,
+                    ...JSON.parse(
+                        await this.runner.run(
+                            'parse-link-preview',
+                            response.body.toString('utf8'),
+                            { origin: response.url },
+                            undefined,
+                            signal,
+                        ),
+                    ),
                     truncated: response.truncated,
                     hops: response.hops,
                 };

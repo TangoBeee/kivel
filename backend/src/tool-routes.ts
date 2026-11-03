@@ -210,11 +210,10 @@ export class ToolService {
         private frontendDir?: string,
         eventSend?: typeof publicRequest,
     ) {
-        this.network = new NetworkRunner(eventSend);
+        this.network = new NetworkRunner(eventSend, this.runner);
     }
     close() {
-        this.network.close();
-        return Promise.all([this.runner.close(), this.media.close(), this.av.close()]);
+        return Promise.all([this.network.close(), this.media.close(), this.av.close()]);
     }
     private async music(id: string) {
         const track = musicTracks.find((track) => track.id === id);

@@ -41,9 +41,6 @@ importers:
       dodopayments:
         specifier: 2.57.0
         version: 2.57.0
-      fast-xml-parser:
-        specifier: 5.11.2
-        version: 5.11.2
       fastify:
         specifier: ^5.12.7
         version: 5.12.7
@@ -77,9 +74,6 @@ importers:
       ssh2:
         specifier: ^1.17.0
         version: 1.17.0
-      turndown:
-        specifier: 7.2.4
-        version: 7.2.4
     devDependencies:
       '@modelcontextprotocol/sdk':
         specifier: 1.32.2
@@ -102,9 +96,6 @@ importers:
       '@types/ssh2':
         specifier: ^1.15.6
         version: 1.15.6
-      '@types/turndown':
-        specifier: 5.0.6
-        version: 5.0.6
       qrcode-generator:
         specifier: 2.0.4
         version: 2.0.4
@@ -230,6 +221,9 @@ importers:
       bwip-js:
         specifier: 4.11.4
         version: 4.11.4
+      cheerio:
+        specifier: 1.2.0
+        version: 1.2.0
       cron-parser:
         specifier: 5.10.2
         version: 5.10.2
@@ -239,6 +233,9 @@ importers:
       fast-xml-parser:
         specifier: 5.11.2
         version: 5.11.2
+      htmlparser2:
+        specifier: 10.1.0
+        version: 10.1.0
       libphonenumber-js:
         specifier: 1.13.15
         version: 1.13.15
@@ -266,6 +263,9 @@ importers:
       sharp:
         specifier: 0.35.5
         version: 0.35.5(@types/node@26.6.5)
+      turndown:
+        specifier: 7.2.4
+        version: 7.2.4
       yaml:
         specifier: 2.9.1
         version: 2.9.1
@@ -276,6 +276,9 @@ importers:
       '@types/papaparse':
         specifier: 5.5.2
         version: 5.5.2
+      '@types/turndown':
+        specifier: 5.0.6
+        version: 5.0.6
       typescript:
         specifier: ^7.0.2
         version: 7.0.2

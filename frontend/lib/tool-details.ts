@@ -75,7 +75,7 @@ const developerDetails: Record<string, ToolDetail[]> = {
         {
             title: 'Separate format testing from payment testing',
             paragraphs: [
-                'An IBAN combines a country code, check digits and a country specific account string. These fixtures have the expected country length and a valid mod 97 checksum. US records have a nine digit routing number with an ABA checksum and a separate account number. Each account in one batch is distinct.',
+                'An IBAN combines a country code, check digits and a country specific account string. These fixtures have the expected country length and a valid mod 97 checksum. Belgian, Spanish and French fixtures also include their national account check digits. US records have a nine digit routing number with an ABA checksum and a separate account number. Each account in one batch is distinct.',
                 'Checksums detect common typing mistakes; they do not prove that a bank or account exists. These fixtures do not claim real issuers and are not official payment sandbox credentials. Use them for parsers, input masks and API fixtures. Use your payment provider\u2019s documented sandbox accounts when testing transfers or account verification.',
             ],
         },
@@ -129,7 +129,7 @@ const developerDetails: Record<string, ToolDetail[]> = {
         {
             title: 'Make daylight saving choices explicit',
             paragraphs: [
-                'An offset timestamp identifies one instant. A local timestamp needs a source IANA timezone such as America/New_York, and the converter then shows the same instant in the destination zone and UTC. Unix seconds and milliseconds make the result usable in API payloads and schedulers.',
+                'An offset timestamp identifies one instant. If a timezone annotation conflicts with that offset, the input is rejected. A local timestamp needs a source IANA timezone such as America/New_York, and the converter then shows the same instant in the destination zone and UTC. Unix seconds and milliseconds make the result usable in API payloads and schedulers.',
                 'Daylight saving can make a local time occur twice or not occur at all. The default rejects both cases so an agent cannot silently choose the wrong instant. Select earlier or later only when you intend that interpretation. Timezone rules come from the runtime and may change when governments update their calendars.',
             ],
         },

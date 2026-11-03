@@ -34,7 +34,8 @@
     "./mock-crud": "./dist/mock-crud.js",
     "./billing-plans": "./dist/billing-plans.js",
     "./llm-mock": "./dist/llm-mock.js",
-    "./oauth": "./dist/oauth.js"
+    "./oauth": "./dist/oauth.js",
+    "./network-parsers": "./dist/network-parsers.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -47,9 +48,11 @@
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
     "bwip-js": "4.11.4",
+    "cheerio": "1.2.0",
     "cron-parser": "5.10.2",
     "diff": "9.0.0",
     "fast-xml-parser": "5.11.2",
+    "htmlparser2": "10.1.0",
     "libphonenumber-js": "1.13.15",
     "marked": "18.1.1",
     "papaparse": "5.7.0",
@@ -59,11 +62,13 @@
     "qrcode-generator": "2.0.4",
     "re2js": "2.9.0",
     "sharp": "0.35.5",
+    "turndown": "7.2.4",
     "yaml": "2.9.1"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
     "@types/papaparse": "5.5.2",
+    "@types/turndown": "5.0.6",
     "typescript": "^7.0.2"
   }
 }

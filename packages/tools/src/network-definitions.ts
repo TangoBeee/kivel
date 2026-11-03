@@ -283,7 +283,7 @@ export const networkOperations = {
         ],
         limits:
             webLimits +
-            ' HTML is parsed as data. Images are not downloaded, and JavaScript-rendered metadata may be absent.',
+            ' HTML is parsed as data in a worker, with up to 5,000 elements, 64 nesting levels and three seconds of processing. Images are not downloaded, and JavaScript-rendered metadata may be absent.',
         useCase: 'Check the metadata a shared link declares.',
         example: 'title, description, canonical, og:title, og:image',
     },

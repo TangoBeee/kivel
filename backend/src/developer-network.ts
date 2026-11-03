@@ -1,95 +1,23 @@
-import { XMLValidator } from 'fast-xml-parser';
-import { load } from 'cheerio';
-import TurndownService from 'turndown';
+import type { ToolRunner } from '@socket-help/tools/node';
 import robotsParser from 'robots-parser';
 import { followPublic, publicUrl } from './public-network.js';
 import { ToolExecutionError } from '@socket-help/tools/node';
 
-export function readablePage(html: string, url: string) {
-    const $ = load(html);
-    const title = $('title').first().text().trim();
-    const description = $('meta[name="description"]').attr('content') ?? '';
-    const canonical = $('link[rel="canonical"]').attr('href');
-    const safe = (value: string) => {
-        try {
-            const resolved = new URL(value, url);
-            return ['http:', 'https:'].includes(resolved.protocol) &&
-                !resolved.username &&
-                !resolved.password
-                ? resolved.href
-                : null;
-        } catch {
-            return null;
-        }
-    };
-    $(
-        'script, style, noscript, nav, footer, header, aside, form, input, button, iframe, object, embed, svg, canvas, template',
-    ).remove();
-    $('a').each((_, element) => {
-        const link = $(element),
-            href = safe(link.attr('href') ?? '');
-        if (href) link.attr('href', href);
-        else link.removeAttr('href');
-    });
-    $('img').remove();
-    const main = $('main').first().length
-        ? $('main').first()
-        : $('article').first().length
-          ? $('article').first()
-          : $('body');
-    const headings = main
-        .find('h1,h2,h3,h4,h5,h6')
-        .slice(0, 100)
-        .map((_, element) => ({
-            level: Number(element.tagName.slice(1)),
-            text: $(element).text().trim(),
-        }))
-        .get();
-    const links = [
-        ...new Map(
-            main
-                .find('a[href]')
-                .map((_, element) => ({
-                    text: $(element).text().trim(),
-                    url: $(element).attr('href')!,
-                }))
-                .get()
-                .map((link) => [link.url, link]),
-        ).values(),
-    ].slice(0, 200);
-    const converter = new TurndownService({
-        headingStyle: 'atx',
-        codeBlockStyle: 'fenced',
-        bulletListMarker: '-',
-    });
-    return {
-        url,
-        title,
-        description,
-        canonical: canonical ? safe(canonical) : null,
-        html: main.html() ?? '',
-        markdown: converter.turndown(main.html() ?? ''),
-        text: main
-            .clone()
-            .find('p,li,h1,h2,h3,h4,h5,h6,pre,blockquote,br')
-            .append('\n')
-            .end()
-            .text()
-            .replace(/[ \t]+/g, ' ')
-            .replace(/\n\s*\n/g, '\n\n')
-            .trim(),
-        headings,
-        links,
-        notice: 'Static HTML extraction. Scripts and linked content were not fetched.',
-    };
-}
-export async function pageToMarkdown(input: string, signal: AbortSignal) {
+export async function pageToMarkdown(input: string, signal: AbortSignal, runner: ToolRunner) {
     const response = await followPublic(input, signal, { body: true });
     if (response.status < 200 || response.status >= 300 || response.truncated)
         throw new ToolExecutionError('The page must return successful HTML within 256 KiB.');
     if (!/text\/html|application\/xhtml\+xml/i.test(String(response.headers['content-type'] ?? '')))
         throw new ToolExecutionError('The URL did not return an HTML page.');
-    return readablePage(response.body.toString('utf8'), response.url);
+    return JSON.parse(
+        await runner.run(
+            'parse-web-page',
+            response.body.toString('utf8'),
+            { origin: response.url },
+            undefined,
+            signal,
+        ),
+    );
 }
 type MailRecord = { name: string; type: string; values: string[]; status: number };
 export function emailAuthenticationReport(domain: string, records: MailRecord[], selector: string) {
@@ -217,69 +145,12 @@ export function emailAuthenticationReport(domain: string, records: MailRecord[],
         notice: 'Published DNS checks only, not a deliverability or message authentication test.',
     };
 }
-export function sitemapContents(xml: string, url: string) {
-    if (/<!DOCTYPE|<!ENTITY/i.test(xml))
-        throw new ToolExecutionError('Sitemaps with XML DTDs or entities are unsupported.');
-    if (XMLValidator.validate(xml) !== true)
-        throw new ToolExecutionError('Sitemap is not well formed XML.');
-    const $ = load(xml, { xml: true });
-    let tooDeep = false;
-    const elements = $('*');
-    if (elements.length > 20000) throw new ToolExecutionError('Sitemap has too many XML elements.');
-    elements.each((_, element) => {
-        let depth = 0,
-            node: any = element;
-        while (node.parent && depth <= 64) {
-            depth++;
-            node = node.parent;
-        }
-        if (depth > 64) tooDeep = true;
-    });
-    if (tooDeep) throw new ToolExecutionError('Sitemap exceeds 64 nesting levels.');
-    const kind = $('sitemapindex').length ? 'index' : $('urlset').length ? 'urlset' : 'unknown';
-    const nodes = kind === 'index' ? $('sitemapindex > sitemap') : $('urlset > url');
-    const problems: string[] = [];
-    if (kind === 'unknown') problems.push('Expected a urlset or sitemapindex root.');
-    const entries = nodes
-        .slice(0, 1000)
-        .map((_, element) => {
-            const item = $(element);
-            return {
-                url: item.children('loc').text().trim(),
-                lastModified: item.children('lastmod').text().trim() || null,
-            };
-        })
-        .get();
-    const bad = entries.filter((entry) => {
-        try {
-            return !/^https?:$/.test(new URL(entry.url).protocol);
-        } catch {
-            return true;
-        }
-    });
-    if (bad.length)
-        problems.push(`${bad.length} listed locations are not absolute HTTP or HTTPS URLs.`);
-    const crossOrigin = entries.filter((entry) => {
-        try {
-            return new URL(entry.url).origin !== new URL(url).origin;
-        } catch {
-            return false;
-        }
-    }).length;
-    if (crossOrigin)
-        problems.push(
-            `${crossOrigin} locations use a different origin. Review cross site sitemap ownership.`,
-        );
-    return {
-        url,
-        kind,
-        totalEntries: nodes.length,
-        truncated: nodes.length > 1000,
-        entries,
-        problems,
-    };
-}
-export async function checkRobots(input: string, userAgent: string, signal: AbortSignal) {
+export async function checkRobots(
+    input: string,
+    userAgent: string,
+    signal: AbortSignal,
+    runner: ToolRunner,
+) {
     if (!userAgent.trim() || userAgent.length > 128 || /[\r\n]/.test(userAgent))
         throw new ToolExecutionError('Use a crawler name of 1 to 128 characters.');
     const target = publicUrl(input),
@@ -309,6 +180,8 @@ export async function checkRobots(input: string, userAgent: string, signal: Abor
     const sitemaps = [];
     for (const candidate of candidates) {
         try {
+            if (/\.xml\.gz$/i.test(new URL(candidate).pathname))
+                throw new ToolExecutionError('Compressed sitemaps are not supported.');
             const result = await followPublic(candidate, signal, { body: true });
             if (result.status < 200 || result.status >= 300) {
                 sitemaps.push({
@@ -320,8 +193,21 @@ export async function checkRobots(input: string, userAgent: string, signal: Abor
                 continue;
             }
             if (result.truncated) throw new ToolExecutionError('Sitemap exceeds 256 KiB.');
+            if (
+                /\.xml\.gz$/i.test(new URL(result.url).pathname) ||
+                (result.body[0] === 0x1f && result.body[1] === 0x8b)
+            )
+                throw new ToolExecutionError('Compressed sitemaps are not supported.');
             sitemaps.push({
-                ...sitemapContents(result.body.toString('utf8'), result.url),
+                ...JSON.parse(
+                    await runner.run(
+                        'parse-sitemap',
+                        result.body.toString('utf8'),
+                        { origin: result.url },
+                        undefined,
+                        signal,
+                    ),
+                ),
                 status: result.status,
             });
         } catch (error) {

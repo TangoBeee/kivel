@@ -190,8 +190,8 @@ function identities(options: OperationOptions) {
                 : locale === 'en-GB'
                   ? `+441632960${String(i).padStart(3, '0')}`
                   : locale === 'de-DE'
-                    ? `+4930555${String(1000 + i)}`
-                    : `+3319955${String(1000 + i)}`;
+                    ? `+493023125${String(i).padStart(3, '0')}`
+                    : `+3319900${String(i).padStart(4, '0')}`;
         return {
             name,
             firstName: first,
@@ -251,18 +251,33 @@ function accounts(options: OperationOptions) {
             rows.push({ country, routingNumber, accountNumber, type: 'checking' });
             continue;
         }
-        const bban =
-            country === 'DE'
-                ? digits(18)
-                : country === 'GB'
-                  ? 'TEST' + digits(14)
-                  : country === 'NL'
-                    ? 'TEST' + digits(10)
-                    : country === 'FR'
-                      ? digits(23)
-                      : country === 'ES'
-                        ? digits(20)
-                        : digits(12);
+        let bban: string;
+        if (country === 'BE') {
+            const base = digits(10);
+            bban = base + String(mod97(base) || 97).padStart(2, '0');
+        } else if (country === 'ES') {
+            const bankBranch = digits(8),
+                account = digits(10);
+            const control = (value: string) => {
+                const sum = [...value].reduce(
+                    (sum, digit, index) =>
+                        sum + Number(digit) * [1, 2, 4, 8, 5, 10, 9, 7, 3, 6][index]!,
+                    0,
+                );
+                const check = 11 - (sum % 11);
+                return check === 11 ? 0 : check === 10 ? 1 : check;
+            };
+            bban = bankBranch + control('00' + bankBranch) + String(control(account)) + account;
+        } else if (country === 'FR') {
+            const base = digits(21);
+            bban = base + String(97 - mod97(base + '00')).padStart(2, '0');
+        } else
+            bban =
+                country === 'DE'
+                    ? digits(18)
+                    : country === 'GB'
+                      ? 'TEST' + digits(14)
+                      : 'TEST' + digits(10);
         const iban = country + String(98 - mod97(bban + country + '00')).padStart(2, '0') + bban;
         if (seen.has(iban)) continue;
         seen.add(iban);
@@ -576,7 +591,7 @@ export function scanSecrets(input: string) {
         ['Private key', /-----BEGIN (?:RSA |EC |OPENSSH |ENCRYPTED )?PRIVATE KEY-----/g],
         [
             'Credential assignment',
-            /\b(?:api[_-]?key|access[_-]?token|client[_-]?secret|password|auth[_-]?token)\s*[:=]\s*["']?([A-Za-z0-9_+\/.=-]{12,255})/gi,
+            /\b(?:api[_-]?key|access[_-]?token|client[_-]?secret|secret|password|auth[_-]?token)\s*[:=]\s*["']?([A-Za-z0-9_+\/.=-]{12,255})/gi,
         ],
     ];
     const findings: {
@@ -596,7 +611,11 @@ export function scanSecrets(input: string) {
                 before = input.slice(0, index);
             findings.push({
                 provider,
-                masked: token.length > 16 ? token.slice(0, 4) + '••••' + token.slice(-4) : '••••',
+                masked:
+                    !['Credential assignment', 'JWT', 'Private key'].includes(provider) &&
+                    token.length > 16
+                        ? token.slice(0, 4) + '••••' + token.slice(-4)
+                        : `${token.length} characters`,
                 line: before.split('\n').length,
                 column: index - before.lastIndexOf('\n'),
                 severity: provider === 'JWT' ? 'review' : 'high',
@@ -672,13 +691,20 @@ export async function runDeveloperTool(
             try {
                 const source = options.from ?? 'America/New_York',
                     target = options.timezone ?? 'Asia/Kolkata';
-                const instant = /(?:Z|[+-]\d\d:\d\d)$/.test(input.trim())
-                    ? Temporal.Instant.from(input.trim())
-                    : Temporal.PlainDateTime.from(input.trim())
-                          .toZonedDateTime(source, {
-                              disambiguation: disambiguation as 'reject' | 'earlier' | 'later',
-                          })
-                          .toInstant();
+                const value = input.trim();
+                const resolution = {
+                    disambiguation: disambiguation as 'reject' | 'earlier' | 'later',
+                };
+                const instant = value.includes('[')
+                    ? Temporal.ZonedDateTime.from(value, {
+                          ...resolution,
+                          offset: 'reject',
+                      }).toInstant()
+                    : /[zZ]|[+-]/.test(value.slice(value.indexOf('T') + 1))
+                      ? Temporal.Instant.from(value)
+                      : Temporal.PlainDateTime.from(value)
+                            .toZonedDateTime(source, resolution)
+                            .toInstant();
                 const from = instant.toZonedDateTimeISO(source),
                     to = instant.toZonedDateTimeISO(target);
                 return {
@@ -695,7 +721,7 @@ export async function runDeveloperTool(
                 };
             } catch {
                 throw new Error(
-                    'Enter a valid ISO date and time and IANA timezones. This local time may be missing or repeated during daylight saving; choose earlier or later explicitly to resolve it.',
+                    'Enter a valid ISO date and time and IANA timezones. Timezone annotations must agree with their offset. A local time may be missing or repeated during daylight saving; choose earlier or later explicitly to resolve it.',
                 );
             }
         }

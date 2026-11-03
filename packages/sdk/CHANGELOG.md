@@ -1,5 +1,11 @@
 # @socket-help/sdk
 
+## 0.5.1
+
+### Patch Changes
+
+- d69807d: Expose the original query string on captured webhook requests.
+
 ## 0.5.0
 
 ### Minor Changes

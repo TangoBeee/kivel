@@ -1,5 +1,12 @@
 # @socket-help/cli
 
+## 0.5.1
+
+### Patch Changes
+
+- Updated dependencies [d69807d]
+    - @socket-help/sdk@0.5.1
+
 ## 0.5.0
 
 ### Minor Changes

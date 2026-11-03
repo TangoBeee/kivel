@@ -9,6 +9,18 @@ import { docPages } from '../lib/docs';
 import { toolExample } from '../lib/tool-guides';
 import { siteOrigin } from '../lib/site';
 import { paidPlansEnabled } from '../lib/pricing';
+const providerSource = await readFile('components/toolbox-provider.tsx', 'utf8');
+const providerBody = /<Context\.Provider\b[^>]*>([\s\S]*?)<\/Context\.Provider>/.exec(
+    providerSource,
+)?.[1];
+assert.ok(providerBody, 'Toolbox context wraps the application');
+assert.ok(providerBody.includes('{children}'), 'Application shares the toolbox context');
+assert.equal(
+    [...providerBody.matchAll(/<Dialog\.Root\b/g)].length,
+    2,
+    'Search and preview dialogs must share the application context',
+);
+
 const escape = (value: string) =>
     value
         .replaceAll('&', '&amp;')

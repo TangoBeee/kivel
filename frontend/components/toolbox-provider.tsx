@@ -164,189 +164,177 @@ export function ToolboxProvider({ children }: { children: React.ReactNode }) {
                 reducedMotion="user"
                 transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
             >
-                <Context.Provider value={context}>{children}</Context.Provider>
-                <Dialog.Root open={searchOpen} onOpenChange={setSearchOpen}>
-                    <Dialog.Content
-                        className="command-dialog"
-                        maxWidth="640px"
-                        onOpenAutoFocus={(event) => {
-                            event.preventDefault();
-                            input.current?.focus();
-                        }}
-                        onCloseAutoFocus={(event) => {
-                            event.preventDefault();
-                            if (!planned) returnFocus.current?.focus();
-                        }}
-                    >
-                        <VisuallyHidden>
-                            <Dialog.Title>Search tools and categories</Dialog.Title>
-                            <Dialog.Description>
-                                Find available tools or explore the roadmap.
-                            </Dialog.Description>
-                        </VisuallyHidden>
-                        <Command
-                            shouldFilter={false}
-                            loop
-                            label="Tool search"
-                            onKeyDown={(event) => {
-                                const command = query.trim().toLowerCase();
-                                if (event.key === 'Enter' && ['/ping', '/tea'].includes(command)) {
-                                    event.preventDefault();
-                                    event.stopPropagation();
-                                    setSecret(command === '/ping' ? 'ping' : 'tea');
-                                    if (timer.current) clearTimeout(timer.current);
-                                    timer.current = setTimeout(() => {
-                                        setSecret(null);
-                                        setQuery('');
-                                    }, 2200);
-                                }
+                <Context.Provider value={context}>
+                    {children}
+                    <Dialog.Root open={searchOpen} onOpenChange={setSearchOpen}>
+                        <Dialog.Content
+                            className="command-dialog"
+                            maxWidth="640px"
+                            onOpenAutoFocus={(event) => {
+                                event.preventDefault();
+                                input.current?.focus();
+                            }}
+                            onCloseAutoFocus={(event) => {
+                                event.preventDefault();
+                                if (!planned) returnFocus.current?.focus();
                             }}
                         >
-                            <div className="command-input-row">
-                                <Icon name="search" size={22} />
-                                <Command.Input
-                                    ref={input}
-                                    value={query}
-                                    onValueChange={(value) => {
-                                        setSecret(null);
-                                        setQuery(value);
-                                    }}
-                                    placeholder="Search tools and categories…"
-                                    aria-label="Search tools and categories"
-                                />
-                                <Dialog.Close>
-                                    <IconButton
-                                        variant="ghost"
-                                        color="gray"
-                                        aria-label="Close search"
-                                    >
-                                        <Icon name="close" size={17} />
-                                    </IconButton>
-                                </Dialog.Close>
-                            </div>
-                            <Command.List className="command-list">
-                                <AnimatePresence mode="wait">
-                                    {secret ? (
-                                        <motion.div
-                                            key={secret}
-                                            className="search-secret"
-                                            initial={{ opacity: 0, y: reduceMotion ? 0 : 4 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0 }}
-                                            role="status"
+                            <VisuallyHidden>
+                                <Dialog.Title>Search tools and categories</Dialog.Title>
+                                <Dialog.Description>
+                                    Find available tools or explore the roadmap.
+                                </Dialog.Description>
+                            </VisuallyHidden>
+                            <Command
+                                shouldFilter={false}
+                                loop
+                                label="Tool search"
+                                onKeyDown={(event) => {
+                                    const command = query.trim().toLowerCase();
+                                    if (
+                                        event.key === 'Enter' &&
+                                        ['/ping', '/tea'].includes(command)
+                                    ) {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+                                        setSecret(command === '/ping' ? 'ping' : 'tea');
+                                        if (timer.current) clearTimeout(timer.current);
+                                        timer.current = setTimeout(() => {
+                                            setSecret(null);
+                                            setQuery('');
+                                        }, 2200);
+                                    }
+                                }}
+                            >
+                                <div className="command-input-row">
+                                    <Icon name="search" size={22} />
+                                    <Command.Input
+                                        ref={input}
+                                        value={query}
+                                        onValueChange={(value) => {
+                                            setSecret(null);
+                                            setQuery(value);
+                                        }}
+                                        placeholder="Search tools and categories…"
+                                        aria-label="Search tools and categories"
+                                    />
+                                    <Dialog.Close>
+                                        <IconButton
+                                            variant="ghost"
+                                            color="gray"
+                                            aria-label="Close search"
                                         >
-                                            <span
-                                                className={
-                                                    secret === 'ping' ? 'ping-ring' : 'tea-steam'
-                                                }
+                                            <Icon name="close" size={17} />
+                                        </IconButton>
+                                    </Dialog.Close>
+                                </div>
+                                <Command.List className="command-list">
+                                    <AnimatePresence mode="wait">
+                                        {secret ? (
+                                            <motion.div
+                                                key={secret}
+                                                className="search-secret"
+                                                initial={{ opacity: 0, y: reduceMotion ? 0 : 4 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0 }}
+                                                role="status"
                                             >
-                                                <Icon
-                                                    name={secret === 'ping' ? 'pulse' : 'coffee'}
-                                                    size={28}
-                                                />
-                                            </span>
-                                            <code>
-                                                {secret === 'ping' ? 'pong' : '418 · I’m a teapot.'}
-                                            </code>
-                                        </motion.div>
-                                    ) : (
-                                        <div key="results">
-                                            {!query.trim() && recent.length > 0 && (
-                                                <Command.Group heading="Recently used">
-                                                    {recent.slice(0, 5).map((tool) => (
-                                                        <Command.Item
-                                                            key={`recent-${tool.id}`}
-                                                            value={`recent:${tool.id}`}
-                                                            onSelect={() => visit(tool)}
-                                                        >
-                                                            <span className="search-result-icon">
-                                                                <Icon name={tool.icon} size={19} />
-                                                            </span>
-                                                            <span className="search-result-copy">
-                                                                <strong>{tool.name}</strong>
-                                                                <span>{tool.description}</span>
-                                                            </span>
-                                                            <Icon name="arrow-up" size={16} />
-                                                        </Command.Item>
-                                                    ))}
-                                                </Command.Group>
-                                            )}
-                                            {!query.trim() && (
-                                                <div className="command-section-label">
-                                                    Explore categories
-                                                </div>
-                                            )}
-                                            {!!matchingCategories.length && (
-                                                <Command.Group
-                                                    heading={
-                                                        query.trim() ? 'Categories' : undefined
+                                                <span
+                                                    className={
+                                                        secret === 'ping'
+                                                            ? 'ping-ring'
+                                                            : 'tea-steam'
                                                     }
                                                 >
-                                                    {matchingCategories
-                                                        .slice(0, query ? 4 : 6)
-                                                        .map((category) => (
+                                                    <Icon
+                                                        name={
+                                                            secret === 'ping' ? 'pulse' : 'coffee'
+                                                        }
+                                                        size={28}
+                                                    />
+                                                </span>
+                                                <code>
+                                                    {secret === 'ping'
+                                                        ? 'pong'
+                                                        : '418 · I’m a teapot.'}
+                                                </code>
+                                            </motion.div>
+                                        ) : (
+                                            <div key="results">
+                                                {!query.trim() && recent.length > 0 && (
+                                                    <Command.Group heading="Recently used">
+                                                        {recent.slice(0, 5).map((tool) => (
                                                             <Command.Item
-                                                                key={category.id}
-                                                                value={`category:${category.id}`}
-                                                                onSelect={() => {
-                                                                    setSearchOpen(false);
-                                                                    router.push(
-                                                                        categoryHref(category.id),
-                                                                    );
-                                                                }}
+                                                                key={`recent-${tool.id}`}
+                                                                value={`recent:${tool.id}`}
+                                                                onSelect={() => visit(tool)}
                                                             >
                                                                 <span className="search-result-icon">
                                                                     <Icon
-                                                                        name={category.icon}
+                                                                        name={tool.icon}
                                                                         size={19}
                                                                     />
                                                                 </span>
                                                                 <span className="search-result-copy">
-                                                                    <strong>{category.name}</strong>
-                                                                    <span>
-                                                                        {category.description}
-                                                                    </span>
+                                                                    <strong>{tool.name}</strong>
+                                                                    <span>{tool.description}</span>
                                                                 </span>
-                                                                <Icon name="chevron" size={15} />
+                                                                <Icon name="arrow-up" size={16} />
                                                             </Command.Item>
                                                         ))}
-                                                </Command.Group>
-                                            )}
-                                            {!!query.trim() && (
-                                                <Command.Group heading="Tools">
-                                                    {matches.map((tool) => (
-                                                        <Command.Item
-                                                            key={tool.id}
-                                                            value={tool.id}
-                                                            onSelect={() => visit(tool)}
-                                                        >
-                                                            <span className="search-result-icon">
-                                                                <Icon name={tool.icon} size={19} />
-                                                            </span>
-                                                            <span className="search-result-copy">
-                                                                <strong>{tool.name}</strong>
-                                                                <span>
-                                                                    {
-                                                                        categories.find(
-                                                                            (category) =>
-                                                                                category.id ===
-                                                                                tool.categoryId,
-                                                                        )?.name
-                                                                    }
-                                                                </span>
-                                                            </span>
-                                                            <Availability tool={tool} />
-                                                        </Command.Item>
-                                                    ))}
-                                                </Command.Group>
-                                            )}
-                                            {!query.trim() && (
-                                                <Command.Group heading="Available now">
-                                                    {catalog
-                                                        .filter(
-                                                            (tool) => tool.status === 'available',
-                                                        )
-                                                        .map((tool) => (
+                                                    </Command.Group>
+                                                )}
+                                                {!query.trim() && (
+                                                    <div className="command-section-label">
+                                                        Explore categories
+                                                    </div>
+                                                )}
+                                                {!!matchingCategories.length && (
+                                                    <Command.Group
+                                                        heading={
+                                                            query.trim() ? 'Categories' : undefined
+                                                        }
+                                                    >
+                                                        {matchingCategories
+                                                            .slice(0, query ? 4 : 6)
+                                                            .map((category) => (
+                                                                <Command.Item
+                                                                    key={category.id}
+                                                                    value={`category:${category.id}`}
+                                                                    onSelect={() => {
+                                                                        setSearchOpen(false);
+                                                                        router.push(
+                                                                            categoryHref(
+                                                                                category.id,
+                                                                            ),
+                                                                        );
+                                                                    }}
+                                                                >
+                                                                    <span className="search-result-icon">
+                                                                        <Icon
+                                                                            name={category.icon}
+                                                                            size={19}
+                                                                        />
+                                                                    </span>
+                                                                    <span className="search-result-copy">
+                                                                        <strong>
+                                                                            {category.name}
+                                                                        </strong>
+                                                                        <span>
+                                                                            {category.description}
+                                                                        </span>
+                                                                    </span>
+                                                                    <Icon
+                                                                        name="chevron"
+                                                                        size={15}
+                                                                    />
+                                                                </Command.Item>
+                                                            ))}
+                                                    </Command.Group>
+                                                )}
+                                                {!!query.trim() && (
+                                                    <Command.Group heading="Tools">
+                                                        {matches.map((tool) => (
                                                             <Command.Item
                                                                 key={tool.id}
                                                                 value={tool.id}
@@ -361,104 +349,144 @@ export function ToolboxProvider({ children }: { children: React.ReactNode }) {
                                                                 <span className="search-result-copy">
                                                                     <strong>{tool.name}</strong>
                                                                     <span>
-                                                                        {tool.local
-                                                                            ? 'Runs in your browser'
-                                                                            : 'A live endpoint, ready to use'}
+                                                                        {
+                                                                            categories.find(
+                                                                                (category) =>
+                                                                                    category.id ===
+                                                                                    tool.categoryId,
+                                                                            )?.name
+                                                                        }
                                                                     </span>
                                                                 </span>
-                                                                <Icon name="arrow-up" size={16} />
+                                                                <Availability tool={tool} />
                                                             </Command.Item>
                                                         ))}
-                                                </Command.Group>
-                                            )}
-                                            {query.trim() &&
-                                                !matches.length &&
-                                                !matchingCategories.length && (
-                                                    <Command.Empty>
-                                                        <Icon name="search" size={24} />
-                                                        <strong>No matching tools</strong>
-                                                        <span>
-                                                            Try a category, like “PDF”, “email”, or
-                                                            “MCP”.
-                                                        </span>
-                                                    </Command.Empty>
+                                                    </Command.Group>
                                                 )}
-                                        </div>
-                                    )}
-                                </AnimatePresence>
-                            </Command.List>
-                            <div className="command-footer">
-                                <span>
-                                    <Kbd>↑</Kbd>
-                                    <Kbd>↓</Kbd> to navigate
-                                </span>
-                                <span>
-                                    <Kbd>↵</Kbd> to open
-                                </span>
-                                <span>
-                                    <Kbd>esc</Kbd> to close
-                                </span>
-                            </div>
-                        </Command>
-                    </Dialog.Content>
-                </Dialog.Root>
-                <Dialog.Root
-                    open={planned !== null}
-                    onOpenChange={(open) => {
-                        if (!open) setPlanned(null);
-                    }}
-                >
-                    <Dialog.Content
-                        maxWidth="460px"
-                        className="tool-preview"
-                        onCloseAutoFocus={(event) => {
-                            event.preventDefault();
-                            previewFocus.current?.focus();
+                                                {!query.trim() && (
+                                                    <Command.Group heading="Available now">
+                                                        {catalog
+                                                            .filter(
+                                                                (tool) =>
+                                                                    tool.status === 'available',
+                                                            )
+                                                            .map((tool) => (
+                                                                <Command.Item
+                                                                    key={tool.id}
+                                                                    value={tool.id}
+                                                                    onSelect={() => visit(tool)}
+                                                                >
+                                                                    <span className="search-result-icon">
+                                                                        <Icon
+                                                                            name={tool.icon}
+                                                                            size={19}
+                                                                        />
+                                                                    </span>
+                                                                    <span className="search-result-copy">
+                                                                        <strong>{tool.name}</strong>
+                                                                        <span>
+                                                                            {tool.local
+                                                                                ? 'Runs in your browser'
+                                                                                : 'A live endpoint, ready to use'}
+                                                                        </span>
+                                                                    </span>
+                                                                    <Icon
+                                                                        name="arrow-up"
+                                                                        size={16}
+                                                                    />
+                                                                </Command.Item>
+                                                            ))}
+                                                    </Command.Group>
+                                                )}
+                                                {query.trim() &&
+                                                    !matches.length &&
+                                                    !matchingCategories.length && (
+                                                        <Command.Empty>
+                                                            <Icon name="search" size={24} />
+                                                            <strong>No matching tools</strong>
+                                                            <span>
+                                                                Try a category, like “PDF”, “email”,
+                                                                or “MCP”.
+                                                            </span>
+                                                        </Command.Empty>
+                                                    )}
+                                            </div>
+                                        )}
+                                    </AnimatePresence>
+                                </Command.List>
+                                <div className="command-footer">
+                                    <span>
+                                        <Kbd>↑</Kbd>
+                                        <Kbd>↓</Kbd> to navigate
+                                    </span>
+                                    <span>
+                                        <Kbd>↵</Kbd> to open
+                                    </span>
+                                    <span>
+                                        <Kbd>esc</Kbd> to close
+                                    </span>
+                                </div>
+                            </Command>
+                        </Dialog.Content>
+                    </Dialog.Root>
+                    <Dialog.Root
+                        open={planned !== null}
+                        onOpenChange={(open) => {
+                            if (!open) setPlanned(null);
                         }}
                     >
-                        {planned && (
-                            <>
-                                <div className="preview-top">
-                                    <span className="preview-icon">
-                                        <Icon name={planned.icon} size={25} />
-                                    </span>
-                                    <Badge color="gray" variant="soft">
-                                        Coming soon
-                                    </Badge>
-                                </div>
-                                <Dialog.Title size="6">{planned.name}</Dialog.Title>
-                                <Dialog.Description size="3" color="gray">
-                                    {planned.description}
-                                </Dialog.Description>
-                                <div className="preview-note">
-                                    <Icon name="clock" size={17} />
-                                    <p>
-                                        Part of the socket.help roadmap. This tool isn’t available
-                                        yet.
-                                    </p>
-                                </div>
-                                {activeCategory && (
-                                    <Link
-                                        className="preview-category"
-                                        href={toolPageHref(planned)}
-                                        onClick={() => setPlanned(null)}
-                                    >
-                                        <Icon name={activeCategory.icon} size={18} />
-                                        <span>About {planned.name.toLowerCase()}</span>
-                                        <Icon name="arrow" size={16} />
-                                    </Link>
-                                )}
-                                <Flex justify="end" mt="5">
-                                    <Dialog.Close>
-                                        <Button variant="soft" color="gray">
-                                            Got it
-                                        </Button>
-                                    </Dialog.Close>
-                                </Flex>
-                            </>
-                        )}
-                    </Dialog.Content>
-                </Dialog.Root>
+                        <Dialog.Content
+                            maxWidth="460px"
+                            className="tool-preview"
+                            onCloseAutoFocus={(event) => {
+                                event.preventDefault();
+                                previewFocus.current?.focus();
+                            }}
+                        >
+                            {planned && (
+                                <>
+                                    <div className="preview-top">
+                                        <span className="preview-icon">
+                                            <Icon name={planned.icon} size={25} />
+                                        </span>
+                                        <Badge color="gray" variant="soft">
+                                            Coming soon
+                                        </Badge>
+                                    </div>
+                                    <Dialog.Title size="6">{planned.name}</Dialog.Title>
+                                    <Dialog.Description size="3" color="gray">
+                                        {planned.description}
+                                    </Dialog.Description>
+                                    <div className="preview-note">
+                                        <Icon name="clock" size={17} />
+                                        <p>
+                                            Part of the socket.help roadmap. This tool isn’t
+                                            available yet.
+                                        </p>
+                                    </div>
+                                    {activeCategory && (
+                                        <Link
+                                            className="preview-category"
+                                            href={toolPageHref(planned)}
+                                            onClick={() => setPlanned(null)}
+                                        >
+                                            <Icon name={activeCategory.icon} size={18} />
+                                            <span>About {planned.name.toLowerCase()}</span>
+                                            <Icon name="arrow" size={16} />
+                                        </Link>
+                                    )}
+                                    <Flex justify="end" mt="5">
+                                        <Dialog.Close>
+                                            <Button variant="soft" color="gray">
+                                                Got it
+                                            </Button>
+                                        </Dialog.Close>
+                                    </Flex>
+                                </>
+                            )}
+                        </Dialog.Content>
+                    </Dialog.Root>
+                </Context.Provider>
             </MotionConfig>
         </Theme>
     );

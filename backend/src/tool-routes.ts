@@ -73,6 +73,8 @@ const optionKeys = [
     'duration',
     'level',
     'brand',
+    'provider',
+    'address',
     'count',
     'mode',
     'secret',

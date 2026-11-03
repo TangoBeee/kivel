@@ -1,9 +1,12 @@
 # socket.help
 
-The internet toolkit for AI coding agents: webhook URLs, receive-only email,
-mock APIs and MCP servers, files, workspace memory, monitors and human approval.
+The internet toolkit for AI coding agents: HTTP and webhooks, email, mock APIs
+and OAuth, files, monitors, memory, authenticators, scheduled jobs and status
+pages, test data and media, developer utilities, DNS and network checks.
 One MCP connection, with HTTP, a TypeScript SDK, CLI and optional SSH gateway.
-Free browser utilities remain available alongside the agent tools.
+Use `search_tools` to discover the complete catalog, `describe_tool` for inputs
+and `run_tool` for utilities. Hosted resources have dedicated tools and lifecycle
+routes. The catalog drives tool counts and availability; browser utilities stay free.
 Next.js, Radix UI, Motion, Fastify and PostgreSQL.
 
 ## Development

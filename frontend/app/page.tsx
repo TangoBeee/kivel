@@ -5,15 +5,15 @@ import { Plus } from '@phosphor-icons/react/dist/ssr';
 import { CookieJar } from '../components/home/cookie-jar';
 import { CopyPrompt } from '../components/home/copy-prompt';
 import { LiveWebhook } from '../components/home/live-webhook';
-import { catalog } from '../lib/catalog';
+import { catalog, categories, categoryHref } from '../lib/catalog';
 import { paidPlansEnabled } from '../lib/pricing';
 import { setupPrompt } from '../lib/setup-prompt';
 import { siteOrigin } from '../lib/site';
 import './home.css';
 
-const title = 'Webhooks, Email & Approvals for AI Agents | socket.help';
+const title = 'The internet toolkit for AI agents | socket.help';
 const description =
-    'Webhook URLs, email inboxes, mock APIs, memory, monitors and human approval for coding agents, over one MCP connection. Agents sign themselves up and you approve them. Free to start, Pro is $2 a month.';
+    'Tools for coding agents: HTTP, email, mocks and OAuth, files, monitors, memory, authenticators, jobs, status pages, test data, media, utilities and DNS. One MCP connection.';
 
 export const metadata: Metadata = {
     metadataBase: new URL(siteOrigin),
@@ -31,11 +31,10 @@ export const metadata: Metadata = {
     twitter: { card: 'summary_large_image', title, description, images: [shareImage.url] },
 };
 
-// Everything an agent can call. The first six are hosted resources; the utilities sit behind search_tools.
 const features = [
     {
         title: 'Webhook inboxes',
-        body: 'A private URL your agent waits on until Stripe or GitHub calls.',
+        body: 'A URL for GitHub, Shopify, Slack, Twilio, Stripe or your own app.',
     },
     { title: 'Email inboxes', body: 'Signup codes and verification links, extracted.' },
     { title: 'Ask you first', body: 'Risky steps wait until you answer.' },
@@ -48,6 +47,12 @@ const features = [
         body: 'Share files by link and remember results between sessions.',
     },
     { title: 'Monitors', body: 'Uptime, certificate and cron checks that email you.' },
+    { title: 'Authenticators', body: 'Sign-in codes for accounts your human authorized.' },
+    {
+        title: 'Jobs and status pages',
+        body: 'Timed callbacks and a shared view of service health.',
+    },
+    { title: 'Test data and utilities', body: 'Fixtures, media, JSON, DNS and network checks.' },
 ];
 const available = catalog.filter((tool) => tool.status === 'available').length;
 
@@ -129,11 +134,11 @@ export default function Home() {
 
             <div className="home-first">
                 <section className="home-wrap home-hero" aria-labelledby="hero-heading">
-                    <h1 id="hero-heading">Webhooks, email and approvals for your coding agent.</h1>
+                    <h1 id="hero-heading">The internet toolkit for your coding agent.</h1>
                     <div className="home-hero-side">
                         <p>
-                            Your agent can&apos;t catch a Stripe webhook or read a signup email on
-                            its own. socket.help gives it both, and asks you before risky steps.
+                            Your agent can&apos;t catch an incoming webhook or read a signup email
+                            on its own. socket.help gives it both, and asks you before risky steps.
                         </p>
                         <div className="home-actions">
                             <CopyPrompt prompt={setupPrompt} />
@@ -169,9 +174,9 @@ export default function Home() {
                 ))}
             </section>
             <p className="home-wrap home-more">
-                That is {available} tools in all: your agent finds the rest with search_tools, from
-                JSON, JWT, DNS and SSL to regex, images and PDFs. Most also work free in your
-                browser.{' '}
+                {available} tools across {categories.length} categories. Your agent discovers the
+                whole catalog with <code>search_tools</code>. Utilities run through{' '}
+                <code>run_tool</code>; resources have their own tools. Browser utilities stay free.{' '}
                 <Link href="/catalog/" className="home-link">
                     Browse every tool
                 </Link>
@@ -180,6 +185,23 @@ export default function Home() {
                     Explore agent workflows
                 </Link>
             </p>
+
+            <nav className="home-wrap home-categories" aria-label="Explore tool categories">
+                {categories.map((category) => (
+                    <Link key={category.id} href={categoryHref(category.id)}>
+                        {category.name}{' '}
+                        <span>
+                            {
+                                catalog.filter(
+                                    (tool) =>
+                                        tool.status === 'available' &&
+                                        tool.categoryId === category.id,
+                                ).length
+                            }
+                        </span>
+                    </Link>
+                ))}
+            </nav>
 
             <section className="home-wrap home-split" aria-labelledby="try-heading">
                 <div>

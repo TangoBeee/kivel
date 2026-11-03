@@ -1,3 +1,4 @@
+import { catalog, categories } from '../../lib/catalog';
 import Link from 'next/link';
 import { plans, type PlanId } from '@socket-help/tools/plans';
 import { PageIntro } from '../../components/content-layout';
@@ -89,8 +90,14 @@ const rows: { name: string; value: (id: PlanId) => string }[] = [
 ];
 
 const extras: Record<PlanId, string[]> = {
-    anonymous: ['Webhooks, mocks and MCP without sign-up'],
-    free: ['Custom webhook responses and mock call logs', 'API keys for your AI agents'],
+    anonymous: [
+        'Browser utilities, test data and public network checks',
+        'Temporary HTTP, mock and file resources',
+    ],
+    free: [
+        'Email, memory, monitors and authenticators',
+        'Jobs, status pages and scoped agent keys',
+    ],
     pro: ['Forward webhooks to your server', 'Proxy and record real APIs'],
     team: ['Everything in Pro, shared', 'Forwarding and proxy mocks for the team'],
 };
@@ -99,7 +106,7 @@ const faqs = [
         question: 'Is socket.help free?',
         answer: paidPlansEnabled
             ? 'Browser tools and the Free workspace are free within published allowances. Pro and Team are optional monthly subscriptions.'
-            : 'Yes. The open beta is free. Browser tools work without an account, and a free account adds a workspace with 20 active resources. Paid plans are a preview and are not required to use the beta.',
+            : 'Yes. The open beta is free. Browser tools work without an account, and a free account adds a workspace with published resource allowances. Paid plans are a preview and are not required to use the beta.',
     },
     {
         question: 'Is Team priced per seat?',
@@ -159,6 +166,13 @@ export default function Plans() {
                         : 'Every limit is listed below. During the open beta everything is free; Pro and Team open after it, and no account is ever charged automatically.'
                 }
             />
+            <p className="content-lede">
+                One catalog of {catalog.filter((tool) => tool.status === 'available').length} tools
+                across {categories.length} categories: HTTP and webhooks, email, mocks and OAuth,
+                files, monitors, memory, authenticators, scheduled jobs and status pages, test data
+                and media, developer utilities, DNS and network. Browser utilities are free. Hosted
+                runs, storage and account requirements follow the limits below.
+            </p>
             <div className="pricing-grid">
                 {cardIds.map((id) => (
                     <section

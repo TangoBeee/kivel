@@ -85,3 +85,21 @@ test('new developer tools are available to Utilities, command search and catalog
         assert.equal(catalog.find((tool) => tool.id === id)?.local, false);
     assert.equal(catalog.find((tool) => tool.id === 'developer-secret-scanner')?.local, true);
 });
+
+test('agent setup and language-model summaries derive counts from the complete catalog', async () => {
+    const { setupPrompt } = await import('./setup-prompt');
+    const { llmsIndex, llmsFull } = await import('./llms');
+    const count = catalog.filter((tool) => tool.status === 'available').length;
+    for (const content of [setupPrompt, llmsIndex(), llmsFull()]) {
+        assert.ok(content.includes(`${count} tools`));
+        for (const term of [
+            'authenticators',
+            'status pages',
+            'test data',
+            'DNS',
+            'search_tools',
+            'run_tool',
+        ])
+            assert.ok(content.includes(term), term);
+    }
+});

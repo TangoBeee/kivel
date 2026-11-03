@@ -629,3 +629,39 @@ test('resource_request reads, lists and deletes resources over MCP', async (t) =
     });
     assert.notEqual(deleted.isError, true, deleted.content[0].text);
 });
+
+test('MCP instructions describe the full catalog and keep utility discovery behind generic tools', async (t) => {
+    const { catalog, categories } = await import('@socket-help/tools/catalog');
+    const app = buildApp();
+    t.after(() => app.close());
+    const result = (
+        await app.inject({ method: 'POST', url: '/mcp', headers, payload: initialize })
+    ).json().result;
+    assert.ok(result.instructions.includes(`${catalog.length} catalog tools`));
+    assert.ok(result.instructions.includes(`${categories.length} categories`));
+    for (const word of [
+        'search_tools',
+        'run_tool',
+        'OAuth',
+        'authenticators',
+        'status pages',
+        'test data',
+        'DNS',
+    ])
+        assert.ok(result.instructions.includes(word), word);
+    const listed = (
+        await app.inject({ method: 'POST', url: '/mcp', headers, payload: rpc('tools/list') })
+    ).json().result.tools;
+    assert.ok(
+        listed
+            .find((tool: { name: string; description: string }) => tool.name === 'search_tools')
+            .description.includes(String(catalog.length)),
+    );
+    for (const name of [
+        'json',
+        'base64',
+        'developer-yaml-formatter',
+        'developer-credit-card-generator',
+    ])
+        assert.ok(!listed.some((tool: { name: string }) => tool.name === name));
+});

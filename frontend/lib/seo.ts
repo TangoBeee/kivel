@@ -5,7 +5,7 @@ export const shareImage = {
     url: `${siteOrigin}/opengraph-image`,
     width: 1200,
     height: 630,
-    alt: 'socket.help — webhooks, email and approvals for coding agents',
+    alt: 'socket.help, the internet toolkit for coding agents',
 };
 
 export function pageMetadata(title: string, description: string, path: string): Metadata {

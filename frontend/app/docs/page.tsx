@@ -1,3 +1,4 @@
+import { catalog, categories } from '../../lib/catalog';
 import Link from 'next/link';
 import { DocsNav } from '../../components/docs-nav';
 import { CodeExample } from '../../components/code-example';
@@ -8,7 +9,7 @@ import { pageMetadata, breadcrumbs } from '../../lib/seo';
 
 export const metadata = pageMetadata(
     'Developer docs & API quickstart',
-    'socket.help developer docs: run utilities over HTTP, create webhook inboxes, mock APIs and file shares, use API keys, and connect the CLI, SDK, SSH, or MCP.',
+    'Use the complete socket.help toolkit over MCP, HTTP, SDK, CLI or SSH: network checks, email, mocks, files, memory, authenticators, jobs, test data and media.',
     '/docs/',
 );
 const quickstart = `curl https://socket.help/api/tools/json/run \\
@@ -51,9 +52,11 @@ export default function Docs() {
                     <div>
                         <h2>Connect your agent</h2>
                         <p>
-                            One MCP server gives your agent webhooks, email inboxes, mock APIs,
-                            memory, monitors and questions for you. The setup guide covers every
-                            client.
+                            {catalog.filter((tool) => tool.status === 'available').length} tools in{' '}
+                            {categories.length} categories: HTTP and webhooks, email, mocks and
+                            OAuth, files, monitors, memory, authenticators, jobs and status pages,
+                            test data and media, developer utilities, DNS and network. Start with
+                            search_tools to discover them.
                         </p>
                         <Link className="text-link" href="/connect/">
                             Open the setup guide →

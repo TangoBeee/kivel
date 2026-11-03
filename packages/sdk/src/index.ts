@@ -46,6 +46,7 @@ export interface CapturedRequest {
     id: string;
     method: string;
     path: string;
+    rawQuery?: string;
     headers: Record<string, string | string[]>;
     query: Record<string, string | string[]>;
     body: string;

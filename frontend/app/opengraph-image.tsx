@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { ImageResponse } from 'next/og';
 import { LogoMark } from '../components/logo';
 
-export const alt = 'socket.help: webhooks, email and approvals for your coding agent';
+export const alt = 'socket.help: the internet toolkit for your coding agent';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 export const dynamic = 'force-static';
@@ -45,7 +45,7 @@ export default async function Image() {
                         letterSpacing: '-0.04em',
                     }}
                 >
-                    <span>Webhooks, email and approvals</span>
+                    <span>The internet toolkit</span>
                     <span>for your coding agent.</span>
                 </div>
                 <div style={{ display: 'flex', fontSize: 28, fontWeight: 500, color: '#5b5b5b' }}>

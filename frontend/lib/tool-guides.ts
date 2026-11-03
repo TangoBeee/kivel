@@ -23,7 +23,7 @@ const guides: Record<string, Guide> = {
     'mock-apis-mock-oauth-provider': {
         intro: 'Test OAuth 2.0 and OpenID Connect sign in without registering a real identity account. Each workspace provider has its own issuer, discovery document, RS256 signing key and synthetic users.',
         steps: [
-            'Register exact callback URLs and synthetic users.',
+            'Choose generic, Google-style, GitHub-style, Okta-style or Auth0-style claims, then register exact callback URLs and synthetic users. These presets never impersonate a real identity service.',
             'Create the provider and save its client secret. Configure your client with the discovery URL and S256 PKCE.',
             'Approve or deny on the hosted test page. Headless prompt=none with login_hint redirects immediately only to loopback callbacks; public destinations require Continue.',
             'Switch failure scenarios, inspect requests and delete the provider when testing is complete.',
@@ -86,31 +86,31 @@ const guides: Record<string, Guide> = {
     },
 
     'developer-credit-card-generator': {
-        intro: 'Build credit-card fixtures for checkout development using published Stripe sandbox numbers. Choose Visa, Mastercard, American Express, or Discover and receive a future expiry, sample CVC, and matching test PaymentMethod identifier.',
+        intro: 'Generate unique fake credit card details for forms and fixtures, with seven brands, Luhn-valid numbers, diverse names, future expiry and correctly sized CVVs. Payment sandbox mode offers documented provider numbers instead.',
         steps: [
-            'Choose all supported brands or one brand.',
-            'Set a count from one to 20 and generate the fixtures.',
-            'Copy an individual field or download the JSON for your sandbox tests.',
+            'Choose generated data or payment sandbox numbers, then a brand.',
+            'Generate one to 50 unique records, with optional sample billing addresses.',
+            'Copy individual fields or export all cards as JSON or CSV.',
         ],
-        limits: 'These are reusable provider test numbers, not newly issued cards or live payment credentials. Numbers can repeat. Use Stripe’s test environment; compatibility with other providers is not guaranteed. Browser generation stays local. Hosted calls use normal tool quotas.',
+        limits: 'Fake test data, not usable payment cards. Funding labels and addresses in generated mode are synthetic. Expiry years are one to five calendar years ahead. Sandbox mode identifies Stripe, Adyen, Braintree or PayPal and is limited to the distinct documented numbers in your selection; follow that provider’s expiry and CVV requirements. Browser generation stays local; hosted calls use normal quotas.',
     },
     'developer-debit-card-generator': {
-        intro: 'Create debit-card test records with the published Visa debit and Mastercard debit sandbox fixtures. Funding labels come from the documented fixtures, rather than guesses about a live account.',
+        intro: 'Generate unique fake debit card details for forms and fixtures, with seven brands, Luhn-valid numbers, diverse names, future expiry and correctly sized CVVs. Payment sandbox mode offers documented provider numbers instead.',
         steps: [
-            'Choose Visa, Mastercard, or all supported debit brands.',
-            'Generate between one and 20 test records.',
-            'Use the preview for form tests or copy the PaymentMethod identifier for Stripe API tests.',
+            'Choose generated data or payment sandbox numbers, then a brand.',
+            'Generate one to 50 unique records, with optional sample billing addresses.',
+            'Copy individual fields or export all cards as JSON or CSV.',
         ],
-        limits: 'This tool creates no bank account or spendable funds. The fixed sandbox numbers repeat across records. Sample expiry and CVC values accompany each number. Browser execution stays local; hosted execution shares your plan allowance.',
+        limits: 'Fake test data, not usable payment cards. Funding labels and addresses in generated mode are synthetic. Expiry years are one to five calendar years ahead. Sandbox mode identifies Stripe, Adyen, Braintree or PayPal and is limited to the distinct documented numbers in your selection; follow that provider’s expiry and CVV requirements. Browser generation stays local; hosted calls use normal quotas.',
     },
     'developer-prepaid-card-generator': {
-        intro: 'Create prepaid-card fixtures for a payment form or funding-aware interface. The current generator uses the published Stripe Mastercard prepaid example and includes its test PaymentMethod identifier.',
+        intro: 'Generate unique fake prepaid card details for forms and fixtures, with seven brands, Luhn-valid numbers, diverse names, future expiry and correctly sized CVVs. Payment sandbox mode offers documented provider numbers instead.',
         steps: [
-            'Choose the number of fixtures, from one to 20.',
-            'Generate the Mastercard prepaid records.',
-            'Copy fields from the preview or download the fixture JSON.',
+            'Choose generated data or payment sandbox numbers, then a brand.',
+            'Generate one to 50 unique records, with optional sample billing addresses.',
+            'Copy individual fields or export all cards as JSON or CSV.',
         ],
-        limits: 'Only the documented Mastercard prepaid fixture is supported. This does not issue prepaid cards, simulate balances, or generate gift-card codes. Numbers repeat, and sample values do not select new payment outcomes. Browser generation is local; hosted calls use normal quotas.',
+        limits: 'Fake test data, not usable payment cards. Funding labels and addresses in generated mode are synthetic. Expiry years are one to five calendar years ahead. Sandbox mode identifies Stripe, Adyen, Braintree or PayPal and is limited to the distinct documented numbers in your selection; follow that provider’s expiry and CVV requirements. Browser generation stays local; hosted calls use normal quotas.',
     },
     'developer-card-number-validator': {
         intro: 'Check the Luhn checksum of a test card number without contacting a payment service. The result shows the normalized length, last four digits, and whether it exactly matches a bundled sandbox fixture.',
@@ -122,13 +122,13 @@ const guides: Record<string, Guide> = {
         limits: 'A passing checksum does not verify issuance, ownership, funds, or payment acceptance. Brand and funding labels are provided only for exact known test fixtures. Browser checks run locally. Use synthetic data; hosted checks send the input to the server for processing.',
     },
     webhooks: {
-        intro: 'A webhook inbox gives callbacks a temporary destination while you build an integration. Inspect the original body, headers, query parameters, and arrival time without maintaining a receiver.',
+        intro: 'Capture callbacks from GitHub, Shopify, Slack, Twilio, Stripe or any application. Inspect JSON, form fields, multipart file metadata, XML, text and binary payloads, including nested paths and exact query strings.',
         steps: [
             'Create an inbox and copy its endpoint.',
             'Send a request from your application or terminal.',
-            'Select the request to inspect or export its contents.',
+            'Select a request to inspect its parsed body or original bytes. Use Signature to verify a provider signature locally; your secret is never sent or saved. Open Response to set status, headers, body and delay.',
         ],
-        limits: 'Anonymous inboxes last one hour and hold up to 100 requests. Accounts receive the limits shown on the plans page. Each body is limited to 100 KiB. Choose public or private receiver access. Private senders use the X-Access-Token header; inspection uses a separate credential. Sensitive headers are redacted.',
+        limits: 'Anonymous inboxes last one hour and hold up to 100 requests. Accounts receive the limits shown on the plans page. Each body is limited to 100 KiB. Choose public or private receiver access. Private senders use the X-Access-Token header; inspection uses a separate credential. Sensitive headers are redacted. Signature presets cover Stripe, GitHub, Shopify, Slack, Twilio, Svix, Paddle, Dodo Payments, Linear and custom HMAC. Timestamp checks use receipt time. Custom HMAC signs raw bytes and optionally checks a Unix-seconds header. CONNECT tunneling is not supported; ordinary and extended HTTP methods are captured.',
     },
     json: {
         intro: 'Make JSON easier to read, check its syntax, or remove unnecessary whitespace before using it in a request or configuration file.',
@@ -481,19 +481,19 @@ const examples: Record<string, { useCase: string; example: string }> = {
         useCase:
             'Check card-entry layouts, American Express CVC length, or saved-payment summaries using a labeled credit fixture.',
         example:
-            'Funding: credit\nBrand: Visa\nNumber: 4242 4242 4242 4242\nPaymentMethod: pm_card_visa\nEnvironment: Stripe sandbox only',
+            'Funding: credit\nBrand: Visa\nNumber: 4242 4242 4242 4242\nPaymentMethod: pm_card_visa\nMode: Payment sandbox numbers\nProvider: Stripe',
     },
     'developer-debit-card-generator': {
         useCase:
-            'Exercise a debit-specific display or application branch with a provider-labeled fixture.',
+            'Exercise a debit-specific display with unique synthetic records or a documented sandbox fixture.',
         example:
-            'Funding: debit\nBrand: Visa\nNumber: 4000 0566 5566 5556\nPaymentMethod: pm_card_visa_debit\nEnvironment: Stripe sandbox only',
+            'Funding: debit\nBrand: Visa\nNumber: 4000 0566 5566 5556\nPaymentMethod: pm_card_visa_debit\nMode: Payment sandbox numbers\nProvider: Stripe',
     },
     'developer-prepaid-card-generator': {
         useCase:
             'Test a prepaid funding label without inventing an issuer, account, or stored balance.',
         example:
-            'Funding: prepaid\nBrand: Mastercard\nNumber: 5105 1051 0510 5100\nPaymentMethod: pm_card_mastercard_prepaid\nEnvironment: Stripe sandbox only',
+            'Funding: prepaid\nBrand: Mastercard\nNumber: 5105 1051 0510 5100\nPaymentMethod: pm_card_mastercard_prepaid\nMode: Payment sandbox numbers\nProvider: Stripe',
     },
     'developer-card-number-validator': {
         useCase: 'Catch a mistyped test number before a sandbox form is submitted.',
@@ -502,7 +502,7 @@ const examples: Record<string, { useCase: string; example: string }> = {
     },
     webhooks: {
         useCase:
-            'Inspect a sandbox payment callback or check what a form sends before building a receiver.',
+            'Inspect callbacks from GitHub, Shopify, Slack, Twilio, Stripe or your own app, including form submissions and file uploads.',
         example:
             'POST your inbox endpoint\nContent-Type: application/json\n\n{"event":"order.created","id":"test-001"}',
     },

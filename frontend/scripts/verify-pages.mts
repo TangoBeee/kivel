@@ -9,6 +9,18 @@ import { docPages } from '../lib/docs';
 import { toolExample } from '../lib/tool-guides';
 import { siteOrigin } from '../lib/site';
 import { paidPlansEnabled } from '../lib/pricing';
+const providerSource = await readFile('components/toolbox-provider.tsx', 'utf8');
+const providerBody = /<Context\.Provider\b[^>]*>([\s\S]*?)<\/Context\.Provider>/.exec(
+    providerSource,
+)?.[1];
+assert.ok(providerBody, 'Toolbox context wraps the application');
+assert.ok(providerBody.includes('{children}'), 'Application shares the toolbox context');
+assert.equal(
+    [...providerBody.matchAll(/<Dialog\.Root\b/g)].length,
+    2,
+    'Search and preview dialogs must share the application context',
+);
+
 const escape = (value: string) =>
     value
         .replaceAll('&', '&amp;')
@@ -192,3 +204,16 @@ assert.equal(new Set(urls).size, urls.length, 'Sitemap URLs must be unique');
 console.log(
     'Verified agent workflow content, category canonicals, private-page noindex and unique sitemap URLs.',
 );
+
+const availableCount = catalog.filter((tool) => tool.status === 'available').length;
+for (const path of ['/', '/connect/', '/plans/', '/docs/']) {
+    const html = await readFile(join('out', path, 'index.html'), 'utf8');
+    const text = html.replace(/<[^>]*>/g, '').replaceAll('&amp;', '&');
+    assert.ok(text.includes(`${availableCount} tools`), `${path}: catalog-derived tool count`);
+    for (const term of ['authenticators', 'status pages', 'test data', 'DNS'])
+        assert.ok(text.toLowerCase().includes(term.toLowerCase()), `${path}: ${term}`);
+}
+const home = await readFile('out/index.html', 'utf8');
+for (const category of categories)
+    assert.ok(home.includes(`/catalog/${category.id}/`), `Home links to ${category.name}`);
+console.log('Verified full product coverage and catalog-derived counts.');

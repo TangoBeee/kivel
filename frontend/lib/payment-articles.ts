@@ -18,22 +18,22 @@ export const paymentArticles: Article[] = [
                 title: 'Generate a fixture, not an account',
                 paragraphs: [
                     'A credit card generator is useful when you are building a payment form, writing a test, or checking how a card summary looks. Its output should be recognizable as test data, with no real customer information mixed in.',
-                    'The socket.help tool combines published Stripe sandbox numbers with a future expiry, a sample CVC, and the name TEST CARDHOLDER. It does not issue a card or create an account. The same documented card number can appear in multiple records; the number is a reusable fixture, not a unique identifier.',
+                    'The default mode creates unique synthetic numbers, names, expiry pairs and CVVs. Seven brands cover different prefixes, lengths and number grouping. Optional sample billing addresses include a country. These are fake records for forms and fixtures, not usable payment cards.',
                 ],
             },
             {
                 id: 'generate',
                 title: 'Pick a brand and generate',
                 paragraphs: [
-                    'Open the Credit card generator, choose all supported brands or one brand, and request between one and 20 records. Credit fixtures include Visa, Mastercard, American Express, and Discover.',
-                    'The preview shows the number, expiry, CVC, and PaymentMethod identifier. Copy a number for a manual sandbox form test, or download the JSON to organize sample records in your project. Generating in the browser keeps the operation on your device.',
+                    'Choose one to 50 generated records across Visa, Mastercard, American Express, Discover, JCB, Diners Club and UnionPay. Expiry years are one to five calendar years ahead. Every number, name, expiry pair and CVV in a generated batch is different.',
+                    'The preview groups the number for its brand and shows a name, expiry and CVV. Copy individual fields or export all records as JSON or CSV. Browser generation runs on your device.',
                 ],
             },
             {
                 id: 'automation',
                 title: 'Use the right fixture in automated tests',
                 paragraphs: [
-                    'Stripe recommends its test PaymentMethod identifiers for API test code rather than sending raw card numbers. The tool includes the matching identifier so a fixture can support both a manual form check and a provider API test.',
+                    'Select Payment sandbox numbers when exercising a payment processor. Choose Stripe, Adyen, Braintree or PayPal and use only that provider’s documented test values. Stripe fixtures also include their PaymentMethod identifier for API test code. Generated numbers do not promise sandbox acceptance.',
                     'You can also generate the same structured output through the socket.help API. Hosted generation uses the normal tool allowance. The response output is JSON text; parse it once before reading the cards array.',
                 ],
                 code: {
@@ -48,19 +48,33 @@ export const paymentArticles: Article[] = [
                 title: 'Check the interface as well as the request',
                 paragraphs: [
                     'Verify that your form accepts the intended number length, displays the right brand, keeps the expiry readable, and handles the different CVC length on an American Express fixture. Check keyboard entry, validation messages, and narrow layouts.',
-                    'These fixtures cover successful sandbox scenarios. For declines or authentication challenges, choose the corresponding fixture from your provider’s documentation. A random number that passes Luhn does not select a particular payment outcome.',
+                    'Generated fixtures cover your interface, not a payment outcome. For declines or authentication challenges, choose the corresponding fixture from your provider’s documentation. A random number that passes Luhn does not select a particular payment outcome.',
                 ],
             },
             {
                 id: 'limits',
                 title: 'Keep the boundaries visible',
                 paragraphs: [
-                    'Generated records are labeled testOnly and identify their source. They are for the named provider’s sandbox and do not guarantee compatibility with another payment processor.',
+                    'All records are labeled testOnly. Sandbox records name the provider and link its documentation. The available distinct official numbers limit sandbox batch size; the tool never fabricates a provider test number.',
                     'Use separate fixture IDs in your own test records when uniqueness matters. Do not use a card number as an application record key, and do not put real customer card data into a general-purpose developer tool.',
                 ],
             },
         ],
-        sources: [source],
+        sources: [
+            source,
+            {
+                title: 'Adyen test cards',
+                url: 'https://docs.adyen.com/development-resources/test-cards-and-credentials/test-card-numbers/',
+            },
+            {
+                title: 'Braintree testing',
+                url: 'https://developer.paypal.com/braintree/docs/reference/general/testing/node',
+            },
+            {
+                title: 'PayPal sandbox cards',
+                url: 'https://developer.paypal.com/sandbox-testing/card-testing',
+            },
+        ],
         related: [
             { title: 'Credit card generator', href: '/tools/credit-card-generator/' },
             { title: 'Debit card generator', href: '/tools/debit-card-generator/' },
@@ -81,15 +95,15 @@ export const paymentArticles: Article[] = [
                 title: 'Keep debit fixtures separate',
                 paragraphs: [
                     'A payment interface may need to show or handle a provider’s funding classification. A debit-card fixture lets you exercise that branch intentionally, instead of assuming that every Visa or Mastercard record represents the same funding type.',
-                    'The socket.help Debit card generator uses the provider’s published Visa debit and Mastercard debit test fixtures. Funding labels come from that fixture list; the tool does not infer a live account’s funding type from a number.',
+                    'The default debit generator produces unique synthetic records with funding set to debit. It does not infer a live issuer or account. Sandbox mode uses documented funding labels where the provider supplies them; otherwise the field says unspecified.',
                 ],
             },
             {
                 id: 'create',
                 title: 'Create a small, labeled dataset',
                 paragraphs: [
-                    'Choose a supported brand and generate one to 20 records. Each result includes funding: debit, a sandbox number, sample expiry and CVC values, and a matching PaymentMethod identifier.',
-                    'Use the card preview for a manual form test or copy the JSON into a development fixture file. Published numbers repeat when you request multiple records of the same brand. Add your own record IDs when your test needs distinct application objects.',
+                    'Choose a brand and generate one to 50 records, with optional billing addresses. Each has a unique number, name, expiry pair and CVV. Seven brand formats include 15-digit American Express and 14-digit Diners Club.',
+                    'Copy a field from its preview or export JSON and CSV. For processor integration tests, switch to Payment sandbox numbers and select the provider. Sandbox batch size cannot exceed the documented distinct numbers for that selection.',
                 ],
                 code: {
                     title: 'Generate a Mastercard debit fixture',
@@ -111,11 +125,25 @@ export const paymentArticles: Article[] = [
                 title: 'Use the same data from a script',
                 paragraphs: [
                     'The generator is available through the shared socket.help execution endpoint. SDK, CLI, SSH, and MCP clients use the same tool ID and string options. Browser generation is local; hosted calls count toward the normal daily allowance.',
-                    'Store these records as clearly named test fixtures. They are public sandbox values, not customer banking details, and they should not be used to attempt live payments.',
+                    'Store these records as clearly named test fixtures. Generated records and documented sandbox values contain no customer banking details and must never be used for live payments.',
                 ],
             },
         ],
-        sources: [source],
+        sources: [
+            source,
+            {
+                title: 'Adyen test cards',
+                url: 'https://docs.adyen.com/development-resources/test-cards-and-credentials/test-card-numbers/',
+            },
+            {
+                title: 'Braintree testing',
+                url: 'https://developer.paypal.com/braintree/docs/reference/general/testing/node',
+            },
+            {
+                title: 'PayPal sandbox cards',
+                url: 'https://developer.paypal.com/sandbox-testing/card-testing',
+            },
+        ],
         related: [
             { title: 'Debit card generator', href: '/tools/debit-card-generator/' },
             {
@@ -139,15 +167,15 @@ export const paymentArticles: Article[] = [
                 title: 'Make the funding case explicit',
                 paragraphs: [
                     'If your application shows a funding label or branches on a provider’s card metadata, include a prepaid fixture in the test dataset. An explicit case is easier to understand than a generic card object whose intended meaning is hidden.',
-                    'The socket.help Prepaid card generator currently supplies the published Stripe Mastercard prepaid fixture. The interface shows that supported brand directly rather than offering combinations the tool cannot provide.',
+                    'The default prepaid generator supports seven brand formats and labels funding as synthetic prepaid test data. It does not create an issuer relationship or balance. Sandbox mode includes the documented Stripe Mastercard prepaid fixture.',
                 ],
             },
             {
                 id: 'generate',
                 title: 'Generate and inspect the record',
                 paragraphs: [
-                    'Choose a record count from one to 20, then generate. Each preview includes the same documented prepaid number with sample expiry and CVC values, the funding label, and a PaymentMethod identifier.',
-                    'Copy a field for a manual sandbox test, or download the JSON for your project. Multiple generated records do not represent separate issued prepaid accounts, stored balances, or redeemable value.',
+                    'Generate one to 50 unique synthetic records with optional sample billing addresses. Each number passes Luhn, and each name, expiry pair and CVV is distinct within the batch. Choose Payment sandbox numbers for documented provider integration tests.',
+                    'Copy a field or export JSON and CSV for your project. Multiple generated records do not represent separate issued prepaid accounts, stored balances, or redeemable value.',
                 ],
                 code: {
                     title: 'Generate a prepaid fixture with the CLI',
@@ -167,12 +195,26 @@ export const paymentArticles: Article[] = [
                 id: 'repeat',
                 title: 'Keep fixtures repeatable',
                 paragraphs: [
-                    'Use the documented PaymentMethod identifier when testing Stripe APIs. For application-only tests, name the fixture by its role, such as prepaid-card-summary, and assert the behavior you expect.',
+                    'In Stripe sandbox mode, use the documented PaymentMethod identifier when testing Stripe APIs. For application-only tests, name the fixture by its role, such as prepaid-card-summary, and assert the behavior you expect.',
                     'The generator runs locally in the browser and through the same hosted execution interface as other utilities. No file or temporary account is created, so there is no resource lease to manage; hosted usage quotas still apply.',
                 ],
             },
         ],
-        sources: [source],
+        sources: [
+            source,
+            {
+                title: 'Adyen test cards',
+                url: 'https://docs.adyen.com/development-resources/test-cards-and-credentials/test-card-numbers/',
+            },
+            {
+                title: 'Braintree testing',
+                url: 'https://developer.paypal.com/braintree/docs/reference/general/testing/node',
+            },
+            {
+                title: 'PayPal sandbox cards',
+                url: 'https://developer.paypal.com/sandbox-testing/card-testing',
+            },
+        ],
         related: [
             { title: 'Prepaid card generator', href: '/tools/prepaid-card-generator/' },
             { title: 'Debit card generator', href: '/tools/debit-card-generator/' },
@@ -227,7 +269,21 @@ export const paymentArticles: Article[] = [
                 ],
             },
         ],
-        sources: [source],
+        sources: [
+            source,
+            {
+                title: 'Adyen test cards',
+                url: 'https://docs.adyen.com/development-resources/test-cards-and-credentials/test-card-numbers/',
+            },
+            {
+                title: 'Braintree testing',
+                url: 'https://developer.paypal.com/braintree/docs/reference/general/testing/node',
+            },
+            {
+                title: 'PayPal sandbox cards',
+                url: 'https://developer.paypal.com/sandbox-testing/card-testing',
+            },
+        ],
         related: [
             { title: 'Card number validator', href: '/tools/card-number-validator/' },
             { title: 'Credit card generator', href: '/tools/credit-card-generator/' },

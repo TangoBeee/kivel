@@ -1,6 +1,6 @@
 import { oauthSchema } from '@socket-help/tools/oauth';
 import { publicMockPayload } from './oauth.js';
-import { catalog, toolAvailability } from '@socket-help/tools/catalog';
+import { catalog, categories, toolAvailability } from '@socket-help/tools/catalog';
 import type { ServerCapabilities } from '@socket-help/tools/catalog';
 import { catalogGuide } from './tool-discovery.js';
 import { llmMockSchema } from '@socket-help/tools/llm-mock';
@@ -639,7 +639,7 @@ export const platformTools = [
     {
         name: 'run_tool',
         description:
-            'Run an executable utility, image/PDF/audio/video processor, email inspector or public network check. Use search_tools and describe_tool to find executable IDs; resource tools have separate entry points. Music library results contain audio and download URLs instead of inline files. Hosted plan quotas apply.',
+            'Run a utility from the complete catalog: developer data, test fixtures, images, PDF, audio, video, email inspection, DNS or network checks. Find inputs with search_tools and describe_tool. Hosted resources use dedicated tools. Music returns download URLs. Hosted quotas apply.',
         inputSchema: schema(
             {
                 toolId: stringProperty('Executable utility tool ID from describe_tool.'),
@@ -763,8 +763,7 @@ export const platformTools = [
     },
     {
         name: 'search_tools',
-        description:
-            'Find catalog tools and MCP tools by keyword, including webhook inboxes, memory and monitors. Returns up to 25 matches with availability and the MCP entry point. Call describe_tool for inputs and the HTTP route.',
+        description: `Search all ${catalog.length} catalog tools across ${categories.length} categories, plus native MCP tools. Resources and utilities include availability and their MCP entry point. Returns up to 25 matches. Use describe_tool for inputs.`,
         inputSchema: schema(
             { query: stringProperty('Keywords; leave empty to list the first 25 tools.') },
             [],
@@ -1878,7 +1877,7 @@ export function registerMcp({
                         serverInfo: { name: config?.name ?? 'socket.help', version: API_VERSION },
                         instructions: config
                             ? 'A temporary mock MCP server. Tools return configured static responses.'
-                            : 'Webhook, mock and file resources start with one hour. Owned email requires an account and has its own lifetime rules. Keep credentials private; use cursor-based waits. A 402 plan error needs the human to upgrade, not repeated retries.',
+                            : `${catalog.length} catalog tools across ${categories.length} categories: HTTP and webhooks, email, mocks and OAuth, files, monitors, memory, authenticators, jobs and status pages, test data and media, developer utilities, DNS and network. Use search_tools for the complete catalog, describe_tool for inputs and run_tool for utilities; use dedicated tools for resources. Utilities stay behind discovery, not in tools/list. Workspace-only features require an account. Keep credentials private, use cursor-based waits and use authenticators only for accounts the human authorized. Check capabilities and plan limits. A 402 needs the human to upgrade, not repeated retries.`,
                     };
                     break;
                 }

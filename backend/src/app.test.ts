@@ -664,3 +664,89 @@ test('every JSON error carries the request ID, including route and resource look
         assert.equal(body.requestId, response.headers['x-request-id'], url);
     }
 });
+
+test('generic webhook capture keeps extended methods, nested paths, exact queries and raw content types', async (t) => {
+    const { app, inbox, authorization, history, hook } = await setup(t);
+    const cases = [
+        ['GET', '', 'text/plain'],
+        ['HEAD', '', 'text/plain'],
+        ['POST', '{"hello":"world"}', 'application/json'],
+        ['PUT', 'name=Alex&tag=a&tag=b', 'application/x-www-form-urlencoded'],
+        ['PATCH', '<event><name>created</name></event>', 'application/xml'],
+        ['DELETE', 'deleted', 'text/plain'],
+        ['OPTIONS', '', 'text/plain'],
+        ['TRACE', '', 'text/plain'],
+        ['PROPFIND', '<propfind/>', 'application/xml'],
+    ];
+    for (const [method, body, type] of cases) {
+        const response = await app.inject({
+            method: method as 'POST',
+            url: `${hook}/any/provider/here?b=two+words&a=%2F&tag=a&tag=b`,
+            headers: { 'content-type': type! },
+            ...(body ? { payload: body } : {}),
+        });
+        assert.equal(response.statusCode, 200, response.body);
+    }
+    const boundary = 'socket-test-boundary';
+    const multipart = Buffer.concat([
+        Buffer.from(
+            `--${boundary}\r\nContent-Disposition: form-data; name="label"\r\n\r\nfixture\r\n--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="sample.bin"\r\nContent-Type: application/octet-stream\r\n\r\n`,
+        ),
+        Buffer.from([0, 255, 128]),
+        Buffer.from(`\r\n--${boundary}--\r\n`),
+    ]);
+    assert.equal(
+        (
+            await app.inject({
+                method: 'POST',
+                url: hook + '/uploads',
+                headers: { 'content-type': `multipart/form-data; boundary=${boundary}` },
+                payload: multipart,
+            })
+        ).statusCode,
+        200,
+    );
+    const binary = Buffer.from([0, 255, 128, 32, 10]);
+    assert.equal(
+        (
+            await app.inject({
+                method: 'POST',
+                url: hook + '/binary',
+                headers: { 'content-type': 'application/octet-stream' },
+                payload: binary,
+            })
+        ).statusCode,
+        200,
+    );
+    const requests = (await app.inject({ url: history, headers: { authorization } })).json()
+        .requests;
+    assert.equal(requests.length, cases.length + 2);
+    for (let i = 0; i < cases.length; i++) {
+        assert.equal(requests[i].method, cases[i]![0]);
+        assert.equal(requests[i].path, `${hook}/any/provider/here`);
+        assert.equal(requests[i].rawQuery, 'b=two+words&a=%2F&tag=a&tag=b');
+        assert.deepEqual(requests[i].query.tag, ['a', 'b']);
+    }
+    assert.deepEqual(Buffer.from(requests.at(-2).body, 'base64'), multipart);
+    assert.deepEqual(Buffer.from(requests.at(-1).body, 'base64'), binary);
+    assert.equal(
+        (
+            await app.inject({
+                method: 'POST',
+                url: `/hooks/${inbox.id.slice(0, -1)}x/path`,
+                payload: 'x',
+            })
+        ).statusCode,
+        404,
+    );
+    assert.equal(
+        (
+            await app.inject({
+                method: 'POST',
+                url: hook + '/too-big',
+                payload: 'x'.repeat(MAX_BODY_BYTES + 1),
+            })
+        ).statusCode,
+        413,
+    );
+});

@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import { catalog } from '../../lib/catalog';
-const utilityCount = catalog.filter((tool) => tool.status === 'available').length;
+import { catalog, categories } from '../../lib/catalog';
+const toolCount = catalog.filter((tool) => tool.status === 'available').length;
 import { PageIntro, StructuredData } from '../../components/content-layout';
 import { ClientTabs } from '../../components/client-tabs';
 import { CopyPrompt } from '../../components/home/copy-prompt';
@@ -11,7 +11,7 @@ import { siteOrigin } from '../../lib/site';
 
 export const metadata = pageMetadata(
     'Connect your AI agent',
-    `Connect socket.help to your MCP client. Give agents webhook inboxes, mocks, files and ${utilityCount} tools, with scoped workspace keys and browser approval.`,
+    `Connect socket.help to your MCP client. Discover ${toolCount} tools for HTTP, email, mocks, OAuth, files, monitors, memory, authenticators, jobs, test data, media, utilities and DNS.`,
     '/connect/',
 );
 
@@ -107,7 +107,7 @@ const tools: { name: string; does: string }[] = [
     { name: 'create_monitor', does: 'Watch a URL, a certificate or a cron job, with alerts.' },
     {
         name: 'search_tools',
-        does: 'Find an executable utility by keyword; hosted services use their resource tools.',
+        does: `Search all ${toolCount} tools across the complete catalog.`,
     },
     { name: 'run_tool', does: 'Run a utility: JSON, JWT, DNS, SSL, PDF, images and more.' },
     { name: 'resource_request', does: 'List, renew, share or delete what your agent created.' },
@@ -119,6 +119,7 @@ const prompts = [
     'Before you deploy, use socket.help ask_human to get my approval and wait for my answer.',
     'Mock GET /users/:id with three realistic users, then call it to check the response.',
     'Look up the DNS records and SSL certificate for example.com and summarize any problems.',
+    'Find tools for generating test data, processing media and validating developer fixtures.',
 ];
 
 export default function Connect() {
@@ -146,6 +147,11 @@ export default function Connect() {
                 </Link>
             </PageIntro>
 
+            <p className="content-lede">
+                {toolCount} tools across {categories.length} categories: HTTP and webhooks, email,
+                mocks and OAuth, files, monitors, memory, authenticators, jobs and status pages,
+                test data and media, developer utilities, DNS and network.
+            </p>
             <ol className="connect-steps">
                 <li>
                     <div>

@@ -16,6 +16,22 @@ export interface OAuthUser {
     name: string;
     claims?: Record<string, unknown>;
 }
+export const oauthClaimPresets = {
+    generic: { label: 'Generic', claims: { role: 'tester' } },
+    google: {
+        label: 'Google-style',
+        claims: { email_verified: true, given_name: 'Alex', family_name: 'Example' },
+    },
+    github: {
+        label: 'GitHub-style',
+        claims: { preferred_username: 'alex-test', profile: 'https://example.test/alex' },
+    },
+    okta: {
+        label: 'Okta-style',
+        claims: { groups: ['developers'], preferred_username: 'alex@example.test' },
+    },
+    auth0: { label: 'Auth0-style', claims: { nickname: 'alex-test', email_verified: true } },
+} as const;
 export interface OAuthConfig {
     name: string;
     redirectUris: string[];

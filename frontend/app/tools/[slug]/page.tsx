@@ -64,11 +64,10 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
                 <div className="page-width">
                     <aside className="tool-agent" aria-label="Use it from an agent">
                         <p>
-                            <strong>Your coding agent can do this too.</strong> Connect socket.help
-                            once and Claude Code, Cursor or any MCP client can use the same
-                            capability through its MCP tools. Use <code>search_tools</code> to
-                            discover executable utilities, or the resource tools for inboxes, mocks
-                            and files.
+                            <strong>Your agent can use this too.</strong> Discover the full catalog
+                            with <code>search_tools</code>, read inputs with{' '}
+                            <code>describe_tool</code>, then use <code>run_tool</code> for utilities
+                            or dedicated tools for resources.
                         </p>
                         <Link className="button" href="/connect/">
                             Set up your agent

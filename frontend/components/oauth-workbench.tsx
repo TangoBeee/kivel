@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { Button, Checkbox, Select, TextArea, TextField } from '@radix-ui/themes';
-import { oauthScenarios, validateOAuth } from '@socket-help/tools/oauth';
+import { oauthScenarios, validateOAuth, oauthClaimPresets } from '@socket-help/tools/oauth';
 import type { OAuthConfig, OAuthScenario } from '@socket-help/tools/oauth';
 import { useViewer } from '../lib/viewer';
 import { api } from '../lib/api';
@@ -118,6 +118,36 @@ export function OAuthWorkbench({ toolId }: { toolId: string }) {
                         void save();
                     }}
                 >
+                    <label className="field-label">
+                        Claim preset
+                        <Select.Root
+                            defaultValue="generic"
+                            onValueChange={(value) => {
+                                const preset =
+                                    oauthClaimPresets[value as keyof typeof oauthClaimPresets];
+                                setUsers(
+                                    JSON.stringify(
+                                        [{ ...initialUsers[0], claims: preset.claims }],
+                                        null,
+                                        2,
+                                    ),
+                                );
+                            }}
+                        >
+                            <Select.Trigger aria-label="Claim preset" />
+                            <Select.Content>
+                                {Object.entries(oauthClaimPresets).map(([value, preset]) => (
+                                    <Select.Item key={value} value={value}>
+                                        {preset.label}
+                                    </Select.Item>
+                                ))}
+                            </Select.Content>
+                        </Select.Root>
+                        <span className="field-help">
+                            Generic test claims only. Every choice uses the same socket.help test
+                            page, without real brand logos or identity accounts.
+                        </span>
+                    </label>
                     <label className="field-label">
                         Provider name
                         <TextField.Root

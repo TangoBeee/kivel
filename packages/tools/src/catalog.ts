@@ -298,15 +298,15 @@ const planned: Record<Category['id'], [string, string][]> = {
     developer: [
         [
             'Credit card generator',
-            'Create credit-card test fixtures using published Stripe sandbox numbers.',
+            'Generate unique fake credit card data or official payment sandbox numbers.',
         ],
         [
             'Debit card generator',
-            'Create Visa and Mastercard debit-card fixtures for sandbox testing.',
+            'Generate unique fake debit card data or official payment sandbox numbers.',
         ],
         [
             'Prepaid card generator',
-            'Create Mastercard prepaid fixtures for Stripe sandbox checkout tests.',
+            'Generate unique fake prepaid card data or official payment sandbox numbers.',
         ],
         ['Card number validator', 'Check the Luhn checksum of a test card number locally.'],
         ['YAML formatter', 'Format and validate YAML data.'],

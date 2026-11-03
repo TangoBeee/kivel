@@ -11,9 +11,9 @@ import type { ExtraDefinition } from '@socket-help/tools/extra-definitions';
 import { GeneratedFilePreview, MarkdownPreview } from './generated-preview';
 import {
     paymentGeneratorFunding,
-    testCardFixtures,
+    sandboxCards,
     cardBrandNames,
-    testCardSource,
+    sandboxSources,
 } from '@socket-help/tools/payment-cards';
 import { PaymentCardPreview, CardValidationPreview } from './payment-card-preview';
 import { AppSelect, SelectOption } from './app-select';
@@ -55,7 +55,15 @@ export function BrowserOperation({
     const funding = paymentGeneratorFunding[toolId as keyof typeof paymentGeneratorFunding];
     const brands = [
         ...new Set(
-            testCardFixtures.filter((card) => card.funding === funding).map((card) => card.brand),
+            options.mode === 'sandbox'
+                ? sandboxCards
+                      .filter(
+                          (card) =>
+                              card.provider === (options.provider ?? 'stripe') &&
+                              (card.funding === 'unspecified' || card.funding === funding),
+                      )
+                      .map((card) => card.brand)
+                : (Object.keys(cardBrandNames) as (keyof typeof cardBrandNames)[]),
         ),
     ];
     const structured = useMemo(
@@ -174,13 +182,10 @@ export function BrowserOperation({
                     <aside className="payment-sandbox-note">
                         <Icon name="info" size={20} />
                         <div>
-                            <strong>Sandbox fixtures, ready to copy.</strong>
+                            <strong>Fake test data. Never use it for real payments.</strong>
                             <p>
-                                Published Stripe test numbers with sample expiry and CVC values. No
-                                real account is created.{' '}
-                                <a href={testCardSource} target="_blank" rel="noreferrer">
-                                    Provider documentation ↗
-                                </a>
+                                Generated cards are for forms and fixtures; payment sandbox numbers
+                                are official test values for the selected provider only.
                             </p>
                         </div>
                     </aside>
@@ -301,35 +306,85 @@ export function BrowserOperation({
                         ))}
                     {funding && (
                         <>
-                            {brands.length > 1 ? (
+                            <label>
+                                Mode
+                                <AppSelect
+                                    value={options.mode ?? 'generated'}
+                                    onChange={(event) => {
+                                        option('mode', event.target.value);
+                                        setOptions({ mode: event.target.value });
+                                    }}
+                                >
+                                    <SelectOption value="generated">
+                                        Generated test data
+                                    </SelectOption>
+                                    <SelectOption value="sandbox">
+                                        Payment sandbox numbers
+                                    </SelectOption>
+                                </AppSelect>
+                            </label>
+                            {options.mode === 'sandbox' && (
                                 <label>
-                                    Card brand
+                                    Payment provider
                                     <AppSelect
-                                        value={options.brand ?? 'all'}
-                                        onChange={(event) => option('brand', event.target.value)}
+                                        value={options.provider ?? 'stripe'}
+                                        onChange={(event) => {
+                                            option('provider', event.target.value);
+                                            setOptions((current) => ({
+                                                ...current,
+                                                brand: 'all',
+                                                count: '1',
+                                            }));
+                                        }}
                                     >
-                                        <SelectOption value="all">
-                                            All supported brands
-                                        </SelectOption>
-                                        {brands.map((brand) => (
-                                            <SelectOption key={brand} value={brand}>
-                                                {cardBrandNames[brand]}
+                                        {Object.keys(sandboxSources).map((provider) => (
+                                            <SelectOption key={provider} value={provider}>
+                                                {
+                                                    {
+                                                        stripe: 'Stripe',
+                                                        adyen: 'Adyen',
+                                                        braintree: 'Braintree',
+                                                        paypal: 'PayPal',
+                                                    }[provider]
+                                                }
                                             </SelectOption>
                                         ))}
                                     </AppSelect>
                                 </label>
-                            ) : (
-                                <div className="payment-fixed-brand">
-                                    <span>Card brand</span>
-                                    <strong>Mastercard</strong>
-                                </div>
                             )}
+                            <label>
+                                Card brand
+                                <AppSelect
+                                    value={options.brand ?? 'all'}
+                                    onChange={(event) => {
+                                        option('brand', event.target.value);
+                                        setOptions((current) => ({ ...current, count: '1' }));
+                                    }}
+                                >
+                                    <SelectOption value="all">All supported brands</SelectOption>
+                                    {brands.map((brand) => (
+                                        <SelectOption key={brand} value={brand}>
+                                            {cardBrandNames[brand]}
+                                        </SelectOption>
+                                    ))}
+                                </AppSelect>
+                            </label>
+                            <label>
+                                Billing address
+                                <AppSelect
+                                    value={options.address ?? 'false'}
+                                    onChange={(event) => option('address', event.target.value)}
+                                >
+                                    <SelectOption value="false">Without address</SelectOption>
+                                    <SelectOption value="true">Include sample address</SelectOption>
+                                </AppSelect>
+                            </label>
                             <label>
                                 Number of fixtures
                                 <input
                                     type="number"
                                     min="1"
-                                    max="20"
+                                    max="50"
                                     step="1"
                                     value={options.count ?? '1'}
                                     onChange={(event) => option('count', event.target.value)}
@@ -525,8 +580,8 @@ export function BrowserOperation({
                         <Icon name="receipt" size={28} />
                         <strong>Your test fixtures will appear here.</strong>
                         <p>
-                            Choose a brand and generate up to 20 records. Copy individual numbers or
-                            download the JSON.
+                            Choose a brand and generate up to 50 unique records. Copy any field or
+                            export JSON and CSV.
                         </p>
                     </div>
                 )}

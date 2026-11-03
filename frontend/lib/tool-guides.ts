@@ -86,31 +86,31 @@ const guides: Record<string, Guide> = {
     },
 
     'developer-credit-card-generator': {
-        intro: 'Build credit-card fixtures for checkout development using published Stripe sandbox numbers. Choose Visa, Mastercard, American Express, or Discover and receive a future expiry, sample CVC, and matching test PaymentMethod identifier.',
+        intro: 'Generate unique fake credit card details for forms and fixtures, with seven brands, Luhn-valid numbers, diverse names, future expiry and correctly sized CVVs. Payment sandbox mode offers documented provider numbers instead.',
         steps: [
-            'Choose all supported brands or one brand.',
-            'Set a count from one to 20 and generate the fixtures.',
-            'Copy an individual field or download the JSON for your sandbox tests.',
+            'Choose generated data or payment sandbox numbers, then a brand.',
+            'Generate one to 50 unique records, with optional sample billing addresses.',
+            'Copy individual fields or export all cards as JSON or CSV.',
         ],
-        limits: 'These are reusable provider test numbers, not newly issued cards or live payment credentials. Numbers can repeat. Use Stripe’s test environment; compatibility with other providers is not guaranteed. Browser generation stays local. Hosted calls use normal tool quotas.',
+        limits: 'Fake test data, not usable payment cards. Funding labels and addresses in generated mode are synthetic. Expiry years are one to five calendar years ahead. Sandbox mode identifies Stripe, Adyen, Braintree or PayPal and is limited to the distinct documented numbers in your selection; follow that provider’s expiry and CVV requirements. Browser generation stays local; hosted calls use normal quotas.',
     },
     'developer-debit-card-generator': {
-        intro: 'Create debit-card test records with the published Visa debit and Mastercard debit sandbox fixtures. Funding labels come from the documented fixtures, rather than guesses about a live account.',
+        intro: 'Generate unique fake debit card details for forms and fixtures, with seven brands, Luhn-valid numbers, diverse names, future expiry and correctly sized CVVs. Payment sandbox mode offers documented provider numbers instead.',
         steps: [
-            'Choose Visa, Mastercard, or all supported debit brands.',
-            'Generate between one and 20 test records.',
-            'Use the preview for form tests or copy the PaymentMethod identifier for Stripe API tests.',
+            'Choose generated data or payment sandbox numbers, then a brand.',
+            'Generate one to 50 unique records, with optional sample billing addresses.',
+            'Copy individual fields or export all cards as JSON or CSV.',
         ],
-        limits: 'This tool creates no bank account or spendable funds. The fixed sandbox numbers repeat across records. Sample expiry and CVC values accompany each number. Browser execution stays local; hosted execution shares your plan allowance.',
+        limits: 'Fake test data, not usable payment cards. Funding labels and addresses in generated mode are synthetic. Expiry years are one to five calendar years ahead. Sandbox mode identifies Stripe, Adyen, Braintree or PayPal and is limited to the distinct documented numbers in your selection; follow that provider’s expiry and CVV requirements. Browser generation stays local; hosted calls use normal quotas.',
     },
     'developer-prepaid-card-generator': {
-        intro: 'Create prepaid-card fixtures for a payment form or funding-aware interface. The current generator uses the published Stripe Mastercard prepaid example and includes its test PaymentMethod identifier.',
+        intro: 'Generate unique fake prepaid card details for forms and fixtures, with seven brands, Luhn-valid numbers, diverse names, future expiry and correctly sized CVVs. Payment sandbox mode offers documented provider numbers instead.',
         steps: [
-            'Choose the number of fixtures, from one to 20.',
-            'Generate the Mastercard prepaid records.',
-            'Copy fields from the preview or download the fixture JSON.',
+            'Choose generated data or payment sandbox numbers, then a brand.',
+            'Generate one to 50 unique records, with optional sample billing addresses.',
+            'Copy individual fields or export all cards as JSON or CSV.',
         ],
-        limits: 'Only the documented Mastercard prepaid fixture is supported. This does not issue prepaid cards, simulate balances, or generate gift-card codes. Numbers repeat, and sample values do not select new payment outcomes. Browser generation is local; hosted calls use normal quotas.',
+        limits: 'Fake test data, not usable payment cards. Funding labels and addresses in generated mode are synthetic. Expiry years are one to five calendar years ahead. Sandbox mode identifies Stripe, Adyen, Braintree or PayPal and is limited to the distinct documented numbers in your selection; follow that provider’s expiry and CVV requirements. Browser generation stays local; hosted calls use normal quotas.',
     },
     'developer-card-number-validator': {
         intro: 'Check the Luhn checksum of a test card number without contacting a payment service. The result shows the normalized length, last four digits, and whether it exactly matches a bundled sandbox fixture.',
@@ -481,19 +481,19 @@ const examples: Record<string, { useCase: string; example: string }> = {
         useCase:
             'Check card-entry layouts, American Express CVC length, or saved-payment summaries using a labeled credit fixture.',
         example:
-            'Funding: credit\nBrand: Visa\nNumber: 4242 4242 4242 4242\nPaymentMethod: pm_card_visa\nEnvironment: Stripe sandbox only',
+            'Funding: credit\nBrand: Visa\nNumber: 4242 4242 4242 4242\nPaymentMethod: pm_card_visa\nMode: Payment sandbox numbers\nProvider: Stripe',
     },
     'developer-debit-card-generator': {
         useCase:
-            'Exercise a debit-specific display or application branch with a provider-labeled fixture.',
+            'Exercise a debit-specific display with unique synthetic records or a documented sandbox fixture.',
         example:
-            'Funding: debit\nBrand: Visa\nNumber: 4000 0566 5566 5556\nPaymentMethod: pm_card_visa_debit\nEnvironment: Stripe sandbox only',
+            'Funding: debit\nBrand: Visa\nNumber: 4000 0566 5566 5556\nPaymentMethod: pm_card_visa_debit\nMode: Payment sandbox numbers\nProvider: Stripe',
     },
     'developer-prepaid-card-generator': {
         useCase:
             'Test a prepaid funding label without inventing an issuer, account, or stored balance.',
         example:
-            'Funding: prepaid\nBrand: Mastercard\nNumber: 5105 1051 0510 5100\nPaymentMethod: pm_card_mastercard_prepaid\nEnvironment: Stripe sandbox only',
+            'Funding: prepaid\nBrand: Mastercard\nNumber: 5105 1051 0510 5100\nPaymentMethod: pm_card_mastercard_prepaid\nMode: Payment sandbox numbers\nProvider: Stripe',
     },
     'developer-card-number-validator': {
         useCase: 'Catch a mistyped test number before a sandbox form is submitted.',

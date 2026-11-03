@@ -204,17 +204,40 @@ test('SDK, CLI, HTTP and MCP execute one precision-preserving engine with shared
     assert.equal(result.output, input);
     assert.equal(result.usage.used, 3);
     const credit = JSON.parse(
-        (await client.run('developer-credit-card-generator', '', { brand: 'amex', count: '2' }))
-            .output,
+        (
+            await client.run('developer-credit-card-generator', '', {
+                brand: 'amex',
+                count: '2',
+                address: 'true',
+            })
+        ).output,
     );
     assert.equal(credit.cards.length, 2);
     assert.equal(credit.cards[0].cvc.length, 4);
+    assert.ok(credit.cards[0].billingAddress.country);
+    const sandbox = JSON.parse(
+        (
+            await client.run('developer-credit-card-generator', '', {
+                mode: 'sandbox',
+                provider: 'paypal',
+                address: 'true',
+            })
+        ).output,
+    );
+    assert.equal(sandbox.provider, 'paypal');
+    assert.ok(sandbox.cards[0].billingAddress.country);
     const debit = (await command(
         client,
-        ['run', 'developer-debit-card-generator', '--options', '{"brand":"visa"}'],
+        [
+            'run',
+            'developer-debit-card-generator',
+            '--options',
+            '{"brand":"visa","mode":"sandbox","provider":"braintree","address":"true"}',
+        ],
         Buffer.alloc(0),
     )) as typeof api;
-    assert.equal(JSON.parse(debit.output).cards[0].funding, 'debit');
+    assert.equal(JSON.parse(debit.output).provider, 'braintree');
+    assert.ok(JSON.parse(debit.output).cards[0].billingAddress.country);
     const prepaidMcp = await app.inject({
         method: 'POST',
         url: '/mcp',
@@ -228,19 +251,23 @@ test('SDK, CLI, HTTP and MCP execute one precision-preserving engine with shared
             method: 'tools/call',
             params: {
                 name: 'run_tool',
-                arguments: { toolId: 'developer-prepaid-card-generator', options: { count: '1' } },
+                arguments: {
+                    toolId: 'developer-prepaid-card-generator',
+                    options: { count: '1', mode: 'sandbox', provider: 'stripe', address: 'true' },
+                },
             },
         },
     });
     assert.equal(prepaidMcp.json().result.isError, false);
     const prepaid = JSON.parse(JSON.parse(prepaidMcp.json().result.content[0].text).output);
     assert.equal(prepaid.cards[0].paymentMethod, 'pm_card_mastercard_prepaid');
+    assert.ok(prepaid.cards[0].billingAddress.country);
     assert.equal(
         (
             await app.inject({
                 method: 'POST',
                 url: '/api/tools/developer-prepaid-card-generator/run',
-                payload: { options: { brand: 'visa' } },
+                payload: { options: { brand: 'unknown' } },
             })
         ).statusCode,
         400,

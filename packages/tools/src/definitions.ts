@@ -1,9 +1,70 @@
 import { extraOperations } from './extra-definitions.js';
+import type { UtilityField } from './extra-definitions.js';
+const cardFields: readonly UtilityField[] = [
+    {
+        key: 'mode',
+        label: 'Mode',
+        defaultValue: 'generated',
+        choices: [
+            ['generated', 'Generated test data'],
+            ['sandbox', 'Payment sandbox numbers'],
+        ],
+    },
+    {
+        key: 'provider',
+        label: 'Payment provider',
+        defaultValue: 'stripe',
+        when: ['mode', 'sandbox'],
+        choices: [
+            ['stripe', 'Stripe'],
+            ['adyen', 'Adyen'],
+            ['braintree', 'Braintree'],
+            ['paypal', 'PayPal'],
+        ],
+    },
+    {
+        key: 'brand',
+        label: 'Card brand',
+        defaultValue: 'all',
+        choices: [
+            ['all', 'All brands'],
+            ['visa', 'Visa'],
+            ['mastercard', 'Mastercard'],
+            ['amex', 'American Express'],
+            ['discover', 'Discover'],
+            ['jcb', 'JCB'],
+            ['diners', 'Diners Club'],
+            ['unionpay', 'UnionPay'],
+        ],
+    },
+    { key: 'count', label: 'Number of cards', defaultValue: '1', type: 'number', min: 1, max: 50 },
+    {
+        key: 'address',
+        label: 'Include sample billing address',
+        defaultValue: 'false',
+        choices: [
+            ['false', 'No'],
+            ['true', 'Yes'],
+        ],
+    },
+];
 export const browserOperations = {
     ...extraOperations,
-    'developer-credit-card-generator': { action: 'Generate test cards', input: false },
-    'developer-debit-card-generator': { action: 'Generate test cards', input: false },
-    'developer-prepaid-card-generator': { action: 'Generate test cards', input: false },
+    'developer-credit-card-generator': {
+        action: 'Generate test cards',
+        input: false,
+        fields: cardFields,
+    },
+    'developer-debit-card-generator': {
+        action: 'Generate test cards',
+        input: false,
+        fields: cardFields,
+    },
+    'developer-prepaid-card-generator': {
+        action: 'Generate test cards',
+        input: false,
+        fields: cardFields,
+    },
     'developer-card-number-validator': { action: 'Check card number', input: true },
     'developer-yaml-formatter': { action: 'Format YAML', input: true },
     'developer-jwt-inspector': { action: 'Inspect token', input: true },
@@ -63,6 +124,8 @@ export interface OperationOptions {
     duration?: string;
     level?: string;
     brand?: string;
+    provider?: string;
+    address?: string;
     count?: string;
     mode?: string;
     secret?: string;

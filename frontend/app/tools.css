@@ -2800,3 +2800,52 @@ html[data-view='resource'] .tool-title-pitch {
 html[data-view='resource'] .tool-title-name {
   display: inline;
 }
+
+.payment-export-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.payment-export-row p {
+  margin: 0;
+}
+.payment-card-chip {
+  display: block;
+  margin-top: 20px;
+  color: var(--muted);
+}
+.payment-card-fields {
+  grid-template-columns: 1fr 1fr;
+}
+.payment-card-fields > div:first-child {
+  grid-column: 1 / -1;
+}
+.payment-card-fields dd {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+.payment-card-fields dd > span {
+  min-width: 0;
+}
+.payment-card-fields dd > button {
+  flex-shrink: 0;
+}
+.payment-card-number {
+  gap: 8px;
+  margin: 18px 0 24px;
+}
+@media (max-width: 400px) {
+  .payment-card-number strong {
+    font-size: clamp(13px, 3.6vw, 16px);
+    letter-spacing: 0;
+  }
+  .payment-card-fields > div:last-child {
+    grid-column: auto;
+  }
+}

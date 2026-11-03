@@ -120,53 +120,90 @@ test('formatting and inspection preserve large integers while conversions reject
     );
 });
 
-test('payment generators return documented funding fixtures, correct CVC lengths, and future expiry', async () => {
-    const { testCardFixtures, passesLuhn, generateTestCards } =
+test('generated cards have valid brand formats and unique numbers, names, expiry and CVV', async () => {
+    const { passesLuhn, cardBrandNames, generateTestCards } =
         await import('@socket-help/tools/payment-cards');
+    const now = new Date('2026-12-31T23:59:59Z');
+    const patterns = {
+        visa: /^4\d{15}$/,
+        mastercard: /^(5[1-5]\d{14}|2\d{15})$/,
+        amex: /^3[47]\d{13}$/,
+        discover: /^(6011\d{12}|64[4-9]\d{13})$/,
+        jcb: /^35\d{14}$/,
+        diners: /^3[036]\d{12}$/,
+        unionpay: /^62\d{14}$/,
+    };
     for (const funding of ['credit', 'debit', 'prepaid'] as const) {
-        const id = `developer-${funding}-card-generator` as const;
-        const result = JSON.parse(await run(id, '', { count: '20' }));
-        assert.equal(result.testOnly, true);
-        assert.equal(result.provider, 'stripe');
-        assert.equal(result.cards.length, 20);
-        for (const card of result.cards) {
-            assert.ok(
-                testCardFixtures.some(
-                    (fixture) =>
-                        fixture.number === card.number &&
-                        fixture.funding === funding &&
-                        fixture.paymentMethod === card.paymentMethod,
-                ),
+        for (const brand of Object.keys(cardBrandNames) as (keyof typeof cardBrandNames)[]) {
+            const batch = generateTestCards(funding, { brand, count: '50', address: 'true' }, now);
+            assert.equal(batch.testOnly, true);
+            assert.equal(batch.mode, 'generated');
+            for (const field of ['number', 'holder', 'cvc'] as const)
+                assert.equal(new Set(batch.cards.map((card) => card[field])).size, 50, field);
+            assert.equal(
+                new Set(batch.cards.map((card) => `${card.expiryMonth}/${card.expiryYear}`)).size,
+                50,
             );
-            assert.equal(card.funding, funding);
-            assert.equal(passesLuhn(card.number), true);
-            assert.match(card.cvc, card.brand === 'amex' ? /^\d{4}$/ : /^\d{3}$/);
-            assert.ok(Date.UTC(card.expiryYear, card.expiryMonth) > Date.now());
+            for (const card of batch.cards) {
+                assert.equal(card.funding, funding);
+                assert.match(card.number, patterns[brand]);
+                assert.equal(passesLuhn(card.number), true);
+                if (brand === 'mastercard')
+                    assert.ok(
+                        /^5[1-5]/.test(card.number) ||
+                            (Number(card.number.slice(0, 4)) >= 2221 &&
+                                Number(card.number.slice(0, 4)) <= 2720),
+                    );
+                if (brand === 'jcb')
+                    assert.ok(
+                        Number(card.number.slice(0, 4)) >= 3528 &&
+                            Number(card.number.slice(0, 4)) <= 3589,
+                    );
+                assert.match(card.cvc, brand === 'amex' ? /^\d{4}$/ : /^\d{3}$/);
+                assert.ok(card.expiryYear >= 2027 && card.expiryYear <= 2031);
+                assert.ok(card.expiryMonth >= 1 && card.expiryMonth <= 12);
+                assert.ok(card.billingAddress?.country);
+                assert.equal(card.paymentMethod, undefined);
+            }
         }
+        const result = JSON.parse(
+            await run(`developer-${funding}-card-generator`, '', { count: '50' }),
+        );
+        assert.equal(result.cards.length, 50);
+        assert.equal(result.cards[0].billingAddress, undefined);
     }
-    const deterministicExpiry = generateTestCards(
-        'credit',
-        { brand: 'amex' },
-        new Date('2026-12-31T23:59:59Z'),
-    );
-    assert.equal(deterministicExpiry.cards[0]!.expiryMonth, 12);
-    assert.equal(deterministicExpiry.cards[0]!.expiryYear, 2028);
-    assert.equal(deterministicExpiry.cards[0]!.cvc.length, 4);
 });
-test('payment fixtures reject unsupported brands and unbounded counts', async () => {
-    for (const count of ['0', '21', '-1', '1.5', 'Infinity', '', 'invalid'])
+test('sandbox mode preserves official provider numbers and never invents funding labels', async () => {
+    const { sandboxCards, generateTestCards, passesLuhn } =
+        await import('@socket-help/tools/payment-cards');
+    for (const provider of ['stripe', 'adyen', 'braintree', 'paypal']) {
+        const batch = generateTestCards('credit', { mode: 'sandbox', provider });
+        assert.equal(batch.provider, provider);
+        assert.ok(batch.source?.startsWith('https://'));
+        assert.ok(
+            sandboxCards.some(
+                (card) => card.provider === provider && card.number === batch.cards[0]!.number,
+            ),
+        );
+        assert.equal(passesLuhn(batch.cards[0]!.number), true);
+        if (provider !== 'stripe') assert.equal(batch.cards[0]!.funding, 'unspecified');
+    }
+    assert.equal(
+        generateTestCards('prepaid', { mode: 'sandbox' }).cards[0]!.paymentMethod,
+        'pm_card_mastercard_prepaid',
+    );
+    assert.throws(
+        () => generateTestCards('credit', { mode: 'sandbox', brand: 'visa', count: '2' }),
+        /distinct official numbers/,
+    );
+});
+test('card generation rejects unsupported options and unbounded counts', async () => {
+    for (const count of ['0', '51', '-1', '1.5', 'Infinity', '', 'invalid'])
         await assert.rejects(run('developer-credit-card-generator', '', { count }));
-    for (const brand of ['visa', 'amex', 'unknown'])
-        await assert.rejects(run('developer-prepaid-card-generator', '', { brand }));
-    const selected = JSON.parse(
-        await run('developer-debit-card-generator', '', { brand: 'mastercard', count: '3' }),
-    );
-    assert.ok(
-        selected.cards.every(
-            (card: { brand: string; number: string }) =>
-                card.brand === 'mastercard' && card.number === '5200828282828210',
-        ),
-    );
+    await assert.rejects(run('developer-prepaid-card-generator', '', { brand: 'unknown' }));
+    await assert.rejects(run('developer-credit-card-generator', '', { mode: 'unknown' }));
+    await assert.rejects(run('developer-credit-card-generator', '', { provider: 'unknown' }));
+    await assert.rejects(run('developer-credit-card-generator', '', { address: 'maybe' }));
 });
 test('card validation checks exact fixtures and checksum failures without claiming a live card is valid', async () => {
     const { testCardFixtures } = await import('@socket-help/tools/payment-cards');

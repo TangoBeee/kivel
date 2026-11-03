@@ -34,6 +34,8 @@ jobs:
       - id: release
         run: echo "tag=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@v3
+      - id: packages
+        run: echo "day=$(date -u +%F)" >> "$GITHUB_OUTPUT"
       - uses: docker/login-action@v3
         with:
           username: tangobee
@@ -45,6 +47,7 @@ jobs:
           push: true
           # Production runs with paid plans on; the frontend is built with that baked in.
           build-args: |
+            PACKAGES_DAY=${{ steps.packages.outputs.day }}
             BILLING_ENABLED=true
             SITE_URL=https://${{ env.DOMAIN }}
           tags: ${{ env.REPOSITORY }}:app-${{ steps.release.outputs.tag }}
@@ -57,6 +60,7 @@ jobs:
           file: deploy/postgres.Dockerfile
           push: true
           tags: ${{ env.REPOSITORY }}:postgres-${{ steps.release.outputs.tag }}
+          build-args: PACKAGES_DAY=${{ steps.packages.outputs.day }}
           cache-from: type=gha,scope=postgres
           cache-to: type=gha,mode=max,scope=postgres
       - name: Build and push the proxy
@@ -66,6 +70,7 @@ jobs:
           file: deploy/caddy.Dockerfile
           push: true
           tags: ${{ env.REPOSITORY }}:proxy-${{ steps.release.outputs.tag }}
+          build-args: PACKAGES_DAY=${{ steps.packages.outputs.day }}
           cache-from: type=gha,scope=proxy
           cache-to: type=gha,mode=max,scope=proxy
       - name: Build and push the agent mail relay
@@ -76,6 +81,7 @@ jobs:
           file: deploy/mail.Dockerfile
           push: true
           tags: ${{ env.REPOSITORY }}:mail-${{ steps.release.outputs.tag }}
+          build-args: PACKAGES_DAY=${{ steps.packages.outputs.day }}
           cache-from: type=gha,scope=mail
           cache-to: type=gha,mode=max,scope=mail
       - name: Roll out to the server

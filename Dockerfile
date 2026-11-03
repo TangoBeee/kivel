@@ -18,7 +18,9 @@ COPY frontend frontend
 RUN pnpm build && pnpm --filter backend deploy --prod --legacy /release/backend
 
 FROM node:22-alpine AS runtime
-RUN apk add --no-cache ffmpeg font-dejavu
+# Changes daily in CI, so cached package layers pick up security fixes at least once a day.
+ARG PACKAGES_DAY
+RUN apk upgrade --no-cache && apk add --no-cache ffmpeg font-dejavu
 RUN mkdir -p /app/state && chown node:node /app/state
 RUN rm -rf /usr/local/lib/node_modules /opt/yarn-* \
     /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \

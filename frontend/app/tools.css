@@ -2801,6 +2801,13 @@ html[data-view='resource'] .tool-title-name {
   display: inline;
 }
 
+@media (max-width: 600px) {
+  .timezone-fields {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .webhook-signature {
   padding: 20px 0;
   max-width: 640px;

@@ -9,7 +9,7 @@ parentPort?.on(
     'message',
     async (task: {
         id: string;
-        toolId: ToolId | MediaOperationId;
+        toolId: ToolId | MediaOperationId | import('./network-parsers.js').NetworkParseId;
         input: string;
         options: OperationOptions;
         file?: { name: string; bytes: Uint8Array } | { name: string; bytes: Uint8Array }[];
@@ -23,18 +23,29 @@ parentPort?.on(
                 ['test-media-placeholder-images', 'test-media-sample-avatars'].includes(
                     task.toolId,
                 ) && task.options.format === 'png';
-            const output = png
-                ? await renderPng(task.toolId, task.input, task.options)
-                : Object.hasOwn(mediaOperations, task.toolId)
-                  ? await (
-                        await import('./media-engine.js')
-                    ).runMedia(task.toolId as MediaOperationId, task.options, task.file)
-                  : await runBrowserOperation(
-                        task.toolId as ToolId,
-                        task.input,
-                        task.options,
-                        file,
-                    );
+            const parse = ['parse-web-page', 'parse-sitemap', 'parse-link-preview'].includes(
+                task.toolId,
+            );
+            const output = parse
+                ? JSON.stringify(
+                      (await import('./network-parsers.js')).runNetworkParse(
+                          task.toolId as import('./network-parsers.js').NetworkParseId,
+                          task.input,
+                          task.options.origin ?? 'https://example.com',
+                      ),
+                  )
+                : png
+                  ? await renderPng(task.toolId, task.input, task.options)
+                  : Object.hasOwn(mediaOperations, task.toolId)
+                    ? await (
+                          await import('./media-engine.js')
+                      ).runMedia(task.toolId as MediaOperationId, task.options, task.file)
+                    : await runBrowserOperation(
+                          task.toolId as ToolId,
+                          task.input,
+                          task.options,
+                          file,
+                      );
             parentPort?.postMessage({ id: task.id, output });
         } catch (error) {
             parentPort?.postMessage({

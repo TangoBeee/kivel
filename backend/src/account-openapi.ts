@@ -92,7 +92,7 @@ export function accountOpenApi() {
                                     type: 'object',
                                     additionalProperties: { type: 'string' },
                                     description:
-                                        'Tool-specific string options: action, count, mode, secret, length, min, max, algorithm, unit, brand, pattern, flags, comparison, timezone, start, method, headers, body, from, to, columns, size, width, height, format, frequency, duration, level, recordType, origin, headerNames, credentials, expectedTxt, quality, x, y, rotation, flip, pages, values, page. See the individual tool page for controls.',
+                                        'Tool-specific string options: action, count, mode, secret, length, min, max, algorithm, unit, brand, pattern, flags, comparison, timezone, start, method, headers, body, from, to, columns, size, width, height, format, frequency, duration, level, recordType, origin, headerNames, credentials, expectedTxt, quality, x, y, rotation, flip, pages, values, page, locale, country, schema, selector, disambiguation, userAgent. See the individual tool page for controls.',
                                 },
                                 file: {
                                     oneOf: [

@@ -1,3 +1,4 @@
+import { pageToMarkdown, checkRobots, emailAuthenticationReport } from './developer-network.js';
 import { simulateWebhook } from './webhook-events.js';
 import { inspectMcp } from './mcp-inspector.js';
 import { runScenario } from './api-scenarios.js';
@@ -5,12 +6,11 @@ import { parseSse } from '@socket-help/tools/sse';
 import { connect, checkServerIdentity } from 'node:tls';
 import { isIP } from 'node:net';
 import { domainToASCII } from 'node:url';
-import { load } from 'cheerio';
 import { networkOperations } from '@socket-help/tools/network-definitions';
 import type { NetworkOperationId } from '@socket-help/tools/network-definitions';
 import type { ExtraDefinition } from '@socket-help/tools/extra-definitions';
 import type { OperationOptions } from '@socket-help/tools/definitions';
-import { ToolExecutionError } from '@socket-help/tools/node';
+import { ToolRunner, ToolExecutionError } from '@socket-help/tools/node';
 import { followPublic, publicRequest, publicUrl, resolvePublic } from './public-network.js';
 export function dnsResponseKey(response: {
     status: number;
@@ -247,7 +247,10 @@ export async function inspectTls(input: string, signal: AbortSignal) {
     });
 }
 export class NetworkRunner {
-    constructor(private eventSend: typeof publicRequest = publicRequest) {}
+    constructor(
+        private eventSend: typeof publicRequest = publicRequest,
+        private runner = new ToolRunner(),
+    ) {}
     private active = new Set<AbortController>();
     async run(
         id: NetworkOperationId,
@@ -314,6 +317,7 @@ export class NetworkRunner {
     close() {
         for (const controller of this.active) controller.abort();
         this.active.clear();
+        return this.runner.close();
     }
     private async execute(
         id: NetworkOperationId,
@@ -322,6 +326,43 @@ export class NetworkRunner {
         signal: AbortSignal,
     ): Promise<unknown> {
         switch (id) {
+            case 'network-web-page-to-markdown':
+                return pageToMarkdown(input, signal, this.runner);
+            case 'network-robots-and-sitemap-checker':
+                return checkRobots(input, options.userAgent ?? '*', signal, this.runner);
+            case 'email-email-authentication-checker': {
+                const host = domain(input),
+                    selector = options.selector?.trim() ?? '';
+                if (
+                    selector.length > 128 ||
+                    (selector && `${selector}._domainkey.${host}`.length > 253) ||
+                    (selector && !/^[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)*$/.test(selector))
+                )
+                    throw new ToolExecutionError(
+                        'Use a DKIM selector with letters, digits, dots, underscores or hyphens.',
+                    );
+                const queries = [
+                    ['SPF', host, 'TXT'],
+                    ['DMARC', `_dmarc.${host}`, 'TXT'],
+                    ['MX', host, 'MX'],
+                    ['BIMI', `default._bimi.${host}`, 'TXT'],
+                    ...(selector ? [['DKIM', `${selector}._domainkey.${host}`, 'TXT']] : []),
+                ];
+                const records = await Promise.all(
+                    queries.map(async ([type, name, query]) => {
+                        const response = await dnsAnswer(name!, query!, 'google', signal);
+                        return {
+                            name: name!,
+                            type: type!,
+                            status: response.status,
+                            values: response.answers
+                                .filter((item) => item.type === (query === 'MX' ? 15 : 16))
+                                .map((item) => (query === 'TXT' ? txtValue(item.data) : item.data)),
+                        };
+                    }),
+                );
+                return emailAuthenticationReport(host, records, selector);
+            }
             case 'mock-apis-webhook-event-simulator':
                 return simulateWebhook(input, options, signal, this.eventSend);
             case 'mock-apis-api-test-scenarios':
@@ -559,35 +600,18 @@ export class NetworkRunner {
                     )
                 )
                     throw new ToolExecutionError('The endpoint did not return HTML.');
-                const $ = load(response.body.toString('utf8')),
-                    meta: Record<string, string> = {};
-                $('meta')
-                    .slice(0, 200)
-                    .each((_index, element) => {
-                        const key = $(element).attr('property') ?? $(element).attr('name'),
-                            value = $(element).attr('content');
-                        if (
-                            key &&
-                            value &&
-                            (key.startsWith('og:') ||
-                                key.startsWith('twitter:') ||
-                                key === 'description')
-                        )
-                            meta[key.slice(0, 100)] = value.slice(0, 4096);
-                    });
-                const canonical = $('link[rel="canonical"]').first().attr('href');
-                let canonicalUrl: string | null = null;
-                if (canonical)
-                    try {
-                        canonicalUrl = new URL(canonical, response.url).href;
-                    } catch {}
                 return {
                     url: response.url,
                     status: response.status,
-                    title: $('title').first().text().trim().slice(0, 500),
-                    description: meta.description ?? null,
-                    canonical: canonicalUrl,
-                    metadata: meta,
+                    ...JSON.parse(
+                        await this.runner.run(
+                            'parse-link-preview',
+                            response.body.toString('utf8'),
+                            { origin: response.url },
+                            undefined,
+                            signal,
+                        ),
+                    ),
                     truncated: response.truncated,
                     hops: response.hops,
                 };

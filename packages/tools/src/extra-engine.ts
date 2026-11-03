@@ -1,3 +1,4 @@
+import { developerOperations } from './developer-definitions.js';
 import type { ToolFile } from './engine.js';
 import { validateMock } from './mock-config.js';
 import { parseEnvironment as parse } from './env-parser.js';
@@ -269,6 +270,19 @@ export async function runExtraOperation(
             !field.choices.some(([value]) => value === options[field.key])
         )
             throw new Error(`Choose a supported value for ${field.label}.`);
+    if (Object.hasOwn(developerOperations, id))
+        return JSON.stringify(
+            await (
+                await import('./developer-tools.js')
+            ).runDeveloperTool(id, input, {
+                ...Object.fromEntries(
+                    (definition.fields ?? []).map((field) => [field.key, field.defaultValue]),
+                ),
+                ...options,
+            }),
+            null,
+            2,
+        );
     if (id.startsWith('email-'))
         return (await import('./email-engine.js')).runEmail(id, input, options, file);
     if (

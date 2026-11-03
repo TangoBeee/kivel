@@ -1,3 +1,4 @@
+import { developerNetworkOperations } from './developer-definitions.js';
 import type { ExtraDefinition, UtilityField } from './extra-definitions.js';
 import { sampleScenario } from './api-scenarios.js';
 const record: UtilityField = {
@@ -20,6 +21,7 @@ const domainLimits =
 const webLimits =
     'Only public HTTP/HTTPS targets on ports 80, 443, 8080, or 8443. Private, loopback, link-local, and reserved IP ranges are blocked on every hop. Up to five redirects, 256 KiB response data, and a ten-second overall deadline. No cookies or user credentials are sent.';
 export const networkOperations = {
+    ...developerNetworkOperations,
     'mock-apis-webhook-event-simulator': {
         action: 'Send test event',
         input: true,
@@ -281,7 +283,7 @@ export const networkOperations = {
         ],
         limits:
             webLimits +
-            ' HTML is parsed as data. Images are not downloaded, and JavaScript-rendered metadata may be absent.',
+            ' HTML is parsed as data in a worker, with up to 5,000 elements, 64 nesting levels and three seconds of processing. Images are not downloaded, and JavaScript-rendered metadata may be absent.',
         useCase: 'Check the metadata a shared link declares.',
         example: 'title, description, canonical, og:title, og:image',
     },

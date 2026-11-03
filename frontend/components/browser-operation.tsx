@@ -45,13 +45,15 @@ export function BrowserOperation({
     const operation = useRef(0);
     const pending = useRef<AbortController | null>(null);
     useEffect(() => () => pending.current?.abort(), []);
-    const hosted =
-        Object.hasOwn(networkOperations, toolId) || Object.hasOwn(mediaOperations, toolId);
     const remote = (
         { ...networkOperations, ...mediaOperations } as Partial<Record<string, ExtraDefinition>>
     )[toolId];
     const definition = remote ?? browserOperations[toolId as BrowserOperationId];
     const extra = remote ?? (extraOperations as Partial<Record<string, ExtraDefinition>>)[toolId];
+    const hosted =
+        Object.hasOwn(networkOperations, toolId) ||
+        Object.hasOwn(mediaOperations, toolId) ||
+        extra?.server === true;
     const funding = paymentGeneratorFunding[toolId as keyof typeof paymentGeneratorFunding];
     const brands = [
         ...new Set(
@@ -75,7 +77,8 @@ export function BrowserOperation({
     );
     const inputGuide = toolInputs[toolId];
     const singleLine =
-        (hosted && !extra?.file) ||
+        (hosted && !extra?.file && !extra?.multiline) ||
+        extra?.multiline === false ||
         inputGuide?.single ||
         [
             'test-media-placeholder-images',
@@ -248,7 +251,9 @@ export function BrowserOperation({
                         {inputGuide?.hint && <p className="tool-input-hint">{inputGuide.hint}</p>}
                     </div>
                 )}
-                <div className="resource-form-fields">
+                <div
+                    className={`resource-form-fields${toolId === 'developer-timezone-converter' ? ' timezone-fields' : ''}`}
+                >
                     {extra?.fields
                         ?.filter(
                             (field) =>

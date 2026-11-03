@@ -1,3 +1,4 @@
+import type { ExtraDefinition } from './extra-definitions.js';
 import { resourceOperations } from './resource-definitions.js';
 import type { ToolIcon as IconName } from './icons.js';
 import { tools } from './legacy-tools.js';
@@ -119,6 +120,11 @@ export interface CatalogTool {
 
 const planned: Record<Category['id'], [string, string][]> = {
     network: [
+        ['Web page to Markdown', 'Extract readable Markdown, text and links from a public page.'],
+        [
+            'Robots and sitemap checker',
+            'Check crawl rules and sitemap documents for a public page.',
+        ],
         ['HTTP echo', 'See exactly what your HTTP client sends.'],
         ['Request replay', 'Resend a captured request to a test endpoint.'],
         ['Response builder', 'Return a custom status, headers, and response body.'],
@@ -194,6 +200,7 @@ const planned: Record<Category['id'], [string, string][]> = {
         ['File metadata inspector', 'Inspect file size, format, and metadata.'],
     ],
     email: [
+        ['Email authentication checker', 'Check SPF, DKIM, DMARC, MX and BIMI records.'],
         [
             'Agent email inbox',
             'Own an address for your agent, with extracted codes and verification links.',
@@ -296,6 +303,15 @@ const planned: Record<Category['id'], [string, string][]> = {
         ['Temporary notes', 'Share a short note with an expiration time.'],
     ],
     developer: [
+        ['Fake identity generator', 'Create diverse synthetic names, addresses and companies.'],
+        ['Test bank account generator', 'Generate fake IBAN and US bank account fixtures.'],
+        ['JSON Schema validator', 'Validate JSON with precise paths and readable errors.'],
+        ['JSON Schema from sample', 'Infer a reusable schema from representative JSON.'],
+        ['OpenAPI validator', 'Validate and lint OpenAPI 3.x with source locations.'],
+        ['Secret scanner', 'Find likely exposed credentials without revealing their values.'],
+        ['Phone number validator', 'Validate and format international phone numbers.'],
+        ['Timezone converter', 'Convert times with explicit daylight saving handling.'],
+        ['Date calculator', 'Calculate calendar dates and differences.'],
         [
             'Credit card generator',
             'Generate unique fake credit card data or official payment sandbox numbers.',
@@ -424,8 +440,11 @@ export const catalog: CatalogTool[] = [
     ...categories.flatMap((category) =>
         planned[category.id].map(([name, description]): CatalogTool => {
             const id = `${category.id}-${toolSlug({ name })}`;
-            const local = Object.hasOwn(browserOperations, id) && id !== 'test-media-music-library';
-            const available = local || backendToolIds.includes(id);
+            const local =
+                Object.hasOwn(browserOperations, id) &&
+                !(browserOperations as Record<string, Partial<ExtraDefinition>>)[id]?.server &&
+                id !== 'test-media-music-library';
+            const available = Object.hasOwn(browserOperations, id) || backendToolIds.includes(id);
             return {
                 id,
                 name,

@@ -1,3 +1,4 @@
+import { developerOperations } from './developer-definitions.js';
 import { imageDesignOperations } from './image-definitions.js';
 import { audioOperations } from './audio-definitions.js';
 import { dataOperations } from './data-definitions.js';
@@ -15,6 +16,8 @@ export interface UtilityField {
 export interface ExtraDefinition {
     action: string;
     input: boolean;
+    server?: boolean;
+    multiline?: boolean;
     inputLabel?: string;
     placeholder?: string;
     fields?: readonly UtilityField[];
@@ -102,6 +105,7 @@ const emailLimits =
 const htmlLimits =
     'Up to 64 KiB. Preview runs in an isolated frame with scripts, forms, popups and remote images disabled. Rendering is a browser approximation, not an email-client compatibility test. HTML output is untrusted and is not sanitized for insertion into another application.';
 export const extraOperations = {
+    ...developerOperations,
     ...dataOperations,
     'email-email-verification-tester': {
         action: 'Inspect verification email',

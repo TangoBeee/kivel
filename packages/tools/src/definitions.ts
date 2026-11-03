@@ -134,4 +134,10 @@ export interface OperationOptions {
     max?: string;
     algorithm?: string;
     unit?: string;
+    locale?: string;
+    country?: string;
+    schema?: string;
+    selector?: string;
+    disambiguation?: string;
+    userAgent?: string;
 }

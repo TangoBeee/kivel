@@ -53,6 +53,39 @@ test('search finds implemented and planned tools across categories', () => {
     assert.equal(searchTools('', categoryTools('network')).length, categoryTools('network').length);
 });
 
+test('new developer tools are available to Utilities, command search and catalog categories', () => {
+    const ids = [
+        'developer-fake-identity-generator',
+        'developer-test-bank-account-generator',
+        'developer-json-schema-validator',
+        'developer-json-schema-from-sample',
+        'developer-openapi-validator',
+        'developer-secret-scanner',
+        'developer-phone-number-validator',
+        'developer-timezone-converter',
+        'developer-date-calculator',
+        'network-web-page-to-markdown',
+        'email-email-authentication-checker',
+        'network-robots-and-sitemap-checker',
+    ];
+    const utilities = catalog.filter((tool) => tool.status === 'available');
+    for (const id of ids) {
+        const tool = utilities.find((tool) => tool.id === id)!;
+        assert.ok(tool, id);
+        assert.ok(
+            categoryTools(tool.categoryId).some((entry) => entry.id === id),
+            id,
+        );
+        assert.ok(
+            searchTools(tool.name, utilities).some((entry) => entry.id === id),
+            id,
+        );
+    }
+    for (const id of ['developer-json-schema-validator', 'developer-openapi-validator'])
+        assert.equal(catalog.find((tool) => tool.id === id)?.local, false);
+    assert.equal(catalog.find((tool) => tool.id === 'developer-secret-scanner')?.local, true);
+});
+
 test('agent setup and language-model summaries derive counts from the complete catalog', async () => {
     const { setupPrompt } = await import('./setup-prompt');
     const { llmsIndex, llmsFull } = await import('./llms');

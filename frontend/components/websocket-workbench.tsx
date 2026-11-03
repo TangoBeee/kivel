@@ -103,17 +103,15 @@ export function WebSocketWorkbench({ toolId }: { toolId: string }) {
         setError('');
         try {
             const path = `/api/mocks${mock ? `/${mock.id}` : `?visibility=${visibility}`}`;
-            const headers = {
-                'Content-Type': 'application/json',
-                ...resourceHeaders(mock?.managementToken ?? ''),
-            };
+            const credentials = resourceHeaders(mock?.managementToken ?? '');
             if (action === 'delete') {
-                await api(path, { method: 'DELETE', headers });
+                await api(path, { method: 'DELETE', headers: credentials });
                 remember(null);
                 setProbe({ label: '' });
                 setVisibility('private');
                 return;
             }
+            const headers = { 'Content-Type': 'application/json', ...credentials };
             if (action === 'sharing' && mock) {
                 const next = await (
                     await api(`${path}/sharing`, {

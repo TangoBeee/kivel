@@ -1,5 +1,10 @@
 name: CI
-on: [push, pull_request, workflow_dispatch]
+# Pull requests run once; branch pushes without a PR do not run, which saves Actions minutes.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
 concurrency:

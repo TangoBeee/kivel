@@ -1,3 +1,4 @@
+import { catalog, categories } from './catalog';
 import { oauthDoc } from './oauth-content';
 import { agentDoc } from './agent-doc';
 import { echoDoc } from './echo-content';
@@ -52,7 +53,8 @@ export const docPages: DocPage[] = [
                 id: 'overview',
                 title: 'What you can do in five minutes',
                 paragraphs: [
-                    'The socket.help HTTP API runs browser utilities on the server and creates temporary resources: webhook inboxes, mock REST APIs, file shares and mock MCP servers. You can call it from any language or shell with no account and no client library. Anonymous requests use the smallest allowances; an API key moves usage to your workspace.',
+                    `The catalog contains ${catalog.filter((tool) => tool.status === 'available').length} tools across ${categories.length} categories: HTTP and webhooks, email, mocks and OAuth, files, monitors, memory, authenticators, scheduled jobs and status pages, test data and media, developer utilities, DNS and network. Use MCP search_tools to discover them, or call the same tools over HTTP, SDK, CLI or SSH.`,
+                    'Browser utilities are free. Anonymous HTTP calls use published allowances; workspace-only features require an account and a scoped key. Hosted resources use their own entry points and lifecycle controls.',
                     'This page walks through one utility run, one webhook inbox and the switch to an API key. Every example uses plain curl against https://socket.help.',
                 ],
             },

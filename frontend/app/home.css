@@ -703,3 +703,22 @@
   color: var(--ink);
   text-decoration: underline;
 }
+
+.home-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin-top: 24px;
+  font-size: 0.9375rem;
+}
+.home-categories a {
+  text-underline-offset: 4px;
+}
+.home-categories a:hover {
+  text-decoration: underline;
+}
+.home-categories span {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  margin-left: 4px;
+}

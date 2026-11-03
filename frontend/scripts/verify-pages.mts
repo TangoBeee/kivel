@@ -204,3 +204,16 @@ assert.equal(new Set(urls).size, urls.length, 'Sitemap URLs must be unique');
 console.log(
     'Verified agent workflow content, category canonicals, private-page noindex and unique sitemap URLs.',
 );
+
+const availableCount = catalog.filter((tool) => tool.status === 'available').length;
+for (const path of ['/', '/connect/', '/plans/', '/docs/']) {
+    const html = await readFile(join('out', path, 'index.html'), 'utf8');
+    const text = html.replace(/<[^>]*>/g, '').replaceAll('&amp;', '&');
+    assert.ok(text.includes(`${availableCount} tools`), `${path}: catalog-derived tool count`);
+    for (const term of ['authenticators', 'status pages', 'test data', 'DNS'])
+        assert.ok(text.toLowerCase().includes(term.toLowerCase()), `${path}: ${term}`);
+}
+const home = await readFile('out/index.html', 'utf8');
+for (const category of categories)
+    assert.ok(home.includes(`/catalog/${category.id}/`), `Home links to ${category.name}`);
+console.log('Verified full product coverage and catalog-derived counts.');

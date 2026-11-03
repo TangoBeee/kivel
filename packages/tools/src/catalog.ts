@@ -18,19 +18,19 @@ export const categories: Category[] = [
     {
         id: 'network',
         name: 'HTTP & webhooks',
-        description: 'Catch requests. Inspect connections. Test the unexpected.',
+        description: 'HTTP, webhooks, DNS, TLS and public network checks.',
         icon: 'webhook',
     },
     {
         id: 'mock-apis',
         name: 'Mock APIs',
-        description: 'Stand-in services for the things you are building.',
+        description: 'REST, GraphQL, CRUD and OAuth test services.',
         icon: 'cube',
     },
     {
         id: 'agents',
         name: 'AI & MCP',
-        description: 'Disposable tools and test environments for agents.',
+        description: 'MCP mocks, authenticators and test environments for agents.',
         icon: 'robot',
     },
     {
@@ -60,13 +60,13 @@ export const categories: Category[] = [
     {
         id: 'monitoring',
         name: 'Monitoring & status',
-        description: 'Know what is up, what is slow, and what needs attention.',
+        description: 'Uptime, certificates, heartbeats and public status pages.',
         icon: 'pulse',
     },
     {
         id: 'databases',
         name: 'Databases & state',
-        description: 'A little state for your next experiment.',
+        description: 'Workspace memory, JSON state, fixtures and seed data.',
         icon: 'database',
     },
     {
@@ -84,7 +84,7 @@ export const categories: Category[] = [
     {
         id: 'automation',
         name: 'Automation',
-        description: 'Schedule a request or connect a few things together.',
+        description: 'Scheduled jobs, delayed webhooks, cron triggers and polling.',
         icon: 'lightning',
     },
 ];

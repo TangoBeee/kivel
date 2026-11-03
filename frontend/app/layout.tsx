@@ -21,7 +21,7 @@ export const metadata: Metadata = {
         template: '%s · socket.help',
     },
     description:
-        'Webhook URLs, email inboxes, mock APIs, memory, monitors and human approval for coding agents over one MCP connection. Free tools for everyone else.',
+        'The internet toolkit for coding agents: HTTP, email, mocks, OAuth, files, monitors, memory, authenticators, jobs, status pages, test data, media, utilities and DNS.',
     robots: { index: true, follow: true },
 };
 

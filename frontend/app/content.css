@@ -1948,3 +1948,11 @@ a brand dot pattern with its icon in a raised tile */
   text-decoration: underline;
   text-underline-offset: 4px;
 }
+
+.content-lede {
+  max-width: 72ch;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.7;
+  margin: 0 0 40px;
+}

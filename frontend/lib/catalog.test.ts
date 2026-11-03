@@ -52,3 +52,21 @@ test('search finds implemented and planned tools across categories', () => {
     assert.equal(searchTools('not-a-tool-92817').length, 0);
     assert.equal(searchTools('', categoryTools('network')).length, categoryTools('network').length);
 });
+
+test('agent setup and language-model summaries derive counts from the complete catalog', async () => {
+    const { setupPrompt } = await import('./setup-prompt');
+    const { llmsIndex, llmsFull } = await import('./llms');
+    const count = catalog.filter((tool) => tool.status === 'available').length;
+    for (const content of [setupPrompt, llmsIndex(), llmsFull()]) {
+        assert.ok(content.includes(`${count} tools`));
+        for (const term of [
+            'authenticators',
+            'status pages',
+            'test data',
+            'DNS',
+            'search_tools',
+            'run_tool',
+        ])
+            assert.ok(content.includes(term), term);
+    }
+});

@@ -11,6 +11,7 @@ import type { NetworkOperationId } from '@socket-help/tools/network-definitions'
 import type { ExtraDefinition } from '@socket-help/tools/extra-definitions';
 import type { OperationOptions } from '@socket-help/tools/definitions';
 import { ToolRunner, ToolExecutionError } from '@socket-help/tools/node';
+import { testWebSocket } from './websocket-tester.js';
 import { followPublic, publicRequest, publicUrl, resolvePublic } from './public-network.js';
 export function dnsResponseKey(response: {
     status: number;
@@ -326,6 +327,8 @@ export class NetworkRunner {
         signal: AbortSignal,
     ): Promise<unknown> {
         switch (id) {
+            case 'network-websocket-tester':
+                return testWebSocket(input, options, signal);
             case 'network-web-page-to-markdown':
                 return pageToMarkdown(input, signal, this.runner);
             case 'network-robots-and-sitemap-checker':

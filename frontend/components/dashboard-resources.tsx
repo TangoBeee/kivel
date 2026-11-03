@@ -55,6 +55,7 @@ const kindIcons: Record<Resource['kind'], Icon> = {
 };
 const toolIcons: Record<string, Icon> = {
     'mock-apis-mock-oauth-provider': LockKey,
+    'mock-apis-mock-websocket-server': Plugs,
     'agents-mock-llm-endpoint': Robot,
 };
 
@@ -73,6 +74,8 @@ function address(resource: Resource) {
     if (resource.kind === 'email' && resource.name?.includes('@')) return resource.name;
     if (resource.kind === 'inbox' && typeof location !== 'undefined')
         return `${location.origin}/hooks/${resource.id}`;
+    if (resource.toolId === 'mock-apis-mock-websocket-server' && typeof location !== 'undefined')
+        return `${location.origin.replace(/^http/, 'ws')}/ws/${resource.id}`;
     return '';
 }
 

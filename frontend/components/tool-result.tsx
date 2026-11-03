@@ -275,6 +275,69 @@ function Events({ events }: { events: any[] }) {
     );
 }
 export function renderToolResult(toolId: string, text: string, input?: string): ReactNode | null {
+    if (toolId === 'network-websocket-tester') {
+        const result = JSON.parse(text);
+        return (
+            <Panel
+                title={result.connected ? 'WebSocket connected' : 'Connection failed'}
+                detail={`${result.messages.length} messages`}
+            >
+                <Facts
+                    value={{
+                        ...(result.status ? { upgrade: `HTTP ${result.status}` } : {}),
+                        ...(result.handshakeMs !== undefined
+                            ? { handshake: `${result.handshakeMs} ms` }
+                            : {}),
+                        ...(result.protocol ? { subprotocol: result.protocol } : {}),
+                        ...(result.close
+                            ? {
+                                  closeCode: result.close.code,
+                                  closeReason: result.close.reason || 'None',
+                              }
+                            : {}),
+                    }}
+                />
+                {result.error && <p className="tool-notice">{result.error}</p>}
+                {result.stop && <p className="field-help">{result.stop}.</p>}
+                {result.messages.length ? (
+                    <ol className="result-events">
+                        {result.messages.map(
+                            (
+                                frame: {
+                                    atMs: number;
+                                    bytes: number;
+                                    encoding: string;
+                                    data: string;
+                                },
+                                index: number,
+                            ) => (
+                                <li key={index}>
+                                    <div>
+                                        <span className="result-chip">
+                                            {frame.encoding === 'base64'
+                                                ? 'Binary · base64'
+                                                : 'Text'}
+                                        </span>
+                                        <small>
+                                            +{frame.atMs} ms · {frame.bytes} bytes
+                                        </small>
+                                        <CopyButton
+                                            compact
+                                            text={frame.data}
+                                            label={`Copy message ${index + 1}`}
+                                        />
+                                    </div>
+                                    <pre>{frame.data || '(empty message)'}</pre>
+                                </li>
+                            ),
+                        )}
+                    </ol>
+                ) : (
+                    <p className="result-empty">No messages captured.</p>
+                )}
+            </Panel>
+        );
+    }
     if (
         [
             'developer-fake-identity-generator',

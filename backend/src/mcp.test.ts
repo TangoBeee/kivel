@@ -665,3 +665,37 @@ test('MCP instructions describe the full catalog and keep utility discovery behi
     ])
         assert.ok(!listed.some((tool: { name: string }) => tool.name === name));
 });
+
+test('MCP discovers and manages WebSocket mocks with the existing mock tools', async (t) => {
+    const app = buildApp();
+    t.after(() => app.close());
+    const call = async (name: string, args: object) => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/mcp',
+            headers,
+            payload: rpc('tools/call', { name, arguments: args }),
+        });
+        const { result } = response.json();
+        assert.ok(result && !result.isError, response.body);
+        return JSON.parse(result.content[0].text);
+    };
+    const id = 'mock-apis-mock-websocket-server';
+    const guide = await call('describe_tool', { toolId: id });
+    assert.equal(guide.mcpTool, 'create_mock_api');
+    assert.deepEqual(guide.resourceRequest.config.websocket, { echo: true });
+    const viaHttp = await call('resource_request', guide.resourceRequest);
+    const created = await call('create_mock_api', guide.resourceRequest.config);
+    for (const mock of [viaHttp, created]) {
+        assert.equal(new URL(mock.endpointUrl).pathname, `/ws/${mock.id}`);
+        const inspected = await call('inspect_mock_api', {
+            id: mock.id,
+            token: mock.managementToken,
+        });
+        assert.equal(inspected.endpointUrl, mock.endpointUrl);
+        assert.equal(inspected.websocket.echo, true);
+        await call('delete_mock_api', { id: mock.id, token: mock.managementToken });
+    }
+    const tester = await call('describe_tool', { toolId: 'network-websocket-tester' });
+    assert.equal(tester.mcpTool, 'run_tool');
+});

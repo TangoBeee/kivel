@@ -74,6 +74,7 @@ const optionKeys = [
     'level',
     'brand',
     'provider',
+    'protocol',
     'address',
     'count',
     'mode',
@@ -281,6 +282,8 @@ export class ToolService {
         if (
             !actor.identity &&
             (toolId === 'mock-apis-api-test-scenarios' ||
+                (toolId === 'network-websocket-tester' &&
+                    Boolean((options as OperationOptions).body)) ||
                 (toolId === 'network-request-replay' &&
                     !['GET', 'HEAD', 'OPTIONS', undefined].includes(
                         (options as OperationOptions).method,

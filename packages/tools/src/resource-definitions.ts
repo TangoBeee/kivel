@@ -17,6 +17,11 @@ function resource(intro: string, example: string, extra: string): ExtraDefinitio
     };
 }
 export const resourceOperations = {
+    'mock-apis-mock-websocket-server': resource(
+        'Host an expiring WebSocket endpoint to test live messages, reconnects and connection failures.',
+        '{"name":"Live updates","routes":[],"websocket":{"echo":true,"welcome":["ready"],"replies":[{"match":"ping","reply":"pong"}]}}',
+        'Echo text or binary, send welcome messages in order, match exact text and set a reply delay or close code. Connections last up to one minute and accept messages up to 16 KiB. Inspect traffic with inspect_mock_api or the mock calls API. Private clients can use X-Access-Token in the handshake. Use synthetic messages because traffic previews are retained.',
+    ),
     'network-http-echo': resource(
         'Create an expiring echo endpoint that reflects the method, path, query, headers and body observed by this server.',
         'POST /check?source=demo → method, path, query, redacted headers and parsed JSON body',

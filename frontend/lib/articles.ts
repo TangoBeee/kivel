@@ -219,7 +219,7 @@ export const articles: Article[] = [
                 title: 'Keep the mock disposable',
                 paragraphs: [
                     'Mock APIs support up to 20 routes and 80 KiB of configuration. They start with a one-hour lifetime, and renewal stays within plan limits. Save important fixtures in your project before the resource expires.',
-                    'Delete the mock when the test ends. Templates can insert request values and fake data, and Pro adds proxy and record for a real API. For WebSockets or mocks that run offline, a desktop tool such as Mockoon may be a better fit.',
+                    'Delete the mock when the test ends. Templates can insert request values and fake data, and Pro adds proxy and record for a real API. For real-time clients, use the hosted WebSocket mock. For mocks that run offline, use a desktop tool such as Mockoon.',
                 ],
             },
         ],

@@ -18,6 +18,7 @@ import { MAX_FILE_BYTES } from './resources.js';
 import type { RateLimitRepository } from './rate-limit.js';
 
 import type { MockConfig } from '@socket-help/tools/mock-config';
+import { webSocketMockUrl } from './websocket-mock.js';
 import { validateMock, mockPayload } from '@socket-help/tools/mock-config';
 import { crudPath, initialCrud, executeCrud } from '@socket-help/tools/mock-crud';
 import type { CrudState, CrudReply } from '@socket-help/tools/mock-crud';
@@ -110,7 +111,12 @@ export function registerResources(
             return reply
                 .code(503)
                 .send({ error: 'Temporary resource capacity reached. Try again later.' });
-        return reply.code(201).send({ ...created, endpointUrl: `${origin}/mock/${created.id}` });
+        return reply.code(201).send({
+            ...created,
+            endpointUrl: config.websocket
+                ? webSocketMockUrl(origin, created.id)
+                : `${origin}/mock/${created.id}`,
+        });
     });
     app.put<IdRoute>('/api/mocks/:id', async (request, reply) => {
         if (
@@ -136,6 +142,8 @@ export function registerResources(
             (previous) => {
                 if (previous.oauth)
                     throw new HttpError(400, 'Use /api/oauth-providers to update this provider.');
+                if (Boolean(previous.websocket) !== Boolean(config.websocket))
+                    throw new HttpError(400, 'Create a new mock to change its protocol.');
                 const payload = mockPayload(config);
                 if (config.crud || previous.crudState)
                     payload.crudState = {
@@ -219,7 +227,9 @@ export function registerResources(
                     : {
                           endpointUrl: resource.payload.oauth
                               ? `${origin}/oauth/${resource.id}`
-                              : `${origin}/mock/${resource.id}`,
+                              : resource.payload.websocket
+                                ? webSocketMockUrl(origin, resource.id)
+                                : `${origin}/mock/${resource.id}`,
                           ...(resource.payload.oauth
                               ? {
                                     issuer: `${origin}/oauth/${resource.id}`,
@@ -466,6 +476,8 @@ export function registerResources(
                     const path = `/${request.params['*'] ?? ''}`;
                     if (metadata.payload.oauth)
                         return reply.code(404).send({ error: 'Use this provider’s issuer URL.' });
+                    if (metadata.payload.websocket)
+                        return reply.code(404).send({ error: 'Use this mock’s WebSocket URL.' });
                     const initialConfig = metadata.payload as unknown as MockConfig;
                     if (initialConfig.crud && crudPath(initialConfig.crud, path)) {
                         if (request.method === 'OPTIONS')

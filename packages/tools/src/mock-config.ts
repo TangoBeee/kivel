@@ -18,12 +18,51 @@ export interface MockRoute {
     failureRate?: number;
     failureStatus?: number;
 }
+export interface WebSocketMockConfig {
+    echo?: boolean;
+    welcome?: string[];
+    replies?: { match: string; reply: string }[];
+    delayMs?: number;
+    closeAfter?: { code: number; reason?: string };
+}
+
+const wsText = { type: 'string', maxLength: 4096 } as const;
+export const webSocketMockSchema = {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+        echo: { type: 'boolean', default: true },
+        welcome: { type: 'array', maxItems: 5, items: wsText },
+        replies: {
+            type: 'array',
+            maxItems: 10,
+            items: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['match', 'reply'],
+                properties: { match: wsText, reply: wsText },
+            },
+        },
+        delayMs: { type: 'integer', minimum: 0, maximum: 2000 },
+        closeAfter: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['code'],
+            properties: {
+                code: { type: 'integer', description: '1000, 1008, 1011 or 3000 to 4999.' },
+                reason: { type: 'string', maxLength: 123 },
+            },
+        },
+    },
+} as const;
+
 export interface MockConfig {
     name: string;
     routes: MockRoute[];
     crud?: CrudConfig;
     echo?: true;
     llm?: LlmMockConfig;
+    websocket?: WebSocketMockConfig;
     /** Unmatched calls go to this API; with record, its answers become new routes. */
     proxy?: { target: string; record: boolean };
 }
@@ -34,7 +73,77 @@ export const mockPayload = (config: MockConfig) => ({
 const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD', 'ANY'];
 const object = (value: unknown): value is Record<string, unknown> =>
     !!value && typeof value === 'object' && !Array.isArray(value);
+function validateWebSocket(value: unknown): WebSocketMockConfig {
+    const text = (item: unknown): item is string =>
+        typeof item === 'string' && byteLength(item) <= 4096;
+    if (
+        !object(value) ||
+        Object.keys(value).some((key) => !Object.hasOwn(webSocketMockSchema.properties, key)) ||
+        (value.echo !== undefined && typeof value.echo !== 'boolean') ||
+        (value.welcome !== undefined &&
+            (!Array.isArray(value.welcome) ||
+                value.welcome.length > 5 ||
+                !value.welcome.every(text))) ||
+        (value.replies !== undefined &&
+            (!Array.isArray(value.replies) ||
+                value.replies.length > 10 ||
+                !value.replies.every(
+                    (rule) =>
+                        object(rule) &&
+                        Object.keys(rule).length === 2 &&
+                        text(rule.match) &&
+                        text(rule.reply),
+                ))) ||
+        !Number.isInteger(value.delayMs ?? 0) ||
+        Number(value.delayMs ?? 0) < 0 ||
+        Number(value.delayMs ?? 0) > 2000
+    )
+        throw new Error(
+            'Use up to 5 welcome messages and 10 exact text replies (4 KiB each), with a delay from 0 to 2000 ms.',
+        );
+    const config = value as WebSocketMockConfig;
+    if (new Set(config.replies?.map((rule) => rule.match)).size !== (config.replies?.length ?? 0))
+        throw new Error('Each reply must match different text.');
+    const close = value.closeAfter;
+    if (
+        close !== undefined &&
+        (!object(close) ||
+            typeof close.code !== 'number' ||
+            !Number.isInteger(close.code) ||
+            !(
+                [1000, 1008, 1011].includes(close.code) ||
+                (close.code >= 3000 && close.code <= 4999)
+            ) ||
+            Object.keys(close).some((key) => key !== 'code' && key !== 'reason') ||
+            (close.reason !== undefined &&
+                (typeof close.reason !== 'string' || byteLength(close.reason) > 123)))
+    )
+        throw new Error(
+            'Use close code 1000, 1008, 1011 or 3000 to 4999 and a reason up to 123 bytes.',
+        );
+    if (byteLength(JSON.stringify(config)) > 64 * 1024)
+        throw new Error('WebSocket configuration must fit within 64 KiB.');
+    return { ...config, echo: config.echo ?? true };
+}
 export function validateMock(value: unknown): MockConfig {
+    if (object(value) && value.websocket !== undefined) {
+        if (
+            typeof value.name !== 'string' ||
+            !value.name.trim() ||
+            value.name.length > 80 ||
+            !Array.isArray(value.routes) ||
+            value.routes.length ||
+            [value.crud, value.echo, value.proxy, value.llm].some((item) => item !== undefined)
+        )
+            throw new Error(
+                'WebSocket mode requires a name and empty routes. It cannot use HTTP mock modes.',
+            );
+        return {
+            name: value.name.trim(),
+            routes: [],
+            websocket: validateWebSocket(value.websocket),
+        };
+    }
     if (
         !object(value) ||
         typeof value.name !== 'string' ||

@@ -46,15 +46,17 @@ export function registerLifecycle(
                     : {}),
                 ...(resource.kind === 'mock' && resource.payload.oauth
                     ? { toolId: 'mock-apis-mock-oauth-provider' }
-                    : resource.kind === 'email' && resource.payload.smtpCapture
-                      ? { toolId: 'email-mock-smtp' }
-                      : resource.kind === 'mock' && resource.payload.llm
-                        ? { toolId: 'agents-mock-llm-endpoint' }
-                        : resource.kind === 'mock' && resource.payload.crud
-                          ? { toolId: 'mock-apis-stateful-crud-api' }
-                          : resource.kind === 'mock' && resource.payload.echo
-                            ? { toolId: 'network-http-echo' }
-                            : {}),
+                    : resource.kind === 'mock' && resource.payload.websocket
+                      ? { toolId: 'mock-apis-mock-websocket-server' }
+                      : resource.kind === 'email' && resource.payload.smtpCapture
+                        ? { toolId: 'email-mock-smtp' }
+                        : resource.kind === 'mock' && resource.payload.llm
+                          ? { toolId: 'agents-mock-llm-endpoint' }
+                          : resource.kind === 'mock' && resource.payload.crud
+                            ? { toolId: 'mock-apis-stateful-crud-api' }
+                            : resource.kind === 'mock' && resource.payload.echo
+                              ? { toolId: 'network-http-echo' }
+                              : {}),
                 ...(typeof resource.payload.name === 'string'
                     ? { name: resource.payload.name }
                     : {}),

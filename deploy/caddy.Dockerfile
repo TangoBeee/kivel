@@ -6,5 +6,7 @@ RUN go mod init socket.help/proxy \
     && go build -p 2 -trimpath -ldflags="-s -w" -o /out/caddy github.com/caddyserver/caddy/v2/cmd/caddy
 
 FROM caddy:2-alpine AS runtime
+# Changes daily in CI, so cached package layers pick up security fixes at least once a day.
+ARG PACKAGES_DAY
 RUN apk upgrade --no-cache
 COPY --from=build /out/caddy /usr/bin/caddy

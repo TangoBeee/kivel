@@ -150,7 +150,7 @@ export const comparisons: Comparison[] = [
             },
         ],
         limitations:
-            'socket.help fake data covers about twenty common fields rather than the full Faker.js library, proxy and record is a Pro feature limited to 20 recorded routes, and WebSockets are not supported. OpenAPI import accepts JSON only, with local references and up to 20 routes.',
+            'socket.help fake data covers about twenty common fields rather than the full Faker.js library, proxy and record is a Pro feature limited to 20 recorded routes. WebSocket mocks support echo and scripted replies. OpenAPI import accepts JSON only, with local references and up to 20 routes.',
         sources: [
             {
                 title: 'Mockoon documentation and application scope',
@@ -183,7 +183,7 @@ export const comparisons: Comparison[] = [
             other: [
                 'You want mocks that run locally on your machine',
                 'Responses need the full Faker.js library or reusable local environments',
-                'You need WebSockets or mocks that run offline',
+                'You need mocks that run offline',
                 'Mock definitions should live in your repository and run in CI',
             ],
         },

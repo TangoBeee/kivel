@@ -12,7 +12,7 @@
     "Fault injection",
     "Request forwarding",
     "Request history",
-    "WebSocket echo/testing",
+    "Mock WebSocket servers and connection testing",
     "Server-Sent Events (SSE) testing",
     "CORS testing",
     "DNS lookup",

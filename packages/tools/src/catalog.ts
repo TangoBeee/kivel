@@ -126,6 +126,10 @@ const planned: Record<Category['id'], [string, string][]> = {
             'Check crawl rules and sitemap documents for a public page.',
         ],
         ['HTTP echo', 'See exactly what your HTTP client sends.'],
+        [
+            'WebSocket tester',
+            'Connect to a public WebSocket endpoint and inspect its handshake, messages and close code.',
+        ],
         ['Request replay', 'Resend a captured request to a test endpoint.'],
         ['Response builder', 'Return a custom status, headers, and response body.'],
         ['Redirect tester', 'Inspect redirect chains and callback behavior.'],
@@ -153,6 +157,10 @@ const planned: Record<Category['id'], [string, string][]> = {
             'Test OAuth and OpenID Connect sign in with synthetic users, PKCE and failure scenarios.',
         ],
         ['Mock REST API', 'Create configurable REST endpoints for integration testing.'],
+        [
+            'Mock WebSocket server',
+            'Test live clients with echo, scripted messages, close codes and an inspectable traffic log.',
+        ],
         [
             'Stateful CRUD API',
             'Test create, read, update, and delete workflows with temporary state.',

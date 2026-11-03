@@ -125,6 +125,7 @@ export interface OperationOptions {
     level?: string;
     brand?: string;
     provider?: string;
+    protocol?: string;
     address?: string;
     count?: string;
     mode?: string;

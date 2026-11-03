@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { AuthenticatorWorkbench } from './authenticator-workbench';
+import { WebSocketWorkbench } from './websocket-workbench';
 import { OAuthWorkbench } from './oauth-workbench';
 import { ScheduledJobWorkbench } from './scheduled-job-workbench';
 import { SmtpWorkbench } from './smtp-workbench';
@@ -47,6 +48,8 @@ export function ToolWorkbench({ toolId }: { toolId: string }) {
                 Explore {categories.find((category) => category.id === tool.categoryId)?.name}
             </Link>
         </div>
+    ) : tool.id === 'mock-apis-mock-websocket-server' ? (
+        <WebSocketWorkbench toolId={tool.id} />
     ) : tool.id === 'mock-apis-mock-oauth-provider' ? (
         <OAuthWorkbench toolId={tool.id} />
     ) : tool.id === 'email-mock-smtp' ? (

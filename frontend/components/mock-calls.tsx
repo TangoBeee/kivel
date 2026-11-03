@@ -7,6 +7,7 @@ interface MockCall {
     at: string;
     method: string;
     path: string;
+    query?: { connectionId?: string };
     status: number;
     durationMs: number;
     contentType?: string;
@@ -15,7 +16,15 @@ interface MockCall {
 }
 
 /** Live list of what callers sent to a mock and what it answered. */
-export function MockCalls({ id, token }: { id: string; token: string }) {
+export function MockCalls({
+    id,
+    token,
+    websocket = false,
+}: {
+    id: string;
+    token: string;
+    websocket?: boolean;
+}) {
     const [calls, setCalls] = useState<MockCall[]>([]);
     const [open, setOpen] = useState<number | null>(null);
     useEffect(() => {
@@ -38,45 +47,71 @@ export function MockCalls({ id, token }: { id: string; token: string }) {
         };
     }, [id, token]);
     const recent = [...calls].reverse();
+    const wsEvent: Record<string, string> = {
+        'WS connect': 'Connected',
+        'WS receive': 'Received',
+        'WS send': 'Sent',
+        'WS close': 'Closed',
+    };
     return (
-        <section className="mock-calls" aria-label="Recent calls">
+        <section className="mock-calls" aria-label={websocket ? 'Recent traffic' : 'Recent calls'}>
             <div className="mock-calls-heading">
-                <strong>Recent calls</strong>
+                <strong>{websocket ? 'Recent traffic' : 'Recent calls'}</strong>
                 <span>{calls.length ? `${calls.length} of the last 100` : 'Listening…'}</span>
             </div>
             {recent.length ? (
                 <ul>
-                    {recent.map((call, index) => (
-                        <li key={`${call.at}-${index}`}>
-                            <button
-                                type="button"
-                                aria-expanded={open === index}
-                                onClick={() => setOpen(open === index ? null : index)}
-                            >
-                                <code className="mock-call-method">{call.method}</code>
-                                <code className="mock-call-path">{call.path}</code>
-                                <span
-                                    className={`mock-call-status ${call.status >= 400 ? 'is-error' : ''}`}
+                    {recent.map((call, index) => {
+                        const connection =
+                            websocket && typeof call.query?.connectionId === 'string'
+                                ? call.query.connectionId
+                                : undefined;
+                        const failed =
+                            call.method === 'WS close'
+                                ? ![1000, 1001].includes(call.status)
+                                : call.status >= 400;
+                        const frame = call.method === 'WS receive' || call.method === 'WS send';
+                        return (
+                            <li key={`${call.at}-${index}`}>
+                                <button
+                                    type="button"
+                                    aria-expanded={open === index}
+                                    onClick={() => setOpen(open === index ? null : index)}
                                 >
-                                    {call.status}
-                                </span>
-                                <span className="mock-call-meta">
-                                    {call.durationMs} ms · {new Date(call.at).toLocaleTimeString()}
-                                </span>
-                            </button>
-                            {open === index && (
-                                <pre>
-                                    {call.bodyPreview ??
-                                        (call.bodySize
-                                            ? `${call.bodySize} bytes (binary)`
-                                            : 'No body')}
-                                </pre>
-                            )}
-                        </li>
-                    ))}
+                                    <span className="mock-call-method">
+                                        {wsEvent[call.method] ?? call.method}
+                                    </span>
+                                    <code className="mock-call-path" title={connection}>
+                                        {connection?.slice(0, 8) ?? call.path}
+                                    </code>
+                                    <span
+                                        className={`mock-call-status ${failed ? 'is-error' : ''}`}
+                                    >
+                                        {frame ? `${call.bodySize} B` : call.status}
+                                    </span>
+                                    <span className="mock-call-meta">
+                                        {call.durationMs} ms ·{' '}
+                                        {new Date(call.at).toLocaleTimeString()}
+                                    </span>
+                                </button>
+                                {open === index && (
+                                    <pre>
+                                        {call.bodyPreview ??
+                                            (call.bodySize
+                                                ? `${call.bodySize} bytes (binary)`
+                                                : 'No body')}
+                                    </pre>
+                                )}
+                            </li>
+                        );
+                    })}
                 </ul>
             ) : (
-                <p>Call your mock and each request appears here within a few seconds.</p>
+                <p>
+                    {websocket
+                        ? 'Connect a client to see its messages and close code here.'
+                        : 'Call your mock and each request appears here within a few seconds.'}
+                </p>
             )}
         </section>
     );

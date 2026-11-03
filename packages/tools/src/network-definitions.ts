@@ -22,6 +22,46 @@ const webLimits =
     'Only public HTTP/HTTPS targets on ports 80, 443, 8080, or 8443. Private, loopback, link-local, and reserved IP ranges are blocked on every hop. Up to five redirects, 256 KiB response data, and a ten-second overall deadline. No cookies or user credentials are sent.';
 export const networkOperations = {
     ...developerNetworkOperations,
+    'network-websocket-tester': {
+        action: 'Test connection',
+        input: true,
+        inputLabel: 'Public WebSocket URL',
+        placeholder: 'wss://your-app.com/live',
+        fields: [
+            {
+                key: 'body',
+                label: 'Message to send (optional, sign in required)',
+                type: 'textarea',
+                defaultValue: '',
+            },
+            {
+                key: 'format',
+                label: 'Message format',
+                defaultValue: 'text',
+                choices: [
+                    ['text', 'Text'],
+                    ['base64', 'Binary (base64)'],
+                ],
+            },
+            { key: 'protocol', label: 'Subprotocol (optional)', defaultValue: '' },
+            {
+                key: 'secret',
+                label: 'Access token (optional, WSS only)',
+                type: 'password',
+                defaultValue: '',
+            },
+        ],
+        intro: 'Check a WebSocket upgrade and capture the first messages from your server.',
+        steps: [
+            'Enter a public ws:// or wss:// URL.',
+            'Optionally send one text or base64 message. Sign in to send messages.',
+            'Review handshake timing, received messages and the close code.',
+        ],
+        limits: 'Captures up to 10 messages of 16 KiB over three seconds after connecting. No redirects. Private addresses are blocked. Access tokens are sent only as X-Access-Token over WSS.',
+        example: 'wss://your-app.com/live',
+        useCase:
+            'Check whether a real-time endpoint upgrades, sends an expected reply and closes cleanly.',
+    },
     'mock-apis-webhook-event-simulator': {
         action: 'Send test event',
         input: true,

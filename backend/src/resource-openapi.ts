@@ -1,3 +1,4 @@
+import { webSocketMockSchema } from '@socket-help/tools/mock-config';
 import { llmMockSchema } from '@socket-help/tools/llm-mock';
 import { crudSchema } from '@socket-help/tools/mock-crud';
 export const sharingProperties = {
@@ -56,10 +57,15 @@ export function resourceOpenApi(origin: string) {
                 maxItems: 20,
                 items: ref('MockRoute'),
                 description:
-                    'At least one static route, a CRUD collection, echo: true, or an llm script is required.',
+                    'Use static routes, a CRUD collection, HTTP echo, an LLM script, a proxy, or a WebSocket script.',
             },
             crud: crudSchema,
             llm: llmMockSchema,
+            websocket: {
+                ...webSocketMockSchema,
+                description:
+                    'Requires empty routes. Returns a ws:// or wss:// endpoint instead of an HTTP mock.',
+            },
             echo: {
                 type: 'boolean',
                 enum: [true],
@@ -195,7 +201,7 @@ export function resourceOpenApi(origin: string) {
                     tags: ['Mock APIs'],
                     summary: 'Create a temporary mock API',
                     description:
-                        'Create up to 20 static routes and/or one CRUD collection within 80 KiB of configuration. CRUD seed data is limited to 200 records and 64 KiB. Static delays are limited to 2 seconds. Resources start with one hour; ttlSeconds and renewal follow plan limits. New mocks are private. Save returned credentials: the management token controls configuration, while a separate access token lets callers use private routes.',
+                        'For a WebSocket mock, send empty routes and a websocket configuration. For HTTP, create up to 20 static routes and/or one CRUD collection within 80 KiB of configuration. CRUD seed data is limited to 200 records and 64 KiB. Static delays are limited to 2 seconds. Resources start with one hour; ttlSeconds and renewal follow plan limits. New mocks are private. Save returned credentials: the management token controls configuration, while a separate access token lets callers use private routes.',
                     requestBody: {
                         required: true,
                         content: { 'application/json': { schema: ref('MockConfig') } },
@@ -203,7 +209,7 @@ export function resourceOpenApi(origin: string) {
                     responses: {
                         '201': json(
                             ref('ResourceCredentials'),
-                            'Created; endpointUrl is the public base URL',
+                            'Created; endpointUrl is the HTTP or WebSocket URL',
                         ),
                         ...errors,
                     },
@@ -213,6 +219,21 @@ export function resourceOpenApi(origin: string) {
                             source: `curl -X POST ${origin}/api/mocks -H 'Content-Type: application/json' -d '{"name":"Hello","routes":[{"method":"GET","path":"/hello","status":200,"body":"{\\"ok\\":true}"}]}'`,
                         },
                     ],
+                },
+            },
+            '/ws/{id}': {
+                get: {
+                    tags: ['Mock endpoints'],
+                    summary: 'Connect to a mock WebSocket',
+                    description:
+                        'Perform a WebSocket upgrade. Private clients send X-Access-Token or use a workspace credential with resources:write. Use no query parameters. Connections last up to one minute and accept messages up to 16 KiB. Inspect events through GET /api/mocks/{id}/calls.',
+                    security: [{}, { shareAccess: [] }, { accountKey: [] }, { sessionCookie: [] }],
+                    parameters: id,
+                    responses: {
+                        '101': { description: 'Switching protocols' },
+                        '426': json(ref('Error'), 'WebSocket upgrade required'),
+                        ...errors,
+                    },
                 },
             },
             '/api/mocks/{id}': {

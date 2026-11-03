@@ -1,4 +1,5 @@
 import { catalog, categories } from './catalog';
+import { websocketDoc } from './websocket-content';
 import { oauthDoc } from './oauth-content';
 import { agentDoc } from './agent-doc';
 import { echoDoc } from './echo-content';
@@ -36,6 +37,7 @@ const updatedAt = '2026-10-27';
 
 export const docPages: DocPage[] = [
     oauthDoc,
+    websocketDoc,
     agentDoc,
     echoDoc,
     crudDoc,

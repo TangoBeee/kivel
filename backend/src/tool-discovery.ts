@@ -28,6 +28,19 @@ export function catalogGuide(id: string, capabilities: ServerCapabilities) {
             http: `POST /api/tools/${id}/run`,
         };
     if (tool.status !== 'available') return base;
+    if (id === 'mock-apis-mock-websocket-server')
+        return {
+            ...base,
+            mcpTool: 'create_mock_api',
+            relatedTools: ['inspect_mock_api', 'delete_mock_api', 'run_tool'],
+            resourceRequest: {
+                kind: 'mocks',
+                action: 'create',
+                config: { name: 'Live updates', routes: [], websocket: { echo: true } },
+            },
+            http: 'POST /api/mocks',
+            next: 'Set routes to [] and provide websocket. Connect to endpointUrl, then inspect_mock_api. Use run_tool with network-websocket-tester to capture a public endpoint.',
+        };
     if (id === 'agents-agent-authenticator')
         return {
             ...base,

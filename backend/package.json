@@ -12,7 +12,7 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "NODE_ENV=production node dist/index.js",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test --test-concurrency=1 src/developer-tools.test.ts src/app.test.ts src/rate-limit.test.ts src/config.test.ts src/resources.test.ts src/mcp.test.ts src/accounts.test.ts src/billing.test.ts src/sharing.test.ts src/recovery.test.ts src/network-tools.test.ts src/media-tools.test.ts src/mock-behavior.test.ts src/av-tools.test.ts src/audio-design.test.ts src/api-scenarios.test.ts src/crud.test.ts src/http-echo.test.ts src/email.test.ts src/email-sending.test.ts src/email-worker.test.ts src/events.test.ts src/llm-mock.test.ts src/scheduled-jobs.test.ts src/smtp-capture.test.ts src/status-pages.test.ts src/phone/phone.test.ts src/monitors.test.ts src/agents.test.ts src/approvals.test.ts src/interfaces.test.ts src/agent-launch.test.ts src/authenticators.test.ts src/email-attachments.test.ts src/oauth.test.ts src/oauth-security.test.ts",
+    "test": "node --import tsx --test --test-concurrency=1 src/developer-tools.test.ts src/app.test.ts src/rate-limit.test.ts src/config.test.ts src/resources.test.ts src/mcp.test.ts src/accounts.test.ts src/billing.test.ts src/sharing.test.ts src/recovery.test.ts src/network-tools.test.ts src/media-tools.test.ts src/mock-behavior.test.ts src/av-tools.test.ts src/audio-design.test.ts src/api-scenarios.test.ts src/crud.test.ts src/http-echo.test.ts src/email.test.ts src/email-sending.test.ts src/email-worker.test.ts src/events.test.ts src/llm-mock.test.ts src/scheduled-jobs.test.ts src/smtp-capture.test.ts src/status-pages.test.ts src/phone/phone.test.ts src/monitors.test.ts src/agents.test.ts src/approvals.test.ts src/interfaces.test.ts src/agent-launch.test.ts src/authenticators.test.ts src/email-attachments.test.ts src/oauth.test.ts src/oauth-security.test.ts src/websocket.test.ts",
     "test:integration": "node --import tsx --test src/postgres.test.ts"
   },
   "keywords": [],
@@ -21,6 +21,7 @@
   "packageManager": "pnpm@10.30.3",
   "dependencies": {
     "@fastify/static": "10.1.7",
+    "@fastify/websocket": "^11.3.6",
     "@socket-help/cli": "workspace:*",
     "@socket-help/sdk": "workspace:*",
     "@socket-help/tools": "workspace:*",
@@ -37,7 +38,8 @@
     "postal-mime": "4.1.4",
     "robots-parser": "3.0.1",
     "smtp-server": "3.21.1",
-    "ssh2": "^1.17.0"
+    "ssh2": "^1.17.0",
+    "ws": "^8.22.1"
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",
@@ -47,6 +49,7 @@
     "@types/pngjs": "^6.0.5",
     "@types/smtp-server": "^3.5.13",
     "@types/ssh2": "^1.15.6",
+    "@types/ws": "^8.18.2",
     "qrcode-generator": "2.0.4",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"

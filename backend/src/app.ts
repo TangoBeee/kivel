@@ -1,6 +1,8 @@
 import { registerEmailAttachments } from './email-attachments.js';
 import { MemoryAuthenticators, registerAuthenticators } from './authenticators.js';
 import type { AuthenticatorRepository } from './authenticators.js';
+import websocket from '@fastify/websocket';
+import { registerWebSocketMocks, webSocketMessageBytes } from './websocket-mock.js';
 import { registerOAuth } from './oauth.js';
 import { registerPhones } from './phone/routes.js';
 import type { PhoneEntitlements } from './phone/routes.js';
@@ -227,6 +229,14 @@ export function buildApp({
         genReqId: () => randomUUID(),
     });
     app.server.maxConnections = 512;
+    app.register(websocket, {
+        options: {
+            maxPayload: webSocketMessageBytes,
+            maxBufferedChunks: 128,
+            maxFragments: 128,
+            perMessageDeflate: false,
+        },
+    });
     // Webhook senders may attach bodies to any supported method.
     for (const method of ['GET', 'HEAD', 'DELETE', 'OPTIONS']) {
         app.addHttpMethod(method, { hasBody: true, overrideExisting: true });
@@ -363,7 +373,7 @@ export function buildApp({
         reply.header('X-Request-Id', request.id);
         reply.header('Referrer-Policy', 'no-referrer');
         if (
-            /^\/(api|hooks|mock|oauth|mcp|files|billing)(\/|$)/.test(
+            /^\/(api|hooks|mock|oauth|ws|mcp|files|billing)(\/|$)/.test(
                 new URL(request.url, baseUrl).pathname,
             )
         )
@@ -857,6 +867,9 @@ export function buildApp({
         jobs: scheduler,
         phones,
         waiters,
+    });
+    app.register(async (sockets) => {
+        registerWebSocketMocks(sockets, resourceStore, access, rateLimiter, mockCalls);
     });
     registerOAuth(app, access, resourceStore, rateLimiter, mockCalls, baseUrl.origin, authSecret);
     registerResources(

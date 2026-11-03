@@ -15,7 +15,8 @@ import type { RateLimitRepository } from './rate-limit.js';
 import { Access, resourceToken, HttpError } from './access.js';
 import { executableIds } from './tool-routes.js';
 import type { ToolService } from './tool-routes.js';
-import { validateMock, mockPayload } from '@socket-help/tools/mock-config';
+import { webSocketMockUrl } from './websocket-mock.js';
+import { validateMock, mockPayload, webSocketMockSchema } from '@socket-help/tools/mock-config';
 import { checkMockProxy } from './resource-routes.js';
 import { crudSchema } from '@socket-help/tools/mock-crud';
 import { waitForRequests, waitSeconds, WAIT_MAX_SECONDS } from './waiting.js';
@@ -507,13 +508,14 @@ export const platformTools = [
     {
         name: 'create_mock_api',
         description:
-            'Create an expiring mock API with static or request-value response templates and optional request-field conditions. Up to 20 routes and 80 KiB total.',
+            'Create an expiring HTTP or WebSocket mock. For WebSockets, set routes to [] and configure echo, welcome messages or exact text replies in websocket.',
         inputSchema: schema(
             {
                 visibility: { type: 'string', enum: ['public', 'private'] },
                 name: stringProperty('API name, up to 80 characters.'),
                 crud: crudSchema,
                 llm: llmMockSchema,
+                websocket: webSocketMockSchema,
                 echo: {
                     type: 'boolean',
                     enum: [true],
@@ -579,7 +581,7 @@ export const platformTools = [
     {
         name: 'inspect_mock_api',
         description:
-            'Read a mock API configuration, usage and its 20 most recent calls (method, path, status, body preview) with its private token.',
+            'Read a mock configuration, usage and the 20 most recent HTTP calls or WebSocket events. Requires management access.',
         inputSchema: schema(access, ['id']),
         annotations: readonly,
     },
@@ -1175,7 +1177,12 @@ export function registerMcp({
                     await access.allocation(request, value),
                 );
                 return mock
-                    ? result({ ...mock, endpointUrl: `${origin}/mock/${mock.id}` })
+                    ? result({
+                          ...mock,
+                          endpointUrl: config.websocket
+                              ? webSocketMockUrl(origin, mock.id)
+                              : `${origin}/mock/${mock.id}`,
+                      })
                     : result({ error: 'Resource capacity reached.' }, true);
             }
             case 'inspect_mock_api':
@@ -1195,7 +1202,9 @@ export function registerMcp({
                               ? {
                                     endpointUrl: item.payload.oauth
                                         ? `${origin}/oauth/${id}`
-                                        : `${origin}/mock/${id}`,
+                                        : item.payload.websocket
+                                          ? webSocketMockUrl(origin, id)
+                                          : `${origin}/mock/${id}`,
                                     ...(item.payload.oauth
                                         ? {
                                               issuer: `${origin}/oauth/${id}`,

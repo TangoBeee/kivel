@@ -1,3 +1,4 @@
+import { agentComparisons } from './agent-comparisons';
 import { toolboxComparisons } from './toolbox-comparisons';
 
 export interface Comparison {
@@ -20,6 +21,7 @@ export interface Comparison {
     faqs: { question: string; answer: string }[];
 }
 export const comparisons: Comparison[] = [
+    ...agentComparisons,
     ...toolboxComparisons,
     {
         slug: 'webhook-site',

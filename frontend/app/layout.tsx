@@ -17,7 +17,7 @@ const sans = Hanken_Grotesk({
 export const metadata: Metadata = {
     metadataBase: new URL(siteOrigin),
     title: {
-        default: 'socket.help | The internet toolkit for AI agents',
+        default: 'socket.help: email, webhooks and tools for AI agents',
         template: '%s · socket.help',
     },
     description:

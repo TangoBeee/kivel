@@ -5,8 +5,8 @@ import { comparisons } from '../../lib/comparisons';
 import { pageMetadata } from '../../lib/seo';
 
 export const metadata = pageMetadata(
-    'socket.help alternatives and comparisons',
-    'Compare socket.help with developer toolboxes, API clients, mock servers and webhook inspectors. Sourced workflow differences, limits and practical examples.',
+    'Alternatives to Webhook.site, Mailtrap, AgentMail and more',
+    'Looking for a Webhook.site, Mailtrap, Mailinator, AgentMail, RequestBin or Beeceptor alternative? See how socket.help compares, with sourced differences and free tools to try.',
     '/compare/',
 );
 

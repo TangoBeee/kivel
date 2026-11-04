@@ -15,7 +15,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     const comparison = comparisons.find((item) => item.slug === slug);
     return comparison
         ? pageMetadata(
-              `socket.help vs ${comparison.name}: ${comparison.focus.toLowerCase()} compared`,
+              // Matches both "<product> alternative" and "<product> vs" searches.
+              `${comparison.name} alternative for developers and AI agents`,
               comparison.description,
               `/compare/${slug}/`,
           )
@@ -28,7 +29,7 @@ export default async function Comparison({ params }: { params: Promise<{ slug: s
     const sections = [
         { id: 'fit', title: 'Which one fits?' },
         { id: 'differences', title: 'Key differences' },
-        { id: 'limits', title: 'Where socket.help stops' },
+        { id: 'limits', title: 'Good to know' },
         { id: 'faq', title: 'Questions' },
         { id: 'sources', title: 'Sources & review date' },
     ];
@@ -98,12 +99,12 @@ export default async function Comparison({ params }: { params: Promise<{ slug: s
                 </div>
             </section>
             <section id="limits">
-                <h2>Where socket.help stops.</h2>
+                <h2>Good to know.</h2>
                 <p>{item.limitations}</p>
                 <p>
-                    The catalog includes planned tools, clearly marked Coming soon. Those tools
-                    cannot be used yet. Check the <Link href="/plans/">published allowances</Link>{' '}
-                    for storage, rate limits, and retention before choosing a workflow.
+                    You can start without an account, and a free account keeps resources for up to
+                    seven days. See the <Link href="/plans/">published allowances</Link> for
+                    storage, rate limits and retention.
                 </p>
             </section>
             <StructuredData value={faqSchema(item.faqs)} />

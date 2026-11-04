@@ -11,9 +11,10 @@ import { setupPrompt } from '../lib/setup-prompt';
 import { siteOrigin } from '../lib/site';
 import './home.css';
 
-const title = 'The internet toolkit for AI agents | socket.help';
-const description =
-    'Tools for coding agents: HTTP, email, mocks and OAuth, files, monitors, memory, authenticators, jobs, status pages, test data, media, utilities and DNS. One MCP connection.';
+// Brand first, so a search for "socket help" matches the page title and Google learns the name.
+const toolTotal = catalog.filter((tool) => tool.status === 'available').length;
+const title = `socket.help: email, webhooks and ${toolTotal} tools for AI agents`;
+const description = `socket.help (Socket Help) gives AI coding agents email inboxes, webhook URLs, mock APIs, OAuth, monitors, memory, 2FA codes and ${toolTotal} tools over one MCP connection. Free to start.`;
 
 export const metadata: Metadata = {
     metadataBase: new URL(siteOrigin),
@@ -91,6 +92,7 @@ const jsonLd = [
         '@type': 'WebSite',
         '@id': `${siteOrigin}/#website`,
         name: 'socket.help',
+        alternateName: ['Socket Help', 'sockethelp', 'socket help'],
         url: `${siteOrigin}/`,
         publisher: { '@id': `${siteOrigin}/#organization` },
     },
@@ -99,8 +101,14 @@ const jsonLd = [
         '@type': 'Organization',
         '@id': `${siteOrigin}/#organization`,
         name: 'socket.help',
+        alternateName: ['Socket Help', 'sockethelp'],
         url: `${siteOrigin}/`,
+        logo: `${siteOrigin}/icon.svg`,
         email: 'support@socket.help',
+        sameAs: [
+            'https://www.npmjs.com/package/@socket-help/sdk',
+            'https://www.npmjs.com/package/@socket-help/cli',
+        ],
     },
     {
         '@context': 'https://schema.org',

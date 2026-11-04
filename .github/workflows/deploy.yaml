@@ -107,6 +107,13 @@ jobs:
         run: |
           curl -fsS --retry 6 --retry-delay 5 --retry-all-errors -o /dev/null "https://$DOMAIN/ready"
           node scripts/production-check.mjs "https://$DOMAIN"
+      # Tell Bing (and engines that share IndexNow) about every page, so new pages get crawled quickly.
+      - name: Notify search engines
+        continue-on-error: true
+        run: |
+          urls=$(curl -fsS "https://$DOMAIN/sitemap.xml" | grep -o '<loc>[^<]*' | sed 's/<loc>//' | head -9000 | jq -R . | jq -s -c .)
+          curl -fsS -X POST https://api.indexnow.org/indexnow -H 'content-type: application/json; charset=utf-8' \
+            -d "{\"host\":\"$DOMAIN\",\"key\":\"b955618984d915d5a6e26746a914318c\",\"keyLocation\":\"https://$DOMAIN/b955618984d915d5a6e26746a914318c.txt\",\"urlList\":$urls}" -o /dev/null -w 'IndexNow: %{http_code}\n'
       - name: Retain the newest ten complete image releases
         if: vars.DOCKERHUB_RETENTION_ENABLED == 'true' && vars.DOCKERHUB_RETENTION_DRY_RUN_CONFIRMED == 'true' && hashFiles('scripts/dockerhub-retention.mjs') != ''
         env:

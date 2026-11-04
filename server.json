@@ -1,0 +1,22 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "help.socket/socket-help",
+  "title": "socket.help",
+  "description": "Email inboxes, webhooks, mock APIs, 2FA codes, approvals and 170 tools for AI agents.",
+  "version": "1.0.0",
+  "websiteUrl": "https://socket.help",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://socket.help/mcp",
+      "headers": [
+        {
+          "name": "Authorization",
+          "description": "Optional. Bearer workspace key from socket.help; without it, anonymous limits apply.",
+          "isRequired": false,
+          "isSecret": true
+        }
+      ]
+    }
+  ]
+}

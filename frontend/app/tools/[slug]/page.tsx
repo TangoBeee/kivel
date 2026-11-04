@@ -22,7 +22,8 @@ export async function generateMetadata({
     const tool = catalog.find((tool) => toolSlug(tool) === slug);
     if (!tool) return {};
     const available = tool.status === 'available';
-    const title = `${tool.name}${available ? '' : ' · Coming soon'}`;
+    // What people type into search: the tool name plus "free online".
+    const title = available ? `${tool.name}: free online tool` : `${tool.name} · Coming soon`;
     const description = available
         ? (toolExample(tool.id)?.useCase ?? tool.description)
         : `${tool.description} Planned for socket.help; not available yet.`;

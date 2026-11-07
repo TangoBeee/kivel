@@ -4,7 +4,7 @@ import { Button, TextArea, TextField } from '@radix-ui/themes';
 import { AppSelect, SelectOption } from './app-select';
 import { CodeExample } from './code-example';
 import { ResultPreview } from './result-preview';
-import { parseJsonSafely } from '@kivel/tools/engine';
+import { parseJsonSafely } from '@kivel.io/tools/engine';
 type EchoResource = {
     id: string;
     endpointUrl?: string;

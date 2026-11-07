@@ -3,9 +3,9 @@ import { test } from 'node:test';
 import { createHash, createPublicKey, verify } from 'node:crypto';
 import { buildApp } from './app.js';
 import { ResourceStore } from './resources.js';
-import { oauthLimits, validateOAuth } from '@kivel/tools/oauth';
-import { Kivel } from '@kivel/sdk';
-import { command, needsInput } from '@kivel/cli';
+import { oauthLimits, validateOAuth } from '@kivel.io/tools/oauth';
+import { Kivel } from '@kivel.io/sdk';
+import { command, needsInput } from '@kivel.io/cli';
 
 const origin = 'http://localhost:3000';
 const config = {

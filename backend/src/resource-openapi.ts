@@ -1,6 +1,6 @@
-import { webSocketMockSchema } from '@kivel/tools/mock-config';
-import { llmMockSchema } from '@kivel/tools/llm-mock';
-import { crudSchema } from '@kivel/tools/mock-crud';
+import { webSocketMockSchema } from '@kivel.io/tools/mock-config';
+import { llmMockSchema } from '@kivel.io/tools/llm-mock';
+import { crudSchema } from '@kivel.io/tools/mock-crud';
 export const sharingProperties = {
     visibility: { type: 'string', enum: ['public', 'private'] },
     accessVersion: { type: 'string', description: 'Changes when sharing access is rotated.' },

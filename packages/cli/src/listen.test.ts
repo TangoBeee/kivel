@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { CapturedRequest } from '@kivel/sdk';
+import type { CapturedRequest } from '@kivel.io/sdk';
 import { forwardHeaders, forwardTarget } from './listen.js';
 
 const request: CapturedRequest = {

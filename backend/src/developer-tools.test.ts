@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { runBrowserOperation as run } from '@kivel/tools/engine';
-import type { BrowserOperationId, OperationOptions } from '@kivel/tools/definitions';
-import { ToolRunner } from '@kivel/tools/node';
-import { catalog, toolPageHref } from '@kivel/tools/catalog';
+import { runBrowserOperation as run } from '@kivel.io/tools/engine';
+import type { BrowserOperationId, OperationOptions } from '@kivel.io/tools/definitions';
+import { ToolRunner } from '@kivel.io/tools/node';
+import { catalog, toolPageHref } from '@kivel.io/tools/catalog';
 import { emailAuthenticationReport } from './developer-network.js';
-import { readablePage, sitemapContents } from '@kivel/tools/network-parsers';
+import { readablePage, sitemapContents } from '@kivel.io/tools/network-parsers';
 import { NetworkRunner } from './network-tools.js';
 import { buildApp } from './app.js';
 const result = async (id: BrowserOperationId, input = '', options: OperationOptions = {}) =>

@@ -1,4 +1,4 @@
-# @kivel/sdk
+# @kivel.io/sdk
 
 ## 0.6.0
 

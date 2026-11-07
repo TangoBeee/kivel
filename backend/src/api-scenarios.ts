@@ -3,11 +3,11 @@ import {
     expandScenario,
     jsonField,
     sensitiveName,
-} from '@kivel/tools/api-scenarios';
-import type { ApiScenario, ScenarioReport } from '@kivel/tools/api-scenarios';
+} from '@kivel.io/tools/api-scenarios';
+import type { ApiScenario, ScenarioReport } from '@kivel.io/tools/api-scenarios';
 import { publicRequest, publicUrl } from './public-network.js';
-import { ToolExecutionError } from '@kivel/tools/node';
-import { parseJsonSafely } from '@kivel/tools/engine';
+import { ToolExecutionError } from '@kivel.io/tools/node';
+import { parseJsonSafely } from '@kivel.io/tools/engine';
 
 export async function runScenario(
     input: string,

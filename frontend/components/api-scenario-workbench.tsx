@@ -7,8 +7,8 @@ import {
     sampleScenario,
     validateScenario,
     sensitiveName,
-} from '@kivel/tools/api-scenarios';
-import type { ApiScenario, ScenarioRequest, ScenarioReport } from '@kivel/tools/api-scenarios';
+} from '@kivel.io/tools/api-scenarios';
+import type { ApiScenario, ScenarioRequest, ScenarioReport } from '@kivel.io/tools/api-scenarios';
 import { ToolHeader } from './tool-header';
 import { AppSelect, SelectOption } from './app-select';
 import { Icon } from './icons';
@@ -16,7 +16,7 @@ import { ResultPreview, downloadBlob } from './result-preview';
 import { CodeExample } from './code-example';
 import { api } from '../lib/api';
 import { takeScenarioDraft } from '../lib/scenario-handoff';
-import { parseJsonSafely } from '@kivel/tools/engine';
+import { parseJsonSafely } from '@kivel.io/tools/engine';
 
 const STORAGE = 'kivel:api-scenarios:v1';
 const clientExample = [

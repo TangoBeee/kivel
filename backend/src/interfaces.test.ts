@@ -2,8 +2,8 @@ import { execFile } from 'node:child_process';
 import { resolve } from 'node:path';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { Kivel, KivelError } from '@kivel/sdk';
-import { command, needsInput } from '@kivel/cli';
+import { Kivel, KivelError } from '@kivel.io/sdk';
+import { command, needsInput } from '@kivel.io/cli';
 import { buildApp } from './app.js';
 
 const origin = 'http://localhost:3000';

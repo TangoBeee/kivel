@@ -18,7 +18,7 @@ import { PostgresMonitors } from './monitors.js';
 import { PostgresAgents } from './agents.js';
 import { PostgresApprovals } from './approvals.js';
 import { PostgresJobs } from './scheduled-jobs.js';
-import type { CrudState } from '@kivel/tools/mock-crud';
+import type { CrudState } from '@kivel.io/tools/mock-crud';
 import { PostgresRecoveryRepository } from './recovery-store.js';
 import { passwordHash, PostgresIdentityRepository } from './identity.js';
 import ssh2 from 'ssh2';

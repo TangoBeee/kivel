@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { AvRunner } from '@kivel/tools/av';
+import { AvRunner } from '@kivel.io/tools/av';
 import { buildApp } from './app.js';
-import { ToolRunner } from '@kivel/tools/node';
+import { ToolRunner } from '@kivel.io/tools/node';
 
 test('audio/video tools produce playable files and metadata through the shared service', async (t) => {
     const app = buildApp();

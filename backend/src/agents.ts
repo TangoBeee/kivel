@@ -8,7 +8,7 @@ import {
 } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { Pool } from 'pg';
-import { plans } from '@kivel/tools/plans';
+import { plans } from '@kivel.io/tools/plans';
 import { HttpError } from './access.js';
 import type { Access } from './access.js';
 import { effectivePlan } from './identity.js';

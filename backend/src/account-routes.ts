@@ -1,7 +1,7 @@
 import { clientKey } from './security.js';
 import { randomBytes } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
-import { plans } from '@kivel/tools/plans';
+import { plans } from '@kivel.io/tools/plans';
 import { passwordHash, verifyPassword, publicIdentity, scopes } from './identity.js';
 import type { Scope, Role } from './identity.js';
 import { Access, HttpError } from './access.js';

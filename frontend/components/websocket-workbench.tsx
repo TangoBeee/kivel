@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { AlertDialog, Button, Checkbox, Flex, TextArea, TextField } from '@radix-ui/themes';
-import { validateMock } from '@kivel/tools/mock-config';
+import { validateMock } from '@kivel.io/tools/mock-config';
 import { api, resourceHeaders } from '../lib/api';
 import { useViewer } from '../lib/viewer';
 import { ToolHeader } from './tool-header';

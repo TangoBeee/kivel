@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { plans } from '@kivel/tools/plans';
+import { plans } from '@kivel.io/tools/plans';
 import { Access, HttpError, resourceToken } from './access.js';
 import type { EmailLifecycle } from './email-lifecycle.js';
 import type { Visibility } from './sharing.js';

@@ -1,8 +1,8 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { Button, Switch } from '@radix-ui/themes';
-import { defaultRecipe, musicTracks, noteName, validateRecipe } from '@kivel/tools/audio';
-import type { AudioRecipe } from '@kivel/tools/audio';
+import { defaultRecipe, musicTracks, noteName, validateRecipe } from '@kivel.io/tools/audio';
+import type { AudioRecipe } from '@kivel.io/tools/audio';
 import { AppSelect, SelectOption } from './app-select';
 import { AppSlider as Slider } from './app-slider';
 import { ToolHeader } from './tool-header';

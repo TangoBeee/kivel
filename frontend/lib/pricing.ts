@@ -1,4 +1,4 @@
-import { paidPlans } from '@kivel/tools/billing-plans';
+import { paidPlans } from '@kivel.io/tools/billing-plans';
 export const paidPlansEnabled = process.env.BILLING_ENABLED === 'true';
 export const pricing = {
     currency: paidPlans.pro.currency,

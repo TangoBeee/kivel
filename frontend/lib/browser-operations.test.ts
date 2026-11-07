@@ -122,7 +122,7 @@ test('formatting and inspection preserve large integers while conversions reject
 
 test('generated cards have valid brand formats and unique numbers, names, expiry and CVV', async () => {
     const { passesLuhn, cardBrandNames, generateTestCards } =
-        await import('@kivel/tools/payment-cards');
+        await import('@kivel.io/tools/payment-cards');
     const now = new Date('2026-12-31T23:59:59Z');
     const patterns = {
         visa: /^4\d{15}$/,
@@ -175,7 +175,7 @@ test('generated cards have valid brand formats and unique numbers, names, expiry
 });
 test('sandbox mode preserves official provider numbers and never invents funding labels', async () => {
     const { sandboxCards, generateTestCards, passesLuhn } =
-        await import('@kivel/tools/payment-cards');
+        await import('@kivel.io/tools/payment-cards');
     for (const provider of ['stripe', 'adyen', 'braintree', 'paypal']) {
         const batch = generateTestCards('credit', { mode: 'sandbox', provider });
         assert.equal(batch.provider, provider);
@@ -206,7 +206,7 @@ test('card generation rejects unsupported options and unbounded counts', async (
     await assert.rejects(run('developer-credit-card-generator', '', { address: 'maybe' }));
 });
 test('card validation checks exact fixtures and checksum failures without claiming a live card is valid', async () => {
-    const { testCardFixtures } = await import('@kivel/tools/payment-cards');
+    const { testCardFixtures } = await import('@kivel.io/tools/payment-cards');
     for (const fixture of testCardFixtures) {
         const result = JSON.parse(await run('developer-card-number-validator', fixture.number));
         assert.equal(result.checksumValid, true);
@@ -529,7 +529,7 @@ test('environment serialization round-trips values containing all quote styles a
 
 test('webhook signatures verify each preset against independently generated HMACs', async () => {
     const { createHmac, createHash } = await import('node:crypto');
-    const { verifyWebhookSignature } = await import('@kivel/tools/webhooks');
+    const { verifyWebhookSignature } = await import('@kivel.io/tools/webhooks');
     const now = Date.now(),
         timestamp = String(Math.floor(now / 1000)),
         secret = 'test-signing-secret';
@@ -676,7 +676,7 @@ test('webhook signatures verify each preset against independently generated HMAC
 
 test('webhook signature failures explain stale timestamps, missing headers and exact-byte mismatches', async () => {
     const { createHmac } = await import('node:crypto');
-    const { verifyWebhookSignature } = await import('@kivel/tools/webhooks');
+    const { verifyWebhookSignature } = await import('@kivel.io/tools/webhooks');
     const secret = 'fixture',
         body = new Uint8Array([0, 255, 128]),
         timestamp = '1731705121';
@@ -722,7 +722,7 @@ test('webhook signature failures explain stale timestamps, missing headers and e
 });
 
 test('webhook body previews preserve duplicate fields, list multipart files and never render untrusted markup', async () => {
-    const { parseWebhookBody } = await import('@kivel/tools/webhooks');
+    const { parseWebhookBody } = await import('@kivel.io/tools/webhooks');
     const bytes = (text: string) => new TextEncoder().encode(text);
     assert.deepEqual(
         (await parseWebhookBody(bytes('{"hello":"world"}'), 'application/vnd.test+json')).data,

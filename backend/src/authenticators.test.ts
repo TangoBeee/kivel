@@ -3,8 +3,8 @@ import { test } from 'node:test';
 import { PNG } from 'pngjs';
 import qrcode from 'qrcode-generator';
 import jpeg from 'jpeg-js';
-import { Kivel } from '@kivel/sdk';
-import { command } from '@kivel/cli';
+import { Kivel } from '@kivel.io/sdk';
+import { command } from '@kivel.io/cli';
 import { buildApp } from './app.js';
 import { MemoryIdentityRepository } from './identity.js';
 import { MemoryAuthenticators } from './authenticators.js';
@@ -12,7 +12,7 @@ import { MemoryAgents } from './agents.js';
 import { MemoryActivity } from './activity.js';
 import { decodeBase32, parseTotp, totp, totpVault } from './totp.js';
 import { decodeTotpQr } from './totp-qr.js';
-import { plans } from '@kivel/tools/plans';
+import { plans } from '@kivel.io/tools/plans';
 
 const secret = 'JBSWY3DPEHPK3PXP';
 export function base32(bytes: Buffer) {

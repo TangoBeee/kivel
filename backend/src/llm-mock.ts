@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { setTimeout as delay } from 'node:timers/promises';
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import type { LlmMockConfig } from '@kivel/tools/llm-mock';
+import type { LlmMockConfig } from '@kivel.io/tools/llm-mock';
 
 export function sendLlmMock(
     config: LlmMockConfig,

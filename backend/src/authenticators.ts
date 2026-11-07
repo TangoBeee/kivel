@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import type { FastifyInstance } from 'fastify';
-import { plans } from '@kivel/tools/plans';
+import { plans } from '@kivel.io/tools/plans';
 import { transaction } from './database.js';
 import { HttpError } from './errors.js';
 import type { Access } from './access.js';

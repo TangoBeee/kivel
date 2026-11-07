@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import { test } from 'node:test';
-import { Kivel } from '@kivel/sdk';
-import { command } from '@kivel/cli';
+import { Kivel } from '@kivel.io/sdk';
+import { command } from '@kivel.io/cli';
 import { buildApp } from './app.js';
 import { MemoryIdentityRepository } from './identity.js';
 import { ResourceStore } from './resources.js';

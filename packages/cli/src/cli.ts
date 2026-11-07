@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import process from 'node:process';
 import { Buffer } from 'node:buffer';
-import { Kivel, KivelError } from '@kivel/sdk';
+import { Kivel, KivelError } from '@kivel.io/sdk';
 import { command, needsInput as commandNeedsInput } from './commands.js';
 import { listen } from './listen.js';
 import type { ListenOptions } from './listen.js';

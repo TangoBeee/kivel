@@ -2,8 +2,8 @@ import { createHash, randomBytes, randomUUID, scrypt, timingSafeEqual } from 'no
 import { promisify } from 'node:util';
 import type { Pool } from 'pg';
 import { transaction } from './database.js';
-import { plans, resolvePlan } from '@kivel/tools/plans';
-import type { AccountPlan, PlanId } from '@kivel/tools/plans';
+import { plans, resolvePlan } from '@kivel.io/tools/plans';
+import type { AccountPlan, PlanId } from '@kivel.io/tools/plans';
 
 const derive = promisify(scrypt);
 export const digest = (value: string) => createHash('sha256').update(value).digest();

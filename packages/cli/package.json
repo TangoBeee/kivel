@@ -1,5 +1,5 @@
 {
-  "name": "@kivel/cli",
+  "name": "@kivel.io/cli",
   "version": "0.6.0",
   "type": "module",
   "bin": {
@@ -21,10 +21,10 @@
     "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true,force:true})\" && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --import tsx --test src/listen.test.ts",
-    "prepack": "pnpm --filter @kivel/sdk build && pnpm build"
+    "prepack": "pnpm --filter @kivel.io/sdk build && pnpm build"
   },
   "dependencies": {
-    "@kivel/sdk": "workspace:*"
+    "@kivel.io/sdk": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

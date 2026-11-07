@@ -3,7 +3,7 @@ import type { EmailRules } from './email-threading.js';
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { load } from 'cheerio';
-import { plans } from '@kivel/tools/plans';
+import { plans } from '@kivel.io/tools/plans';
 import { HttpError } from './access.js';
 import type { Access, Actor } from './access.js';
 import type { ResourceInfo } from './resources.js';

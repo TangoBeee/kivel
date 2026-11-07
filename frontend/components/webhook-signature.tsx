@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { signatureProviders, verifyWebhookSignature } from '@kivel/tools/webhooks';
-import type { SignatureProvider } from '@kivel/tools/webhooks';
+import { signatureProviders, verifyWebhookSignature } from '@kivel.io/tools/webhooks';
+import type { SignatureProvider } from '@kivel.io/tools/webhooks';
 import type { CapturedRequest } from '../lib/api';
 import { AppSelect, SelectOption } from './app-select';
 import { Button } from '@radix-ui/themes';

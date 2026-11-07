@@ -4,8 +4,8 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
-import { Kivel, KivelError } from '@kivel/sdk';
-import { command, needsInput } from '@kivel/cli';
+import { Kivel, KivelError } from '@kivel.io/sdk';
+import { command, needsInput } from '@kivel.io/cli';
 import type { IdentityRepository } from './identity.js';
 import type { RateLimitRepository } from './rate-limit.js';
 export function splitCommand(value: string): string[] {

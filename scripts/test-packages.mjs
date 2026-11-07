@@ -62,7 +62,7 @@ try {
         assert.equal(manifest.publishConfig.access, 'public');
         assert.equal(manifest.license, 'Apache-2.0');
         await run('pnpm', ['--dir', `packages/${name}`, 'pack', '--pack-destination', output]);
-        const path = join(output, `kivel-${name}-${manifest.version}.tgz`);
+        const path = join(output, `kivel.io-${name}-${manifest.version}.tgz`);
         const files = (await run('tar', ['-tzf', path])).split('\n');
         for (const file of files) {
             assert.match(
@@ -86,11 +86,11 @@ try {
         assert.ok(files.includes(`package/${packed.types.replace(/^\.\//, '')}`));
         if (name === 'cli') {
             assert.equal(
-                packed.dependencies['@kivel/sdk'],
+                packed.dependencies['@kivel.io/sdk'],
                 sdk.version,
                 'pnpm must replace workspace protocol',
             );
-            assert.deepEqual(Object.keys(packed.dependencies), ['@kivel/sdk']);
+            assert.deepEqual(Object.keys(packed.dependencies), ['@kivel.io/sdk']);
             assert.ok(files.includes('package/bin/kivel.mjs'));
         } else assert.equal(packed.dependencies, undefined, 'SDK stays dependency-free');
         const data = await readFile(path);
@@ -209,7 +209,7 @@ try {
     await writeFile(
         join(consumer, 'check.mjs'),
         `import assert from 'node:assert/strict';
-import { Kivel, KivelError } from '@kivel/sdk';
+import { Kivel, KivelError } from '@kivel.io/sdk';
 const kivel = new Kivel({ baseUrl: process.env.KIVEL_URL, apiKey: process.env.KIVEL_API_KEY });
 assert.equal((await kivel.tools()).tools[0].id, 'json');
 const result = await kivel.run('json', '{"released":true}');
@@ -219,8 +219,8 @@ await assert.rejects(new Kivel({ baseUrl: process.env.KIVEL_URL }).tools(), erro
     );
     await writeFile(
         join(consumer, 'check.ts'),
-        `import { Kivel, type EmailInbox, type MemoryEntry } from '@kivel/sdk';
-import { command } from '@kivel/cli';
+        `import { Kivel, type EmailInbox, type MemoryEntry } from '@kivel.io/sdk';
+import { command } from '@kivel.io/cli';
 const kivel = new Kivel({ baseUrl: 'http://localhost' });
 const email: Promise<EmailInbox> = kivel.createEmailInbox();
 const memory: Promise<MemoryEntry<{ passed: boolean }>> = kivel.memoryGet('release', 'result');

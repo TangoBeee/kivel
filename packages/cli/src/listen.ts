@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer';
-import { KivelError } from '@kivel/sdk';
-import type { CapturedRequest, Kivel } from '@kivel/sdk';
+import { KivelError } from '@kivel.io/sdk';
+import type { CapturedRequest, Kivel } from '@kivel.io/sdk';
 
 export interface ListenOptions {
     token?: string;

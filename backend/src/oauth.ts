@@ -10,8 +10,8 @@ import {
 import { promisify } from 'node:util';
 import { setTimeout as delay } from 'node:timers/promises';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { oauthSchema, validateOAuth } from '@kivel/tools/oauth';
-import type { OAuthConfig, OAuthUser } from '@kivel/tools/oauth';
+import { oauthSchema, validateOAuth } from '@kivel.io/tools/oauth';
+import type { OAuthConfig, OAuthUser } from '@kivel.io/tools/oauth';
 import { Access, HttpError, resourceToken } from './access.js';
 import type { ResourceRepository } from './resources.js';
 import type { RateLimitRepository } from './rate-limit.js';

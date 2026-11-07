@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { setTimeout as sleep } from 'node:timers/promises';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import type { WebSocketMockConfig } from '@kivel/tools/mock-config';
+import type { WebSocketMockConfig } from '@kivel.io/tools/mock-config';
 import type { Access } from './access.js';
 import { HttpError } from './errors.js';
 import { mockCall } from './mock-calls.js';

@@ -26,13 +26,13 @@ importers:
       '@fastify/websocket':
         specifier: ^11.3.6
         version: 11.3.6
-      '@kivel/cli':
+      '@kivel.io/cli':
         specifier: workspace:*
         version: link:../packages/cli
-      '@kivel/sdk':
+      '@kivel.io/sdk':
         specifier: workspace:*
         version: link:../packages/sdk
-      '@kivel/tools':
+      '@kivel.io/tools':
         specifier: workspace:*
         version: link:../packages/tools
       cheerio:
@@ -117,7 +117,7 @@ importers:
 
   frontend:
     dependencies:
-      '@kivel/tools':
+      '@kivel.io/tools':
         specifier: workspace:*
         version: link:../packages/tools
       '@phosphor-icons/react':
@@ -187,7 +187,7 @@ importers:
 
   packages/cli:
     dependencies:
-      '@kivel/sdk':
+      '@kivel.io/sdk':
         specifier: workspace:*
         version: link:../sdk
     devDependencies:

@@ -1,5 +1,5 @@
-import { validateScenario } from '@kivel/tools/api-scenarios';
-import type { ApiScenario } from '@kivel/tools/api-scenarios';
+import { validateScenario } from '@kivel.io/tools/api-scenarios';
+import type { ApiScenario } from '@kivel.io/tools/api-scenarios';
 const KEY = 'kivel:scenario-draft';
 export function saveScenarioDraft(scenario: ApiScenario) {
     sessionStorage.setItem(

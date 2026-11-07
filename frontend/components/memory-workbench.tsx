@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Button, TextArea, TextField } from '@radix-ui/themes';
-import { parseJsonSafely } from '@kivel/tools/engine';
+import { parseJsonSafely } from '@kivel.io/tools/engine';
 import { api } from '../lib/api';
 import { useViewer } from '../lib/viewer';
 import { ToolHeader } from './tool-header';

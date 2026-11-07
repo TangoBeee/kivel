@@ -1,8 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { Button, Checkbox, Select, TextArea, TextField } from '@radix-ui/themes';
-import { oauthScenarios, validateOAuth, oauthClaimPresets } from '@kivel/tools/oauth';
-import type { OAuthConfig, OAuthScenario } from '@kivel/tools/oauth';
+import { oauthScenarios, validateOAuth, oauthClaimPresets } from '@kivel.io/tools/oauth';
+import type { OAuthConfig, OAuthScenario } from '@kivel.io/tools/oauth';
 import { useViewer } from '../lib/viewer';
 import { api } from '../lib/api';
 import { ToolHeader } from './tool-header';

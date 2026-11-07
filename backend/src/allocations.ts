@@ -1,5 +1,5 @@
-import { plans } from '@kivel/tools/plans';
-import type { PlanId } from '@kivel/tools/plans';
+import { plans } from '@kivel.io/tools/plans';
+import type { PlanId } from '@kivel.io/tools/plans';
 export interface AllocationContext {
     visibility?: 'public' | 'private';
     quotaKey: string;

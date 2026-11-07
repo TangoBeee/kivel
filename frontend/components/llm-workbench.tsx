@@ -1,9 +1,9 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { Button, Checkbox, Select, TextArea, TextField } from '@radix-ui/themes';
-import { validateLlmMock } from '@kivel/tools/llm-mock';
-import type { LlmMockConfig } from '@kivel/tools/llm-mock';
-import { parseSse } from '@kivel/tools/sse';
+import { validateLlmMock } from '@kivel.io/tools/llm-mock';
+import type { LlmMockConfig } from '@kivel.io/tools/llm-mock';
+import { parseSse } from '@kivel.io/tools/sse';
 import { useViewer } from '../lib/viewer';
 import { api, resourceHeaders } from '../lib/api';
 import { ToolHeader } from './tool-header';

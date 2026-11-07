@@ -1,8 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { musicTracks } from '@kivel/tools/audio';
-import { ToolExecutionError } from '@kivel/tools/node';
+import { musicTracks } from '@kivel.io/tools/audio';
+import { ToolExecutionError } from '@kivel.io/tools/node';
 export async function readMusicTrack(id: string, frontendDir?: string) {
     if (!musicTracks.some((track) => track.id === id))
         throw new ToolExecutionError('Choose a track from the music library.');

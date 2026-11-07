@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { paidPlans } from '@kivel/tools/billing-plans';
+import { paidPlans } from '@kivel.io/tools/billing-plans';
 import type { RecoveryRepository } from './recovery-store.js';
 import DodoPayments from 'dodopayments';
 import type { Subscription } from 'dodopayments/resources/subscriptions';
@@ -7,8 +7,8 @@ import type { Pool, PoolClient } from 'pg';
 import type { FastifyInstance } from 'fastify';
 import { transaction } from './database.js';
 import { Access, HttpError } from './access.js';
-import type { AccountPlan } from '@kivel/tools/plans';
-import { plans } from '@kivel/tools/plans';
+import type { AccountPlan } from '@kivel.io/tools/plans';
+import { plans } from '@kivel.io/tools/plans';
 export interface BillingConfig {
     apiKey: string;
     webhookSecret: string;

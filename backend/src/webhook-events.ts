@@ -1,6 +1,6 @@
 import { createHmac, randomUUID } from 'node:crypto';
-import type { OperationOptions } from '@kivel/tools/definitions';
-import { ToolExecutionError } from '@kivel/tools/node';
+import type { OperationOptions } from '@kivel.io/tools/definitions';
+import { ToolExecutionError } from '@kivel.io/tools/node';
 import { publicRequest, publicUrl } from './public-network.js';
 
 const types = {

@@ -18,7 +18,7 @@ for (const note of notes) {
     const text = await readFile(`.changeset/${note}`, 'utf8');
     for (const match of text
         .split('---')[1]
-        ?.matchAll(/^["']?(@kivel\/(?:sdk|cli))["']?:\s*(patch|minor|major)\s*$/gm) ?? [])
+        ?.matchAll(/^["']?(@kivel\.io\/(?:sdk|cli))["']?:\s*(patch|minor|major)\s*$/gm) ?? [])
         declared.add(match[1]);
 }
 for (const name of ['sdk', 'cli']) {
@@ -45,8 +45,8 @@ for (const name of ['sdk', 'cli']) {
         }
     });
     assert.ok(
-        !substantive.length || declared.has(`@kivel/${name}`),
-        `${name} changed without a changeset. Run pnpm changeset and select @kivel/${name}.`,
+        !substantive.length || declared.has(`@kivel.io/${name}`),
+        `${name} changed without a changeset. Run pnpm changeset and select @kivel.io/${name}.`,
     );
 }
 console.log('Client changeset coverage checked.');

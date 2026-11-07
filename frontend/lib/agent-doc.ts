@@ -69,7 +69,7 @@ const { code, secondsRemaining, nextCode } = await kivel.getTotpCode(authenticat
             ],
             code: {
                 title: 'Email with the TypeScript SDK',
-                value: `import { Kivel } from '@kivel/sdk';
+                value: `import { Kivel } from '@kivel.io/sdk';
 const kivel = new Kivel({ apiKey: process.env.KIVEL_API_KEY });
 const inbox = await kivel.createEmailInbox({ activeDays: 3 });
 const result = await kivel.waitForEmail(inbox.id, { timeoutSeconds: 20 });

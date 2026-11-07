@@ -6,7 +6,7 @@ assert.equal(version, 1);
 assert.match(process.env.GITHUB_SHA ?? '', /^[a-f0-9]{40}$/);
 const seen = new Set();
 for (const entry of plan.flat()) {
-    assert.ok(['@kivel/sdk', '@kivel/cli'].includes(entry.name));
+    assert.ok(['@kivel.io/sdk', '@kivel.io/cli'].includes(entry.name));
     assert.match(entry.version, /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/);
     const tag = `${entry.name}@${entry.version}`;
     if (seen.has(tag)) continue;

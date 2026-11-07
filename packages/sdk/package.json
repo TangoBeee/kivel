@@ -1,5 +1,5 @@
 {
-  "name": "@kivel/sdk",
+  "name": "@kivel.io/sdk",
   "version": "0.6.0",
   "type": "module",
   "exports": {

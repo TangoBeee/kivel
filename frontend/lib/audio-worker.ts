@@ -1,4 +1,4 @@
-import { renderAudio } from '@kivel/tools/audio';
+import { renderAudio } from '@kivel.io/tools/audio';
 self.onmessage = (event: MessageEvent) => {
     try {
         self.postMessage({ output: renderAudio(event.data) });

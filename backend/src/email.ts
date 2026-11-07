@@ -7,7 +7,7 @@ import {
     pageEmailThreads,
 } from './email-threading.js';
 import type { EmailRules } from './email-threading.js';
-import { inboxRuleLimits } from '@kivel/tools/billing-plans';
+import { inboxRuleLimits } from '@kivel.io/tools/billing-plans';
 import {
     parseAttachments,
     INBOX_ATTACHMENT_BYTES,
@@ -28,7 +28,7 @@ import { waitSeconds } from './waiting.js';
 import { load } from 'cheerio';
 import { transaction } from './database.js';
 import { randomUUID } from 'node:crypto';
-import { plans } from '@kivel/tools/plans';
+import { plans } from '@kivel.io/tools/plans';
 import { entitlement } from './entitlements.js';
 import { effectivePlan } from './identity.js';
 import { customEmailLocalPart } from './email-addresses.js';

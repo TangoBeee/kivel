@@ -1,4 +1,4 @@
-# @kivel/sdk
+# @kivel.io/sdk
 
 The TypeScript client for [Kivel](https://kivel.io): webhook URLs,
 owned email when configured, mock APIs, files, workspace memory, monitors and human approval
@@ -6,14 +6,14 @@ for coding agents. Requires Node.js 22.13+ or a compatible fetch-based runtime.
 The published package is ESM; use `import`, not CommonJS `require`.
 
 ```sh
-npm install @kivel/sdk@beta
+npm install @kivel.io/sdk@beta
 ```
 
 Use the explicit beta tag for the current beta channel. Pin an exact version
 when you need reproducible application builds.
 
 ```ts
-import { Kivel, KivelError } from '@kivel/sdk';
+import { Kivel, KivelError } from '@kivel.io/sdk';
 
 const kivel = new Kivel({ apiKey: process.env.KIVEL_API_KEY });
 const inbox = await kivel.createInbox();

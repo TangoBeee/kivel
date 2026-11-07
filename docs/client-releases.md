@@ -1,6 +1,6 @@
 # SDK and CLI releases
 
-Public packages: `@kivel/sdk` and `@kivel/cli`. The current distribution
+Public packages: `@kivel.io/sdk` and `@kivel.io/cli`. The current distribution
 channel is `beta`; neither private app packages nor the internal tool engine are
 published. SDK and CLI versions are independent. CLI's `workspace:*` dependency
 packs as an exact SDK version, so an SDK update also gets a CLI dependency release.

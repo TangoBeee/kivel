@@ -18,10 +18,10 @@ import WebhookWorkbench from './webhook-workbench';
 import { McpConnect } from './mcp-connect';
 import { EmailInboxWorkbench } from './email-inbox-workbench';
 import { ToolHeader } from './tool-header';
-import { mediaOperations } from '@kivel/tools/media-definitions';
-import type { MediaOperationId } from '@kivel/tools/media-definitions';
-import { networkOperations } from '@kivel/tools/network-definitions';
-import type { NetworkOperationId } from '@kivel/tools/network-definitions';
+import { mediaOperations } from '@kivel.io/tools/media-definitions';
+import type { MediaOperationId } from '@kivel.io/tools/media-definitions';
+import { networkOperations } from '@kivel.io/tools/network-definitions';
+import type { NetworkOperationId } from '@kivel.io/tools/network-definitions';
 import { browserOperations } from '../lib/browser-tool-definitions';
 import type { BrowserOperationId } from '../lib/browser-tool-definitions';
 import {

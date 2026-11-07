@@ -1,4 +1,4 @@
-import type { Kivel, MonitorInput, ApprovalInput } from '@kivel/sdk';
+import type { Kivel, MonitorInput, ApprovalInput } from '@kivel.io/sdk';
 
 export function needsInput(args: string[]) {
     return (

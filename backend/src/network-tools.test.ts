@@ -3,7 +3,7 @@ import test from 'node:test';
 import { Resolver } from 'node:dns/promises';
 import { publicAddress, publicUrl, resolvePublic } from './public-network.js';
 import { NetworkRunner, dnsResponseKey } from './network-tools.js';
-import { networkOperations } from '@kivel/tools/network-definitions';
+import { networkOperations } from '@kivel.io/tools/network-definitions';
 import { buildApp } from './app.js';
 
 test('network targets reject private, reserved, encoded and mapped addresses', () => {

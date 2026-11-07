@@ -1,7 +1,7 @@
-import type { ToolRunner } from '@kivel/tools/node';
+import type { ToolRunner } from '@kivel.io/tools/node';
 import robotsParser from 'robots-parser';
 import { followPublic, publicUrl } from './public-network.js';
-import { ToolExecutionError } from '@kivel/tools/node';
+import { ToolExecutionError } from '@kivel.io/tools/node';
 
 export async function pageToMarkdown(input: string, signal: AbortSignal, runner: ToolRunner) {
     const response = await followPublic(input, signal, { body: true });

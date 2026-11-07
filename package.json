@@ -16,7 +16,7 @@
     "test:https": "node scripts/test-https.mjs",
     "scan:images": "node scripts/scan-images.mjs",
     "check": "pnpm typecheck && pnpm test && pnpm test:integration && pnpm build",
-    "build:packages": "pnpm --filter @kivel/tools build && pnpm --filter @kivel/sdk build && pnpm --filter @kivel/cli build",
+    "build:packages": "pnpm --filter @kivel.io/tools build && pnpm --filter @kivel.io/sdk build && pnpm --filter @kivel.io/cli build",
     "cli": "node packages/cli/dist/cli.js",
     "backup": "node scripts/backup.mjs",
     "test:backup": "node scripts/verify-backup.mjs",

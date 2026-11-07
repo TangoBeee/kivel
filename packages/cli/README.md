@@ -1,4 +1,4 @@
-# @kivel/cli
+# @kivel.io/cli
 
 The command-line client for [Kivel](https://kivel.io). Requires Node.js
 22.13+. Commands share the HTTP API's access rules, plan limits and expiry.
@@ -6,9 +6,9 @@ The command-line client for [Kivel](https://kivel.io). Requires Node.js
 Install the current beta:
 
 ```sh
-npx --package=@kivel/cli@beta kivel --help
+npx --package=@kivel.io/cli@beta kivel --help
 # Or install the command:
-npm install --global @kivel/cli@beta
+npm install --global @kivel.io/cli@beta
 kivel --version
 ```
 

@@ -1,7 +1,7 @@
 import { VERSION } from './version.js';
 import { agentCommand } from './agent-commands.js';
 export { needsInput } from './agent-commands.js';
-import type { Kivel } from '@kivel/sdk';
+import type { Kivel } from '@kivel.io/sdk';
 export const help = `kivel tools | usage | resources
 kivel --version
 kivel plans | activity

@@ -22,9 +22,9 @@
   "dependencies": {
     "@fastify/static": "10.1.7",
     "@fastify/websocket": "^11.3.6",
-    "@kivel/cli": "workspace:*",
-    "@kivel/sdk": "workspace:*",
-    "@kivel/tools": "workspace:*",
+    "@kivel.io/cli": "workspace:*",
+    "@kivel.io/sdk": "workspace:*",
+    "@kivel.io/tools": "workspace:*",
     "cheerio": "1.2.0",
     "disposable-email-domains": "1.0.62",
     "dodopayments": "2.57.0",

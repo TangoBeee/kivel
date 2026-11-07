@@ -107,8 +107,8 @@ uses `DOMAIN` automatically.
 
 `pnpm build:packages` builds the shared engine, TypeScript SDK, and CLI.
 SDK and CLI are published under the beta tag:
-`npm install @kivel/sdk@beta` and
-`npx --package=@kivel/cli@beta kivel --help`.
+`npm install @kivel.io/sdk@beta` and
+`npx --package=@kivel.io/cli@beta kivel --help`.
 Run `pnpm test:packages` to verify standalone installable tarballs in `release/`.
 See [client releases](docs/client-releases.md) for publishing and installation.
 Start with `/docs/agent-workflows/` for device login, email, memory, monitors and human questions.

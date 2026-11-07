@@ -2,19 +2,19 @@
 import { toolInputs } from '../lib/tool-inputs';
 import { renderToolResult } from './tool-result';
 import { api } from '../lib/api';
-import { mediaOperations } from '@kivel/tools/media-definitions';
-import type { MediaOperationId } from '@kivel/tools/media-definitions';
-import { networkOperations } from '@kivel/tools/network-definitions';
-import type { NetworkOperationId } from '@kivel/tools/network-definitions';
-import { extraOperations } from '@kivel/tools/extra-definitions';
-import type { ExtraDefinition } from '@kivel/tools/extra-definitions';
+import { mediaOperations } from '@kivel.io/tools/media-definitions';
+import type { MediaOperationId } from '@kivel.io/tools/media-definitions';
+import { networkOperations } from '@kivel.io/tools/network-definitions';
+import type { NetworkOperationId } from '@kivel.io/tools/network-definitions';
+import { extraOperations } from '@kivel.io/tools/extra-definitions';
+import type { ExtraDefinition } from '@kivel.io/tools/extra-definitions';
 import { GeneratedFilePreview, MarkdownPreview } from './generated-preview';
 import {
     paymentGeneratorFunding,
     sandboxCards,
     cardBrandNames,
     sandboxSources,
-} from '@kivel/tools/payment-cards';
+} from '@kivel.io/tools/payment-cards';
 import { PaymentCardPreview, CardValidationPreview } from './payment-card-preview';
 import { AppSelect, SelectOption } from './app-select';
 import { useEffect, useMemo, useRef, useState } from 'react';

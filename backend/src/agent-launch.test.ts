@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { Kivel } from '@kivel/sdk';
-import { command } from '@kivel/cli';
-import { catalog } from '@kivel/tools/catalog';
+import { Kivel } from '@kivel.io/sdk';
+import { command } from '@kivel.io/cli';
+import { catalog } from '@kivel.io/tools/catalog';
 import { buildApp } from './app.js';
 import { catalogGuide } from './tool-discovery.js';
 import { platformTools } from './mcp.js';

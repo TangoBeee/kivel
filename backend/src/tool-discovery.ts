@@ -5,8 +5,8 @@ import {
     monitorToolIds,
     scheduledToolIds,
     toolAvailability,
-} from '@kivel/tools/catalog';
-import type { ServerCapabilities } from '@kivel/tools/catalog';
+} from '@kivel.io/tools/catalog';
+import type { ServerCapabilities } from '@kivel.io/tools/catalog';
 import { executableIds, executionGuide } from './tool-routes.js';
 
 export function catalogGuide(id: string, capabilities: ServerCapabilities) {

@@ -1,4 +1,4 @@
-import { plans } from '@kivel/tools/plans';
+import { plans } from '@kivel.io/tools/plans';
 import type { IdentityRepository } from './identity.js';
 import { effectivePlan } from './identity.js';
 import type { EmailAddress, EmailAddressRepository } from './email-addresses.js';

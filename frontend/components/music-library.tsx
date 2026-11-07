@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Button, Switch } from '@radix-ui/themes';
-import { musicTracks } from '@kivel/tools/audio';
+import { musicTracks } from '@kivel.io/tools/audio';
 import { AppSelect, SelectOption } from './app-select';
 import { AppSlider as Slider } from './app-slider';
 import { ToolHeader } from './tool-header';

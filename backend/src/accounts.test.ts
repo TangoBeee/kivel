@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { buildApp } from './app.js';
 import { MemoryIdentityRepository } from './identity.js';
-import { Kivel } from '@kivel/sdk';
-import { command } from '@kivel/cli';
+import { Kivel } from '@kivel.io/sdk';
+import { command } from '@kivel.io/cli';
 const origin = 'http://localhost:3000';
 async function signup(app: ReturnType<typeof buildApp>, username: string) {
     const response = await app.inject({

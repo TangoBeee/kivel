@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { formatJson } from '@kivel/tools/engine';
+import { formatJson } from '@kivel.io/tools/engine';
 import { SharingControl } from './sharing-control';
 import type { Visibility } from './sharing-control';
 import { AlertDialog, Button, Checkbox, IconButton, Tabs } from '@radix-ui/themes';

@@ -1,9 +1,9 @@
 import { monitorToolIds, memoryToolIds, scheduledToolIds } from './catalog';
-import { resourceOperations } from '@kivel/tools/resource-definitions';
-import { mediaOperations } from '@kivel/tools/media-definitions';
-import { networkOperations } from '@kivel/tools/network-definitions';
-import { extraOperations } from '@kivel/tools/extra-definitions';
-import type { ExtraDefinition } from '@kivel/tools/extra-definitions';
+import { resourceOperations } from '@kivel.io/tools/resource-definitions';
+import { mediaOperations } from '@kivel.io/tools/media-definitions';
+import { networkOperations } from '@kivel.io/tools/network-definitions';
+import { extraOperations } from '@kivel.io/tools/extra-definitions';
+import type { ExtraDefinition } from '@kivel.io/tools/extra-definitions';
 import type { CatalogTool } from './catalog';
 interface Guide {
     intro: string;

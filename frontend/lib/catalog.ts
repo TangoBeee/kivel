@@ -1,1 +1,1 @@
-export * from '@kivel/tools/catalog';
+export * from '@kivel.io/tools/catalog';

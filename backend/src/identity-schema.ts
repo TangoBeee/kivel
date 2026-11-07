@@ -1,5 +1,5 @@
 import type { PoolClient } from 'pg';
-import { plans } from '@kivel/tools/plans';
+import { plans } from '@kivel.io/tools/plans';
 export async function identitySchema(client: PoolClient) {
     await client.query(`
         CREATE TABLE accounts (

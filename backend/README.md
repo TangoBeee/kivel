@@ -41,5 +41,5 @@ commands: device login/trials, receive-only email, webhooks, mocks, memory, moni
 and human questions. Agent approval/revocation, answering questions, workspace
 membership and billing require the human browser session. CLI `listen` runs locally;
 SSH uses bounded single commands. See `/docs/sdk/`, `/docs/cli/`, `/docs/ssh/` and
-`/docs/mcp/` for commands and credential handling. SDK and CLI 0.3.0 are published to npm as @kivel/sdk@beta and
-@kivel/cli@beta. See docs/client-releases.md for the release process.
+`/docs/mcp/` for commands and credential handling. SDK and CLI 0.3.0 are published to npm as @kivel.io/sdk@beta and
+@kivel.io/cli@beta. See docs/client-releases.md for the release process.

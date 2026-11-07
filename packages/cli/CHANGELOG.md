@@ -1,4 +1,4 @@
-# @kivel/cli
+# @kivel.io/cli
 
 ## 0.6.0
 
@@ -13,7 +13,7 @@
 - Updated dependencies [d096583]
 - Updated dependencies [4185eed]
 - Updated dependencies [a0aa58d]
-    - @kivel/sdk@0.6.0
+    - @kivel.io/sdk@0.6.0
 
 ## 0.5.1
 

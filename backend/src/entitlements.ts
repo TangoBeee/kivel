@@ -1,5 +1,5 @@
-import { features, planRank } from '@kivel/tools/plans';
-import type { AccountPlan, FeatureId, FeatureDefinition } from '@kivel/tools/plans';
+import { features, planRank } from '@kivel.io/tools/plans';
+import type { AccountPlan, FeatureId, FeatureDefinition } from '@kivel.io/tools/plans';
 import type { Identity } from './identity.js';
 import { effectivePlan } from './identity.js';
 import { HttpError } from './errors.js';

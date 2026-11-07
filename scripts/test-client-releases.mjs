@@ -40,19 +40,19 @@ async function fixture(name) {
         await readFile(join(root, '.changeset/config.json')),
     );
     await json(join(cwd, 'packages/sdk/package.json'), {
-        name: '@kivel/sdk',
+        name: '@kivel.io/sdk',
         version: '1.0.0',
     });
     await json(join(cwd, 'packages/cli/package.json'), {
-        name: '@kivel/cli',
+        name: '@kivel.io/cli',
         version: '2.0.0',
-        dependencies: { '@kivel/sdk': 'workspace:*' },
+        dependencies: { '@kivel.io/sdk': 'workspace:*' },
     });
     await json(join(cwd, 'backend/package.json'), {
         name: 'backend',
         version: '1.0.0',
         private: true,
-        dependencies: { '@kivel/sdk': 'workspace:*' },
+        dependencies: { '@kivel.io/sdk': 'workspace:*' },
     });
     await writeFile(join(cwd, 'packages/sdk/src/index.ts'), 'export const ready = true;\n');
     git(cwd, 'init', '-b', 'main');
@@ -65,7 +65,7 @@ try {
         const cwd = await fixture(name);
         await writeFile(
             join(cwd, '.changeset/change.md'),
-            `---\n"@kivel/${name}": ${name === 'sdk' ? 'minor' : 'patch'}\n---\n\nA tested change.\n`,
+            `---\n"@kivel.io/${name}": ${name === 'sdk' ? 'minor' : 'patch'}\n---\n\nA tested change.\n`,
         );
         git(cwd, 'add', '.');
         git(cwd, 'commit', '-m', 'Add changeset');
@@ -91,7 +91,7 @@ try {
     assert.throws(check, /Command failed/);
     await writeFile(
         join(cwd, '.changeset/change.md'),
-        '---\n"@kivel/sdk": patch\n---\n\nFix the SDK.\n',
+        '---\n"@kivel.io/sdk": patch\n---\n\nFix the SDK.\n',
     );
     git(cwd, 'add', '.');
     git(cwd, 'commit', '-m', 'Cover change');
@@ -125,10 +125,10 @@ try {
     const artifacts = [];
     for (const name of ['sdk', 'cli']) {
         const data = Buffer.from(`test ${name}`);
-        const file = `kivel-${name}-1.0.0.tgz`;
+        const file = `kivel.io-${name}-1.0.0.tgz`;
         await writeFile(join(publisher, 'release', file), data);
         artifacts.push({
-            name: `@kivel/${name}`,
+            name: `@kivel.io/${name}`,
             version: '1.0.0',
             file,
             sha512: createHash('sha512').update(data).digest('base64'),

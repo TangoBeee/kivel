@@ -14,7 +14,7 @@ import './home.css';
 // Brand first, so a search for "kivel" matches the page title and Google learns the name.
 const toolTotal = catalog.filter((tool) => tool.status === 'available').length;
 const title = `Kivel: email, webhooks and ${toolTotal} tools for AI agents`;
-const description = `Kivel (formerly socket.help) gives AI coding agents email inboxes, webhook URLs, mock APIs, OAuth, monitors, memory, 2FA codes and ${toolTotal} tools over one MCP connection. Free to start.`;
+const description = `Kivel gives AI coding agents email inboxes, webhook URLs, mock APIs, OAuth, monitors, memory, 2FA codes and ${toolTotal} tools over one MCP connection. Free to start.`;
 
 export const metadata: Metadata = {
     metadataBase: new URL(siteOrigin),

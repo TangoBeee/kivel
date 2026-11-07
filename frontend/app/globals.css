@@ -232,7 +232,7 @@
   gap: 16px;
 }
 .authenticator-code {
-  background: var(--green-soft, #edf5ef);
+  background: var(--subtle, #f4f4f1);
   padding: 20px;
   margin: 24px 0;
   border-radius: 12px;

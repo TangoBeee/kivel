@@ -2,9 +2,9 @@
 brand green for Radix controls,
 and calmer editors. Loaded last. */
 .radix-themes {
-  --green-9: #286747;
-  --green-10: #1f5239;
-  --green-11: #286747;
+  --green-9: #111312;
+  --green-10: #2b2f2d;
+  --green-11: #111312;
 }
 .work-page {
   padding-top: 48px;
@@ -1508,7 +1508,7 @@ and calmer editors. Loaded last. */
   font-size: 12px;
 }
 .json-token-key {
-  color: #286747;
+  color: #6f42c1;
 }
 .json-token-string {
   color: #8d5a28;
@@ -1706,7 +1706,7 @@ and calmer editors. Loaded last. */
   overflow: auto;
 }
 .result-regex-context mark {
-  background: #d8eedf;
+  background: #e7e7e3;
   color: var(--ink);
   padding: 2px 0;
   border-radius: 2px;
@@ -1794,7 +1794,7 @@ and calmer editors. Loaded last. */
   flex: 1;
   max-width: 8px;
   min-height: 4px;
-  background: #bad5c1;
+  background: #c9cbc8;
   border-radius: 3px;
 }
 .audio-waveform span[data-played='true'] {

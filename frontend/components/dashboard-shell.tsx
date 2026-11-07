@@ -408,7 +408,7 @@ export function DashboardShell({
                     <Link href="/" className="dashboard-brand">
                         <LiveLogo size={26} />
                         <span>
-                            socket<span className="island-dot">.</span>help
+                            Kivel
                         </span>
                     </Link>
                     <IconButton

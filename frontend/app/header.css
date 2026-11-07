@@ -27,8 +27,7 @@
   letter-spacing: -0.03em;
   color: var(--ink);
 }
-.island-brand svg,
-.island-dot {
+.island-brand svg {
   color: var(--accent);
 }
 .island-nav {

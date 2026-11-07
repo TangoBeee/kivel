@@ -125,7 +125,7 @@ export function MarkdownPreview({
 }) {
     const csp =
         "default-src 'none'; style-src 'unsafe-inline'; img-src data:; form-action 'none'; base-uri 'none'";
-    const source = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp}"><style>body{margin:24px;color:#1c2220;font:15px/1.7 system-ui;overflow-wrap:anywhere}pre,code{background:#f1f5f2;border-radius:5px;padding:3px 6px}pre{overflow:auto;padding:16px}img{max-width:100%}table{border-collapse:collapse}td,th{border:1px solid #dde5df;padding:8px}a{color:#286747}</style></head><body>${html}</body></html>`;
+    const source = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp}"><style>body{margin:24px;color:#1c2220;font:15px/1.7 system-ui;overflow-wrap:anywhere}pre,code{background:#f4f4f1;border-radius:5px;padding:3px 6px}pre{overflow:auto;padding:16px}img{max-width:100%}table{border-collapse:collapse}td,th{border:1px solid #e7e7e3;padding:8px}a{color:#111312}</style></head><body>${html}</body></html>`;
     return (
         <section className="markdown-preview">
             <h2>Isolated preview</h2>

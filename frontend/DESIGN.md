@@ -10,12 +10,7 @@ colors:
   muted: "#5d615e"
   line: "#e7e7e3"
   line-strong: "#d3d4d0"
-  green: "#286747"
-  green-hover: "#1f5239"
-  green-soft: "#edf5ef"
-  green-line: "#b6dbc3"
-  green-ink: "#ffffff"
-  brand: "#286747"
+  brand: "#111312"
   warning: "#9a5a0c"
   danger: "#ad3f3b"
 typography:
@@ -99,7 +94,7 @@ Option A, "Gallery": a white, minimal page in the spirit of different.ai. The ho
 
 ## Colors
 
-White page, ink `#141414`, muted `#5b5b5b` (above 4.5:1), hairlines `#e8e8e8`, a light grey `#f5f5f4` for small fills. Brand green `#286747` only in the logo and small success states. Colour comes from the painting, never from the interface.
+White page, ink `#141414`, muted `#5b5b5b` (above 4.5:1), hairlines `#e8e8e8`, a light grey `#f5f5f4` for small fills. There is no accent colour: the logo and success states use ink. Colour comes from the painting, never from the interface.
 
 ## Typography
 

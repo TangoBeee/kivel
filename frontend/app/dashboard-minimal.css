@@ -412,7 +412,7 @@
   width: 8px;
   height: 8px;
   border-radius: 9999px;
-  background: #b9d8c4;
+  background: #b8bbb8;
 }
 .activity-dot.is-failed {
   background: var(--danger);

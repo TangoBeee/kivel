@@ -136,7 +136,7 @@ export function Header() {
                 <Link href="/" className="island-brand" aria-label="Kivel home">
                     <LiveLogo size={28} />
                     <span>
-                        socket<span className="island-dot">.</span>help
+                        Kivel
                     </span>
                 </Link>
                 <nav className="island-nav" aria-label="Main navigation">
@@ -255,7 +255,7 @@ export function Footer() {
                     <Link href="/" className="footer-brand" aria-label="Kivel home">
                         <LiveLogo size={28} />
                         <span>
-                            socket<span className="island-dot">.</span>help
+                            Kivel
                         </span>
                     </Link>
                     <p>The internet toolkit for AI agents, and free tools for everyone else.</p>

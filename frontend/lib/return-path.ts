@@ -1,7 +1,7 @@
 'use client';
 
 // Remembers where a tool was opened from, so the tool page can offer a way straight back.
-const KEY = 'socket-help:return';
+const KEY = 'kivel:return';
 const normalise = (path: string) => path.replace(/\/?$/, '/');
 
 export function rememberReturn(targetPath: string, backHref: string, label: string) {

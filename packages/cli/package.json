@@ -1,9 +1,9 @@
 {
-  "name": "@socket-help/cli",
+  "name": "@kivel/cli",
   "version": "0.5.1",
   "type": "module",
   "bin": {
-    "socket-help": "./bin/socket-help.mjs"
+    "kivel": "./bin/kivel.mjs"
   },
   "exports": {
     ".": {
@@ -21,29 +21,29 @@
     "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true,force:true})\" && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --import tsx --test src/listen.test.ts",
-    "prepack": "pnpm --filter @socket-help/sdk build && pnpm build"
+    "prepack": "pnpm --filter @kivel/sdk build && pnpm build"
   },
   "dependencies": {
-    "@socket-help/sdk": "workspace:*"
+    "@kivel/sdk": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   },
-  "description": "Command-line client for socket.help: agent workflows, API tools, webhooks, email and files.",
+  "description": "Command-line client for Kivel: agent workflows, API tools, webhooks, email and files.",
   "license": "Apache-2.0",
   "engines": {
     "node": ">=22.13.0"
   },
-  "homepage": "https://socket.help/docs/cli/",
+  "homepage": "https://kivel.io/docs/cli/",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/TangoBeee/socket.help.git",
+    "url": "git+https://github.com/TangoBeee/kivel.git",
     "directory": "packages/cli"
   },
   "bugs": {
-    "email": "support@socket.help"
+    "email": "support@kivel.io"
   },
   "publishConfig": {
     "access": "public",

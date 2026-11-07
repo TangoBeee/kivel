@@ -16,7 +16,7 @@ export const integrations: {
             'Call the API from any language, shell, or CI job. No client library required.',
         availability: 'Available',
         code: `curl https://kivel.io/api/tools/json/run \\
-  -H "Authorization: Bearer $SOCKET_HELP_API_KEY" \\
+  -H "Authorization: Bearer $KIVEL_API_KEY" \\
   -H 'Content-Type: application/json' \\
   -d '{"input":"{\\"hello\\":true}","options":{"action":"format"}}'`,
         note: 'Omit the Authorization header for anonymous use. Discover tool IDs with GET /api/tools. Hosted calls send your input to the server.',
@@ -28,15 +28,15 @@ export const integrations: {
         description:
             'Typed methods for agent login, email, webhooks, memory, monitors, human questions and utilities.',
         availability: 'Published beta',
-        code: `import { SocketHelp } from '@socket-help/sdk';
+        code: `import { Kivel } from '@kivel/sdk';
 
-const socket = new SocketHelp({
-  apiKey: process.env.SOCKET_HELP_API_KEY,
+const socket = new Kivel({
+  apiKey: process.env.KIVEL_API_KEY,
 });
 const inbox = await socket.createEmailInbox();
 const mail = await socket.waitForEmail(inbox.id);
 await socket.memorySet('build', 'verification', mail.messages[0]?.codes ?? []);`,
-        note: 'Install npm install @socket-help/sdk@beta (or pin an exact version). Requires Node.js 22.13+; ESM import and TypeScript declarations are included. The package uses your configured API origin.',
+        note: 'Install npm install @kivel/sdk@beta (or pin an exact version). Requires Node.js 22.13+; ESM import and TypeScript declarations are included. The package uses your configured API origin.',
     },
     {
         id: 'cli',
@@ -44,13 +44,13 @@ await socket.memorySet('build', 'verification', mail.messages[0]?.codes ?? []);`
         icon: 'terminal',
         description: 'Pipe input in, get JSON out, and use exit codes in automation.',
         availability: 'Published beta',
-        code: `export SOCKET_HELP_API_KEY='your-key'
-printf '{"hello":true}' | socket-help run json
-socket-help email create
-socket-help memory list build
-socket-help monitor list
-socket-help approval pending`,
-        note: 'Install npm install --global @socket-help/cli@beta, or run npx --package=@socket-help/cli@beta socket-help --help. Requires Node.js 22.13+. Set SOCKET_HELP_URL for your installation. Errors go to stderr with a nonzero exit code.',
+        code: `export KIVEL_API_KEY='your-key'
+printf '{"hello":true}' | kivel run json
+kivel email create
+kivel memory list build
+kivel monitor list
+kivel approval pending`,
+        note: 'Install npm install --global @kivel/cli@beta, or run npx --package=@kivel/cli@beta kivel --help. Requires Node.js 22.13+. Set KIVEL_URL for your installation. Errors go to stderr with a nonzero exit code.',
     },
     {
         id: 'ssh',
@@ -60,8 +60,8 @@ socket-help approval pending`,
         availability: 'Optional on self-hosted installs',
         code: `# Use your API key as the SSH password.
 # Verify the host fingerprint before connecting.
-printf '{"hello":true}' | ssh -T -p 2222 socket@your-host socket-help run json
-ssh -T -n -p 2222 socket@your-host socket-help resources`,
+printf '{"hello":true}' | ssh -T -p 2222 socket@your-host kivel run json
+ssh -T -n -p 2222 socket@your-host kivel resources`,
         note: 'The optional Docker gateway binds to localhost:2222 by default. Its startup log shows the host fingerprint. Exposing it is an operator decision. It supports tool commands, with no interactive shell, forwarding, SCP, or SFTP.',
     },
     {

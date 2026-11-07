@@ -1,8 +1,8 @@
 import WebSocket from 'ws';
 import type { ClientOptions } from 'ws';
 import type { RequestOptions } from 'node:http';
-import { ToolExecutionError } from '@socket-help/tools/node';
-import type { OperationOptions } from '@socket-help/tools/definitions';
+import { ToolExecutionError } from '@kivel/tools/node';
+import type { OperationOptions } from '@kivel/tools/definitions';
 import { publicUrl, resolvePublic } from './public-network.js';
 import { webSocketMessageBytes } from './websocket-mock.js';
 

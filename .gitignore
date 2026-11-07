@@ -42,3 +42,7 @@ docs/competitor-review.md
 PROJECT.md
 .ops.env
 .secrets/
+
+# Product and design briefs for local design tools stay local.
+frontend/PRODUCT.md
+frontend/.impeccable/

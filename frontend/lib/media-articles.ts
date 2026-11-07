@@ -56,7 +56,7 @@ export const mediaArticles: Article[] = [
                 ],
                 code: {
                     title: 'Render with the CLI',
-                    value: 'socket-help run test-media-audio-composer < audio-recipe.json\n\n# HTTP body:\n# {"input":"<serialized audio recipe>"}',
+                    value: 'kivel run test-media-audio-composer < audio-recipe.json\n\n# HTTP body:\n# {"input":"<serialized audio recipe>"}',
                 },
             },
             {
@@ -204,7 +204,7 @@ export const mediaArticles: Article[] = [
                 ],
                 code: {
                     title: 'Generate a PNG from the CLI',
-                    value: 'socket-help describe test-media-placeholder-images\nsocket-help run test-media-placeholder-images \\\n  --options \'{"style":"landscape","theme":"ocean","width":"1200","height":"630","format":"png","seed":"41"}\' \\\n  < title.txt\n\n# Decode the returned file artifact\u2019s base64 field to save the PNG.',
+                    value: 'kivel describe test-media-placeholder-images\nkivel run test-media-placeholder-images \\\n  --options \'{"style":"landscape","theme":"ocean","width":"1200","height":"630","format":"png","seed":"41"}\' \\\n  < title.txt\n\n# Decode the returned file artifact\u2019s base64 field to save the PNG.',
                 },
             },
         ],

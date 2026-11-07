@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import { emailDraftBytes } from '@socket-help/tools/billing-plans';
-import { plans } from '@socket-help/tools/plans';
+import { emailDraftBytes } from '@kivel/tools/billing-plans';
+import { plans } from '@kivel/tools/plans';
 import type { Access } from './access.js';
 import { emailApprovalRequired } from './email-threading.js';
 import type { EmailRules } from './email-threading.js';

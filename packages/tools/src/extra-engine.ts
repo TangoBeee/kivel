@@ -695,7 +695,7 @@ export async function runExtraOperation(
                 zipTextFiles(
                     input.trim()
                         ? JSON.parse(input)
-                        : [{ name: 'hello.txt', text: 'Hello from socket.help\n' }],
+                        : [{ name: 'hello.txt', text: 'Hello from Kivel\n' }],
                 ),
             );
         case 'test-media-corrupt-file-fixtures': {

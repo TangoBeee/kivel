@@ -193,7 +193,7 @@ const planned: Record<Category['id'], [string, string][]> = {
             'Test paced assistant text and streams that end before the completion event.',
         ],
         ['Tool failure simulator', 'Test how an agent handles errors and tool latency.'],
-        ['socket.help MCP', 'Create and manage platform resources from your AI agent.'],
+        ['Kivel MCP', 'Create and manage platform resources from your AI agent.'],
     ],
     files: [
         ['Temporary file transfer', 'Upload a file and pick it up from another machine.'],
@@ -426,7 +426,7 @@ export const backendToolIds = [
         'agents-llm-streaming-simulator',
         'monitoring-public-status-page',
         'agents-mock-mcp-server',
-        'agents-socket-help-mcp',
+        'agents-kivel-mcp',
         'email-temporary-email-inbox',
         'network-http-status-simulator',
         'network-delay-timeout-simulator',

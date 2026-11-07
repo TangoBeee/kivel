@@ -5,7 +5,7 @@ import { request as httpsRequest } from 'node:https';
 import type { RequestOptions } from 'node:https';
 import { createGunzip, createInflate, createBrotliDecompress } from 'node:zlib';
 import ipaddr from 'ipaddr.js';
-import { ToolExecutionError } from '@socket-help/tools/node';
+import { ToolExecutionError } from '@kivel/tools/node';
 export function publicAddress(address: string): boolean {
     try {
         return ipaddr.process(address).range() === 'unicast';

@@ -23,7 +23,7 @@ const clients: { id: string; name: string; where: string; code: string; note?: s
         name: 'Claude Code',
         where: 'Run in your terminal',
         code: `claude mcp add --transport http kivel ${endpoint} \\
-  --header "Authorization: Bearer $SOCKET_HELP_API_KEY"`,
+  --header "Authorization: Bearer $KIVEL_API_KEY"`,
         note: 'Leave out the --header line to try it without an account; anonymous limits apply.',
     },
     {
@@ -45,7 +45,7 @@ const clients: { id: string; name: string; where: string; code: string; note?: s
         where: '~/.codex/config.toml',
         code: `[mcp_servers.kivel]
 url = "${endpoint}"
-bearer_token_env_var = "SOCKET_HELP_API_KEY"`,
+bearer_token_env_var = "KIVEL_API_KEY"`,
     },
     {
         id: 'vscode',
@@ -184,8 +184,8 @@ export default function Connect() {
                 <ClientTabs clients={clients} />
                 <p className="connect-packages">
                     Prefer a terminal or code? The same tools ship as{' '}
-                    <code>npm install --global @socket-help/cli@beta</code> and{' '}
-                    <code>npm install @socket-help/sdk@beta</code>. See the{' '}
+                    <code>npm install --global @kivel/cli@beta</code> and{' '}
+                    <code>npm install @kivel/sdk@beta</code>. See the{' '}
                     <Link href="/docs/cli/">CLI</Link> and <Link href="/docs/sdk/">SDK</Link> docs.
                 </p>
             </section>

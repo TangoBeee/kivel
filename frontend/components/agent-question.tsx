@@ -89,10 +89,7 @@ export function AgentQuestion() {
 
     const remember = () => {
         try {
-            sessionStorage.setItem(
-                'socket-help:after-signin',
-                `/approve/?id=${encodeURIComponent(id)}`,
-            );
+            sessionStorage.setItem('kivel:after-signin', `/approve/?id=${encodeURIComponent(id)}`);
         } catch {}
     };
     return (

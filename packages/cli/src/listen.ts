@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer';
-import { SocketError } from '@socket-help/sdk';
-import type { CapturedRequest, SocketHelp } from '@socket-help/sdk';
+import { KivelError } from '@kivel/sdk';
+import type { CapturedRequest, Kivel } from '@kivel/sdk';
 
 export interface ListenOptions {
     token?: string;
@@ -8,7 +8,7 @@ export interface ListenOptions {
     all?: boolean;
 }
 
-// Hop-by-hop and proxy headers describe the trip to socket.help, not the original sender.
+// Hop-by-hop and proxy headers describe the trip to Kivel, not the original sender.
 const dropped =
     /^(host|content-length|connection|keep-alive|transfer-encoding|upgrade|te|trailer|proxy-.*|x-forwarded-.*|x-real-ip|cf-.*|cdn-loop|true-client-ip|x-access-token|authorization)$/i;
 
@@ -32,7 +32,7 @@ export function forwardHeaders(request: CapturedRequest) {
 
 /** Streams new requests as JSON lines and optionally replays each one to a local server. */
 export async function listen(
-    client: SocketHelp,
+    client: Kivel,
     inboxId: string,
     options: ListenOptions,
     write: (line: object) => void,
@@ -55,7 +55,7 @@ export async function listen(
                 ...(after ? { after } : {}),
             });
         } catch (error) {
-            if (error instanceof SocketError && error.status === 429) {
+            if (error instanceof KivelError && error.status === 429) {
                 await new Promise((resolve) => setTimeout(resolve, (error.retryAfter ?? 2) * 1000));
                 continue;
             }

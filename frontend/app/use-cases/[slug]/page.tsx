@@ -38,7 +38,7 @@ export default async function UseCasePage({ params }: { params: Promise<{ slug: 
                 }}
             />
             <p>
-                The SDK examples use an authenticated SocketHelp client.{' '}
+                The SDK examples use an authenticated Kivel client.{' '}
                 <Link href="/docs/sdk/#setup">Set up the SDK</Link> or{' '}
                 <Link href="/connect/">connect your agent over MCP</Link>.
             </p>

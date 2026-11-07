@@ -119,7 +119,7 @@ export function AgentLink() {
                                 onClick={() => {
                                     try {
                                         sessionStorage.setItem(
-                                            'socket-help:after-signin',
+                                            'kivel:after-signin',
                                             `/link/?code=${encodeURIComponent(code)}`,
                                         );
                                     } catch {}
@@ -133,7 +133,7 @@ export function AgentLink() {
                                 onClick={() => {
                                     try {
                                         sessionStorage.setItem(
-                                            'socket-help:after-signin',
+                                            'kivel:after-signin',
                                             `/link/?code=${encodeURIComponent(code)}`,
                                         );
                                     } catch {}

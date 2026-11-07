@@ -8,7 +8,7 @@ import {
 } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { Pool } from 'pg';
-import { plans } from '@socket-help/tools/plans';
+import { plans } from '@kivel/tools/plans';
 import { HttpError } from './access.js';
 import type { Access } from './access.js';
 import { effectivePlan } from './identity.js';
@@ -623,7 +623,7 @@ export function registerAgents({
             status: 'approved',
             apiKey,
             mcp: { url: `${origin}/mcp`, header: `Authorization: Bearer ${apiKey}` },
-            next: 'Store the key in your MCP client config or an environment variable such as SOCKET_HELP_API_KEY. Do not print it in chat.',
+            next: 'Store the key in your MCP client config or an environment variable such as KIVEL_API_KEY. Do not print it in chat.',
         };
     });
 

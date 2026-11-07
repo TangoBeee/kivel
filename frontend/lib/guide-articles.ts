@@ -89,7 +89,7 @@ Output:
   -H 'Content-Type: application/json' \\
   -d '{"input":"{ \\"ready\\": true, \\"count\\": 2 }","options":{"action":"minify"}}'
 
-socket-help run json < response.json`,
+kivel run json < response.json`,
                 },
             },
             {
@@ -414,7 +414,7 @@ const { payload } = await jwtVerify(token, keys, {
         title: 'How to share a file from the terminal with a one-time link',
         category: 'Files & access',
         description:
-            'Upload a file with curl or the socket-help CLI, limit it to one download, and send the token separately. The contents are removed once that download happens.',
+            'Upload a file with curl or the kivel CLI, limit it to one download, and send the token separately. The contents are removed once that download happens.',
         sections: [
             {
                 id: 'when',
@@ -422,7 +422,7 @@ const { payload } = await jwtVerify(token, keys, {
                 paragraphs: [
                     'Sometimes you need to move one file from a server or a colleague’s laptop to another machine: a log bundle, a test fixture, a build artifact. Setting up a bucket or a shared drive for that is overkill, and attaching it to a chat message leaves a copy in the chat history for good.',
                     'A one-time share is a temporary upload that accepts a single download. When that download happens, the stored contents are removed. If the link is opened by the wrong person first, the intended recipient gets an error instead of the file, which tells you something went wrong. Files can be up to 10 MiB.',
-                    'Everything below works from a plain shell with curl, so it also works over SSH on a server where you cannot install anything. The socket-help CLI is a shorter alternative when it is available. Both talk to the same HTTP API, and both create private shares unless you ask for public ones.',
+                    'Everything below works from a plain shell with curl, so it also works over SSH on a server where you cannot install anything. The kivel CLI is a shorter alternative when it is available. Both talk to the same HTTP API, and both create private shares unless you ask for public ones.',
                 ],
             },
             {
@@ -443,19 +443,19 @@ const { payload } = await jwtVerify(token, keys, {
             },
             {
                 id: 'cli',
-                title: 'Or use the socket-help CLI',
+                title: 'Or use the kivel CLI',
                 paragraphs: [
-                    'The CLI reads the file from standard input and prints the same JSON response. It is private by default, and accepts --max-downloads, --ttl-seconds, and --visibility. Set SOCKET_HELP_API_KEY if you want the share to belong to your workspace instead of being managed only by its token.',
-                    'On the receiving side, the download command writes the original bytes to standard output, and reads the access token from SOCKET_HELP_ACCESS_TOKEN so it does not appear in your shell history as an argument. Errors are printed to standard error as JSON with a nonzero exit code, so scripts can tell a failed download from an empty file.',
+                    'The CLI reads the file from standard input and prints the same JSON response. It is private by default, and accepts --max-downloads, --ttl-seconds, and --visibility. Set KIVEL_API_KEY if you want the share to belong to your workspace instead of being managed only by its token.',
+                    'On the receiving side, the download command writes the original bytes to standard output, and reads the access token from KIVEL_ACCESS_TOKEN so it does not appear in your shell history as an argument. Errors are printed to standard error as JSON with a nonzero exit code, so scripts can tell a failed download from an empty file.',
                 ],
                 code: {
                     title: 'Upload and download with the CLI',
                     value: `# Sender
-socket-help upload logs.tar.gz --max-downloads 1 --ttl-seconds 600 < logs.tar.gz
+kivel upload logs.tar.gz --max-downloads 1 --ttl-seconds 600 < logs.tar.gz
 
 # Recipient
-export SOCKET_HELP_ACCESS_TOKEN='token sent separately'
-socket-help download FILE_ID > logs.tar.gz`,
+export KIVEL_ACCESS_TOKEN='token sent separately'
+kivel download FILE_ID > logs.tar.gz`,
                 },
             },
             {

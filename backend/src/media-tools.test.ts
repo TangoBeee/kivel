@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { samplePdf } from '@socket-help/tools/artifacts';
-import { runMedia } from '@socket-help/tools/media-engine';
-import { mediaOperations } from '@socket-help/tools/media-definitions';
-import { ToolRunner } from '@socket-help/tools/node';
+import { samplePdf } from '@kivel/tools/artifacts';
+import { runMedia } from '@kivel/tools/media-engine';
+import { mediaOperations } from '@kivel/tools/media-definitions';
+import { ToolRunner } from '@kivel/tools/node';
 import { buildApp } from './app.js';
 const png = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAB7QOjdAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAD0lEQVQImWP4z8DAwPAfAAcAAf/89wURAAAAAElFTkSuQmCC',
@@ -264,7 +264,7 @@ test('file processing uses the file allowance rather than the text quota and acc
     });
     assert.equal(checksum.statusCode, 200);
     const { createRequire } = await import('node:module');
-    const sharp = createRequire(import.meta.resolve('@socket-help/tools/media-engine'))('sharp');
+    const sharp = createRequire(import.meta.resolve('@kivel/tools/media-engine'))('sharp');
     const photo = await sharp({
         create: { width: 4000, height: 3000, channels: 3, background: '#386b50' },
     })

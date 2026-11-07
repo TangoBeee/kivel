@@ -71,7 +71,7 @@ export interface Execution {
     output: string;
     usage: { used: number; limit: number; resetsAt: string };
 }
-export class SocketError extends Error {
+export class KivelError extends Error {
     constructor(
         message: string,
         readonly status: number,
@@ -81,15 +81,15 @@ export class SocketError extends Error {
         readonly upgradeUrl?: string,
     ) {
         super(message);
-        this.name = 'SocketError';
+        this.name = 'KivelError';
     }
 }
-export class SocketHelp {
+export class Kivel {
     readonly baseUrl: string;
     private fetcher: typeof fetch;
     private timeoutMs: number;
     constructor(private options: ClientOptions = {}) {
-        const url = new URL(options.baseUrl ?? 'https://socket.help');
+        const url = new URL(options.baseUrl ?? 'https://kivel.io');
         if (
             !['http:', 'https:'].includes(url.protocol) ||
             url.username ||
@@ -166,7 +166,7 @@ export class SocketHelp {
             value = JSON.parse(text);
         } catch {
             if (response.ok && path.startsWith('/mock/')) return text as T;
-            throw new SocketError(
+            throw new KivelError(
                 'The server returned an invalid response.',
                 response.status,
                 response.headers.get('x-request-id') ?? undefined,
@@ -180,7 +180,7 @@ export class SocketHelp {
                 typeof value.error === 'string'
                     ? value.error
                     : `Request failed (${response.status}).`;
-            throw new SocketError(
+            throw new KivelError(
                 message,
                 response.status,
                 response.headers.get('x-request-id') ?? undefined,
@@ -312,7 +312,7 @@ export class SocketHelp {
             signal: AbortSignal.timeout(this.timeoutMs),
         });
         if (!response.ok)
-            throw new SocketError(
+            throw new KivelError(
                 'Attachment link expired or unavailable.',
                 response.status,
                 response.headers.get('x-request-id') ?? undefined,
@@ -795,7 +795,7 @@ export class SocketHelp {
             signal: AbortSignal.timeout(this.timeoutMs),
         });
         if (!response.ok)
-            throw new SocketError(
+            throw new KivelError(
                 'File unavailable or access denied.',
                 response.status,
                 response.headers.get('x-request-id') ?? undefined,

@@ -2,8 +2,8 @@ import { execFile } from 'node:child_process';
 import { resolve } from 'node:path';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { SocketHelp, SocketError } from '@socket-help/sdk';
-import { command, needsInput } from '@socket-help/cli';
+import { Kivel, KivelError } from '@kivel/sdk';
+import { command, needsInput } from '@kivel/cli';
 import { buildApp } from './app.js';
 
 const origin = 'http://localhost:3000';
@@ -34,7 +34,7 @@ async function fixture(t: { after: (fn: () => Promise<unknown>) => void }) {
             { status: response.statusCode, headers: response.headers as Record<string, string> },
         );
     };
-    const guest = new SocketHelp({ baseUrl: origin, fetch: fetcher });
+    const guest = new Kivel({ baseUrl: origin, fetch: fetcher });
     const session = await app.inject({
         method: 'POST',
         url: '/api/auth/register',
@@ -63,7 +63,7 @@ async function fixture(t: { after: (fn: () => Promise<unknown>) => void }) {
     const token = await guest.finishLogin(login.deviceCode);
     assert.equal(token.status, 'approved');
     if (token.status !== 'approved') throw new Error('Expected agent key');
-    const client = new SocketHelp({ baseUrl: origin, apiKey: token.apiKey, fetch: fetcher });
+    const client = new Kivel({ baseUrl: origin, apiKey: token.apiKey, fetch: fetcher });
     const mcp = async (name: string, args: object) => {
         const response = await app.inject({
             method: 'POST',
@@ -91,7 +91,7 @@ test('SDK and CLI cover the agent lifecycle, email, memory, monitors, questions 
     const { app, guest, client, human, mcp } = await fixture(t);
     await assert.rejects(
         guest.finishLogin('x'.repeat(43)),
-        (error: unknown) => error instanceof SocketError && error.status === 404,
+        (error: unknown) => error instanceof KivelError && error.status === 404,
     );
     await assert.rejects(
         command(client, ['agent', 'list', '--human-email', 'ignored@example.test']),
@@ -107,7 +107,7 @@ test('SDK and CLI cover the agent lifecycle, email, memory, monitors, questions 
     await command(client, ['memory', 'delete', 'build', 'steps/last']);
     await assert.rejects(
         client.memoryGet('build', 'steps/last'),
-        (error: unknown) => error instanceof SocketError && error.status === 404,
+        (error: unknown) => error instanceof KivelError && error.status === 404,
     );
     const email = await client.createEmailInbox({ activeDays: 2 });
     assert.match(email.address, /@inbox.example.test$/);
@@ -116,7 +116,7 @@ test('SDK and CLI cover the agent lifecycle, email, memory, monitors, questions 
     assert.equal((await client.waitForEmail(email.id, { timeoutSeconds: 1 })).timedOut, true);
     await assert.rejects(
         client.renew('email-inboxes', email.id),
-        (error: unknown) => error instanceof SocketError && error.status === 409,
+        (error: unknown) => error instanceof KivelError && error.status === 409,
     );
     await client.remove('email-inboxes', email.id);
     const monitor = await client.createMonitor({
@@ -148,7 +148,7 @@ test('SDK and CLI cover the agent lifecycle, email, memory, monitors, questions 
     assert.equal((await client.waitForApproval(approval.id, 1)).timedOut, true);
     await assert.rejects(
         client.request('POST', `/api/approvals/${approval.id}/answer`, { answer: 'Deploy' }),
-        (error: unknown) => error instanceof SocketError && error.status === 403,
+        (error: unknown) => error instanceof KivelError && error.status === 403,
     );
     assert.equal(
         (
@@ -228,7 +228,7 @@ test('SDK and CLI cover the agent lifecycle, email, memory, monitors, questions 
 
 test('SDK rejects credential-leaking paths and CLI and SSH agree on commands requiring stdin', async () => {
     let called = false;
-    const client = new SocketHelp({
+    const client = new Kivel({
         apiKey: 'secret',
         fetch: async () => {
             called = true;
@@ -261,7 +261,7 @@ test('all SDK waits stay within the client timeout and server long-poll limit', 
         [90000, 30],
     ] as const) {
         const waits: number[] = [];
-        const client = new SocketHelp({
+        const client = new Kivel({
             timeoutMs,
             fetch: async (url, init) => {
                 const parsed = new URL(String(url));
@@ -318,7 +318,7 @@ test('the executable CLI uses stdin, exit codes and HTTP correctly', async (t) =
                 process.execPath,
                 [resolve('../packages/cli/dist/cli.js'), ...args],
                 {
-                    env: { ...process.env, SOCKET_HELP_URL: baseUrl, SOCKET_HELP_API_KEY: apiKey },
+                    env: { ...process.env, KIVEL_URL: baseUrl, KIVEL_API_KEY: apiKey },
                     timeout: 10000,
                 },
                 (error, stdout, stderr) =>
@@ -435,8 +435,8 @@ test('SDK, CLI and MCP cannot access resources belonging to a different workspac
     const token = await guest.finishLogin(login.deviceCode);
     assert.equal(token.status, 'approved');
     if (token.status !== 'approved') throw new Error('Expected key');
-    const other = new SocketHelp({ baseUrl: origin, apiKey: token.apiKey, fetch: fetcher });
-    const denied = (error: unknown) => error instanceof SocketError && error.status === 404;
+    const other = new Kivel({ baseUrl: origin, apiKey: token.apiKey, fetch: fetcher });
+    const denied = (error: unknown) => error instanceof KivelError && error.status === 404;
     await assert.rejects(other.emails(email.id), denied);
     await assert.rejects(other.memoryGet('private', 'key'), denied);
     await assert.rejects(other.monitor(monitor.id), denied);

@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import { catalog } from './catalog';
 
-const KEY = 'socket-help:saved-tools';
-const EVENT = 'socket-help:saved-tools';
+const KEY = 'kivel:saved-tools';
+const EVENT = 'kivel:saved-tools';
 const available = new Set(
     catalog.filter((tool) => tool.status === 'available').map((tool) => tool.id),
 );

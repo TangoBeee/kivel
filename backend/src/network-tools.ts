@@ -2,15 +2,15 @@ import { pageToMarkdown, checkRobots, emailAuthenticationReport } from './develo
 import { simulateWebhook } from './webhook-events.js';
 import { inspectMcp } from './mcp-inspector.js';
 import { runScenario } from './api-scenarios.js';
-import { parseSse } from '@socket-help/tools/sse';
+import { parseSse } from '@kivel/tools/sse';
 import { connect, checkServerIdentity } from 'node:tls';
 import { isIP } from 'node:net';
 import { domainToASCII } from 'node:url';
-import { networkOperations } from '@socket-help/tools/network-definitions';
-import type { NetworkOperationId } from '@socket-help/tools/network-definitions';
-import type { ExtraDefinition } from '@socket-help/tools/extra-definitions';
-import type { OperationOptions } from '@socket-help/tools/definitions';
-import { ToolRunner, ToolExecutionError } from '@socket-help/tools/node';
+import { networkOperations } from '@kivel/tools/network-definitions';
+import type { NetworkOperationId } from '@kivel/tools/network-definitions';
+import type { ExtraDefinition } from '@kivel/tools/extra-definitions';
+import type { OperationOptions } from '@kivel/tools/definitions';
+import { ToolRunner, ToolExecutionError } from '@kivel/tools/node';
 import { testWebSocket } from './websocket-tester.js';
 import { followPublic, publicRequest, publicUrl, resolvePublic } from './public-network.js';
 export function dnsResponseKey(response: {

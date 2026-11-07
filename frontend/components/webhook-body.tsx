@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { parseWebhookBody } from '@socket-help/tools/webhooks';
+import { parseWebhookBody } from '@kivel/tools/webhooks';
 import type { CapturedRequest } from '../lib/api';
 
 export function WebhookBody({

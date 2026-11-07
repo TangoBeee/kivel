@@ -1,5 +1,5 @@
 {
-  "name": "@socket-help/sdk",
+  "name": "@kivel/sdk",
   "version": "0.5.1",
   "type": "module",
   "exports": {
@@ -22,19 +22,19 @@
     "typescript": "^7.0.2",
     "@types/node": "^26.6.5"
   },
-  "description": "TypeScript client for socket.help: agent login, webhooks, email, memory, monitors and approvals.",
+  "description": "TypeScript client for Kivel: agent login, webhooks, email, memory, monitors and approvals.",
   "license": "Apache-2.0",
   "engines": {
     "node": ">=22.13.0"
   },
-  "homepage": "https://socket.help/docs/sdk/",
+  "homepage": "https://kivel.io/docs/sdk/",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/TangoBeee/socket.help.git",
+    "url": "git+https://github.com/TangoBeee/kivel.git",
     "directory": "packages/sdk"
   },
   "bugs": {
-    "email": "support@socket.help"
+    "email": "support@kivel.io"
   },
   "publishConfig": {
     "access": "public",

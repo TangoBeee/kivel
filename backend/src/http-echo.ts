@@ -1,6 +1,6 @@
 import { isUtf8 } from 'node:buffer';
 import type { FastifyRequest } from 'fastify';
-import { parseJsonSafely } from '@socket-help/tools/engine';
+import { parseJsonSafely } from '@kivel/tools/engine';
 const sensitive = /authorization|cookie|token|api[-_]?key|secret|password|credential|session/i;
 export function echoRequest(request: FastifyRequest, path: string) {
     const credentials = Object.entries(request.headers)

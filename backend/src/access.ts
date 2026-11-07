@@ -1,7 +1,7 @@
 import { clientKey } from './security.js';
 import { createHmac, randomBytes } from 'node:crypto';
 import type { FastifyRequest } from 'fastify';
-import { plans } from '@socket-help/tools/plans';
+import { plans } from '@kivel/tools/plans';
 import type { PublicAccess } from './sharing.js';
 import type { Scope, Identity, IdentityRepository } from './identity.js';
 import { effectivePlan } from './identity.js';

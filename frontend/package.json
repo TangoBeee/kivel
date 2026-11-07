@@ -13,7 +13,7 @@
     "@radix-ui/react-slider": "1.6.1",
     "@radix-ui/themes": "3.3.0",
     "@scalar/api-reference-react": "0.9.83",
-    "@socket-help/tools": "workspace:*",
+    "@kivel/tools": "workspace:*",
     "cmdk": "1.1.1",
     "geist": "1.8.2",
     "motion": "14.6.0",

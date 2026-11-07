@@ -1,1 +1,1 @@
-export * from '@socket-help/tools/definitions';
+export * from '@kivel/tools/definitions';

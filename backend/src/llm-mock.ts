@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { setTimeout as delay } from 'node:timers/promises';
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import type { LlmMockConfig } from '@socket-help/tools/llm-mock';
+import type { LlmMockConfig } from '@kivel/tools/llm-mock';
 
 export function sendLlmMock(
     config: LlmMockConfig,
@@ -90,7 +90,7 @@ export function sendLlmMock(
                           completion_tokens: tokens,
                           total_tokens: inputTokens + tokens,
                       },
-                      system_fingerprint: 'socket-help-mock',
+                      system_fingerprint: 'kivel-mock',
                   },
         );
     if (streams.size >= 16)

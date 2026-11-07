@@ -1,6 +1,6 @@
 'use client';
-import { cardBrandNames } from '@socket-help/tools/payment-cards';
-import type { TestCardBatch } from '@socket-help/tools/payment-cards';
+import { cardBrandNames } from '@kivel/tools/payment-cards';
+import type { TestCardBatch } from '@kivel/tools/payment-cards';
 import { CopyButton } from './copy-button';
 import { Icon } from './icons';
 import { downloadBlob } from './result-preview';

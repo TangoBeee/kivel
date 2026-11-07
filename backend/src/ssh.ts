@@ -4,8 +4,8 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
-import { SocketHelp, SocketError } from '@socket-help/sdk';
-import { command, needsInput } from '@socket-help/cli';
+import { Kivel, KivelError } from '@kivel/sdk';
+import { command, needsInput } from '@kivel/cli';
 import type { IdentityRepository } from './identity.js';
 import type { RateLimitRepository } from './rate-limit.js';
 export function splitCommand(value: string): string[] {
@@ -43,8 +43,8 @@ export function splitCommand(value: string): string[] {
     }
     if (escaped || quote) throw new Error('Unclosed command quote.');
     if (started) result.push(token);
-    if (result[0] !== 'socket' && result[0] !== 'socket-help')
-        throw new Error('Commands must start with socket-help.');
+    if (result[0] !== 'socket' && result[0] !== 'kivel')
+        throw new Error('Commands must start with kivel.');
     return result.slice(1);
 }
 export async function loadHostKey(path: string) {
@@ -194,7 +194,7 @@ export function createSshServer(
                         started = true;
                         try {
                             const result = await command(
-                                new SocketHelp({
+                                new Kivel({
                                     baseUrl: 'http://localhost',
                                     apiKey: key,
                                     fetch: fetcher,
@@ -210,7 +210,7 @@ export function createSshServer(
                             stream.exit(0);
                         } catch (error) {
                             stream.stderr.write(
-                                `${JSON.stringify({ error: error instanceof Error ? error.message : 'Command failed.', ...(error instanceof SocketError ? { status: error.status, requestId: error.requestId, retryAfter: error.retryAfter, requiredPlan: error.requiredPlan, upgradeUrl: error.upgradeUrl } : {}) })}\n`,
+                                `${JSON.stringify({ error: error instanceof Error ? error.message : 'Command failed.', ...(error instanceof KivelError ? { status: error.status, requestId: error.requestId, retryAfter: error.retryAfter, requiredPlan: error.requiredPlan, upgradeUrl: error.upgradeUrl } : {}) })}\n`,
                             );
                             stream.exit(1);
                         } finally {

@@ -7,12 +7,8 @@ import {
     sampleScenario,
     validateScenario,
     sensitiveName,
-} from '@socket-help/tools/api-scenarios';
-import type {
-    ApiScenario,
-    ScenarioRequest,
-    ScenarioReport,
-} from '@socket-help/tools/api-scenarios';
+} from '@kivel/tools/api-scenarios';
+import type { ApiScenario, ScenarioRequest, ScenarioReport } from '@kivel/tools/api-scenarios';
 import { ToolHeader } from './tool-header';
 import { AppSelect, SelectOption } from './app-select';
 import { Icon } from './icons';
@@ -20,15 +16,15 @@ import { ResultPreview, downloadBlob } from './result-preview';
 import { CodeExample } from './code-example';
 import { api } from '../lib/api';
 import { takeScenarioDraft } from '../lib/scenario-handoff';
-import { parseJsonSafely } from '@socket-help/tools/engine';
+import { parseJsonSafely } from '@kivel/tools/engine';
 
-const STORAGE = 'socket-help:api-scenarios:v1';
+const STORAGE = 'kivel:api-scenarios:v1';
 const clientExample = [
     "jq -Rs '{input: .}' api-scenario.json |",
     "  curl https://kivel.io/api/tools/mock-apis-api-test-scenarios/run -H 'Content-Type: application/json' --data-binary @-",
     '',
     '# For a scenario without secret inputs:',
-    'socket-help run mock-apis-api-test-scenarios < api-scenario.json',
+    'kivel run mock-apis-api-test-scenarios < api-scenario.json',
     '',
     '# SDK: socket.run("mock-apis-api-test-scenarios", JSON.stringify(scenario))',
     '# MCP: run_tool with the same toolId and input',

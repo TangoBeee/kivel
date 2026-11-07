@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { buildApp } from './app.js';
 import { MemoryIdentityRepository } from './identity.js';
-import { SocketHelp } from '@socket-help/sdk';
-import { command } from '@socket-help/cli';
+import { Kivel } from '@kivel/sdk';
+import { command } from '@kivel/cli';
 const origin = 'http://localhost:3000';
 async function signup(app: ReturnType<typeof buildApp>, username: string) {
     const response = await app.inject({
@@ -172,7 +172,7 @@ test('SDK, CLI, HTTP and MCP execute one precision-preserving engine with shared
             ),
         });
     };
-    const client = new SocketHelp({ baseUrl: origin, apiKey: credential.key, fetch: fetcher });
+    const client = new Kivel({ baseUrl: origin, apiKey: credential.key, fetch: fetcher });
     const input = '{"large":9007199254740993,"duplicate":1,"duplicate":2}';
     const api = await client.run('json', input, { action: 'minify' });
     assert.equal(api.output, input);
@@ -386,8 +386,8 @@ test('SDK and CLI keep uploads private by default and preserve exact downloads',
             },
         );
     };
-    const client = new SocketHelp({ baseUrl: origin, apiKey: credential.key, fetch: fetcher }),
-        anonymous = new SocketHelp({ baseUrl: origin, fetch: fetcher });
+    const client = new Kivel({ baseUrl: origin, apiKey: credential.key, fetch: fetcher }),
+        anonymous = new Kivel({ baseUrl: origin, fetch: fetcher });
     const bytes = new Uint8Array([0, 255, 128, 65]);
     const file = await client.upload('fixture.bin', bytes, {
         visibility: undefined,
@@ -615,7 +615,7 @@ test('Pro inboxes forward captured webhooks with retries and keep a delivery log
     assert.equal(sent[0]!.body, '{"paid":true}');
     assert.equal(sent[0]!.headers['stripe-signature'], 't=1,v1=abc');
     assert.equal(sent[0]!.headers.cookie, undefined);
-    assert.ok(sent[0]!.headers['x-socket-help-request-id']);
+    assert.ok(sent[0]!.headers['x-kivel-request-id']);
     const log = (await app.inject({ url: `/api/inboxes/${inbox.id}/deliveries`, headers })).json()
         .deliveries;
     assert.equal(log.length, 1);
@@ -934,7 +934,7 @@ test('developer tools share SDK, CLI and MCP options without retaining scanner i
             ),
         });
     };
-    const client = new SocketHelp({ baseUrl: origin, apiKey: credential.key, fetch: fetcher });
+    const client = new Kivel({ baseUrl: origin, apiKey: credential.key, fetch: fetcher });
     const identity = JSON.parse(
         (await client.run('developer-fake-identity-generator', '', { locale: 'fr-FR', count: '2' }))
             .output,

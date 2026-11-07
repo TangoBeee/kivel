@@ -106,8 +106,8 @@ const jsonLd = [
         logo: `${siteOrigin}/icon.svg`,
         email: 'support@kivel.io',
         sameAs: [
-            'https://www.npmjs.com/package/@socket-help/sdk',
-            'https://www.npmjs.com/package/@socket-help/cli',
+            'https://www.npmjs.com/package/@kivel/sdk',
+            'https://www.npmjs.com/package/@kivel/cli',
         ],
     },
     {

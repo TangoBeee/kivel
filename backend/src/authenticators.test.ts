@@ -3,8 +3,8 @@ import { test } from 'node:test';
 import { PNG } from 'pngjs';
 import qrcode from 'qrcode-generator';
 import jpeg from 'jpeg-js';
-import { SocketHelp } from '@socket-help/sdk';
-import { command } from '@socket-help/cli';
+import { Kivel } from '@kivel/sdk';
+import { command } from '@kivel/cli';
 import { buildApp } from './app.js';
 import { MemoryIdentityRepository } from './identity.js';
 import { MemoryAuthenticators } from './authenticators.js';
@@ -12,7 +12,7 @@ import { MemoryAgents } from './agents.js';
 import { MemoryActivity } from './activity.js';
 import { decodeBase32, parseTotp, totp, totpVault } from './totp.js';
 import { decodeTotpQr } from './totp-qr.js';
-import { plans } from '@socket-help/tools/plans';
+import { plans } from '@kivel/tools/plans';
 
 const secret = 'JBSWY3DPEHPK3PXP';
 export function base32(bytes: Buffer) {
@@ -322,7 +322,7 @@ test('authenticator secrets stay private, generation is audited and limited, and
 });
 test('MCP discovery, resource_request, SDK and CLI expose the same authenticator lifecycle', async (t) => {
     const f = await fixture(t);
-    const client = new SocketHelp({
+    const client = new Kivel({
         baseUrl: 'http://localhost:3000',
         fetch: async (url, init) => {
             const parsed = new URL(String(url));

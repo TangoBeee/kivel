@@ -211,7 +211,7 @@ export const networkOperations = {
             },
             { key: 'body', label: 'Request body', type: 'textarea', defaultValue: '' },
         ],
-        intro: 'Send an HTTP request from socket.help to a public test endpoint and inspect its response.',
+        intro: 'Send an HTTP request from Kivel to a public test endpoint and inspect its response.',
         steps: [
             'Enter the public endpoint you intend to test.',
             'Choose the method, headers and body. Sending a request can change the destination service.',

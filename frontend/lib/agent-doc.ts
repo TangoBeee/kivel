@@ -24,7 +24,7 @@ pnpm cli agent login "Coding agent on my laptop"
 # Open verificationUrl in your browser and approve.
 # Keep deviceCode in a private login.json: {"deviceCode":"…"}
 pnpm cli agent token < login.json
-# Save the returned key privately as SOCKET_HELP_API_KEY.`,
+# Save the returned key privately as KIVEL_API_KEY.`,
             },
             note: 'Free includes 3 approved agents, Pro 25 and Team 100. These are workspace limits. Paid checkout remains disabled during the free beta unless the operator enables it.',
         },
@@ -69,8 +69,8 @@ const { code, secondsRemaining, nextCode } = await socket.getTotpCode(authentica
             ],
             code: {
                 title: 'Email with the TypeScript SDK',
-                value: `import { SocketHelp } from '@socket-help/sdk';
-const socket = new SocketHelp({ apiKey: process.env.SOCKET_HELP_API_KEY });
+                value: `import { Kivel } from '@kivel/sdk';
+const socket = new Kivel({ apiKey: process.env.KIVEL_API_KEY });
 const inbox = await socket.createEmailInbox({ activeDays: 3 });
 const result = await socket.waitForEmail(inbox.id, { timeoutSeconds: 20 });
 if (!result.timedOut) {

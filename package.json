@@ -1,5 +1,5 @@
 {
-  "name": "socket-help",
+  "name": "kivel",
   "private": true,
   "packageManager": "pnpm@10.30.3",
   "engines": {
@@ -16,7 +16,7 @@
     "test:https": "node scripts/test-https.mjs",
     "scan:images": "node scripts/scan-images.mjs",
     "check": "pnpm typecheck && pnpm test && pnpm test:integration && pnpm build",
-    "build:packages": "pnpm --filter @socket-help/tools build && pnpm --filter @socket-help/sdk build && pnpm --filter @socket-help/cli build",
+    "build:packages": "pnpm --filter @kivel/tools build && pnpm --filter @kivel/sdk build && pnpm --filter @kivel/cli build",
     "cli": "node packages/cli/dist/cli.js",
     "backup": "node scripts/backup.mjs",
     "test:backup": "node scripts/verify-backup.mjs",

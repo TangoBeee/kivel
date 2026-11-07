@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { sampleScenario, validateScenario, expandScenario } from '@socket-help/tools/api-scenarios';
-import type { ApiScenario } from '@socket-help/tools/api-scenarios';
+import { sampleScenario, validateScenario, expandScenario } from '@kivel/tools/api-scenarios';
+import type { ApiScenario } from '@kivel/tools/api-scenarios';
 import { runScenario } from './api-scenarios.js';
 import type { publicRequest } from './public-network.js';
 import { buildApp } from './app.js';

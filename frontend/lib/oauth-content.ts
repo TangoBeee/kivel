@@ -47,14 +47,14 @@ export const oauthDoc: DocPage = {
             ],
             code: {
                 title: 'CLI and HTTP management',
-                value: `socket-help oauth create < provider.json
-socket-help oauth inspect <id>
-socket-help oauth calls <id>
-socket-help oauth update <id> < provider.json
-socket-help oauth delete <id>
+                value: `kivel oauth create < provider.json
+kivel oauth inspect <id>
+kivel oauth calls <id>
+kivel oauth update <id> < provider.json
+kivel oauth delete <id>
 
 curl https://kivel.io/api/oauth-providers \\
-  -H "Authorization: Bearer $SOCKET_HELP_API_KEY" \\
+  -H "Authorization: Bearer $KIVEL_API_KEY" \\
   -H 'Content-Type: application/json' --data-binary @provider.json`,
             },
         },

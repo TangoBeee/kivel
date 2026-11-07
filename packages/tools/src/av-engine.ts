@@ -299,7 +299,7 @@ export class AvRunner {
                 );
             const bytes = await readFile(target);
             return artifact(
-                `socket-help.${format}`,
+                `kivel.${format}`,
                 (
                     {
                         mp4: 'video/mp4',

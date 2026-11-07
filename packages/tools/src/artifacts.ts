@@ -33,7 +33,7 @@ export function samplePdf(text: string, pages: number): Uint8Array {
     if (text.length > 1000 || /[^\x09\x0a\x0d\x20-\x7e]/.test(text))
         throw new Error('PDF sample text supports up to 1,000 ASCII characters.');
     const escape = (value: string) => value.replace(/[\\()]/g, '\\$&');
-    const lines = (text || 'socket.help sample document')
+    const lines = (text || 'Kivel sample document')
         .replace(/\r\n?/g, '\n')
         .replace(/\t/g, '    ')
         .split('\n')

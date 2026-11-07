@@ -4,7 +4,7 @@ const suffix = `${process.pid}-${Date.now()}`,
     network = `socket-mail-${suffix}`,
     relay = `${network}-relay`,
     client = `${network}-client`;
-const appImage = process.env.APP_IMAGE ?? 'socket-help:local';
+const appImage = process.env.APP_IMAGE ?? 'kivel:local';
 const docker = (...args) =>
     execFileSync('docker', args, {
         encoding: 'utf8',
@@ -52,7 +52,7 @@ try {
         '10.234.0.2',
         '-e',
         'APP_MAIL_ADDRESS=10.234.0.3',
-        'socket-help-mail:local',
+        'kivel-mail:local',
     );
     await until(() => docker('exec', relay, 'nc', '-z', '127.0.0.1', '587') === '');
     docker(

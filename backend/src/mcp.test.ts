@@ -631,7 +631,7 @@ test('resource_request reads, lists and deletes resources over MCP', async (t) =
 });
 
 test('MCP instructions describe the full catalog and keep utility discovery behind generic tools', async (t) => {
-    const { catalog, categories } = await import('@socket-help/tools/catalog');
+    const { catalog, categories } = await import('@kivel/tools/catalog');
     const app = buildApp();
     t.after(() => app.close());
     const result = (

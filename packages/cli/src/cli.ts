@@ -1,10 +1,14 @@
 #!/usr/bin/env node
 import process from 'node:process';
 import { Buffer } from 'node:buffer';
-import { SocketHelp, SocketError } from '@socket-help/sdk';
+import { Kivel, KivelError } from '@kivel/sdk';
 import { command, needsInput as commandNeedsInput } from './commands.js';
 import { listen } from './listen.js';
 import type { ListenOptions } from './listen.js';
+
+// KIVEL_* variables, with the SOCKET_HELP_* names from before the rename still accepted.
+const env = (name: string) => process.env[`KIVEL_${name}`] ?? process.env[`SOCKET_HELP_${name}`];
+
 try {
     const args = process.argv.slice(2);
     const needsInput = commandNeedsInput(args);
@@ -16,9 +20,9 @@ try {
             if (size > 10 * 1024 * 1024) throw new Error('Input exceeds 10 MiB.');
             chunks.push(Buffer.from(chunk));
         }
-    const client = new SocketHelp({
-        ...(process.env.SOCKET_HELP_URL ? { baseUrl: process.env.SOCKET_HELP_URL } : {}),
-        ...(process.env.SOCKET_HELP_API_KEY ? { apiKey: process.env.SOCKET_HELP_API_KEY } : {}),
+    const client = new Kivel({
+        ...(env('URL') ? { baseUrl: env('URL') } : {}),
+        ...(env('API_KEY') ? { apiKey: env('API_KEY') } : {}),
         timeoutMs: 90000,
     });
     if (args[0] === 'listen' && args[1]) {
@@ -44,8 +48,9 @@ try {
         );
         process.exit(0);
     }
-    if (args[0] === 'download' && args.length === 2 && process.env.SOCKET_HELP_ACCESS_TOKEN)
-        args.push('--access-token', process.env.SOCKET_HELP_ACCESS_TOKEN);
+    const accessToken = env('ACCESS_TOKEN');
+    if (args[0] === 'download' && args.length === 2 && accessToken)
+        args.push('--access-token', accessToken);
     const result = await command(client, args, Buffer.concat(chunks));
     if (!args.length || ['--help', 'help'].includes(args[0]!))
         process.stdout.write(`${(result as { help: string }).help}\n`);
@@ -55,7 +60,7 @@ try {
     else if (result !== undefined) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 } catch (error) {
     process.stderr.write(
-        `${JSON.stringify({ error: error instanceof Error ? error.message : 'Command failed.', ...(error instanceof SocketError ? { status: error.status, requestId: error.requestId, retryAfter: error.retryAfter, requiredPlan: error.requiredPlan, upgradeUrl: error.upgradeUrl } : {}) })}\n`,
+        `${JSON.stringify({ error: error instanceof Error ? error.message : 'Command failed.', ...(error instanceof KivelError ? { status: error.status, requestId: error.requestId, retryAfter: error.retryAfter, requiredPlan: error.requiredPlan, upgradeUrl: error.upgradeUrl } : {}) })}\n`,
     );
     process.exitCode = 1;
 }

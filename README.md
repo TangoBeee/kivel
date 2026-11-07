@@ -107,12 +107,12 @@ uses `DOMAIN` automatically.
 
 `pnpm build:packages` builds the shared engine, TypeScript SDK, and CLI.
 SDK and CLI are published under the beta tag:
-`npm install @socket-help/sdk@beta` and
-`npx --package=@socket-help/cli@beta socket-help --help`.
+`npm install @kivel/sdk@beta` and
+`npx --package=@kivel/cli@beta kivel --help`.
 Run `pnpm test:packages` to verify standalone installable tarballs in `release/`.
 See [client releases](docs/client-releases.md) for publishing and installation.
 Start with `/docs/agent-workflows/` for device login, email, memory, monitors and human questions.
-Use `pnpm cli --help`; set `SOCKET_HELP_URL` and `SOCKET_HELP_API_KEY` for scripts.
+Use `pnpm cli --help`; set `KIVEL_URL` and `KIVEL_API_KEY` for scripts.
 For file utilities, pipe bytes to `run <id> --file <name>`. PDF merging and image-to-PDF
 accept an ordered file array in SDK/HTTP execution; MCP uses the `files` argument.
 The CLI exposes the same multi-file request through `api POST /api/tools/<id>/run`.
@@ -179,7 +179,7 @@ Source recipes live in `packages/tools/src/audio.ts`; reproduce the MP3 files wi
 `pnpm build:packages` followed by `node scripts/build-music-library.mjs` (FFmpeg required).
 Track-specific license notes ship in `frontend/public/music/LICENSE.txt`.
 The composer and image tools also publish option metadata through
-`GET /api/tools/:id`, `socket-help describe <id>`, and MCP `describe_tool`.
+`GET /api/tools/:id`, `kivel describe <id>`, and MCP `describe_tool`.
 
 API test scenarios use the same hosted execution endpoint and clients. The workbench
 supports variables, separate secret inputs, response checks and JSON captures; exports

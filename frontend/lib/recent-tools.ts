@@ -5,9 +5,9 @@ import { catalog } from './catalog';
 import type { CatalogTool } from './catalog';
 
 // The tools this browser opened most recently. Stored locally only, never sent anywhere.
-const KEY = 'socket-help:recent-tools';
+const KEY = 'kivel:recent-tools';
 const LIMIT = 8;
-const EVENT = 'socket-help:recent-tools';
+const EVENT = 'kivel:recent-tools';
 
 function read(): string[] {
     try {

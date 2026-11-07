@@ -59,7 +59,7 @@ jobs:
         with:
           context: .
           load: true
-          tags: socket-help:local
+          tags: kivel:local
           build-args: PACKAGES_DAY=${{ steps.packages.outputs.day }}
           cache-from: type=gha,scope=ci-app
           cache-to: type=gha,mode=max,scope=ci-app
@@ -68,7 +68,7 @@ jobs:
           context: .
           file: deploy/postgres.Dockerfile
           load: true
-          tags: socket-help-postgres:local
+          tags: kivel-postgres:local
           build-args: PACKAGES_DAY=${{ steps.packages.outputs.day }}
           cache-from: type=gha,scope=postgres
           cache-to: type=gha,mode=max,scope=postgres
@@ -77,7 +77,7 @@ jobs:
           context: .
           file: deploy/caddy.Dockerfile
           load: true
-          tags: socket-help-proxy:local
+          tags: kivel-proxy:local
           build-args: PACKAGES_DAY=${{ steps.packages.outputs.day }}
           cache-from: type=gha,scope=proxy
           cache-to: type=gha,mode=max,scope=proxy
@@ -86,7 +86,7 @@ jobs:
           context: .
           file: deploy/mail.Dockerfile
           load: true
-          tags: socket-help-mail:local
+          tags: kivel-mail:local
           build-args: PACKAGES_DAY=${{ steps.packages.outputs.day }}
           cache-from: type=gha,scope=mail
           cache-to: type=gha,mode=max,scope=mail

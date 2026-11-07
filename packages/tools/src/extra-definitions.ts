@@ -649,7 +649,7 @@ export const extraOperations = {
     'mock-apis-mock-configuration-import': {
         action: 'Validate configuration',
         input: true,
-        intro: 'Validate and normalize an existing socket.help mock API configuration for import or export.',
+        intro: 'Validate and normalize an existing Kivel mock API configuration for import or export.',
         steps: [
             'Paste a JSON configuration with name and routes.',
             'Validate and copy the normalized JSON.',
@@ -663,7 +663,7 @@ export const extraOperations = {
     'mock-apis-openapi-to-mock': {
         action: 'Build mock configuration',
         input: true,
-        intro: 'Convert an OpenAPI 3.x JSON document into a validated static socket.help mock configuration.',
+        intro: 'Convert an OpenAPI 3.x JSON document into a validated static Kivel mock configuration.',
         steps: [
             'Paste an OpenAPI 3.x JSON specification.',
             'Generate response examples and inspect the routes.',

@@ -3,9 +3,9 @@ import { test } from 'node:test';
 import { createHash, createPublicKey, verify } from 'node:crypto';
 import { buildApp } from './app.js';
 import { ResourceStore } from './resources.js';
-import { oauthLimits, validateOAuth } from '@socket-help/tools/oauth';
-import { SocketHelp } from '@socket-help/sdk';
-import { command, needsInput } from '@socket-help/cli';
+import { oauthLimits, validateOAuth } from '@kivel/tools/oauth';
+import { Kivel } from '@kivel/sdk';
+import { command, needsInput } from '@kivel/cli';
 
 const origin = 'http://localhost:3000';
 const config = {
@@ -388,7 +388,7 @@ test('OAuth workspace limits, isolation, expiry and atomic code consumption appl
     const f = await oauthFlow(app, provider);
     const exchanged = await Promise.all([f.exchange(), f.exchange()]);
     assert.deepEqual(exchanged.map((r) => r.statusCode).sort(), [200, 400]);
-    const sdk = new SocketHelp({
+    const sdk = new Kivel({
         baseUrl: origin,
         fetch: async (url, init) => {
             const u = new URL(String(url));

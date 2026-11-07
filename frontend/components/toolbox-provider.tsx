@@ -101,7 +101,7 @@ export function ToolboxProvider({ children }: { children: React.ReactNode }) {
     );
     useEffect(() => {
         if (typeof BroadcastChannel === 'undefined') return;
-        const channel = new BroadcastChannel('socket-help-session');
+        const channel = new BroadcastChannel('kivel-session');
         channel.onmessage = (event: MessageEvent) => {
             if (event.data?.type === 'clear-session' && event.data.source !== sessionSource()) {
                 clearPrivateSession(false);

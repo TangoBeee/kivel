@@ -1,4 +1,4 @@
-# @socket-help/sdk
+# @kivel/sdk
 
 ## 0.5.1
 

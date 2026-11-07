@@ -1,7 +1,7 @@
 import { requireWorkspace } from './access.js';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { Pool } from 'pg';
-import { plans } from '@socket-help/tools/plans';
+import { plans } from '@kivel/tools/plans';
 import { HttpError } from './access.js';
 import type { Access } from './access.js';
 import { transaction } from './database.js';

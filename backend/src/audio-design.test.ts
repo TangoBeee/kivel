@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { defaultRecipe, renderAudio, validateRecipe, musicTracks } from '@socket-help/tools/audio';
-import { designImage } from '@socket-help/tools/image-design';
-import { ToolRunner } from '@socket-help/tools/node';
+import { defaultRecipe, renderAudio, validateRecipe, musicTracks } from '@kivel/tools/audio';
+import { designImage } from '@kivel/tools/image-design';
+import { ToolRunner } from '@kivel/tools/node';
 import { buildApp } from './app.js';
-import { runMedia } from '@socket-help/tools/media-engine';
+import { runMedia } from '@kivel/tools/media-engine';
 
 test('custom audio is deterministic, stereo, bounded and changes with editable tracks', () => {
     const recipe = { ...defaultRecipe(), bars: 1 as number },
@@ -183,9 +183,9 @@ test('tool descriptors expose actionable options through HTTP, SDK, CLI and MCP'
     assert.equal(rpc.json().result.isError, false);
     const descriptor = JSON.parse(rpc.json().result.content[0].text);
     assert.ok(descriptor.guide.inputExample.includes('melody'));
-    const { SocketHelp } = await import('@socket-help/sdk'),
-        { command } = await import('@socket-help/cli');
-    const client = new SocketHelp({
+    const { Kivel } = await import('@kivel/sdk'),
+        { command } = await import('@kivel/cli');
+    const client = new Kivel({
         baseUrl: 'http://localhost:3000',
         fetch: async (url, options) => {
             const value = await app.inject({ method: 'GET', url: new URL(String(url)).pathname });

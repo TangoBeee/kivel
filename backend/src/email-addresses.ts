@@ -157,7 +157,7 @@ const reserved = new Set([
     'unsubscribe',
     'dmarc',
     'socket',
-    'socket-help',
+    'kivel',
     'test',
     'help',
     'team',
@@ -166,7 +166,7 @@ const reserved = new Set([
     'mail',
     'bounces',
     'verify',
-    'sockethelp',
+    'kivel',
 ]);
 export function customEmailLocalPart(value: unknown): string {
     if (

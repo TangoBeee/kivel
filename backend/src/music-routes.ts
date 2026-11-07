@@ -1,8 +1,8 @@
 import { readMusicTrack } from './music-assets.js';
 import type { FastifyInstance } from 'fastify';
 import { createHash } from 'node:crypto';
-import { ToolRunner } from '@socket-help/tools/node';
-import { musicTracks } from '@socket-help/tools/audio';
+import { ToolRunner } from '@kivel/tools/node';
+import { musicTracks } from '@kivel/tools/audio';
 export function registerMusic(app: FastifyInstance, frontendDir?: string) {
     const runner = new ToolRunner(1, 4, 6000),
         cache = new Map<string, { bytes: Buffer; etag: string }>(),

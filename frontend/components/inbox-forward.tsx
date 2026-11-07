@@ -89,7 +89,7 @@ export function InboxForwardSettings({
                     <p>
                         Every captured request is also sent to this public URL, with retries after
                         server errors. Text bodies only. To reach localhost, use{' '}
-                        <code>socket-help listen --forward</code> instead.
+                        <code>kivel listen --forward</code> instead.
                     </p>
                     <label>
                         Endpoint URL

@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react';
 import { Button } from '@radix-ui/themes';
 import { ChatCircleDots } from '@phosphor-icons/react';
 import { api, ApiError } from '../lib/api';
+import { EmailDraftFields, EmailDraftContent } from './email-drafts';
+import type { DraftContent } from './email-drafts';
 import { useViewer } from '../lib/viewer';
 
 interface Approval {
@@ -13,6 +15,7 @@ interface Approval {
     question: string;
     details?: string;
     options: string[];
+    emailDraft?: { id: string };
     status: 'pending' | 'answered' | 'expired';
     answer?: string;
     answeredBy?: string;
@@ -24,6 +27,9 @@ export function AgentQuestion() {
     const viewer = useViewer();
     const [id, setId] = useState('');
     const [approval, setApproval] = useState<Approval | null>(null);
+    const [draft, setDraft] = useState<DraftContent>();
+    const [editing, setEditing] = useState(false);
+    const [edited, setEdited] = useState<DraftContent>();
     const [note, setNote] = useState('');
     const [error, setError] = useState('');
     const [busy, setBusy] = useState(false);
@@ -43,6 +49,19 @@ export function AgentQuestion() {
             );
     }, [id, viewer.status]);
 
+    const draftId = approval?.emailDraft?.id;
+    useEffect(() => {
+        if (!draftId) return;
+        const controller = new AbortController();
+        void api(`/api/email-drafts/${draftId}`, { signal: controller.signal })
+            .then((response) => response.json())
+            .then((result) => setDraft(result.content))
+            .catch((failure: Error) => {
+                if (!controller.signal.aborted) setError(failure.message);
+            });
+        return () => controller.abort();
+    }, [draftId]);
+
     async function answer(option: string) {
         setBusy(true);
         setError('');
@@ -50,7 +69,11 @@ export function AgentQuestion() {
             const response = await api(`/api/approvals/${encodeURIComponent(id)}/answer`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(note.trim() ? { answer: option, note } : { answer: option }),
+                body: JSON.stringify({
+                    answer: option,
+                    ...(note.trim() ? { note } : {}),
+                    ...(option === 'Approve' && editing ? { editedEmail: edited } : {}),
+                }),
             });
             setApproval(await response.json());
         } catch (failure) {
@@ -141,6 +164,32 @@ export function AgentQuestion() {
                         {approval.details && (
                             <p className="agent-question-details">{approval.details}</p>
                         )}
+                        {draftId &&
+                            (draft ? (
+                                <div className="email-draft-panel">
+                                    {editing && edited ? (
+                                        <div className="email-create-form">
+                                            <EmailDraftFields value={edited} onChange={setEdited} />
+                                        </div>
+                                    ) : (
+                                        <EmailDraftContent value={draft} />
+                                    )}
+                                    <Button
+                                        type="button"
+                                        variant="soft"
+                                        color="gray"
+                                        size="2"
+                                        onClick={() => {
+                                            setEdited(draft);
+                                            setEditing(!editing);
+                                        }}
+                                    >
+                                        {editing ? 'Discard edits' : 'Edit draft'}
+                                    </Button>
+                                </div>
+                            ) : (
+                                !error && <p role="status">Loading draft…</p>
+                            ))}
                         <label className="agent-question-note">
                             <span>Note for the agent (optional)</span>
                             <textarea
@@ -164,10 +213,14 @@ export function AgentQuestion() {
                                     size="3"
                                     color={index === 0 ? 'green' : 'gray'}
                                     variant={index === 0 ? 'solid' : 'soft'}
-                                    disabled={busy}
+                                    disabled={
+                                        busy || Boolean(draftId && option === 'Approve' && !draft)
+                                    }
                                     onClick={() => void answer(option)}
                                 >
-                                    {option}
+                                    {editing && option === 'Approve'
+                                        ? 'Approve edited draft'
+                                        : option}
                                 </Button>
                             ))}
                         </div>

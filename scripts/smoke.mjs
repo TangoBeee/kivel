@@ -187,7 +187,12 @@ const mcp = await request('/mcp', {
 });
 assert.equal(mcp.status, 200);
 const platformTools = (await mcp.json()).result.tools;
-assert.equal(platformTools.length, 51);
+assert.equal(platformTools.length, 55);
+for (const name of ['list_email_threads', 'get_email_thread', 'email_draft', 'email_inbox_rules'])
+    assert.ok(
+        platformTools.some((tool) => tool.name === name),
+        `Missing email MCP tool: ${name}`,
+    );
 assert.ok(platformTools.some((tool) => tool.name === 'describe_tool'));
 assert.equal(new Set(platformTools.map((tool) => tool.name)).size, platformTools.length);
 const descriptor = await request('/api/tools/test-media-audio-composer');

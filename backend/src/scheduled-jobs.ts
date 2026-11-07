@@ -26,7 +26,8 @@ export interface ScheduledJob {
     remaining: number;
     run: number;
     attempt: number;
-    status: 'scheduled' | 'completed' | 'failed' | 'cancelled';
+    emailDraft?: { inboxId: string; sendAt: string | null; approvalId?: string };
+    status: 'draft' | 'scheduled' | 'completed' | 'failed' | 'cancelled' | 'rejected' | 'expired';
     expiresAt: string;
     events: DeliveryEvent[];
 }
@@ -37,6 +38,8 @@ export interface JobStore {
     claim(now: number): Promise<{ job: ScheduledJob; lease: string } | undefined>;
     finish(job: ScheduledJob, lease: string): Promise<void>;
     cancel(id: string): Promise<void>;
+    queueDraft(job: ScheduledJob, previousApprovalId?: string): Promise<boolean>;
+    cancelDraft(id: string, ownerId: string): Promise<boolean>;
 }
 export class MemoryJobs implements JobStore {
     private jobs = new Map<string, ScheduledJob>();
@@ -77,6 +80,33 @@ export class MemoryJobs implements JobStore {
             return;
         this.jobs.set(job.id, structuredClone(job));
         this.leases.delete(job.id);
+    }
+    async queueDraft(job: ScheduledJob, previousApprovalId?: string) {
+        const current = this.jobs.get(job.id);
+        if (
+            !current ||
+            current.ownerId !== job.ownerId ||
+            (this.leases.get(job.id)?.until ?? 0) > Date.now() ||
+            !(previousApprovalId
+                ? current.emailDraft?.approvalId === previousApprovalId &&
+                  ['scheduled', 'rejected', 'expired'].includes(current.status)
+                : current.status === 'draft')
+        )
+            return false;
+        this.jobs.set(job.id, structuredClone(job));
+        this.leases.delete(job.id);
+        return true;
+    }
+    async cancelDraft(id: string, ownerId: string) {
+        const job = this.jobs.get(id);
+        if (
+            job?.ownerId !== ownerId ||
+            !job.emailDraft ||
+            (this.leases.get(id)?.until ?? 0) > Date.now()
+        )
+            return false;
+        await this.cancel(id);
+        return true;
     }
     async cancel(id: string) {
         const job = this.jobs.get(id);
@@ -120,6 +150,24 @@ export class PostgresJobs implements JobStore {
             [job.id, lease, job, job.nextRunAt],
         );
     }
+    async queueDraft(job: ScheduledJob, previousApprovalId?: string) {
+        const result = await this.pool.query(
+            `UPDATE scheduled_jobs SET job=$2,next_run_at=$3,lease_id=NULL,lease_until=NULL
+             WHERE id=$1 AND owner_id=$4 AND (lease_until IS NULL OR lease_until < clock_timestamp())
+             AND CASE WHEN $5::text IS NULL THEN job->>'status'='draft'
+                 ELSE job->'emailDraft'->>'approvalId'=$5 AND job->>'status' IN ('scheduled','rejected','expired') END`,
+            [job.id, job, job.nextRunAt, job.ownerId, previousApprovalId ?? null],
+        );
+        return result.rowCount === 1;
+    }
+    async cancelDraft(id: string, ownerId: string) {
+        const result = await this.pool.query(
+            `UPDATE scheduled_jobs SET job=jsonb_set(jsonb_set(job,'{status}','"cancelled"'),'{nextRunAt}','null'),next_run_at=NULL
+             WHERE id=$1 AND owner_id=$2 AND job ? 'emailDraft' AND (lease_until IS NULL OR lease_until < clock_timestamp())`,
+            [id, ownerId],
+        );
+        return result.rowCount === 1;
+    }
     async cancel(id: string) {
         await this.pool.query(
             "UPDATE scheduled_jobs SET job=jsonb_set(jsonb_set(job,'{status}','\"cancelled\"'),'{nextRunAt}','null'),next_run_at=NULL WHERE id=$1",
@@ -147,6 +195,7 @@ export function registerScheduledJobs(
                 body: false,
             })
         ).status,
+    sendDraft?: (job: ScheduledJob, now: number) => Promise<void>,
 ) {
     let running = false,
         closed = false;
@@ -161,7 +210,7 @@ export function registerScheduledJobs(
             actor.identity?.account.id,
         );
         const job = resource && (await store.get(id));
-        if (!job || job.ownerId !== actor.identity?.account.id)
+        if (!job || job.emailDraft || job.ownerId !== actor.identity?.account.id)
             throw new HttpError(404, 'Scheduled job unavailable or access denied.');
         return job;
     }
@@ -285,7 +334,7 @@ export function registerScheduledJobs(
     });
     app.get('/api/scheduled-jobs', async (request) => {
         const identity = await access.require(request, 'resources:read');
-        return { jobs: await store.list(identity.account.id) };
+        return { jobs: (await store.list(identity.account.id)).filter((job) => !job.emailDraft) };
     });
     app.get<{ Params: { id: string } }>('/api/scheduled-jobs/:id', (request) =>
         owned(request, request.params.id),
@@ -310,6 +359,15 @@ export function registerScheduledJobs(
             if (!resource) {
                 job.status = 'cancelled';
                 job.nextRunAt = null;
+                await store.finish(job, lease);
+                return;
+            }
+            if (job.emailDraft) {
+                if (sendDraft) await sendDraft(job, now);
+                else {
+                    job.status = 'failed';
+                    job.nextRunAt = null;
+                }
                 await store.finish(job, lease);
                 return;
             }

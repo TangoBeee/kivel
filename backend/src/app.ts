@@ -1,3 +1,4 @@
+import { registerEmailDrafts } from './email-drafts.js';
 import { registerEmailAttachments } from './email-attachments.js';
 import { MemoryAuthenticators, registerAuthenticators } from './authenticators.js';
 import type { AuthenticatorRepository } from './authenticators.js';
@@ -252,6 +253,7 @@ export function buildApp({
             identityStore.cleanup(),
             memory.deleteExpired(),
             agentStore.deleteExpired(),
+            approvalStore.pruneDraftEdits(resourceStore),
         ])
             .catch(() => app.log.error('Resource cleanup failed'))
             .finally(() => {
@@ -543,11 +545,9 @@ export function buildApp({
                                 error: 'Inbox history is full. Create another inbox or delete this one.',
                             });
                         case 'storage-full':
-                            return reply
-                                .code(503)
-                                .send({
-                                    error: 'Capture storage capacity reached. Try again later.',
-                                });
+                            return reply.code(503).send({
+                                error: 'Capture storage capacity reached. Try again later.',
+                            });
                         case 'captured':
                             reply.header('X-Webhook-Request-Id', result.requestId);
                             if (result.forwardUrl && (await ownerIsPaid(result.ownerId)))
@@ -792,7 +792,7 @@ export function buildApp({
         limits: rateLimiter,
         ...(mailSender ? { mail: mailSender } : {}),
     });
-    registerApprovals({
+    const review = registerApprovals({
         app,
         access,
         approvals: approvalStore,
@@ -831,7 +831,7 @@ export function buildApp({
         (owner) => email.lifecycle.reconcile(owner),
     );
     registerSmtpCapture(app, access, resourceStore, emailMessages, rateLimiter, smtpCaptureConfig);
-    registerEmailSending({
+    const deliverEmail = registerEmailSending({
         app,
         access,
         messages: emailMessages,
@@ -855,7 +855,24 @@ export function buildApp({
         phoneEnabled,
     );
     app.decorate('runPhoneLifecycle', phones.tick);
-    const scheduler = registerScheduledJobs(app, access, resourceStore, jobStore, jobSend);
+    const sendDraft = registerEmailDrafts(
+        app,
+        access,
+        resourceStore,
+        jobStore,
+        email,
+        deliverEmail,
+        approvalStore,
+        review,
+    );
+    const scheduler = registerScheduledJobs(
+        app,
+        access,
+        resourceStore,
+        jobStore,
+        jobSend,
+        sendDraft,
+    );
     app.decorate('runScheduledJobs', scheduler.tick);
     registerEvents({
         app,

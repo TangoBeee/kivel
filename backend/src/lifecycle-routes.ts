@@ -35,41 +35,44 @@ export function registerLifecycle(
                 persistent: inbox.persistent,
                 storedBytes: inbox.storedBytes,
             })),
-            ...resourceList.map((resource) => ({
-                id: resource.id,
-                kind: resource.kind,
-                ...(resource.kind === 'email' && emailRows.get(resource.id)
-                    ? {
-                          name: emailRows.get(resource.id)!.address,
-                          status: emailRows.get(resource.id)!.pausedAt ? 'paused' : 'active',
-                      }
-                    : {}),
-                ...(resource.kind === 'mock' && resource.payload.oauth
-                    ? { toolId: 'mock-apis-mock-oauth-provider' }
-                    : resource.kind === 'mock' && resource.payload.websocket
-                      ? { toolId: 'mock-apis-mock-websocket-server' }
-                      : resource.kind === 'email' && resource.payload.smtpCapture
-                        ? { toolId: 'email-mock-smtp' }
-                        : resource.kind === 'mock' && resource.payload.llm
-                          ? { toolId: 'agents-mock-llm-endpoint' }
-                          : resource.kind === 'mock' && resource.payload.crud
-                            ? { toolId: 'mock-apis-stateful-crud-api' }
-                            : resource.kind === 'mock' && resource.payload.echo
-                              ? { toolId: 'network-http-echo' }
-                              : {}),
-                ...(typeof resource.payload.name === 'string'
-                    ? { name: resource.payload.name }
-                    : {}),
-                available: resource.kind !== 'file' || resource.uses < (resource.maxUses ?? 100),
-                visibility:
-                    resource.kind === 'email' || resource.kind === 'job'
-                        ? 'private'
-                        : resource.visibility,
-                createdAt: resource.createdAt,
-                expiresAt: resource.expiresAt,
-                persistent: resource.persistent,
-                storedBytes: resource.storedBytes,
-            })),
+            ...resourceList
+                .filter((resource) => !resource.payload.emailContent)
+                .map((resource) => ({
+                    id: resource.id,
+                    kind: resource.kind,
+                    ...(resource.kind === 'email' && emailRows.get(resource.id)
+                        ? {
+                              name: emailRows.get(resource.id)!.address,
+                              status: emailRows.get(resource.id)!.pausedAt ? 'paused' : 'active',
+                          }
+                        : {}),
+                    ...(resource.kind === 'mock' && resource.payload.oauth
+                        ? { toolId: 'mock-apis-mock-oauth-provider' }
+                        : resource.kind === 'mock' && resource.payload.websocket
+                          ? { toolId: 'mock-apis-mock-websocket-server' }
+                          : resource.kind === 'email' && resource.payload.smtpCapture
+                            ? { toolId: 'email-mock-smtp' }
+                            : resource.kind === 'mock' && resource.payload.llm
+                              ? { toolId: 'agents-mock-llm-endpoint' }
+                              : resource.kind === 'mock' && resource.payload.crud
+                                ? { toolId: 'mock-apis-stateful-crud-api' }
+                                : resource.kind === 'mock' && resource.payload.echo
+                                  ? { toolId: 'network-http-echo' }
+                                  : {}),
+                    ...(typeof resource.payload.name === 'string'
+                        ? { name: resource.payload.name }
+                        : {}),
+                    available:
+                        resource.kind !== 'file' || resource.uses < (resource.maxUses ?? 100),
+                    visibility:
+                        resource.kind === 'email' || resource.kind === 'job'
+                            ? 'private'
+                            : resource.visibility,
+                    createdAt: resource.createdAt,
+                    expiresAt: resource.expiresAt,
+                    persistent: resource.persistent,
+                    storedBytes: resource.storedBytes,
+                })),
         ];
         return {
             resources: items.sort(

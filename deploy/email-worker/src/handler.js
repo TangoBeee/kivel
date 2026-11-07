@@ -41,8 +41,10 @@ export function createEmailWorker(parse) {
             const body = JSON.stringify({
                 rawSize: message.rawSize,
                 to: message.to,
+                mailFrom: message.from,
                 feedback: deliveryFeedback(parsed, message.from),
                 messageId: parsed.messageId,
+                cc: (parsed.cc ?? []).flatMap((mailbox) => mailbox.address ?? []).slice(0, 30),
                 inReplyTo: parsed.inReplyTo,
                 references:
                     typeof parsed.references === 'string'

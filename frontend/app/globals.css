@@ -31,6 +31,48 @@
   justify-self: start;
 }
 
+.email-draft-panel,
+.email-thread-messages {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+  margin-block: 12px;
+}
+.email-draft-panel .email-create-form {
+  margin-block: 8px;
+}
+.email-draft-actions,
+.email-draft-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+.email-draft-list {
+  display: grid;
+  gap: 8px;
+  padding-inline-start: 8px;
+}
+.email-draft-list button,
+.email-draft-content {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.email-draft-content {
+  text-align: left;
+}
+.email-draft-content pre {
+  margin-block: 8px;
+  padding: 12px;
+  border: 1px solid var(--gray-6);
+  border-radius: 6px;
+  white-space: pre-wrap;
+}
+.email-thread-messages .rt-SelectTrigger {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .llm-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);

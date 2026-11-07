@@ -65,6 +65,7 @@ export interface ResourceRepository {
         token: string,
         payload: Record<string, unknown>,
         ownerId?: string,
+        merge?: boolean,
     ): MaybePromise<'updated' | 'not-found' | 'full'>;
     mutateMock<T>(
         id: string,
@@ -262,6 +263,7 @@ export class ResourceStore implements ResourceRepository {
         token: string,
         payload: Record<string, unknown>,
         ownerId?: string,
+        merge = false,
     ): 'updated' | 'not-found' | 'full' {
         const resource = this.get(id, kind);
         if (
@@ -269,6 +271,7 @@ export class ResourceStore implements ResourceRepository {
             !ownsOrToken(resource.ownerId, ownerId, () => matches(token, resource.tokenHash))
         )
             return 'not-found';
+        if (merge) payload = { ...resource.payload, ...payload };
         const storedBytes =
             size(payload, resource.data) +
             resource.storedBytes -
@@ -561,6 +564,7 @@ export class PostgresResourceStore implements ResourceRepository {
         token: string,
         payload: Record<string, unknown>,
         ownerId?: string,
+        merge = false,
     ): Promise<'updated' | 'not-found' | 'full'> {
         if (!validId(id)) return 'not-found';
         return transaction(this.pool, async (client) => {
@@ -577,6 +581,7 @@ export class PostgresResourceStore implements ResourceRepository {
                 )
             )
                 return 'not-found';
+            if (merge) payload = { ...JSON.parse(row.payload), ...payload };
             const storedBytes =
                 size(payload, row.data) +
                 Number(row.stored_bytes) -

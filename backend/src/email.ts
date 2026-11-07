@@ -1,3 +1,13 @@
+import type { ThreadMessage } from './email-threading.js';
+import {
+    inboundEmailAllowed,
+    emailRules,
+    emptyEmailRules,
+    groupEmailThreads,
+    pageEmailThreads,
+} from './email-threading.js';
+import type { EmailRules } from './email-threading.js';
+import { inboxRuleLimits } from '@socket-help/tools/billing-plans';
 import {
     parseAttachments,
     INBOX_ATTACHMENT_BYTES,
@@ -77,7 +87,9 @@ export interface EmailMessage {
     id: string;
     receivedAt: string;
     from: string;
+    mailFrom?: string;
     to: string;
+    cc?: string[];
     subject: string;
     text: string;
     html?: string;
@@ -134,6 +146,7 @@ export interface EmailMessageRepository {
         bodies?: AttachmentBody[],
     ): MaybePromise<'stored' | 'full'>;
     list(resourceId: string): MaybePromise<EmailMessage[]>;
+    threadMessages(resourceId: string): MaybePromise<ThreadMessage[]>;
     count(resourceId: string): MaybePromise<number>;
     cursor(resourceId: string): MaybePromise<string>;
     delete(resourceId: string): MaybePromise<void>;
@@ -204,6 +217,9 @@ export class MemoryEmailMessages implements EmailMessageRepository {
     }
     list(resourceId: string) {
         return (this.messages.get(resourceId) ?? []).map(publicMessage);
+    }
+    threadMessages(resourceId: string) {
+        return this.messages.get(resourceId) ?? [];
     }
     cursor(resourceId: string) {
         return this.messages.get(resourceId)?.at(-1)?.id ?? '';
@@ -320,6 +336,17 @@ export class PostgresEmailMessages implements EmailMessageRepository {
     async list(resourceId: string) {
         const result = await this.pool.query<{ message: EmailMessage }>(
             "SELECT message - 'attachmentBodies' AS message FROM email_messages WHERE resource_id = $1 ORDER BY sequence",
+            [resourceId],
+        );
+        return result.rows.map((row) => row.message);
+    }
+    async threadMessages(resourceId: string) {
+        const result = await this.pool.query<{ message: ThreadMessage }>(
+            `SELECT jsonb_build_object('id', message->'id', 'receivedAt', message->'receivedAt',
+                'from', message->'from', 'to', message->'to', 'cc', message->'cc',
+                'subject', message->'subject', 'direction', message->'direction', 'messageId', message->'messageId',
+                'inReplyTo', message->'inReplyTo', 'references', message->'references') AS message
+             FROM email_messages WHERE resource_id = $1 ORDER BY sequence`,
             [resourceId],
         );
         return result.rows.map((row) => row.message);
@@ -476,15 +503,18 @@ export function registerEmail({
         token = resourceToken(request),
     ) {
         const actor = await access.actor(request);
-        if (actor.identity) await lifecycle.reconcile(actor.identity.account.id);
-        const inbox = await resources.read(id, 'email', token, actor.identity?.account.id);
+        return { ...(await resolveInbox(id, actor.identity?.account.id, token)), actor };
+    }
+    async function resolveInbox(id: string, ownerId?: string, token = '') {
+        if (ownerId) await lifecycle.reconcile(ownerId);
+        const inbox = await resources.read(id, 'email', token, ownerId);
         if (!inbox) throw new HttpError(404, 'Email inbox unavailable or access denied.');
         const row =
             typeof inbox.payload.address === 'string'
                 ? await addresses.find(inbox.payload.address)
                 : undefined;
         if (row?.retiredAt) throw new HttpError(404, 'Email inbox unavailable or access denied.');
-        return { inbox, actor, row };
+        return { inbox, row };
     }
 
     app.post(
@@ -596,6 +626,68 @@ export function registerEmail({
         };
     });
 
+    app.get<{ Params: { id: string } }>('/api/email-inboxes/:id/rules', async (request) => {
+        await access.require(request, 'resources:read');
+        const { inbox } = await owned(request, request.params.id);
+        return {
+            rules: {
+                ...emptyEmailRules,
+                ...(inbox.payload.emailRules as Partial<EmailRules> | undefined),
+            },
+        };
+    });
+    app.put<{ Params: { id: string } }>('/api/email-inboxes/:id/rules', async (request) => {
+        const human = await access.require(request, 'resources:write', true);
+        if (!['owner', 'admin'].includes(human.role))
+            throw new HttpError(403, 'Only workspace owners and admins can change inbox rules.');
+        const { inbox, actor } = await owned(request, request.params.id);
+        if (inbox.payload.smtpCapture)
+            throw new HttpError(400, 'Address rules apply to email inboxes.');
+        const rules = emailRules(request.body, inboxRuleLimits[actor.plan]);
+        const result = await resources.update(
+            inbox.id,
+            'email',
+            '',
+            { emailRules: rules },
+            human.account.id,
+            true,
+        );
+        if (result === 'not-found') throw new HttpError(404, 'Email inbox unavailable.');
+        if (result === 'full') throw new HttpError(409, 'Workspace storage is full.');
+        return { rules };
+    });
+    type Page = { cursor?: string; limit?: string };
+    const threads = async (id: string) => groupEmailThreads(await messages.threadMessages(id), id);
+    app.get<{ Params: { id: string }; Querystring: Page }>(
+        '/api/email-inboxes/:id/threads',
+        async (request) => {
+            await access.require(request, 'resources:read');
+            const { inbox } = await owned(request, request.params.id);
+            return pageEmailThreads(await threads(inbox.id), request.query);
+        },
+    );
+    app.get<{ Querystring: Page }>('/api/email-threads', async (request) => {
+        const actor = await access.workspace(request, 'resources:read');
+        await lifecycle.reconcile(actor.identity.account.id);
+        const inboxes = (await addresses.list(actor.identity.account.id)).filter(
+            (row) => row.resourceId,
+        );
+        const all = [];
+        for (const inbox of inboxes) all.push(...(await threads(inbox.resourceId!)));
+        return pageEmailThreads(all, request.query);
+    });
+    app.get<{ Params: { id: string; threadId: string } }>(
+        '/api/email-inboxes/:id/threads/:threadId',
+        async (request) => {
+            await access.require(request, 'resources:read');
+            const { inbox } = await owned(request, request.params.id);
+            const thread = groupEmailThreads(await messages.list(inbox.id), inbox.id).find(
+                (item) => item.id === request.params.threadId,
+            );
+            if (!thread) throw new HttpError(404, 'Email thread unavailable.');
+            return thread;
+        },
+    );
     app.put<{ Params: { id: string } }>('/api/email-inboxes/:id/forwarding', async (request) => {
         const caller = await access.workspace(request, 'resources:write');
         entitlement(caller.identity, 'webhookForwarding', access.origin);
@@ -625,8 +717,9 @@ export function registerEmail({
             inbox.id,
             'email',
             resourceToken(request),
-            { ...inbox.payload, forwardingUrl: url },
+            { forwardingUrl: url },
             actor.identity?.account.id,
+            true,
         );
         return { forwardingUrl: url };
     });
@@ -781,6 +874,16 @@ export function registerEmail({
                 current ? { ownerId: current.ownerId } : {},
             );
             if (!exists) return reply.code(404).send({ error: 'Unknown address.' });
+            const from = typeof input.from === 'string' ? input.from : '';
+            const mailFrom = typeof input.mailFrom === 'string' ? input.mailFrom : '';
+            if (
+                !inboundEmailAllowed(
+                    from,
+                    mailFrom,
+                    exists.payload.emailRules as EmailRules | undefined,
+                )
+            )
+                return reply.code(202).send({ stored: false });
             const subject = text(input.subject, 998);
             const body = text(input.text, TEXT_LIMIT);
             const html = text(input.html, TEXT_LIMIT);
@@ -794,8 +897,19 @@ export function registerEmail({
             const message: EmailMessage = {
                 id: crypto.randomUUID(),
                 receivedAt: new Date().toISOString(),
-                from: text(input.from, 320),
+                from: from.slice(0, 320),
+                ...(typeof input.mailFrom === 'string' ? { mailFrom: mailFrom.slice(0, 320) } : {}),
                 to,
+                ...(Array.isArray(input.cc)
+                    ? {
+                          cc: input.cc
+                              .filter(
+                                  (value): value is string =>
+                                      typeof value === 'string' && value.length <= 254,
+                              )
+                              .slice(0, 30),
+                      }
+                    : {}),
                 subject,
                 direction: 'inbound',
                 ...(typeof input.messageId === 'string' &&
@@ -861,8 +975,9 @@ export function registerEmail({
                     id,
                     'email',
                     '',
-                    { ...exists.payload, lastForward: outcome },
+                    { lastForward: outcome },
                     exists.ownerId,
+                    true,
                 );
             }
             return stored === 'stored'
@@ -870,5 +985,5 @@ export function registerEmail({
                 : reply.code(429).send({ error: 'This inbox is full.' });
         });
     });
-    return { owned, lifecycle };
+    return { owned, resolveInbox, lifecycle };
 }

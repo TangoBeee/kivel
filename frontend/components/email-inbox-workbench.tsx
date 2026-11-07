@@ -1,10 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AlertDialog, Button, Select, TextArea, TextField } from '@radix-ui/themes';
 import { api, ApiError, resourceHeaders } from '../lib/api';
 import { useViewer } from '../lib/viewer';
+import { EmailDrafts } from './email-drafts';
+import { EmailInboxRules } from './email-inbox-rules';
 import { CopyButton } from './copy-button';
 import { Icon } from './icons';
 import { ToolHeader } from './tool-header';
@@ -21,6 +23,8 @@ interface EmailMessage {
     id: string;
     receivedAt: string;
     from: string;
+    to: string;
+    cc?: string[];
     subject: string;
     text: string;
     html?: string;
@@ -29,6 +33,14 @@ interface EmailMessage {
     attachments: { id?: string; filename: string; mimeType: string; size: number }[];
     direction?: 'inbound' | 'outbound';
     deliveryStatus?: 'pending' | 'sent';
+}
+
+interface ThreadSummary {
+    id: string;
+    subject: string;
+    from: string;
+    lastAt: string;
+    messageCount: number;
 }
 
 const KEY = 'socket-email-inbox';
@@ -52,7 +64,12 @@ const restore = (): EmailInbox | null => {
 export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
     const viewer = useViewer();
     const [inbox, setInbox] = useState<EmailInbox | null>(null);
-    const [messages, setMessages] = useState<EmailMessage[]>([]);
+    const [threads, setThreads] = useState<ThreadSummary[]>([]);
+    const [threadId, setThreadId] = useState<string | null>(null);
+    const [hasMore, setHasMore] = useState(false);
+    const [showAll, setShowAll] = useState(false);
+    const [detail, setDetail] = useState<{ id: string; messages: EmailMessage[] } | null>(null);
+    const [mailVersion, setMailVersion] = useState(0);
     const [selected, setSelected] = useState<string | null>(null);
     const [showHtml, setShowHtml] = useState(false);
     const [error, setError] = useState('');
@@ -62,12 +79,13 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
     const [existing, setExisting] = useState<EmailInbox[]>([]);
     const [forwardingUrl, setForwardingUrl] = useState('');
     const [forwardNotice, setForwardNotice] = useState('');
+    const [requireApproval, setRequireApproval] = useState(false);
     const [sendingEnabled, setSendingEnabled] = useState(false);
     const [draft, setDraft] = useState({ to: '', subject: '', text: '' });
     const [draftKey, setDraftKey] = useState('');
     const [sendNotice, setSendNotice] = useState('');
     const paid = viewer.status === 'user' && ['pro', 'team'].includes(viewer.plan);
-    const lastId = useRef<string | undefined>(undefined);
+    const canManage = viewer.status === 'user' && ['owner', 'admin'].includes(viewer.role);
 
     async function create() {
         setBusy(true);
@@ -87,8 +105,11 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                 })
             ).json();
             remember(created);
-            lastId.current = undefined;
-            setMessages([]);
+            setThreads([]);
+            setThreadId(null);
+            setDetail(null);
+            setHasMore(false);
+            setShowAll(false);
             setSelected(null);
             setInbox(created);
             setExisting((items) => [...items, created]);
@@ -107,7 +128,11 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
 
     useEffect(() => {
         setInbox(null);
-        setMessages([]);
+        setThreads([]);
+        setThreadId(null);
+        setDetail(null);
+        setHasMore(false);
+        setShowAll(false);
         setSelected(null);
         setExisting([]);
         if (viewer.status !== 'user') return;
@@ -143,9 +168,13 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
         setError('');
         try {
             await api(`/api/email-inboxes/${inbox.id}/messages`, { method: 'DELETE' });
-            setMessages([]);
+            setThreads([]);
+            setThreadId(null);
+            setDetail(null);
             setSelected(null);
-            lastId.current = undefined;
+            setHasMore(false);
+            setShowAll(false);
+            setMailVersion((version) => version + 1);
             setInbox({ ...inbox });
         } catch (failure) {
             setError(failure instanceof Error ? failure.message : 'Unable to clear messages.');
@@ -182,8 +211,7 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
             );
             setDraft({ to: '', subject: '', text: '' });
             setDraftKey('');
-            const response = await api(`/api/email-inboxes/${inbox.id}/messages`);
-            setMessages((await response.json()).messages);
+            setMailVersion((version) => version + 1);
         } catch (failure) {
             setError(
                 failure instanceof Error
@@ -232,18 +260,11 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
             .catch(() => {});
         const headers = resourceHeaders(inbox.managementToken ?? '');
         void (async () => {
+            let lastId: string | undefined;
             try {
-                const first = await (
-                    await api(`/api/email-inboxes/${inbox.id}/messages`, {
-                        headers,
-                        signal: controller.signal,
-                    })
-                ).json();
-                setMessages(first.messages);
-                lastId.current = first.messages.at(-1)?.id;
                 while (!controller.signal.aborted) {
                     const query = new URLSearchParams({ timeoutSeconds: '25' });
-                    if (lastId.current) query.set('after', lastId.current);
+                    if (lastId) query.set('after', lastId);
                     const batch = await (
                         await api(
                             `/api/email-inboxes/${inbox.id}/wait?${query}`,
@@ -251,11 +272,8 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                             35000,
                         )
                     ).json();
-                    if (batch.messages.length) {
-                        lastId.current = batch.messages.at(-1).id;
-                        setMessages((items) => [...items, ...batch.messages]);
-                        setSelected(batch.messages.at(-1).id);
-                    }
+                    if (batch.messages.length) lastId = batch.messages.at(-1).id;
+                    setMailVersion((version) => version + 1);
                 }
             } catch (failure) {
                 if (controller.signal.aborted) return;
@@ -269,8 +287,54 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
         return () => controller.abort();
     }, [inbox]);
 
-    const current =
-        messages.find((message) => message.id === selected) ?? messages.at(-1) ?? undefined;
+    const inboxId = inbox?.id;
+    const active = inbox?.status !== 'paused';
+    useEffect(() => {
+        if (!inboxId || !active) return;
+        const controller = new AbortController();
+        const path = `/api/email-inboxes/${inboxId}/threads?limit=50`;
+        void (async () => {
+            const readPage = async (cursor?: string) =>
+                (
+                    await api(path + (cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''), {
+                        signal: controller.signal,
+                    })
+                ).json() as Promise<{ threads: ThreadSummary[]; nextCursor: string | null }>;
+            try {
+                const first = await readPage();
+                const older = showAll && first.nextCursor ? await readPage(first.nextCursor) : null;
+                if (controller.signal.aborted) return;
+                setThreads(older ? [...first.threads, ...older.threads] : first.threads);
+                setHasMore(Boolean(first.nextCursor && !showAll));
+            } catch (failure) {
+                if (!controller.signal.aborted)
+                    setError(
+                        failure instanceof Error ? failure.message : 'Unable to load threads.',
+                    );
+            }
+        })();
+        return () => controller.abort();
+    }, [inboxId, active, mailVersion, showAll]);
+
+    const thread = threads.find((item) => item.id === threadId) ?? threads[0];
+    const activeThread = thread?.id;
+    const lastAt = thread?.lastAt;
+    useEffect(() => {
+        if (!inboxId || !activeThread) return;
+        const controller = new AbortController();
+        void api(`/api/email-inboxes/${inboxId}/threads/${activeThread}`, {
+            signal: controller.signal,
+        })
+            .then((response) => response.json())
+            .then(setDetail)
+            .catch((failure: Error) => {
+                if (!controller.signal.aborted) setError(failure.message);
+            });
+        return () => controller.abort();
+    }, [inboxId, activeThread, lastAt]);
+
+    const messages = detail?.id === activeThread ? (detail?.messages ?? []) : [];
+    const current = messages.find((message) => message.id === selected) ?? messages.at(-1);
     const minutes = inbox?.expiresAt
         ? Math.max(0, Math.round((Date.parse(inbox.expiresAt) - Date.now()) / 60000))
         : 0;
@@ -329,6 +393,12 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                                 value={inbox?.id ?? ''}
                                 onValueChange={(id) => {
                                     const selected = existing.find((item) => item.id === id);
+                                    setThreads([]);
+                                    setDetail(null);
+                                    setThreadId(null);
+                                    setSelected(null);
+                                    setHasMore(false);
+                                    setShowAll(false);
                                     setInbox(selected ?? null);
                                     setError('');
                                 }}
@@ -424,7 +494,7 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                             before the grace period ends.
                         </p>
                     )}
-                    {sendingEnabled && inbox.status !== 'paused' && (
+                    {sendingEnabled && !requireApproval && inbox.status !== 'paused' && (
                         <details className="connection-details">
                             <summary>Send an email</summary>
                             <form
@@ -486,14 +556,27 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                             </form>
                         </details>
                     )}
+                    <EmailDrafts
+                        key={`drafts-${inbox.id}`}
+                        id={inbox.id}
+                        canWrite={viewer.status === 'user' && viewer.role !== 'viewer'}
+                        canSend={sendingEnabled && inbox.status !== 'paused'}
+                        requireApproval={requireApproval}
+                        canResubmit={canManage}
+                        replyTo={current?.direction !== 'outbound' ? current?.id : undefined}
+                    />
+                    <EmailInboxRules
+                        key={`rules-${inbox.id}`}
+                        id={inbox.id}
+                        canEdit={canManage}
+                        onApprovalChange={setRequireApproval}
+                    />
                     <div className="email-layout">
-                        <aside className="email-list" aria-label="Messages">
+                        <aside className="email-list" aria-label="Email threads">
                             <div className="email-list-heading">
                                 <span className="status-dot" />{' '}
-                                {messages.length
-                                    ? `${messages.length} message${messages.length === 1 ? '' : 's'}`
-                                    : 'Waiting for mail…'}
-                                {messages.length > 0 && (
+                                {threads.length ? 'Email threads' : 'Waiting for mail…'}
+                                {threads.length > 0 && (
                                     <AlertDialog.Root>
                                         <AlertDialog.Trigger>
                                             <Button
@@ -533,25 +616,24 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                                     </AlertDialog.Root>
                                 )}
                             </div>
-                            {messages.length ? (
-                                [...messages].reverse().map((message) => (
+                            {threads.length ? (
+                                threads.map((item) => (
                                     <button
-                                        key={message.id}
+                                        key={item.id}
                                         type="button"
-                                        aria-pressed={current?.id === message.id}
+                                        aria-pressed={activeThread === item.id}
                                         onClick={() => {
-                                            setSelected(message.id);
+                                            setThreadId(item.id);
+                                            setSelected(null);
                                             setShowHtml(false);
                                         }}
                                     >
-                                        <strong>{message.subject || '(no subject)'}</strong>
-                                        <span>
-                                            {message.direction === 'outbound'
-                                                ? 'Sent by this agent'
-                                                : message.from}
-                                        </span>
+                                        <strong>{item.subject || '(no subject)'}</strong>
+                                        <span>{item.from}</span>
                                         <time>
-                                            {new Date(message.receivedAt).toLocaleTimeString()}
+                                            {item.messageCount}{' '}
+                                            {item.messageCount === 1 ? 'message' : 'messages'} ·{' '}
+                                            {new Date(item.lastAt).toLocaleDateString()}
                                         </time>
                                     </button>
                                 ))
@@ -561,15 +643,61 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                                     usually arrives within a few seconds.
                                 </p>
                             )}
+                            {hasMore && (
+                                <Button
+                                    type="button"
+                                    variant="soft"
+                                    size="2"
+                                    disabled={busy}
+                                    onClick={() => setShowAll(true)}
+                                >
+                                    Load more threads
+                                </Button>
+                            )}
                         </aside>
-                        <section className="email-detail" aria-label="Selected message">
+                        <section className="email-detail" aria-label="Selected thread">
                             {current ? (
                                 <>
+                                    {messages.length > 1 && (
+                                        <label className="email-thread-messages">
+                                            Message in thread
+                                            <Select.Root
+                                                value={current.id}
+                                                onValueChange={(id) => {
+                                                    setSelected(id);
+                                                    setShowHtml(false);
+                                                }}
+                                            >
+                                                <Select.Trigger aria-label="Message in thread" />
+                                                <Select.Content>
+                                                    {messages.map((message, index) => (
+                                                        <Select.Item
+                                                            key={message.id}
+                                                            value={message.id}
+                                                        >
+                                                            {index + 1}. {message.from} ·{' '}
+                                                            {new Date(
+                                                                message.receivedAt,
+                                                            ).toLocaleString()}
+                                                        </Select.Item>
+                                                    ))}
+                                                </Select.Content>
+                                            </Select.Root>
+                                        </label>
+                                    )}
                                     <h2>{current.subject || '(no subject)'}</h2>
                                     <p className="email-from">
                                         {current.from} ·{' '}
                                         {new Date(current.receivedAt).toLocaleString()}
                                     </p>
+                                    {current.to && (
+                                        <p className="email-from">
+                                            To {current.to}
+                                            {current.cc?.length
+                                                ? ` · Cc ${current.cc.join(', ')}`
+                                                : ''}
+                                        </p>
+                                    )}
                                     {(current.codes.length > 0 ||
                                         current.links.some(
                                             (link) => link.kind === 'verification',

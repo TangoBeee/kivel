@@ -313,6 +313,7 @@ test('the receiving worker forwards exact attachment bytes and retains raw messa
     }
     assert.equal(forwarded, true);
     const message = (await f.preview()).messages[0];
+    assert.equal(message.mailFrom, 'sender@example.test');
     assert.deepEqual(
         f.messages.attachment(f.inbox.id, message.id, message.attachments[0].id)?.bytes,
         bytes,

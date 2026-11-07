@@ -1483,6 +1483,10 @@ curl https://socket.help/api/tools/everyday-file-checksums/run \\
                             'Owned mail; email list reopens addresses and email forward reads a webhook URL from stdin; waits accept --after and --timeout-seconds',
                         ],
                         [
+                            'socket-help email threads / thread / draft-create / draft-submit',
+                            'Read conversations, save a draft from JSON, then send or request approval with an optional sendAt',
+                        ],
+                        [
                             'socket-help memory set|get|delete <namespace> <key>',
                             'Pipe a JSON value to set; memory list <namespace> accepts --prefix',
                         ],
@@ -1654,6 +1658,14 @@ console.log(result.output, result.usage.used);`,
                         [
                             'createEmailInbox(settings?) / emailInbox(id, token?) / emails(id, token?)',
                             'Owned email creation, metadata and messages',
+                        ],
+                        [
+                            'emailThreads(id?, settings?) / emailThread(id, threadId)',
+                            'List inbox or workspace conversations with cursor pagination and read a full thread',
+                        ],
+                        [
+                            'createEmailDraft(id, content) / submitEmailDraft(id, settings?)',
+                            'Save a draft and submit it directly or for human approval, with an optional sendAt',
                         ],
                         [
                             'waitForEmail(id, {token?, after?, timeoutSeconds?})',
@@ -1924,6 +1936,14 @@ ssh -T -n -p 2222 socket@your-host socket-help inbox create --visibility public`
                         [
                             'create_email_inbox / list_emails / wait_for_email',
                             'Receive email with extracted codes and links',
+                        ],
+                        [
+                            'list_email_threads / get_email_thread',
+                            'List conversations in one inbox or across the workspace and read a full thread',
+                        ],
+                        [
+                            'email_draft / email_inbox_rules',
+                            'Save drafts, submit for approval or schedule delivery, and read inbox address rules',
                         ],
                         [
                             'memory_set / memory_get / memory_list / memory_delete',

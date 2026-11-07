@@ -14,6 +14,11 @@ import type {
     ApprovalInput,
     EmailInbox,
     EmailMessage,
+    EmailContent,
+    EmailThread,
+    EmailThreadsPage,
+    EmailDraft,
+    EmailRules,
     MemoryEntry,
     Monitor,
     MonitorInput,
@@ -336,6 +341,59 @@ export class SocketHelp {
             body,
             undefined,
             { 'Idempotency-Key': idempotencyKey },
+        );
+    }
+    emailThreads(
+        id?: string,
+        settings: { cursor?: string | undefined; limit?: number | undefined } = {},
+    ) {
+        const query = new URLSearchParams();
+        if (settings.cursor) query.set('cursor', settings.cursor);
+        if (settings.limit !== undefined) query.set('limit', String(settings.limit));
+        const path = id
+            ? `/api/email-inboxes/${encodeURIComponent(id)}/threads`
+            : '/api/email-threads';
+        return this.request<EmailThreadsPage>('GET', path + (query.size ? `?${query}` : ''));
+    }
+    emailThread(id: string, threadId: string) {
+        return this.request<EmailThread>(
+            'GET',
+            `/api/email-inboxes/${encodeURIComponent(id)}/threads/${encodeURIComponent(threadId)}`,
+        );
+    }
+    createEmailDraft(id: string, content: EmailContent) {
+        return this.request<EmailDraft & { content: EmailContent }>(
+            'POST',
+            `/api/email-inboxes/${encodeURIComponent(id)}/drafts`,
+            content,
+        );
+    }
+    emailDrafts(id: string) {
+        return this.request<{ drafts: EmailDraft[] }>(
+            'GET',
+            `/api/email-inboxes/${encodeURIComponent(id)}/drafts`,
+        );
+    }
+    emailDraft(id: string) {
+        return this.request<EmailDraft & { content: EmailContent }>(
+            'GET',
+            `/api/email-drafts/${encodeURIComponent(id)}`,
+        );
+    }
+    submitEmailDraft(id: string, settings: { approval?: boolean; sendAt?: string } = {}) {
+        return this.request<EmailDraft & { content: EmailContent }>(
+            'POST',
+            `/api/email-drafts/${encodeURIComponent(id)}/send`,
+            settings,
+        );
+    }
+    deleteEmailDraft(id: string) {
+        return this.request<void>('DELETE', `/api/email-drafts/${encodeURIComponent(id)}`);
+    }
+    emailInboxRules(id: string) {
+        return this.request<{ rules: EmailRules }>(
+            'GET',
+            `/api/email-inboxes/${encodeURIComponent(id)}/rules`,
         );
     }
     waitForEvent(sources: import('./types.js').SocketEventSource[], timeoutSeconds = 20) {

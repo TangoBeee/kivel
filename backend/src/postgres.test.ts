@@ -1,7 +1,7 @@
 import DodoPayments from 'dodopayments';
 import assert from 'node:assert/strict';
 import { after, before, beforeEach, test } from 'node:test';
-import { randomBytes, createHash } from 'node:crypto';
+import { randomBytes, createHash, createHmac } from 'node:crypto';
 import { Pool } from 'pg';
 import { migrate } from './database.js';
 import { PostgresInboxStore, PostgresRateLimiter } from './postgres.js';
@@ -17,6 +17,7 @@ import { PostgresKv } from './kv.js';
 import { PostgresMonitors } from './monitors.js';
 import { PostgresAgents } from './agents.js';
 import { PostgresApprovals } from './approvals.js';
+import { PostgresJobs } from './scheduled-jobs.js';
 import type { CrudState } from '@socket-help/tools/mock-crud';
 import { PostgresRecoveryRepository } from './recovery-store.js';
 import { passwordHash, PostgresIdentityRepository } from './identity.js';
@@ -2717,4 +2718,353 @@ test('OAuth providers share durable grants, signing keys and atomic plan limits 
             .rows[0].count,
         '0',
     );
+});
+
+test('email threads, human inbox controls and approved drafts work across replicas', async (t) => {
+    const identities = new PostgresIdentityRepository(pool);
+    const owner = (await identities.register('mail-workspace-owner', 'test-hash'))!;
+    const admin = (await identities.register('mail-workspace-admin', 'test-hash'))!;
+    const viewer = (await identities.register('mail-workspace-viewer', 'test-hash'))!;
+    const accountId = owner.personalAccountId;
+    const until = new Date(Date.now() + 86400000).toISOString();
+    await identities.setEntitlement(accountId, 'team', until);
+    await pool.query(
+        "INSERT INTO account_members(account_id,user_id,role) VALUES($1,$2,'admin'),($1,$3,'viewer')",
+        [accountId, admin.id, viewer.id],
+    );
+    async function session(userId: string, workspace = accountId) {
+        const token = randomBytes(32).toString('base64url');
+        await identities.createSession(userId, workspace, token);
+        return {
+            headers: { origin: 'http://localhost:3000', cookie: `socket_session=${token}` },
+            identity: (await identities.authenticateSession(token))!,
+        };
+    }
+    const human = await session(owner.id);
+    const administrator = await session(admin.id);
+    const spectator = await session(viewer.id);
+    const outsider = await session(viewer.id, viewer.personalAccountId);
+    const writer = await identities.createKey(
+        human.identity,
+        'Mail agent',
+        ['resources:write', 'resources:read'],
+        until,
+    );
+    const reader = await identities.createKey(
+        human.identity,
+        'Mail reader',
+        ['resources:read'],
+        until,
+    );
+    const agent = { authorization: `Bearer ${writer.key}` };
+    const read = { authorization: `Bearer ${reader.key}` };
+    const secret = 'm'.repeat(40);
+    const deliveries: { body: Record<string, unknown>; key: string }[] = [];
+    const emailSending = new PostgresEmailSending(pool);
+    const approvals = new PostgresApprovals(pool);
+    const options = {
+        identityStore: identities,
+        recoveryStore: new PostgresRecoveryRepository(pool),
+        resourceStore: new PostgresResourceStore(pool),
+        emailAddresses: new PostgresEmailAddresses(pool),
+        emailMessages: new PostgresEmailMessages(pool),
+        approvalStore: approvals,
+        jobStore: new PostgresJobs(pool),
+        emailSending,
+        mailDomain: 'socketspace.xyz',
+        emailIngestSecret: secret,
+        agentEmailConfig: { host: 'mail', port: 587, enabled: true },
+        agentEmailSend: async (body: Record<string, unknown>, key: string) => {
+            deliveries.push({ body, key });
+            return { id: `receipt-${deliveries.length}` };
+        },
+    };
+    const app = buildApp(options);
+    const replica = buildApp(options);
+    t.after(async () => {
+        await app.close();
+        await replica.close();
+    });
+    const created = await app.inject({ method: 'POST', url: '/api/email-inboxes', headers: agent });
+    assert.equal(created.statusCode, 201, created.body);
+    const inbox = created.json();
+    const base = `/api/email-inboxes/${inbox.id}`;
+    const putRules = (headers: Record<string, string>, payload: object) =>
+        app.inject({ method: 'PUT', url: `${base}/rules`, headers, payload });
+    const rules = {
+        inboundAllow: ['example.com'],
+        inboundBlock: ['block@example.com'],
+        outboundAllow: ['example.com'],
+    };
+    for (const headers of [agent, read, spectator.headers])
+        assert.equal((await putRules(headers, rules)).statusCode, 403);
+    assert.equal((await putRules(human.headers, rules)).statusCode, 200);
+    assert.equal((await putRules(administrator.headers, rules)).statusCode, 200);
+    assert.equal(
+        (await putRules(human.headers, { inboundAllow: Array(251).fill('example.com') }))
+            .statusCode,
+        400,
+    );
+    assert.deepEqual(
+        (await replica.inject({ url: `${base}/rules`, headers: read })).json().rules.inboundBlock,
+        rules.inboundBlock,
+    );
+    assert.equal(
+        (await replica.inject({ url: `${base}/rules`, headers: outsider.headers })).statusCode,
+        404,
+    );
+
+    async function ingest(from: string, subject: string, fields: object = {}) {
+        const timestamp = String(Math.floor(Date.now() / 1000));
+        const payload = JSON.stringify({
+            to: inbox.address,
+            from,
+            mailFrom: 'sender@example.com',
+            subject,
+            text: 'Message body',
+            ...fields,
+        });
+        return app.inject({
+            method: 'POST',
+            url: '/hooks/email',
+            payload,
+            headers: {
+                'content-type': 'application/json',
+                'x-socket-timestamp': timestamp,
+                'x-socket-signature': createHmac('sha256', secret)
+                    .update(`${timestamp}.${payload}`)
+                    .digest('hex'),
+            },
+        });
+    }
+    for (const from of ['block@example.com', 'unknown@other.test']) {
+        const blocked = await ingest(from, 'Filtered');
+        assert.equal(blocked.statusCode, 202, blocked.body);
+        assert.equal(blocked.json().stored, false);
+    }
+    for (const [from, subject, fields] of [
+        ['Sender <sender@example.com>', 'First conversation', { messageId: '<first@example.com>' }],
+        [
+            'sender@example.com',
+            'Subject changed',
+            { messageId: '<reply@example.com>', inReplyTo: '<first@example.com>' },
+        ],
+        ['sender@example.com', 'Second conversation', {}],
+        ['sender@example.com', 'Re: SECOND conversation', {}],
+        ['other@example.com', 'Re: Second conversation', {}],
+    ] as const) {
+        const result = await ingest(from, subject, fields);
+        assert.equal(result.statusCode, 202, result.body);
+        assert.equal(result.json().stored, true);
+    }
+    const latest = await replica.inject({ url: `${base}/threads?limit=1`, headers: read });
+    assert.equal(latest.statusCode, 200, latest.body);
+    assert.equal(latest.json().threads.length, 1);
+    assert.equal(latest.json().threads[0].messageCount, 1);
+    assert.equal('messages' in latest.json().threads[0], false);
+    const next = await replica.inject({
+        url: `/api/email-threads?cursor=${latest.json().nextCursor}`,
+        headers: agent,
+    });
+    assert.equal(next.statusCode, 200, next.body);
+    assert.deepEqual(
+        next.json().threads.map((thread: { messageCount: number }) => thread.messageCount),
+        [2, 2],
+    );
+    const thread = next
+        .json()
+        .threads.find((thread: { subject: string }) => thread.subject === 'First conversation');
+    const detail = (
+        await replica.inject({ url: `${base}/threads/${thread.id}`, headers: agent })
+    ).json();
+    assert.deepEqual(
+        detail.messages.map((message: { subject: string }) => message.subject),
+        ['First conversation', 'Subject changed'],
+    );
+    assert.equal(
+        (await replica.inject({ url: `${base}/threads/${thread.id}`, headers: outsider.headers }))
+            .statusCode,
+        404,
+    );
+    assert.deepEqual(
+        (await replica.inject({ url: '/api/email-threads', headers: outsider.headers })).json()
+            .threads,
+        [],
+    );
+
+    const original = {
+        to: ['sender@example.com'],
+        subject: 'Reply',
+        text: 'Original draft',
+        replyTo: thread.id,
+    };
+    const createDraft = (payload = original) =>
+        app.inject({ method: 'POST', url: `${base}/drafts`, headers: agent, payload });
+    const submit = (id: string, payload: object, headers: Record<string, string> = agent) =>
+        app.inject({
+            method: 'POST',
+            url: `/api/email-drafts/${id}/send`,
+            headers,
+            payload,
+        });
+    const answer = (id: string, payload: object, headers: Record<string, string>) =>
+        replica.inject({
+            method: 'POST',
+            url: `/api/approvals/${id}/answer`,
+            headers,
+            payload,
+        });
+    const inspect = (id: string, headers: Record<string, string> = agent) =>
+        replica.inject({ url: `/api/email-drafts/${id}`, headers });
+    const usage = () => emailSending.withOwner(accountId, (transaction) => transaction.usage());
+    const draft = await createDraft();
+    assert.equal(draft.statusCode, 201, draft.body);
+    const { id } = draft.json();
+    assert.equal(await usage(), 0);
+    assert.equal((await submit(id, {}, read)).statusCode, 403);
+    assert.equal((await inspect(id, outsider.headers)).statusCode, 404);
+    const queued = await submit(id, { approval: true });
+    assert.equal(queued.statusCode, 202, queued.body);
+    assert.equal(queued.json().status, 'awaitingApproval');
+    assert.equal((await submit(id, { approval: true })).json().approvalId, id);
+    assert.equal((await answer(id, { answer: 'Approve' }, agent)).statusCode, 403);
+    assert.equal((await answer(id, { answer: 'Approve' }, spectator.headers)).statusCode, 403);
+    await replica.runScheduledJobs(Date.now() + 10);
+    assert.equal(await usage(), 0);
+
+    const approved = await answer(
+        id,
+        {
+            answer: 'Approve',
+            editedEmail: { ...original, text: 'Edited by the admin', cc: ['copy@example.com'] },
+        },
+        administrator.headers,
+    );
+    assert.equal(approved.statusCode, 200, approved.body);
+    assert.equal('editedEmail' in approved.json(), false);
+    const decision = (
+        await app.inject({ url: `/api/approvals/${id}/wait`, headers: agent })
+    ).json();
+    assert.equal(decision.answer, 'Approve');
+    assert.equal('editedEmail' in decision, false);
+    await replica.runScheduledJobs(Date.now() + 10000);
+    await app.runScheduledJobs(Date.now() + 20000);
+    assert.equal((await inspect(id)).json().status, 'completed');
+    assert.equal(deliveries.length, 2);
+    assert.equal(await usage(), 2);
+    assert.match(String(deliveries[0]!.body.text), /^Edited by the admin/);
+    assert.deepEqual(deliveries[1]!.body.cc, ['copy@example.com']);
+    assert.equal(
+        (deliveries[0]!.body.headers as Record<string, string>)['In-Reply-To'],
+        '<first@example.com>',
+    );
+
+    const rejected = (await createDraft()).json();
+    assert.equal((await submit(rejected.id, { approval: true })).statusCode, 202);
+    assert.equal((await answer(rejected.id, { answer: 'Reject' }, human.headers)).statusCode, 200);
+    await replica.runScheduledJobs(Date.now() + 10000);
+    assert.equal((await inspect(rejected.id)).json().status, 'rejected');
+    assert.equal(await usage(), 2);
+
+    const denied = await app.inject({
+        method: 'POST',
+        url: `${base}/send`,
+        headers: { ...agent, 'idempotency-key': 'blocked-recipient-test' },
+        payload: { ...original, to: ['outside@other.test'] },
+    });
+    assert.equal(denied.statusCode, 403, denied.body);
+    assert.equal(await usage(), 2);
+
+    const scheduled = (await createDraft()).json();
+    const future = Date.now() + 60000;
+    const sendAt = new Date(future).toISOString();
+    assert.equal((await submit(scheduled.id, { sendAt })).statusCode, 202);
+    await replica.runScheduledJobs(future - 1);
+    assert.equal((await inspect(scheduled.id)).json().status, 'scheduled');
+    assert.equal(await usage(), 2);
+    await replica.runScheduledJobs(future + 1);
+    assert.equal((await inspect(scheduled.id)).json().status, 'completed');
+    assert.equal(await usage(), 3);
+
+    const mcpCall = async (name: string, args: object) =>
+        (
+            await app.inject({
+                method: 'POST',
+                url: '/mcp',
+                headers: { ...agent, accept: 'application/json, text/event-stream' },
+                payload: {
+                    jsonrpc: '2.0',
+                    id: 1,
+                    method: 'tools/call',
+                    params: { name, arguments: args },
+                },
+            })
+        ).json().result;
+    const mcpThreads = await mcpCall('list_email_threads', { id: inbox.id });
+    assert.equal(mcpThreads.isError, false, mcpThreads.content[0].text);
+    assert.ok(JSON.parse(mcpThreads.content[0].text).threads.length);
+    assert.equal((await mcpCall('email_inbox_rules', { id: inbox.id, rules: {} })).isError, true);
+    const mcpDraft = await mcpCall('email_draft', {
+        id: inbox.id,
+        action: 'create',
+        content: original,
+    });
+    assert.equal(mcpDraft.isError, false, mcpDraft.content[0].text);
+    assert.equal(JSON.parse(mcpDraft.content[0].text).status, 'draft');
+    const deleted = await app.inject({
+        method: 'DELETE',
+        url: `/api/email-drafts/${id}`,
+        headers: agent,
+    });
+    assert.equal(deleted.statusCode, 204, deleted.body);
+    await approvals.pruneDraftEdits();
+    assert.equal((await approvals.get(accountId, id))?.editedEmail, undefined);
+    assert.equal((await putRules(human.headers, { requireApproval: true })).statusCode, 200);
+    assert.equal((await putRules(agent, { requireApproval: false })).statusCode, 403);
+    const blockedSend = await app.inject({
+        method: 'POST',
+        url: `${base}/send`,
+        headers: { ...agent, 'idempotency-key': 'requires-approval-test' },
+        payload: original,
+    });
+    assert.equal(blockedSend.statusCode, 403, blockedSend.body);
+    assert.match(blockedSend.body, /This inbox requires human approval/);
+    const renewedDraft = (await createDraft()).json();
+    assert.equal((await submit(renewedDraft.id, {})).statusCode, 403);
+    const pending = await submit(renewedDraft.id, { approval: true });
+    assert.equal(pending.statusCode, 202, pending.body);
+    const oldApprovalId = pending.json().approvalId;
+    const past = new Date(Date.now() - 1000).toISOString();
+    await pool.query(
+        "UPDATE approvals SET expires_at=$2::timestamptz,approval=jsonb_set(approval,'{expiresAt}',to_jsonb($2::text)) WHERE id=$1",
+        [oldApprovalId, past],
+    );
+    assert.equal((await inspect(renewedDraft.id)).json().status, 'expired');
+    assert.equal((await submit(renewedDraft.id, { approval: true })).statusCode, 403);
+    const resumed = await Promise.all([
+        submit(renewedDraft.id, { approval: true }, human.headers),
+        replica.inject({
+            method: 'POST',
+            url: `/api/email-drafts/${renewedDraft.id}/send`,
+            headers: administrator.headers,
+            payload: { approval: true },
+        }),
+    ]);
+    const newApprovalIds = resumed
+        .filter((result) => result.statusCode === 202)
+        .map((result) => result.json().approvalId);
+    assert.equal(new Set(newApprovalIds).size, 1);
+    const newApprovalId = newApprovalIds[0]!;
+    assert.notEqual(newApprovalId, oldApprovalId);
+    assert.equal(
+        (await answer(oldApprovalId, { answer: 'Approve' }, human.headers)).statusCode,
+        409,
+    );
+    assert.equal(
+        (await answer(newApprovalId, { answer: 'Approve' }, administrator.headers)).statusCode,
+        200,
+    );
+    await replica.runScheduledJobs(Date.now() + 30000);
+    assert.equal((await inspect(renewedDraft.id)).json().status, 'completed');
+    assert.equal(await usage(), 4);
 });

@@ -9,6 +9,7 @@ export function needsInput(args: string[]) {
         (args[0] === 'authenticator' && args[1] === 'add') ||
         (args[0] === 'approval' && args[1] === 'ask') ||
         (args[0] === 'monitor' && args[1] === 'create') ||
+        (args[0] === 'email' && ['draft-create', 'draft-submit'].includes(args[1] ?? '')) ||
         (args[0] === 'event' && args[1] === 'wait') ||
         (['oauth', 'mock', 'mcp-server', 'status-page', 'job'].includes(args[0] ?? '') &&
             ['create', 'update'].includes(args[1] ?? '')) ||
@@ -49,6 +50,10 @@ export async function agentCommand(client: SocketHelp, args: string[], input: Ui
     if ((resource || group === 'phone') && action === 'wait') {
         allowed.add('--after');
         allowed.add('--timeout-seconds');
+    }
+    if (group === 'email' && action === 'threads') {
+        allowed.add('--cursor');
+        allowed.add('--limit');
     }
     if (group === 'agent' && ['login', 'trial'].includes(action ?? '')) allowed.add('--client');
     if (group === 'agent' && action === 'trial') allowed.add('--human-email');
@@ -100,6 +105,7 @@ export async function agentCommand(client: SocketHelp, args: string[], input: Ui
     const prefix = take('--prefix') ?? '';
     const idempotencyKey = take('--idempotency-key');
     const emailSettings = { activeDays: number('--active-days'), localPart: take('--local-part') };
+    const threadPage = { cursor: take('--cursor'), limit: number('--limit') };
     if (flags.size) throw new Error(`Unknown option: ${flags.keys().next().value}`);
     const exact = (count: number) => {
         if (positional.length !== count)
@@ -276,6 +282,21 @@ export async function agentCommand(client: SocketHelp, args: string[], input: Ui
         if (action === 'deliveries') return client.inboxDeliveries(id(), token);
     }
     if (group === 'email') {
+        if (action === 'threads') {
+            if (positional.length > 1) throw new Error('Provide at most one inbox ID.');
+            return client.emailThreads(positional[0], threadPage);
+        }
+        if (action === 'thread') {
+            exact(2);
+            return client.emailThread(positional[0]!, positional[1]!);
+        }
+        if (action === 'draft-create') return client.createEmailDraft(id(), json());
+        if (action === 'drafts') return client.emailDrafts(id());
+        if (action === 'draft-inspect') return client.emailDraft(id());
+        if (action === 'draft-submit')
+            return client.submitEmailDraft(id(), input.length ? json() : {});
+        if (action === 'draft-delete') return client.deleteEmailDraft(id());
+        if (action === 'rules') return client.emailInboxRules(id());
         if (action === 'clear') return client.clearEmails(id(), token);
         if (action === 'send') {
             if (!idempotencyKey)

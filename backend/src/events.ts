@@ -170,6 +170,7 @@ export function registerEvents({
                             accountId: _account,
                             keyId: _key,
                             answeredBy: _user,
+                            editedEmail: _edit,
                             ...answer
                         } = approval;
                         ready.push({

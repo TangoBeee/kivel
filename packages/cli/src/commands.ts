@@ -19,6 +19,12 @@ socket-help email clear <id>
 socket-help email forward <id> [--token <token>] < forwarding.json
 socket-help email send <id> --idempotency-key <unique-key> < message.json
 socket-help event wait [--timeout-seconds <1-30>] < sources.json
+socket-help email threads [inbox-id] [--cursor <cursor>] [--limit <n>]
+socket-help email thread <inbox-id> <thread-id>
+socket-help email drafts|rules <inbox-id>
+socket-help email draft-create <inbox-id> < content.json
+socket-help email draft-inspect|draft-delete <draft-id>
+socket-help email draft-submit <draft-id> [< settings.json]
 socket-help email messages|wait <id> [--token <token>] [--after <id>] [--timeout-seconds <n>]
 socket-help memory set <namespace> <key> [--ttl-seconds <n>] < value.json
 socket-help memory get|delete <namespace> <key>

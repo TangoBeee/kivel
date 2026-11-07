@@ -62,7 +62,9 @@ export interface EmailMessage {
     id: string;
     receivedAt: string;
     from: string;
+    mailFrom?: string;
     to: string;
+    cc?: string[];
     subject: string;
     text: string;
     html?: string;
@@ -75,13 +77,57 @@ export interface EmailMessage {
     inReplyTo?: string;
     references?: string[];
 }
-export interface SendEmailInput {
+export interface EmailContent {
     to: string[];
+    cc?: string[];
     subject: string;
     text?: string | undefined;
     html?: string | undefined;
     replyTo?: string | undefined;
+}
+export interface SendEmailInput extends EmailContent {
     idempotencyKey: string;
+}
+export interface EmailThreadSummary {
+    id: string;
+    inboxId: string;
+    subject: string;
+    lastAt: string;
+    from: string;
+    messageCount: number;
+}
+export interface EmailThread extends EmailThreadSummary {
+    messages: EmailMessage[];
+}
+export interface EmailThreadsPage {
+    threads: EmailThreadSummary[];
+    nextCursor: string | null;
+}
+export interface EmailDraft {
+    id: string;
+    inboxId: string;
+    subject: string;
+    status:
+        | 'draft'
+        | 'awaitingApproval'
+        | 'scheduled'
+        | 'completed'
+        | 'failed'
+        | 'rejected'
+        | 'expired';
+    sendAt: string | null;
+    expiresAt: string;
+    approvalId?: string;
+    approvalExpiresAt?: string;
+    answerUrl?: string;
+    events: { id: string; at: string; attempt: number; status: number | null; error?: string }[];
+}
+export interface EmailRules {
+    requireApproval: boolean;
+    inboundAllow: string[];
+    inboundBlock: string[];
+    outboundAllow: string[];
+    outboundBlock: string[];
 }
 export interface MemoryEntry<T = unknown> {
     namespace: string;

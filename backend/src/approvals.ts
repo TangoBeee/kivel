@@ -1,3 +1,7 @@
+import { emailDraftBytes } from '@socket-help/tools/billing-plans';
+import { plans } from '@socket-help/tools/plans';
+import { validateEmailContent } from './email-sending.js';
+import type { EmailContent } from './email-sending.js';
 import { requireWorkspace } from './access.js';
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
@@ -9,6 +13,7 @@ import { effectivePlan } from './identity.js';
 import type { IdentityRepository } from './identity.js';
 import type { MailSender } from './mail.js';
 import type { RecoveryRepository } from './recovery-store.js';
+import type { ResourceRepository } from './resources.js';
 import { isUuid } from './security.js';
 import type { Waiters } from './waiting.js';
 import { waitSeconds } from './waiting.js';
@@ -24,6 +29,8 @@ export interface Approval {
     details?: string;
     options: string[];
     status: 'pending' | 'answered' | 'expired';
+    emailDraft?: { id: string };
+    editedEmail?: EmailContent;
     answer?: string;
     note?: string;
     answeredBy?: string;
@@ -34,15 +41,16 @@ export interface Approval {
 
 type MaybePromise<T> = T | Promise<T>;
 export interface ApprovalRepository {
-    create(approval: Approval): MaybePromise<void>;
+    create(approval: Approval): MaybePromise<boolean>;
     get(accountId: string, id: string): MaybePromise<Approval | undefined>;
     list(accountId: string, pendingOnly: boolean): MaybePromise<Approval[]>;
     countSince(accountId: string, since: string): MaybePromise<number>;
+    pruneDraftEdits(resources: ResourceRepository): MaybePromise<void>;
     /** Records an answer only while the request is still pending and unexpired. */
     answer(
         accountId: string,
         id: string,
-        answer: { answer: string; note?: string; answeredBy: string },
+        answer: { answer: string; note?: string; answeredBy: string; editedEmail?: EmailContent },
     ): MaybePromise<boolean>;
 }
 
@@ -55,7 +63,9 @@ const current = (approval: Approval): Approval =>
 export class MemoryApprovals implements ApprovalRepository {
     private readonly items = new Map<string, Approval>();
     create(approval: Approval) {
+        if (this.items.has(approval.id)) return false;
         this.items.set(approval.id, { ...approval });
+        return true;
     }
     get(accountId: string, id: string) {
         const item = this.items.get(id);
@@ -74,10 +84,19 @@ export class MemoryApprovals implements ApprovalRepository {
             (item) => item.accountId === accountId && item.createdAt > since,
         ).length;
     }
+    async pruneDraftEdits(resources: ResourceRepository) {
+        for (const approval of this.items.values()) {
+            if (
+                approval.editedEmail &&
+                !(await resources.peek(approval.id, 'job', { ownerId: approval.accountId }))
+            )
+                delete approval.editedEmail;
+        }
+    }
     answer(
         accountId: string,
         id: string,
-        value: { answer: string; note?: string; answeredBy: string },
+        value: { answer: string; note?: string; answeredBy: string; editedEmail?: EmailContent },
     ) {
         const item = this.items.get(id);
         if (!item || item.accountId !== accountId || current(item).status !== 'pending')
@@ -99,8 +118,8 @@ const fromRow = (row: Row) => current({ ...row.approval, status: row.status });
 export class PostgresApprovals implements ApprovalRepository {
     constructor(private readonly pool: Pool) {}
     async create(approval: Approval) {
-        await this.pool.query(
-            'INSERT INTO approvals (id, account_id, approval, status, created_at, expires_at) VALUES ($1, $2, $3::jsonb, $4, $5, $6)',
+        const result = await this.pool.query(
+            'INSERT INTO approvals (id, account_id, approval, status, created_at, expires_at) VALUES ($1, $2, $3::jsonb, $4, $5, $6) ON CONFLICT (id) DO NOTHING',
             [
                 approval.id,
                 approval.accountId,
@@ -110,6 +129,7 @@ export class PostgresApprovals implements ApprovalRepository {
                 approval.expiresAt,
             ],
         );
+        return result.rowCount === 1;
     }
     async get(accountId: string, id: string) {
         if (!isUuid(id)) return undefined;
@@ -133,10 +153,18 @@ export class PostgresApprovals implements ApprovalRepository {
         );
         return Number(result.rows[0]!.count);
     }
+    async pruneDraftEdits() {
+        await this.pool.query(
+            `UPDATE approvals a SET approval = a.approval - 'editedEmail'
+             WHERE a.approval ? 'editedEmail' AND NOT EXISTS (
+                 SELECT 1 FROM temporary_resources r WHERE r.id = a.id AND r.expires_at > clock_timestamp()
+             )`,
+        );
+    }
     async answer(
         accountId: string,
         id: string,
-        value: { answer: string; note?: string; answeredBy: string },
+        value: { answer: string; note?: string; answeredBy: string; editedEmail?: EmailContent },
     ) {
         if (!isUuid(id)) return false;
         const result = await this.pool.query(
@@ -144,8 +172,16 @@ export class PostgresApprovals implements ApprovalRepository {
                 approval = approval || jsonb_build_object('answer', $3::text, 'answeredBy', $4::text,
                     'answeredAt', to_char(clock_timestamp() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'))
                     || CASE WHEN $5::text IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('note', $5::text) END
+                    || CASE WHEN $6::jsonb IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('editedEmail', $6::jsonb) END
              WHERE account_id = $1 AND id = $2 AND status = 'pending' AND expires_at > clock_timestamp()`,
-            [accountId, id, value.answer, value.answeredBy, value.note ?? null],
+            [
+                accountId,
+                id,
+                value.answer,
+                value.answeredBy,
+                value.note ?? null,
+                value.editedEmail ? JSON.stringify(value.editedEmail) : null,
+            ],
         );
         return result.rowCount === 1;
     }
@@ -193,7 +229,7 @@ export function registerApprovals({
 }: ApprovalContext) {
     const answerUrl = (id: string) => `${origin}/approve/?id=${id}`;
     const view = (approval: Approval) => {
-        const { accountId: _account, keyId: _key, ...rest } = approval;
+        const { accountId: _account, keyId: _key, editedEmail: _edit, ...rest } = approval;
         return { ...rest, answerUrl: answerUrl(approval.id) };
     };
     async function account(request: FastifyRequest, write = true) {
@@ -221,10 +257,13 @@ export function registerApprovals({
         }
     }
 
-    app.post('/api/approvals', async (request, reply) => {
+    async function prepare(
+        request: FastifyRequest,
+        body: Record<string, unknown>,
+        emailDraft?: { id: string; approvalId?: string; expiresAt?: string },
+    ): Promise<Approval> {
         const actor = await account(request);
         const identity = actor.identity!;
-        const body = (request.body ?? {}) as Record<string, unknown>;
         const question = text(body.question, 500);
         if (!question) throw new HttpError(400, 'Ask a question of up to 500 characters.');
         const options = Array.isArray(body.options)
@@ -249,27 +288,39 @@ export function registerApprovals({
             : undefined;
         const now = Date.now();
         const details = text(body.details, 4000);
-        const approval: Approval = {
-            id: randomUUID(),
+        return {
+            id: emailDraft?.approvalId ?? emailDraft?.id ?? randomUUID(),
+            ...(emailDraft ? { emailDraft: { id: emailDraft.id } } : {}),
             accountId: identity.account.id,
             ...(identity.keyId ? { keyId: identity.keyId } : {}),
-            agentName: agent?.name ?? (identity.keyId ? 'Your API key' : identity.username),
+            agentName: agent?.name ?? identity.keyName ?? identity.username,
             question,
             ...(details ? { details } : {}),
             options,
             status: 'pending',
             createdAt: new Date(now).toISOString(),
-            expiresAt: new Date(now + minutes * 60000).toISOString(),
+            expiresAt: new Date(
+                Math.min(
+                    now + minutes * 60000,
+                    emailDraft?.expiresAt ? Date.parse(emailDraft.expiresAt) : Infinity,
+                ),
+            ).toISOString(),
         };
-        await approvals.create(approval);
-        const emailed = await notify(approval);
-        return reply.code(201).send({
+    }
+    async function submit(approval: Approval) {
+        const created = await approvals.create(approval);
+        const emailed = created && (await notify(approval));
+        return {
             ...view(approval),
             emailed,
             next: emailed
                 ? 'Your human was emailed. Call wait_for_approval (GET /api/approvals/{id}/wait) until it is answered.'
                 : `Show your human this link: ${answerUrl(approval.id)} then call wait_for_approval.`,
-        });
+        };
+    }
+    app.post('/api/approvals', async (request, reply) => {
+        const approval = await prepare(request, (request.body ?? {}) as Record<string, unknown>);
+        return reply.code(201).send(await submit(approval));
     });
 
     app.get('/api/approvals', async (request) => {
@@ -317,19 +368,36 @@ export function registerApprovals({
             throw new HttpError(403, 'Only workspace owners and admins can answer agents.');
         const approval = await approvals.get(identity.account.id, request.params.id);
         if (!approval) throw new HttpError(404, 'Approval request not found.');
-        const body = (request.body ?? {}) as { answer?: unknown; note?: unknown };
+        const body = (request.body ?? {}) as {
+            answer?: unknown;
+            note?: unknown;
+            editedEmail?: unknown;
+        };
         const answer = typeof body.answer === 'string' ? body.answer : '';
         if (!approval.options.includes(answer))
             throw new HttpError(400, `Answer with one of: ${approval.options.join(', ')}.`);
         const note = text(body.note, 1000);
+        const plan = effectivePlan(identity.account);
+        if (body.editedEmail !== undefined && (!approval.emailDraft || answer !== 'Approve'))
+            throw new HttpError(400, 'An edit can only accompany approval of an email draft.');
+        const editedEmail =
+            body.editedEmail === undefined
+                ? undefined
+                : validateEmailContent(
+                      body.editedEmail,
+                      plans[plan].emailRecipients,
+                      emailDraftBytes[plan],
+                  );
         if (
             !(await approvals.answer(identity.account.id, approval.id, {
                 answer,
                 ...(note ? { note } : {}),
                 answeredBy: identity.username,
+                ...(editedEmail ? { editedEmail } : {}),
             }))
         )
             throw new HttpError(409, 'This request was already answered or has expired.');
         return view((await approvals.get(identity.account.id, approval.id))!);
     });
+    return { prepare, submit };
 }

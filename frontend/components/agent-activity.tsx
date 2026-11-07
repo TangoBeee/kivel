@@ -6,6 +6,7 @@ import { DropdownMenu, IconButton } from '@radix-ui/themes';
 import { DotsThree } from '@phosphor-icons/react';
 import { activityLabel, timeAgo } from '../lib/activity-labels';
 import { api } from '../lib/api';
+import { EmailDraftPreview } from './email-drafts';
 
 interface Entry {
     at: string;
@@ -33,6 +34,7 @@ interface Question {
     answeredBy?: string;
     createdAt: string;
     answerUrl: string;
+    emailDraft?: { id: string };
 }
 
 export function AgentActivity({ keys }: { keys: { id: string; name: string }[] }) {
@@ -205,6 +207,15 @@ export function AgentActivity({ keys }: { keys: { id: string; name: string }[] }
                             </li>
                         ))}
                     </ul>
+                    {pending
+                        .filter((item) => item.emailDraft)
+                        .map((item) => (
+                            <details className="connection-details" key={item.id}>
+                                <summary>Review draft from {item.agentName}</summary>
+                                <EmailDraftPreview id={item.emailDraft!.id} />
+                                <Link href={`/approve/?id=${item.id}`}>Open approval page</Link>
+                            </details>
+                        ))}
                     {past.length > 3 && (
                         <button
                             type="button"

@@ -47,6 +47,50 @@ const operation = (operationId: string, tag: string, summary: string, extra = {}
 });
 const token = [{ resourceToken: [] }, { privateResourceToken: [] }, ...security];
 
+const recipients = { type: 'array', items: { type: 'string', format: 'email' }, maxItems: 10 };
+const emailContent = {
+    to: { ...recipients, minItems: 1 },
+    cc: recipients,
+    subject: { type: 'string', maxLength: 998 },
+    text: { type: 'string' },
+    html: { type: 'string' },
+    replyTo: { type: 'string', format: 'uuid' },
+};
+const threadPage = {
+    parameters: [
+        { name: 'cursor', in: 'query', schema: { type: 'string' } },
+        {
+            name: 'limit',
+            in: 'query',
+            schema: { type: 'integer', minimum: 1, maximum: 50, default: 20 },
+        },
+    ],
+    responses: {
+        '200': json({
+            type: 'object',
+            properties: {
+                threads: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            id: { type: 'string', format: 'uuid' },
+                            inboxId: { type: 'string', format: 'uuid' },
+                            subject: { type: 'string' },
+                            lastAt: { type: 'string', format: 'date-time' },
+                            from: { type: 'string' },
+                            messageCount: { type: 'integer' },
+                        },
+                    },
+                },
+                nextCursor: { type: 'string', nullable: true },
+            },
+        }),
+        ...errors,
+    },
+};
+const addressList = { type: 'array', items: { type: 'string' } };
+
 export function agentInterfaceOpenApi() {
     return {
         '/ping/{token}': {
@@ -205,7 +249,16 @@ export function agentInterfaceOpenApi() {
                 {
                     security: session,
                     requestBody: body(
-                        { answer: { type: 'string' }, note: { type: 'string', maxLength: 1000 } },
+                        {
+                            answer: { type: 'string' },
+                            note: { type: 'string', maxLength: 1000 },
+                            editedEmail: {
+                                type: 'object',
+                                properties: emailContent,
+                                required: ['to', 'subject'],
+                                description: 'Optional replacement when approving an email draft.',
+                            },
+                        },
                         ['answer'],
                     ),
                     responses: {
@@ -364,6 +417,130 @@ export function agentInterfaceOpenApi() {
                 { security: token },
             ),
         },
+        '/api/email-threads': {
+            get: operation(
+                'listWorkspaceEmailThreads',
+                'Email inboxes',
+                'List workspace email threads newest first',
+                threadPage,
+            ),
+        },
+        '/api/email-inboxes/{id}/threads': {
+            parameters: id,
+            get: operation(
+                'listEmailThreads',
+                'Email inboxes',
+                'List inbox threads newest first',
+                threadPage,
+            ),
+        },
+        '/api/email-inboxes/{id}/threads/{threadId}': {
+            parameters: [
+                ...id,
+                {
+                    name: 'threadId',
+                    in: 'path',
+                    required: true,
+                    schema: { type: 'string', format: 'uuid' },
+                },
+            ],
+            get: operation(
+                'getEmailThread',
+                'Email inboxes',
+                'Read a thread with its messages oldest first',
+            ),
+        },
+        '/api/email-inboxes/{id}/rules': {
+            parameters: id,
+            get: operation('getEmailInboxRules', 'Email inboxes', 'Read inbox address rules'),
+            put: operation(
+                'setEmailInboxRules',
+                'Email inboxes',
+                'Replace inbox address rules as a signed-in owner or admin',
+                {
+                    security: session,
+                    description:
+                        'Exact, case-insensitive addresses and domains with no subdomain or plus-address folding. Inbound rules check both the header From and envelope sender. Blocklists win. An inbound allowlist requires an envelope sender. Missing lists and requireApproval are reset to their defaults. Only signed-in owners and admins can change these settings.',
+                    requestBody: body(
+                        {
+                            requireApproval: {
+                                type: 'boolean',
+                                default: false,
+                                description:
+                                    'When enabled, only drafts approved by a human may be sent.',
+                            },
+                            inboundAllow: addressList,
+                            inboundBlock: addressList,
+                            outboundAllow: addressList,
+                            outboundBlock: addressList,
+                        },
+                        [],
+                    ),
+                },
+            ),
+        },
+        '/api/email-inboxes/{id}/drafts': {
+            parameters: id,
+            get: operation('listEmailDrafts', 'Email inboxes', 'List drafts in an inbox'),
+            post: operation(
+                'createEmailDraft',
+                'Email inboxes',
+                'Save an email draft without sending it',
+                {
+                    description:
+                        'Provide text or HTML. Drafts count toward workspace resource and storage limits and expire after up to seven days.',
+                    requestBody: body(emailContent, ['to', 'subject']),
+                    responses: { '201': json(), ...errors },
+                },
+            ),
+        },
+        '/api/email-drafts/{id}': {
+            parameters: id,
+            get: operation(
+                'getEmailDraft',
+                'Email inboxes',
+                'Read draft content and delivery status',
+            ),
+            delete: operation(
+                'deleteEmailDraft',
+                'Email inboxes',
+                'Delete a draft and cancel any pending send',
+                {
+                    responses: {
+                        '204': { description: 'Draft deleted' },
+                        '409': { description: 'Delivery in progress' },
+                        ...errors,
+                    },
+                },
+            ),
+        },
+        '/api/email-drafts/{id}/send': {
+            parameters: id,
+            post: operation(
+                'submitEmailDraft',
+                'Email inboxes',
+                'Queue a draft for delivery or human approval',
+                {
+                    description:
+                        'If approval is requested, wait using the returned approvalId. Reviews expire after at most 24 hours, or at sendAt or draft expiry if sooner. Signed-in owners and admins can resubmit expired or rejected drafts for a new approval. Read the draft to confirm delivery separately. A scheduled, rejected or expired draft consumes no send allowance.',
+                    requestBody: {
+                        ...body(
+                            {
+                                approval: { type: 'boolean' },
+                                sendAt: { type: 'string', format: 'date-time' },
+                            },
+                            [],
+                        ),
+                        required: false,
+                    },
+                    responses: {
+                        '202': json(),
+                        '409': { description: 'Already submitted with different settings' },
+                        ...errors,
+                    },
+                },
+            ),
+        },
         '/api/email-inboxes/{id}/send': {
             parameters: id,
             post: operation(
@@ -373,7 +550,7 @@ export function agentInterfaceOpenApi() {
                 {
                     security,
                     description:
-                        'Operator-enabled private Postfix relay on socketspace.xyz. Free requires verified owner email and allows 30 deliveries/month and 3/day; Pro 500/month and 50/day; Team 3000/month and 300/day (UTC reset). Free allows 3 recipients/message; paid allows 10. A 1 MiB message limit, minute caps and suppressions apply. Reuse the same Idempotency-Key and identical content to inspect an earlier send. An uncertain relay outcome is not automatically resent. 202 means relay acceptance, not confirmed inbox delivery.',
+                        'Operator-enabled private Postfix relay on socketspace.xyz. Free requires verified owner email and allows 30 deliveries/month and 3/day; Pro 500/month and 50/day; Team 3000/month and 300/day (UTC reset). Free allows 3 recipients/message; paid allows 10. A 1 MiB message limit, minute caps and suppressions apply. Reuse the same Idempotency-Key and identical content to inspect an earlier send. An uncertain relay outcome is not automatically resent. 202 means relay acceptance, not confirmed inbox delivery. Inboxes with requireApproval enabled reject direct sends with 403. Create a draft and submit it for approval.',
                     parameters: [
                         {
                             name: 'Idempotency-Key',
@@ -390,6 +567,7 @@ export function agentInterfaceOpenApi() {
                                 maxItems: 10,
                                 items: { type: 'string', format: 'email' },
                             },
+                            cc: recipients,
                             subject: { type: 'string', maxLength: 998 },
                             text: { type: 'string' },
                             html: { type: 'string' },

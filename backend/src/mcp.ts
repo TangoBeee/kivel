@@ -302,13 +302,67 @@ export const platformTools = [
         annotations: readonly,
     },
     {
+        name: 'list_email_threads',
+        description:
+            'List email thread summaries newest first, across the workspace or in an owned inbox. Pass nextCursor to continue.',
+        inputSchema: schema(
+            {
+                id: access.id,
+                cursor: { type: 'string' },
+                limit: { type: 'integer', minimum: 1, maximum: 50 },
+            },
+            [],
+        ),
+        annotations: readonly,
+    },
+    {
+        name: 'get_email_thread',
+        description: 'Read the messages in an owned inbox thread, oldest first.',
+        inputSchema: schema({ id: access.id, threadId: { type: 'string' } }, ['id', 'threadId']),
+        annotations: readonly,
+    },
+    {
+        name: 'email_draft',
+        description:
+            'Create, list, get, send or delete an email draft. Use the inbox ID for create or list, and draft ID otherwise. Create content accepts to, cc, subject, text or html, and optional replyTo (a received message ID). Send accepts approval: true to request human review and optional sendAt (ISO timestamp). Use wait_for_event with the approval ID to wait for a decision. Reviews expire after at most 24 hours or at sendAt or draft expiry if sooner. Only a signed-in owner or admin can resubmit expired or rejected drafts. A decision is separate from delivery status.',
+        inputSchema: schema(
+            {
+                action: { type: 'string', enum: ['create', 'list', 'get', 'send', 'delete'] },
+                id: access.id,
+                content: { type: 'object' },
+                approval: { type: 'boolean' },
+                sendAt: { type: 'string' },
+            },
+            ['action', 'id'],
+        ),
+        annotations: { ...deletes, openWorldHint: true },
+    },
+    {
+        name: 'email_inbox_rules',
+        description:
+            'Read or replace inbound and outbound inbox address rules. Only a signed-in workspace owner or admin can replace rules or change requireApproval. Missing fields reset to their defaults. Inbound rules check header and envelope senders.',
+        inputSchema: schema(
+            {
+                id: access.id,
+                rules: {
+                    type: 'object',
+                    description:
+                        'Optional replacement with inboundAllow, inboundBlock, outboundAllow and outboundBlock arrays.',
+                },
+            },
+            ['id'],
+        ),
+        annotations: deletes,
+    },
+    {
         name: 'send_email',
         description:
-            'Send from an owned socketspace.xyz inbox when operator-enabled. Free requires verified owner email and permits 30 recipient deliveries/month, 3/day (3 recipients/message); Pro 500/month, 50/day and Team 3000/month, 300/day (10/message). Supply a unique idempotencyKey; reuse it only for retries of the identical message. replyTo is a received message ID for threading. Suspensions and suppression cannot be bypassed by retrying.',
+            'Send from an owned socketspace.xyz inbox when operator-enabled. Free requires verified owner email and permits 30 recipient deliveries/month, 3/day (3 recipients/message); Pro 500/month, 50/day and Team 3000/month, 300/day (10/message). Supply a unique idempotencyKey; reuse it only for retries of the identical message. replyTo is a received message ID for threading. Inboxes with requireApproval enabled reject direct sends. Create a draft and submit it for approval. Suspensions and suppression cannot be bypassed by retrying.',
         inputSchema: schema(
             {
                 id: access.id,
                 to: { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 10 },
+                cc: { type: 'array', items: { type: 'string' }, maxItems: 10 },
                 subject: stringProperty('Message subject.'),
                 text: stringProperty('Plain text body.'),
                 html: stringProperty('Optional HTML body; text or html required.'),
@@ -1404,14 +1458,61 @@ export function registerMcp({
         for (const key of ['authorization', 'cookie', 'origin'])
             if (typeof request.headers[key] === 'string') headers[key] = request.headers[key];
         let url: string;
-        if (name === 'get_email_attachment') {
+        let method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET';
+        let payload: object | undefined;
+        const id = typeof value.id === 'string' ? encodeURIComponent(value.id) : '';
+        if (name === 'list_email_threads') {
+            const query = new URLSearchParams();
+            if (value.cursor !== undefined) query.set('cursor', String(value.cursor));
+            if (value.limit !== undefined) query.set('limit', String(value.limit));
+            url =
+                (id ? `/api/email-inboxes/${id}/threads` : '/api/email-threads') +
+                (query.size ? `?${query}` : '');
+        } else if (name === 'get_email_thread') {
+            url = `/api/email-inboxes/${id}/threads/${encodeURIComponent(String(value.threadId))}`;
+        } else if (name === 'email_inbox_rules') {
+            if (value.rules !== undefined) {
+                method = 'PUT';
+                payload = value.rules as object;
+            }
+            url = `/api/email-inboxes/${id}/rules`;
+        } else if (name === 'email_draft') {
+            switch (value.action) {
+                case 'create':
+                    method = 'POST';
+                    payload = value.content as object;
+                    url = `/api/email-inboxes/${id}/drafts`;
+                    break;
+                case 'list':
+                    url = `/api/email-inboxes/${id}/drafts`;
+                    break;
+                case 'get':
+                case 'delete':
+                    if (value.action === 'delete') method = 'DELETE';
+                    url = `/api/email-drafts/${id}`;
+                    break;
+                case 'send':
+                    method = 'POST';
+                    payload = { approval: value.approval, sendAt: value.sendAt };
+                    url = `/api/email-drafts/${id}/send`;
+                    break;
+                default:
+                    throw new RpcError(-32602, 'Choose a draft action.');
+            }
+        } else if (name === 'get_email_attachment') {
             url = `/api/email-inboxes/${encodeURIComponent(String(value.id))}/messages/${encodeURIComponent(String(value.messageId))}/attachments/${encodeURIComponent(String(value.attachmentId))}`;
         } else if (name === 'send_email') {
             if (typeof value.id !== 'string' || !isUuid(value.id))
                 throw new RpcError(-32602, 'Provide an email inbox UUID.');
+            method = 'POST';
+            payload = Object.fromEntries(
+                Object.entries(value).filter(([key]) => !['id', 'idempotencyKey'].includes(key)),
+            );
             headers['idempotency-key'] = String(value.idempotencyKey);
             url = `/api/email-inboxes/${value.id}/send`;
         } else if (name === 'create_email_inbox') {
+            method = 'POST';
+            payload = value;
             url = '/api/email-inboxes';
         } else {
             const { id, token } = credentials(value);
@@ -1426,20 +1527,10 @@ export function registerMcp({
             if (name === 'wait_for_email') uploads.delete(request);
         }
         const response = await app.inject({
-            method: ['create_email_inbox', 'send_email'].includes(name) ? 'POST' : 'GET',
+            method,
             url,
             headers,
-            ...(name === 'create_email_inbox'
-                ? { payload: value }
-                : name === 'send_email'
-                  ? {
-                        payload: Object.fromEntries(
-                            Object.entries(value).filter(
-                                ([key]) => !['id', 'idempotencyKey'].includes(key),
-                            ),
-                        ),
-                    }
-                  : {}),
+            ...(payload ? { payload } : {}),
             remoteAddress: request.ip,
         });
         return httpResult(response);
@@ -1988,6 +2079,10 @@ export function registerMcp({
                                                       'wait_for_email',
                                                       'list_emails',
                                                       'send_email',
+                                                      'list_email_threads',
+                                                      'get_email_thread',
+                                                      'email_draft',
+                                                      'email_inbox_rules',
                                                   ].includes(params.name)
                                                 ? await emailRequest(params.name, values, request)
                                                 : params.name === 'describe_tool'

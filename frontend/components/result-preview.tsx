@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import { formatJson } from '@socket-help/tools/engine';
+import { formatJson } from '@kivel/tools/engine';
 import type { ReactNode } from 'react';
 import { Icon } from './icons';
 import { CopyButton } from './copy-button';

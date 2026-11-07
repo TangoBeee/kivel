@@ -592,7 +592,7 @@ export function openApi(origin: string) {
                     tags: ['Webhook inboxes'],
                     summary: 'Forward every captured request to your endpoint (Pro and Team)',
                     description:
-                        'Each capture is relayed server-side with its method, query, headers (minus credentials and proxy headers) and text body, plus X-Socket-Help-Request-Id. Server errors and 429 are retried after 2 and 10 seconds. Binary bodies are not forwarded.',
+                        'Each capture is relayed server-side with its method, query, headers (minus credentials and proxy headers) and text body, plus X-Kivel-Request-Id. Server errors and 429 are retried after 2 and 10 seconds. Binary bodies are not forwarded.',
                     security: secured,
                     parameters: id,
                     requestBody: {

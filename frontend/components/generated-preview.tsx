@@ -2,7 +2,7 @@
 import { AudioArtifactPreview, BinaryArtifactPreview } from './artifact-details';
 import { PdfPreview } from './pdf-preview';
 import { useEffect, useMemo, useState } from 'react';
-import type { GeneratedArtifact } from '@socket-help/tools/artifacts';
+import type { GeneratedArtifact } from '@kivel/tools/artifacts';
 import { Button } from '@radix-ui/themes';
 import { Icon } from './icons';
 import { ResultPreview, downloadBlob } from './result-preview';

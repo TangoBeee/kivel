@@ -1,6 +1,6 @@
 import { publicMockPayload } from './oauth.js';
 import { sendLlmMock } from './llm-mock.js';
-import { matchMockCondition, renderMockBody } from '@socket-help/tools/mock-behavior';
+import { matchMockCondition, renderMockBody } from '@kivel/tools/mock-behavior';
 import { MemoryMockCalls, mockCall } from './mock-calls.js';
 import type { MockCallRepository } from './mock-calls.js';
 import { isUuid } from './security.js';
@@ -17,13 +17,13 @@ import type { ResourceRepository } from './resources.js';
 import { MAX_FILE_BYTES } from './resources.js';
 import type { RateLimitRepository } from './rate-limit.js';
 
-import type { MockConfig } from '@socket-help/tools/mock-config';
+import type { MockConfig } from '@kivel/tools/mock-config';
 import { webSocketMockUrl } from './websocket-mock.js';
-import { validateMock, mockPayload } from '@socket-help/tools/mock-config';
-import { crudPath, initialCrud, executeCrud } from '@socket-help/tools/mock-crud';
-import type { CrudState, CrudReply } from '@socket-help/tools/mock-crud';
-import { parseJsonSafely } from '@socket-help/tools/engine';
-export { validateMock, mockPayload } from '@socket-help/tools/mock-config';
+import { validateMock, mockPayload } from '@kivel/tools/mock-config';
+import { crudPath, initialCrud, executeCrud } from '@kivel/tools/mock-crud';
+import type { CrudState, CrudReply } from '@kivel/tools/mock-crud';
+import { parseJsonSafely } from '@kivel/tools/engine';
+export { validateMock, mockPayload } from '@kivel/tools/mock-config';
 
 /** Proxy mocks are a paid feature and may only point at public APIs other than Kivel. */
 export function checkMockProxy(config: MockConfig, actor: Actor, origin: string) {
@@ -42,7 +42,7 @@ export function checkMockProxy(config: MockConfig, actor: Actor, origin: string)
 const proxiedTypes =
     /^(application\/(json|problem\+json|xml)|text\/(plain|csv|xml))(;\s*charset=[\w-]+)?$/i;
 const PROXY_BODY_LIMIT = 256 * 1024;
-export type { MockRoute, MockConfig } from '@socket-help/tools/mock-config';
+export type { MockRoute, MockConfig } from '@kivel/tools/mock-config';
 const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD', 'ANY'];
 const missing = { error: 'Resource not found or access denied.' };
 function routeMatches(pattern: string, path: string) {

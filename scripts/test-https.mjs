@@ -75,7 +75,7 @@ await writeFile(
     volumes:
       - ${JSON.stringify(`${proxyConfig}:/etc/caddy/Caddyfile:ro`)}
   slow:
-    image: socket-help:local
+    image: kivel:local
     command: ${JSON.stringify(slowCommand)}
     mem_limit: 256m
     networks:
@@ -156,7 +156,7 @@ try {
         '10 MiB upload must reach MCP intact',
     );
     const require = createRequire(new URL('../backend/package.json', import.meta.url));
-    const sharp = createRequire(require.resolve('@socket-help/tools/media-engine'))('sharp');
+    const sharp = createRequire(require.resolve('@kivel/tools/media-engine'))('sharp');
     const photo = await sharp({
         create: { width: 4000, height: 4000, channels: 3, background: '#386b50' },
     })

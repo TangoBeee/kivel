@@ -77,7 +77,7 @@ export const echoArticle: Article = {
             id: 'repeat',
             title: 'Reproduce the result in a script',
             paragraphs: [
-                'The same endpoint can be called directly with curl, through the TypeScript SDK request method, with socket-help api in the CLI or SSH gateway, or using MCP call_mock_api. For a private endpoint, provide the caller token separately. Management operations continue to use the /api/mocks/{id} lifecycle with management authority.',
+                'The same endpoint can be called directly with curl, through the TypeScript SDK request method, with kivel api in the CLI or SSH gateway, or using MCP call_mock_api. For a private endpoint, provide the caller token separately. Management operations continue to use the /api/mocks/{id} lifecycle with management authority.',
                 'Once the basic request looks right, move the real integration test to an endpoint you control. Use API test scenarios for a repeatable sequence with explicit checks and separate secret inputs. Use a webhook inbox if the sender is asynchronous and you need to inspect retained deliveries later. An echo response describes one request; it does not establish that an external system delivered a callback or that a business operation succeeded.',
             ],
         },

@@ -33,10 +33,10 @@ export const useCases: UseCase[] = [
                 code: {
                     title: 'A public inbox for a third-party test sender',
                     value: `curl -X POST 'https://kivel.io/api/inboxes?visibility=public' \\
-  -H "Authorization: Bearer $SOCKET_HELP_API_KEY"
+  -H "Authorization: Bearer $KIVEL_API_KEY"
 # Set the returned webhookUrl in your staging integration.
 curl "https://kivel.io/api/inboxes/$INBOX_ID/wait?timeoutSeconds=20" \\
-  -H "Authorization: Bearer $SOCKET_HELP_API_KEY"`,
+  -H "Authorization: Bearer $KIVEL_API_KEY"`,
                 },
             },
             {

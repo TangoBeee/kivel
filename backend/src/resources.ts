@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
-import { oauthLimits } from '@socket-help/tools/billing-plans';
+import { oauthLimits } from '@kivel/tools/billing-plans';
 import { QuotaError } from './allocations.js';
 import { transaction } from './database.js';
 import { sharingCredentials, publicAccessAllowed, tokenHash } from './sharing.js';

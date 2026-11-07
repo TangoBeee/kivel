@@ -18,7 +18,7 @@ import { PostgresMonitors } from './monitors.js';
 import { PostgresAgents } from './agents.js';
 import { PostgresApprovals } from './approvals.js';
 import { PostgresJobs } from './scheduled-jobs.js';
-import type { CrudState } from '@socket-help/tools/mock-crud';
+import type { CrudState } from '@kivel/tools/mock-crud';
 import { PostgresRecoveryRepository } from './recovery-store.js';
 import { passwordHash, PostgresIdentityRepository } from './identity.js';
 import ssh2 from 'ssh2';
@@ -726,43 +726,43 @@ test('SSH verifies host identity, executes the shared engine, rejects shell comm
                 stream.end(input);
             });
         });
-    const response = await execute(client, 'socket-help run json', '{"integer":9007199254740993}');
+    const response = await execute(client, 'kivel run json', '{"integer":9007199254740993}');
     assert.equal(response.code, 0);
     assert.match(JSON.parse(response.stdout).output, /9007199254740993/);
-    assert.equal((await execute(client, 'socket-help usage')).code, 0);
-    const memory = await execute(client, 'socket-help memory set ssh result', '{"success":true}');
+    assert.equal((await execute(client, 'kivel usage')).code, 0);
+    const memory = await execute(client, 'kivel memory set ssh result', '{"success":true}');
     assert.equal(memory.code, 0, memory.stderr);
-    const missing = await execute(client, 'socket-help memory get ssh missing');
+    const missing = await execute(client, 'kivel memory get ssh missing');
     assert.equal(missing.code, 1);
     assert.equal(JSON.parse(missing.stderr).status, 404);
-    const remembered = await execute(client, 'socket-help memory get ssh result');
+    const remembered = await execute(client, 'kivel memory get ssh result');
     assert.deepEqual(JSON.parse(remembered.stdout).value, { success: true });
-    const paid = await execute(client, 'socket-help email create --local-part paid-name');
+    const paid = await execute(client, 'kivel email create --local-part paid-name');
     assert.equal(paid.code, 1);
     assert.equal(paid.stdout, '');
     assert.equal(JSON.parse(paid.stderr).status, 402);
     assert.equal(JSON.parse(paid.stderr).requiredPlan, 'pro');
     assert.equal(JSON.parse(paid.stderr).upgradeUrl, 'http://localhost:3000/plans/');
-    const email = await execute(client, 'socket-help email create');
+    const email = await execute(client, 'kivel email create');
     assert.equal(email.code, 0, email.stderr);
     const emailId = JSON.parse(email.stdout).id;
-    assert.equal((await execute(client, `socket-help email messages ${emailId}`)).code, 0);
-    assert.equal((await execute(client, `socket-help email delete ${emailId}`)).code, 0);
+    assert.equal((await execute(client, `kivel email messages ${emailId}`)).code, 0);
+    assert.equal((await execute(client, `kivel email delete ${emailId}`)).code, 0);
     const monitor = await execute(
         client,
-        'socket-help monitor create',
+        'kivel monitor create',
         '{"kind":"heartbeat","name":"SSH job","intervalSeconds":300}',
     );
     assert.equal(monitor.code, 0, monitor.stderr);
     const monitorId = JSON.parse(monitor.stdout).id;
-    assert.equal((await execute(client, `socket-help monitor pause ${monitorId}`)).code, 0);
-    assert.equal((await execute(client, `socket-help monitor delete ${monitorId}`)).code, 0);
-    const approval = await execute(client, 'socket-help approval ask', '{"question":"Proceed?"}');
+    assert.equal((await execute(client, `kivel monitor pause ${monitorId}`)).code, 0);
+    assert.equal((await execute(client, `kivel monitor delete ${monitorId}`)).code, 0);
+    const approval = await execute(client, 'kivel approval ask', '{"question":"Proceed?"}');
     assert.equal(approval.code, 0, approval.stderr);
     assert.equal(JSON.parse(approval.stdout).status, 'pending');
     const mock = await execute(
         client,
-        'socket-help api POST /api/mocks',
+        'kivel api POST /api/mocks',
         JSON.stringify({
             name: 'SSH CRUD fixture',
             routes: [],
@@ -773,39 +773,39 @@ test('SSH verifies host identity, executes the shared engine, rejects shell comm
     const mockId = JSON.parse(mock.stdout).id;
     const record = await execute(
         client,
-        `socket-help api POST /mock/${mockId}/tasks`,
+        `kivel api POST /mock/${mockId}/tasks`,
         '{"id":"ssh","name":"SSH record"}',
     );
     assert.equal(record.code, 0, record.stderr);
     assert.equal(JSON.parse(record.stdout).id, 'ssh');
-    const list = await execute(client, `socket-help api GET /mock/${mockId}/tasks`);
+    const list = await execute(client, `kivel api GET /mock/${mockId}/tasks`);
     assert.equal(list.code, 0, list.stderr);
     assert.equal(JSON.parse(list.stdout).total, 1);
-    assert.equal((await execute(client, `socket-help api DELETE /api/mocks/${mockId}`)).code, 0);
+    assert.equal((await execute(client, `kivel api DELETE /api/mocks/${mockId}`)).code, 0);
     const echo = await execute(
         client,
-        'socket-help api POST /api/mocks',
+        'kivel api POST /api/mocks',
         JSON.stringify({ name: 'SSH echo fixture', routes: [], echo: true }),
     );
     assert.equal(echo.code, 0, echo.stderr);
     const echoId = JSON.parse(echo.stdout).id;
     const observed = await execute(
         client,
-        `socket-help api POST /mock/${echoId}/check`,
+        `kivel api POST /mock/${echoId}/check`,
         '{"event":"ssh.created"}',
     );
     assert.equal(observed.code, 0, observed.stderr);
     assert.equal(JSON.parse(observed.stdout).body.value.event, 'ssh.created');
     assert.equal(JSON.parse(observed.stdout).headers.authorization, '[REDACTED]');
     assert.ok(!observed.stdout.includes(credential.key));
-    assert.equal((await execute(client, `socket-help api DELETE /api/mocks/${echoId}`)).code, 0);
+    assert.equal((await execute(client, `kivel api DELETE /api/mocks/${echoId}`)).code, 0);
     client.end();
     const malicious = await connect();
     await assert.rejects(execute(malicious, 'cat /etc/passwd'), /Unable to exec/);
     malicious.end();
     const revoked = await connect();
     await identities.revokeKey(identity, credential.info.id);
-    const denied = await execute(revoked, 'socket-help usage');
+    const denied = await execute(revoked, 'kivel usage');
     assert.equal(denied.code, 1);
     assert.match(denied.stderr, /revoked/);
     revoked.end();

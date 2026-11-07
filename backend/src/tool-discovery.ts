@@ -5,8 +5,8 @@ import {
     monitorToolIds,
     scheduledToolIds,
     toolAvailability,
-} from '@socket-help/tools/catalog';
-import type { ServerCapabilities } from '@socket-help/tools/catalog';
+} from '@kivel/tools/catalog';
+import type { ServerCapabilities } from '@kivel/tools/catalog';
 import { executableIds, executionGuide } from './tool-routes.js';
 
 export function catalogGuide(id: string, capabilities: ServerCapabilities) {
@@ -50,7 +50,7 @@ export function catalogGuide(id: string, capabilities: ServerCapabilities) {
             http: 'POST /api/authenticators',
             next: 'Use only for accounts your human asked you to create or operate. Requires an approved workspace key.',
         };
-    if (id === 'agents-socket-help-mcp')
+    if (id === 'agents-kivel-mcp')
         return {
             ...base,
             http: 'POST /mcp',

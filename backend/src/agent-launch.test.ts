@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { SocketHelp } from '@socket-help/sdk';
-import { command } from '@socket-help/cli';
-import { catalog } from '@socket-help/tools/catalog';
+import { Kivel } from '@kivel/sdk';
+import { command } from '@kivel/cli';
+import { catalog } from '@kivel/tools/catalog';
 import { buildApp } from './app.js';
 import { catalogGuide } from './tool-discovery.js';
 import { platformTools } from './mcp.js';
@@ -21,7 +21,7 @@ async function call(app: ReturnType<typeof buildApp>, name: string, args = {}, a
     return { ...result, value: JSON.parse(result.content[0].text) };
 }
 function client(app: ReturnType<typeof buildApp>) {
-    return new SocketHelp({
+    return new Kivel({
         baseUrl: origin,
         fetch: async (url, init) => {
             const parsed = new URL(String(url));

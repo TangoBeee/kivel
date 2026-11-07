@@ -1,67 +1,67 @@
 import { VERSION } from './version.js';
 import { agentCommand } from './agent-commands.js';
 export { needsInput } from './agent-commands.js';
-import type { SocketHelp } from '@socket-help/sdk';
-export const help = `socket-help tools | usage | resources
-socket-help --version
-socket-help plans | activity
-socket-help agent login <name> [--client <client>]
-socket-help agent token < login.json
-socket-help agent trial <name> [--human-email <email>] [--client <client>]
-socket-help agent list
-socket-help authenticator add < authenticator.json
-socket-help authenticator list|code|delete [id]
-socket-help authenticator rename <id> <name>
-socket-help email attachment|download-attachment <inbox-id> <message-id> <attachment-id>
-socket-help email create [--active-days <1-7>] [--local-part <paid-address>]
-socket-help email list
-socket-help email clear <id>
-socket-help email forward <id> [--token <token>] < forwarding.json
-socket-help email send <id> --idempotency-key <unique-key> < message.json
-socket-help event wait [--timeout-seconds <1-30>] < sources.json
-socket-help email threads [inbox-id] [--cursor <cursor>] [--limit <n>]
-socket-help email thread <inbox-id> <thread-id>
-socket-help email drafts|rules <inbox-id>
-socket-help email draft-create <inbox-id> < content.json
-socket-help email draft-inspect|draft-delete <draft-id>
-socket-help email draft-submit <draft-id> [< settings.json]
-socket-help email messages|wait <id> [--token <token>] [--after <id>] [--timeout-seconds <n>]
-socket-help memory set <namespace> <key> [--ttl-seconds <n>] < value.json
-socket-help memory get|delete <namespace> <key>
-socket-help memory list <namespace> [--prefix <prefix>]
-socket-help monitor create < monitor.json
-socket-help monitor list|inspect|pause|resume|delete [id]
-socket-help monitor ping|fail <ping-token>
-socket-help monitor accept-dns <id>
-socket-help job create [--ttl-seconds <n>] < job.json
-socket-help job list|inspect|cancel [id]
-socket-help status-page create|update [id] < page.json
-socket-help smtp create [--ttl-seconds <n>]
-socket-help smtp rotate <id>
-socket-help phone available [US-area-code]
-socket-help phone create <E.164-number> --idempotency-key <unique-key>
-socket-help phone list|release|messages|wait [id] [--after <id>] [--timeout-seconds <n>]
-socket-help approval ask < question.json
-socket-help approval list|pending|inspect|wait [id] [--timeout-seconds <n>]
-socket-help inbox requests|wait|deliveries <id> [--token <token>]
-socket-help inbox response|forward <id> [--token <token>] < settings.json
-socket-help oauth create [--ttl-seconds <n>] < provider.json
-socket-help oauth update <id> < provider.json
-socket-help oauth list|inspect|calls|renew|delete [id]
-socket-help mock create|update [id] < config.json
-socket-help mock calls|reset <id> [--token <token>]
-socket-help mcp-server create < config.json
-socket-help inbox|email|mock|mcp-server|file inspect|delete|renew <id> [--token <token>]
-socket-help inbox|mock|mcp-server|file sharing <id> --visibility private|public [--token <token>]
-socket-help describe <tool-id>
-socket-help run <tool-id> [--file <filename>] [--options '{"action":"minify"}'] < input.txt
-socket-help inbox create [--visibility private|public]
-socket-help listen <inbox-id> [--token <inspection-token>] [--forward http://localhost:3000] [--all]
-socket-help api <GET|HEAD|OPTIONS|POST|PUT|PATCH|DELETE> /api/path-or-/mock/path [--token <resource-token>] < body.json
-socket-help upload <filename> [--visibility private|public] [--max-downloads 1] < file.bin
-socket-help download <file-id> [--access-token token] > file.bin
+import type { Kivel } from '@kivel/sdk';
+export const help = `kivel tools | usage | resources
+kivel --version
+kivel plans | activity
+kivel agent login <name> [--client <client>]
+kivel agent token < login.json
+kivel agent trial <name> [--human-email <email>] [--client <client>]
+kivel agent list
+kivel authenticator add < authenticator.json
+kivel authenticator list|code|delete [id]
+kivel authenticator rename <id> <name>
+kivel email attachment|download-attachment <inbox-id> <message-id> <attachment-id>
+kivel email create [--active-days <1-7>] [--local-part <paid-address>]
+kivel email list
+kivel email clear <id>
+kivel email forward <id> [--token <token>] < forwarding.json
+kivel email send <id> --idempotency-key <unique-key> < message.json
+kivel event wait [--timeout-seconds <1-30>] < sources.json
+kivel email threads [inbox-id] [--cursor <cursor>] [--limit <n>]
+kivel email thread <inbox-id> <thread-id>
+kivel email drafts|rules <inbox-id>
+kivel email draft-create <inbox-id> < content.json
+kivel email draft-inspect|draft-delete <draft-id>
+kivel email draft-submit <draft-id> [< settings.json]
+kivel email messages|wait <id> [--token <token>] [--after <id>] [--timeout-seconds <n>]
+kivel memory set <namespace> <key> [--ttl-seconds <n>] < value.json
+kivel memory get|delete <namespace> <key>
+kivel memory list <namespace> [--prefix <prefix>]
+kivel monitor create < monitor.json
+kivel monitor list|inspect|pause|resume|delete [id]
+kivel monitor ping|fail <ping-token>
+kivel monitor accept-dns <id>
+kivel job create [--ttl-seconds <n>] < job.json
+kivel job list|inspect|cancel [id]
+kivel status-page create|update [id] < page.json
+kivel smtp create [--ttl-seconds <n>]
+kivel smtp rotate <id>
+kivel phone available [US-area-code]
+kivel phone create <E.164-number> --idempotency-key <unique-key>
+kivel phone list|release|messages|wait [id] [--after <id>] [--timeout-seconds <n>]
+kivel approval ask < question.json
+kivel approval list|pending|inspect|wait [id] [--timeout-seconds <n>]
+kivel inbox requests|wait|deliveries <id> [--token <token>]
+kivel inbox response|forward <id> [--token <token>] < settings.json
+kivel oauth create [--ttl-seconds <n>] < provider.json
+kivel oauth update <id> < provider.json
+kivel oauth list|inspect|calls|renew|delete [id]
+kivel mock create|update [id] < config.json
+kivel mock calls|reset <id> [--token <token>]
+kivel mcp-server create < config.json
+kivel inbox|email|mock|mcp-server|file inspect|delete|renew <id> [--token <token>]
+kivel inbox|mock|mcp-server|file sharing <id> --visibility private|public [--token <token>]
+kivel describe <tool-id>
+kivel run <tool-id> [--file <filename>] [--options '{"action":"minify"}'] < input.txt
+kivel inbox create [--visibility private|public]
+kivel listen <inbox-id> [--token <inspection-token>] [--forward http://localhost:3000] [--all]
+kivel api <GET|HEAD|OPTIONS|POST|PUT|PATCH|DELETE> /api/path-or-/mock/path [--token <resource-token>] < body.json
+kivel upload <filename> [--visibility private|public] [--max-downloads 1] < file.bin
+kivel download <file-id> [--access-token token] > file.bin
 
-Set SOCKET_HELP_URL and SOCKET_HELP_API_KEY. Commands output JSON; downloads output binary; help is plain text. Mutations are never retried. Authenticators are only for accounts your human asked you to create or operate. Attachment downloads output untrusted binary files; attachment links expire in two minutes.
+Set KIVEL_URL and KIVEL_API_KEY. Commands output JSON; downloads output binary; help is plain text. Mutations are never retried. Authenticators are only for accounts your human asked you to create or operate. Attachment downloads output untrusted binary files; attachment links expire in two minutes.
 Creation also accepts --ttl-seconds <n> and --persistent. Webhook receiving is public by default; inspection always needs workspace credentials or the inspection token. Use inbox create --visibility private only when senders can add X-Access-Token. Other resources default to private.`;
 function settings(args: string[], file = false) {
     const result: {
@@ -104,11 +104,7 @@ function settings(args: string[], file = false) {
     }
     return result;
 }
-export async function command(
-    client: SocketHelp,
-    args: string[],
-    input: Uint8Array = new Uint8Array(),
-) {
+export async function command(client: Kivel, args: string[], input: Uint8Array = new Uint8Array()) {
     if (args.length === 1 && args[0] === '--version') return { version: VERSION };
     if (!args.length || args[0] === '--help' || args[0] === 'help') return { help };
     const text = () => new TextDecoder('utf-8', { fatal: true }).decode(input);

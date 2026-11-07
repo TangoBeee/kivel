@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { buildApp } from './app.js';
-import { validateMock } from '@socket-help/tools/mock-config';
+import { validateMock } from '@kivel/tools/mock-config';
 import { ResourceStore, RESOURCE_TTL_MS } from './resources.js';
 test('HTTP echo reflects observed data, redacts credentials, and does not retain content', async (t) => {
     const app = buildApp();

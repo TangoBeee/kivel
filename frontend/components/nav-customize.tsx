@@ -7,8 +7,8 @@ import { useSavedTools } from '../lib/saved-tools';
 import { Icon } from './icons';
 
 // Which tool pages the sidebar hides. Kept in this browser, like saved tools.
-const KEY = 'socket-help:hidden-nav';
-const EVENT = 'socket-help:hidden-nav';
+const KEY = 'kivel:hidden-nav';
+const EVENT = 'kivel:hidden-nav';
 const read = (): string[] => {
     try {
         const value: unknown = JSON.parse(localStorage.getItem(KEY) ?? '[]');

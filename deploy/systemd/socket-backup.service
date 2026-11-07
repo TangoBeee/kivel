@@ -1,5 +1,5 @@
 [Unit]
-Description=socket.help backup with off-site copy
+Description=Kivel backup with off-site copy
 After=docker.service network-online.target
 Requires=docker.service
 [Service]

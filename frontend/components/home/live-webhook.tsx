@@ -19,7 +19,7 @@ interface Inbox {
     expiresAt: string;
 }
 
-const STORE = 'socket-help:home-inbox';
+const STORE = 'kivel:home-inbox';
 const saved = (): Inbox | null => {
     try {
         const value = JSON.parse(localStorage.getItem(STORE) ?? 'null') as Inbox | null;

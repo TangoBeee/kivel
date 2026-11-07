@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 /** Window event that makes every logo smile for a moment (sent by upgrade buttons). */
-export const HAPPY_EVENT = 'socket-help:happy';
+export const HAPPY_EVENT = 'kivel:happy';
 
 /**
  * The socket mark with a little life: its two slots are eyes that follow the pointer, close while

@@ -26,13 +26,13 @@ importers:
       '@fastify/websocket':
         specifier: ^11.3.6
         version: 11.3.6
-      '@socket-help/cli':
+      '@kivel/cli':
         specifier: workspace:*
         version: link:../packages/cli
-      '@socket-help/sdk':
+      '@kivel/sdk':
         specifier: workspace:*
         version: link:../packages/sdk
-      '@socket-help/tools':
+      '@kivel/tools':
         specifier: workspace:*
         version: link:../packages/tools
       cheerio:
@@ -117,6 +117,9 @@ importers:
 
   frontend:
     dependencies:
+      '@kivel/tools':
+        specifier: workspace:*
+        version: link:../packages/tools
       '@phosphor-icons/react':
         specifier: 2.1.10
         version: 2.1.10(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -129,9 +132,6 @@ importers:
       '@scalar/api-reference-react':
         specifier: 0.9.83
         version: 0.9.83(esbuild@0.28.2)(lightningcss@1.32.0)(react@19.3.1)(tailwindcss@4.3.3)(typescript@7.0.2)(zod@4.6.7)
-      '@socket-help/tools':
-        specifier: workspace:*
-        version: link:../packages/tools
       cmdk:
         specifier: 1.1.1
         version: 1.1.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -187,7 +187,7 @@ importers:
 
   packages/cli:
     dependencies:
-      '@socket-help/sdk':
+      '@kivel/sdk':
         specifier: workspace:*
         version: link:../sdk
     devDependencies:

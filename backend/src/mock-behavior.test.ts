@@ -4,7 +4,7 @@ import { buildApp } from './app.js';
 import { RateLimiter } from './rate-limit.js';
 import { validateMock } from './resource-routes.js';
 import { validateMcp } from './mcp.js';
-import { parseSse } from '@socket-help/tools/sse';
+import { parseSse } from '@kivel/tools/sse';
 const route = {
     method: 'GET',
     path: '/events',
@@ -138,7 +138,7 @@ test('SSE parsing handles BOM, CRLF, multiple data lines, IDs, retry hints, comm
 });
 
 test('mock conditions select before fallbacks and templates escape JSON request values', async (t) => {
-    const { mockPreset } = await import('@socket-help/tools/mock-presets');
+    const { mockPreset } = await import('@kivel/tools/mock-presets');
     const app = buildApp();
     t.after(() => app.close());
     for (const id of [

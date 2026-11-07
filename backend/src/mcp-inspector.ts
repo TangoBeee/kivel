@@ -1,7 +1,7 @@
 import { publicRequest, publicUrl } from './public-network.js';
-import { parseSse } from '@socket-help/tools/sse';
-import { ToolExecutionError } from '@socket-help/tools/node';
-import type { OperationOptions } from '@socket-help/tools/definitions';
+import { parseSse } from '@kivel/tools/sse';
+import { ToolExecutionError } from '@kivel/tools/node';
+import type { OperationOptions } from '@kivel/tools/definitions';
 const object = (value: unknown): value is Record<string, any> =>
     !!value && typeof value === 'object' && !Array.isArray(value);
 export async function inspectMcp(

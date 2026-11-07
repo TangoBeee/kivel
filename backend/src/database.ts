@@ -41,7 +41,7 @@ export function createPool(connectionString: string): Pool {
         connectionTimeoutMillis: 5000,
         idleTimeoutMillis: 30_000,
         statement_timeout: 10_000,
-        application_name: 'socket-help',
+        application_name: 'kivel',
     });
     return pool;
 }

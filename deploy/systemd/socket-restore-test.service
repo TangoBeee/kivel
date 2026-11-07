@@ -1,5 +1,5 @@
 [Unit]
-Description=Restore latest socket.help off-site backup in an isolated database
+Description=Restore latest Kivel off-site backup in an isolated database
 After=docker.service network-online.target
 Requires=docker.service
 [Service]

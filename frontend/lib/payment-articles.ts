@@ -179,7 +179,7 @@ export const paymentArticles: Article[] = [
                 ],
                 code: {
                     title: 'Generate a prepaid fixture with the CLI',
-                    value: `socket-help run developer-prepaid-card-generator \\
+                    value: `kivel run developer-prepaid-card-generator \\
   --options '{"count":"1"}' < /dev/null`,
                 },
             },

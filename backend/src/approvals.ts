@@ -1,5 +1,5 @@
-import { emailDraftBytes } from '@socket-help/tools/billing-plans';
-import { plans } from '@socket-help/tools/plans';
+import { emailDraftBytes } from '@kivel/tools/billing-plans';
+import { plans } from '@kivel/tools/plans';
 import { validateEmailContent } from './email-sending.js';
 import type { EmailContent } from './email-sending.js';
 import { requireWorkspace } from './access.js';

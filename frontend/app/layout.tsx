@@ -27,7 +27,7 @@ export const metadata: Metadata = {
 
 // Hold the first paint until fonts, images and the sign-in check are ready, then fade the whole page in at once.
 // It never waits longer than 1.5 seconds, and without JavaScript the page simply shows.
-const revealWhenReady = `(function(){var d=document.documentElement;d.classList.add('is-loading');var done=false;function show(){if(done)return;done=true;d.classList.remove('is-loading');}var loaded=new Promise(function(r){if(document.readyState==='complete')r();else addEventListener('load',r);});var signedIn=new Promise(function(r){addEventListener('socket-help:viewer',r,{once:true});});Promise.all([loaded,signedIn,document.fonts?document.fonts.ready:null]).then(show,show);setTimeout(show,1500);})();`;
+const revealWhenReady = `(function(){var d=document.documentElement;d.classList.add('is-loading');var done=false;function show(){if(done)return;done=true;d.classList.remove('is-loading');}var loaded=new Promise(function(r){if(document.readyState==='complete')r();else addEventListener('load',r);});var signedIn=new Promise(function(r){addEventListener('kivel:viewer',r,{once:true});});Promise.all([loaded,signedIn,document.fonts?document.fonts.ready:null]).then(show,show);setTimeout(show,1500);})();`;
 
 export default function Layout({ children }: { children: React.ReactNode }) {
     return (

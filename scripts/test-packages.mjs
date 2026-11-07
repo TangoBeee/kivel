@@ -62,12 +62,12 @@ try {
         assert.equal(manifest.publishConfig.access, 'public');
         assert.equal(manifest.license, 'Apache-2.0');
         await run('pnpm', ['--dir', `packages/${name}`, 'pack', '--pack-destination', output]);
-        const path = join(output, `socket-help-${name}-${manifest.version}.tgz`);
+        const path = join(output, `kivel-${name}-${manifest.version}.tgz`);
         const files = (await run('tar', ['-tzf', path])).split('\n');
         for (const file of files) {
             assert.match(
                 file,
-                /^package\/(?:package\.json|README\.md|CHANGELOG\.md|LICENSE|dist\/[\w-]+(?:\.d\.ts|\.js)|bin\/socket-help\.mjs)$/,
+                /^package\/(?:package\.json|README\.md|CHANGELOG\.md|LICENSE|dist\/[\w-]+(?:\.d\.ts|\.js)|bin\/kivel\.mjs)$/,
                 `Unexpected package file: ${file}`,
             );
             assert.ok(
@@ -86,12 +86,12 @@ try {
         assert.ok(files.includes(`package/${packed.types.replace(/^\.\//, '')}`));
         if (name === 'cli') {
             assert.equal(
-                packed.dependencies['@socket-help/sdk'],
+                packed.dependencies['@kivel/sdk'],
                 sdk.version,
                 'pnpm must replace workspace protocol',
             );
-            assert.deepEqual(Object.keys(packed.dependencies), ['@socket-help/sdk']);
-            assert.ok(files.includes('package/bin/socket-help.mjs'));
+            assert.deepEqual(Object.keys(packed.dependencies), ['@kivel/sdk']);
+            assert.ok(files.includes('package/bin/kivel.mjs'));
         } else assert.equal(packed.dependencies, undefined, 'SDK stays dependency-free');
         const data = await readFile(path);
         artifacts.push({
@@ -209,19 +209,19 @@ try {
     await writeFile(
         join(consumer, 'check.mjs'),
         `import assert from 'node:assert/strict';
-import { SocketHelp, SocketError } from '@socket-help/sdk';
-const socket = new SocketHelp({ baseUrl: process.env.SOCKET_HELP_URL, apiKey: process.env.SOCKET_HELP_API_KEY });
+import { Kivel, KivelError } from '@kivel/sdk';
+const socket = new Kivel({ baseUrl: process.env.KIVEL_URL, apiKey: process.env.KIVEL_API_KEY });
 assert.equal((await socket.tools()).tools[0].id, 'json');
 const result = await socket.run('json', '{"released":true}');
 assert.equal(JSON.parse(result.output).released, true);
-await assert.rejects(new SocketHelp({ baseUrl: process.env.SOCKET_HELP_URL }).tools(), error => error instanceof SocketError && error.status === 401 && error.requestId === 'package-denied');
+await assert.rejects(new Kivel({ baseUrl: process.env.KIVEL_URL }).tools(), error => error instanceof KivelError && error.status === 401 && error.requestId === 'package-denied');
 `,
     );
     await writeFile(
         join(consumer, 'check.ts'),
-        `import { SocketHelp, type EmailInbox, type MemoryEntry } from '@socket-help/sdk';
-import { command } from '@socket-help/cli';
-const socket = new SocketHelp({ baseUrl: 'http://localhost' });
+        `import { Kivel, type EmailInbox, type MemoryEntry } from '@kivel/sdk';
+import { command } from '@kivel/cli';
+const socket = new Kivel({ baseUrl: 'http://localhost' });
 const email: Promise<EmailInbox> = socket.createEmailInbox();
 const memory: Promise<MemoryEntry<{ passed: boolean }>> = socket.memoryGet('release', 'result');
 void email; void memory; void command(socket, ['tools']);
@@ -248,11 +248,11 @@ void email; void memory; void command(socket, ['tools']);
     );
     const env = {
         ...process.env,
-        SOCKET_HELP_URL: baseUrl,
-        SOCKET_HELP_API_KEY: 'package-test-key',
+        KIVEL_URL: baseUrl,
+        KIVEL_API_KEY: 'package-test-key',
     };
     await run(process.execPath, ['check.mjs'], { cwd: consumer, env });
-    const binary = join(consumer, 'node_modules/.bin/socket-help');
+    const binary = join(consumer, 'node_modules/.bin/kivel');
     assert.equal(await run(binary, ['--version'], { cwd: consumer, env }), cli.version);
     assert.match(await run(binary, ['--help'], { cwd: consumer, env }), /agent login/);
     assert.equal(

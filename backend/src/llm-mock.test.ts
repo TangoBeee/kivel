@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { buildApp } from './app.js';
-import { parseSse } from '@socket-help/tools/sse';
-import { validateMock } from '@socket-help/tools/mock-config';
+import { parseSse } from '@kivel/tools/sse';
+import { validateMock } from '@kivel/tools/mock-config';
 
 async function fixture(
     t: { after: (callback: () => Promise<unknown>) => void },

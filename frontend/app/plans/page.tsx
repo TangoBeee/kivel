@@ -1,6 +1,6 @@
 import { catalog, categories } from '../../lib/catalog';
 import Link from 'next/link';
-import { plans, type PlanId } from '@socket-help/tools/plans';
+import { plans, type PlanId } from '@kivel/tools/plans';
 import { PageIntro } from '../../components/content-layout';
 import { pageMetadata } from '../../lib/seo';
 import { Icon } from '../../components/icons';

@@ -9,7 +9,7 @@ export function McpConnect() {
     const url = origin ? `${origin}/mcp` : '';
     return (
         <div className="page-width work-page">
-            <ToolHeader toolId="agents-socket-help-mcp">
+            <ToolHeader toolId="agents-kivel-mcp">
                 <span className="badge badge-green">Streamable HTTP</span>
             </ToolHeader>
             <section className="resource-result">

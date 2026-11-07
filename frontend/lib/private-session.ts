@@ -7,7 +7,7 @@ export function clearPrivateSession(broadcast = true) {
                 sessionStorage.removeItem(key);
     } catch {}
     if (broadcast && typeof BroadcastChannel !== 'undefined') {
-        const channel = new BroadcastChannel('socket-help-session');
+        const channel = new BroadcastChannel('kivel-session');
         channel.postMessage({ type: 'clear-session', source: sessionSource() });
         channel.close();
     }

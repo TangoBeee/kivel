@@ -1,6 +1,6 @@
-import { validateScenario } from '@socket-help/tools/api-scenarios';
-import type { ApiScenario } from '@socket-help/tools/api-scenarios';
-const KEY = 'socket-help:scenario-draft';
+import { validateScenario } from '@kivel/tools/api-scenarios';
+import type { ApiScenario } from '@kivel/tools/api-scenarios';
+const KEY = 'kivel:scenario-draft';
 export function saveScenarioDraft(scenario: ApiScenario) {
     sessionStorage.setItem(
         KEY,

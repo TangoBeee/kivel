@@ -56,7 +56,7 @@ export class Forwarder {
         for (const [name, value] of Object.entries(request.headers))
             if (value !== undefined && !dropped.test(name))
                 headers[name] = Array.isArray(value) ? value.join(', ') : value;
-        headers['x-socket-help-request-id'] = request.id;
+        headers['x-kivel-request-id'] = request.id;
         const url = request.query
             ? `${target}${target.includes('?') ? '&' : '?'}${request.query}`
             : target;

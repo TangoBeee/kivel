@@ -1,4 +1,4 @@
-import { oauthSchema } from '@socket-help/tools/oauth';
+import { oauthSchema } from '@kivel/tools/oauth';
 export function oauthOpenApi() {
     const id = [
         { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },

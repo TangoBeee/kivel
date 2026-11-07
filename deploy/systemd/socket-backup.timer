@@ -1,5 +1,5 @@
 [Unit]
-Description=Nightly socket.help backup
+Description=Nightly Kivel backup
 [Timer]
 OnCalendar=*-*-* 03:30:00
 Persistent=true

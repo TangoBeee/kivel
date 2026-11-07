@@ -11,8 +11,8 @@ import { Icon } from './icons';
 import { CopyButton } from './copy-button';
 import { ToolHeader } from './tool-header';
 import { tools } from '../lib/tools';
-import { runBrowserOperation } from '@socket-help/tools/engine';
-import type { ToolId } from '@socket-help/tools/engine';
+import { runBrowserOperation } from '@kivel/tools/engine';
+import type { ToolId } from '@kivel/tools/engine';
 
 export function BrowserWorkbench({ toolId }: { toolId: string }) {
     const router = useRouter();

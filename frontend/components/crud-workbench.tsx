@@ -1,12 +1,12 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertDialog, Button, TextArea, TextField } from '@radix-ui/themes';
-import { validateCrud, validateRecord, crudScenario } from '@socket-help/tools/mock-crud';
+import { validateCrud, validateRecord, crudScenario } from '@kivel/tools/mock-crud';
 import { saveScenarioDraft } from '../lib/scenario-handoff';
-import type { CrudState } from '@socket-help/tools/mock-crud';
-import { parseJsonSafely } from '@socket-help/tools/engine';
-import { validateMock } from '@socket-help/tools/mock-config';
-import type { MockRoute } from '@socket-help/tools/mock-config';
+import type { CrudState } from '@kivel/tools/mock-crud';
+import { parseJsonSafely } from '@kivel/tools/engine';
+import { validateMock } from '@kivel/tools/mock-config';
+import type { MockRoute } from '@kivel/tools/mock-config';
 import { api, resourceHeaders } from '../lib/api';
 import { Icon } from './icons';
 import { downloadBlob } from './result-preview';

@@ -1,5 +1,5 @@
 [Unit]
-Description=Refresh socket.help Cloudflare ingress ranges
+Description=Refresh Kivel Cloudflare ingress ranges
 [Timer]
 OnBootSec=30s
 OnCalendar=daily

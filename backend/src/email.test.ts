@@ -341,8 +341,8 @@ test('paid custom addresses reject reserved names and cannot be reused after del
         'noreply',
         'no-reply',
         'security',
-        'sockethelp',
-        'socket-help',
+        'kivel',
+        'kivel',
     ])
         assert.equal(
             (

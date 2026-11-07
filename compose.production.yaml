@@ -12,13 +12,13 @@ services:
         ipv4_address: ${PROXY_NETWORK_PREFIX:-10.203.0}.3
 
   mail:
-    image: ${MAIL_IMAGE:-socket-help-mail:local}
+    image: ${MAIL_IMAGE:-kivel-mail:local}
 
   proxy:
     build:
       context: .
       dockerfile: deploy/caddy.Dockerfile
-    image: ${PROXY_IMAGE:-socket-help-proxy:local}
+    image: ${PROXY_IMAGE:-kivel-proxy:local}
     restart: unless-stopped
     mem_limit: 128m
     cpus: 1

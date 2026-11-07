@@ -1,4 +1,4 @@
-import type { SocketHelp, MonitorInput, ApprovalInput } from '@socket-help/sdk';
+import type { Kivel, MonitorInput, ApprovalInput } from '@kivel/sdk';
 
 export function needsInput(args: string[]) {
     return (
@@ -18,7 +18,7 @@ export function needsInput(args: string[]) {
     );
 }
 
-export async function agentCommand(client: SocketHelp, args: string[], input: Uint8Array) {
+export async function agentCommand(client: Kivel, args: string[], input: Uint8Array) {
     const [group, action, ...tail] = args;
     const resource = [
         'inbox',
@@ -354,5 +354,5 @@ export async function agentCommand(client: SocketHelp, args: string[], input: Ui
             return client.sharing(kind, id(), visibility, token);
         }
     }
-    throw new Error('Unknown command. Run socket-help --help.');
+    throw new Error('Unknown command. Run kivel --help.');
 }

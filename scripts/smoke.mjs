@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { SocketHelp } from '../packages/sdk/dist/index.js';
+import { Kivel } from '../packages/sdk/dist/index.js';
 import { execFileSync } from 'node:child_process';
 
 const origin = process.env.SOCKET_BASE_URL ?? 'http://localhost:8080';
@@ -51,7 +51,7 @@ for (const path of [
     '/tools/one-time-download-links/',
     '/tools/private-file-sharing/',
     '/tools/mock-mcp-server/',
-    '/tools/socket-help-mcp/',
+    '/tools/kivel-mcp/',
     '/tools/json-formatter/',
     '/tools/csv-to-json/',
     '/tools/password-generator/',
@@ -312,7 +312,7 @@ const crudCreated = await request('/api/mocks', {
 assert.equal(crudCreated.status, 201);
 const crud = await crudCreated.json();
 try {
-    const socket = new SocketHelp({ baseUrl: origin });
+    const socket = new Kivel({ baseUrl: origin });
     const path = `/mock/${crud.id}/tasks`;
     assert.equal((await request(path)).status, 404);
     const created = await socket.request(
@@ -327,7 +327,7 @@ try {
             process.execPath,
             ['packages/cli/dist/cli.js', 'api', 'GET', path, '--token', crud.accessToken],
             {
-                env: { ...process.env, SOCKET_HELP_URL: origin, SOCKET_HELP_API_KEY: '' },
+                env: { ...process.env, KIVEL_URL: origin, KIVEL_API_KEY: '' },
                 encoding: 'utf8',
             },
         ),
@@ -392,7 +392,7 @@ const echo = await echoCreated.json();
 try {
     const path = `/mock/${echo.id}/check?source=sdk`;
     assert.equal((await request(path)).status, 404);
-    const socket = new SocketHelp({ baseUrl: origin });
+    const socket = new Kivel({ baseUrl: origin });
     const observed = await socket.request(
         'POST',
         path,
@@ -407,7 +407,7 @@ try {
             process.execPath,
             ['packages/cli/dist/cli.js', 'api', 'GET', path, '--token', echo.accessToken],
             {
-                env: { ...process.env, SOCKET_HELP_URL: origin, SOCKET_HELP_API_KEY: '' },
+                env: { ...process.env, KIVEL_URL: origin, KIVEL_API_KEY: '' },
                 encoding: 'utf8',
             },
         ),

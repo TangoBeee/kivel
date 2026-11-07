@@ -18,10 +18,10 @@ import WebhookWorkbench from './webhook-workbench';
 import { McpConnect } from './mcp-connect';
 import { EmailInboxWorkbench } from './email-inbox-workbench';
 import { ToolHeader } from './tool-header';
-import { mediaOperations } from '@socket-help/tools/media-definitions';
-import type { MediaOperationId } from '@socket-help/tools/media-definitions';
-import { networkOperations } from '@socket-help/tools/network-definitions';
-import type { NetworkOperationId } from '@socket-help/tools/network-definitions';
+import { mediaOperations } from '@kivel/tools/media-definitions';
+import type { MediaOperationId } from '@kivel/tools/media-definitions';
+import { networkOperations } from '@kivel/tools/network-definitions';
+import type { NetworkOperationId } from '@kivel/tools/network-definitions';
 import { browserOperations } from '../lib/browser-tool-definitions';
 import type { BrowserOperationId } from '../lib/browser-tool-definitions';
 import {
@@ -76,7 +76,7 @@ export function ToolWorkbench({ toolId }: { toolId: string }) {
         <MusicLibrary />
     ) : ['email-temporary-email-inbox', 'email-email-webhook-forwarding'].includes(tool.id) ? (
         <EmailInboxWorkbench toolId={tool.id} />
-    ) : tool.id === 'agents-socket-help-mcp' ? (
+    ) : tool.id === 'agents-kivel-mcp' ? (
         <McpConnect />
     ) : ['webhooks', 'domains-temporary-callback-url', 'network-request-forwarding'].includes(
           tool.id,

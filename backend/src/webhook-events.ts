@@ -1,6 +1,6 @@
 import { createHmac, randomUUID } from 'node:crypto';
-import type { OperationOptions } from '@socket-help/tools/definitions';
-import { ToolExecutionError } from '@socket-help/tools/node';
+import type { OperationOptions } from '@kivel/tools/definitions';
+import { ToolExecutionError } from '@kivel/tools/node';
 import { publicRequest, publicUrl } from './public-network.js';
 
 const types = {
@@ -49,7 +49,7 @@ export function webhookEvent(
                   currency: 'usd',
                   amount_total: 2000,
                   customer: 'cus_test_fixture',
-                  metadata: { source: 'socket-help-test' },
+                  metadata: { source: 'kivel-test' },
               }
             : eventType.startsWith('invoice')
               ? {

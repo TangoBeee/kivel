@@ -1,9 +1,9 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { Button, Checkbox, Select, TextArea, TextField } from '@radix-ui/themes';
-import { validateLlmMock } from '@socket-help/tools/llm-mock';
-import type { LlmMockConfig } from '@socket-help/tools/llm-mock';
-import { parseSse } from '@socket-help/tools/sse';
+import { validateLlmMock } from '@kivel/tools/llm-mock';
+import type { LlmMockConfig } from '@kivel/tools/llm-mock';
+import { parseSse } from '@kivel/tools/sse';
 import { useViewer } from '../lib/viewer';
 import { api, resourceHeaders } from '../lib/api';
 import { ToolHeader } from './tool-header';
@@ -361,8 +361,8 @@ export function LlmWorkbench({ toolId }: { toolId: string }) {
                                 title="Use your existing client"
                                 code={
                                     resource.llm.provider === 'openai'
-                                        ? `// OpenAI-compatible Chat Completions client\nbaseURL: '${baseUrl}'\napiKey: process.env.${resource.accessToken ? 'SOCKET_MOCK_ACCESS_TOKEN' : 'SOCKET_HELP_API_KEY'}\n// Call chat.completions.create({ model: '${resource.llm.model}', messages, stream: true })`
-                                        : `// Anthropic-compatible Messages client\nbaseURL: '${resource.endpointUrl}'\napiKey: 'mock-key'\ndefaultHeaders: { '${resource.accessToken ? 'X-Access-Token' : 'Authorization'}': ${resource.accessToken ? 'process.env.SOCKET_MOCK_ACCESS_TOKEN' : "'Bearer ' + process.env.SOCKET_HELP_API_KEY"} }\n// Call messages.create({ model: '${resource.llm.model}', max_tokens: 1024, messages, stream: true })`
+                                        ? `// OpenAI-compatible Chat Completions client\nbaseURL: '${baseUrl}'\napiKey: process.env.${resource.accessToken ? 'SOCKET_MOCK_ACCESS_TOKEN' : 'KIVEL_API_KEY'}\n// Call chat.completions.create({ model: '${resource.llm.model}', messages, stream: true })`
+                                        : `// Anthropic-compatible Messages client\nbaseURL: '${resource.endpointUrl}'\napiKey: 'mock-key'\ndefaultHeaders: { '${resource.accessToken ? 'X-Access-Token' : 'Authorization'}': ${resource.accessToken ? 'process.env.SOCKET_MOCK_ACCESS_TOKEN' : "'Bearer ' + process.env.KIVEL_API_KEY"} }\n// Call messages.create({ model: '${resource.llm.model}', max_tokens: 1024, messages, stream: true })`
                                 }
                             />
                             <MockCalls id={resource.id} token={resource.managementToken ?? ''} />

@@ -1,9 +1,9 @@
 'use client';
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
-import { parseJsonSafely, formatJson } from '@socket-help/tools/engine';
-import { csvPreview } from '@socket-help/tools/csv-preview';
-import { parseSse } from '@socket-help/tools/sse';
+import { parseJsonSafely, formatJson } from '@kivel/tools/engine';
+import { csvPreview } from '@kivel/tools/csv-preview';
+import { parseSse } from '@kivel/tools/sse';
 import { MarkdownPreview } from './generated-preview';
 import { ResultPreview } from './result-preview';
 import { CodeExample } from './code-example';

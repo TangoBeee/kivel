@@ -3,7 +3,7 @@ import test from 'node:test';
 import { buildApp } from './app.js';
 import { ResourceStore, RESOURCE_TTL_MS } from './resources.js';
 import { validateMock, mockPayload } from './resource-routes.js';
-import { validateCrud, executeCrud, initialCrud } from '@socket-help/tools/mock-crud';
+import { validateCrud, executeCrud, initialCrud } from '@kivel/tools/mock-crud';
 
 const config = {
     name: 'Task API',
@@ -414,8 +414,8 @@ test('CRUD config replacement advances revisions and MCP shares caller authoriza
 });
 
 test('CRUD scenario exports validate and never carry credentials', async () => {
-    const { crudScenario } = await import('@socket-help/tools/mock-crud');
-    const { validateScenario } = await import('@socket-help/tools/api-scenarios');
+    const { crudScenario } = await import('@kivel/tools/mock-crud');
+    const { validateScenario } = await import('@kivel/tools/api-scenarios');
     const draft = validateScenario(
         crudScenario('f6145e69-817a-463d-a882-fce4655ae6e1', '/tasks', 'https://kivel.io', true),
     );

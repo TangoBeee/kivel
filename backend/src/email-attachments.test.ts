@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import { test } from 'node:test';
-import { SocketHelp } from '@socket-help/sdk';
-import { command } from '@socket-help/cli';
+import { Kivel } from '@kivel/sdk';
+import { command } from '@kivel/cli';
 import { buildApp } from './app.js';
 import { MemoryIdentityRepository } from './identity.js';
 import { ResourceStore } from './resources.js';
@@ -88,7 +88,7 @@ async function fixture(
     };
     const preview = async () =>
         (await app.inject({ url: `/api/email-inboxes/${inbox.id}/messages`, headers })).json();
-    const client = new SocketHelp({
+    const client = new Kivel({
         baseUrl: origin,
         fetch: async (url, init) => {
             const parsed = new URL(String(url));

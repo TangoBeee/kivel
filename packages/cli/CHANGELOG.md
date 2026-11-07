@@ -1,4 +1,4 @@
-# @socket-help/cli
+# @kivel/cli
 
 ## 0.5.1
 

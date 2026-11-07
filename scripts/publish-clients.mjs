@@ -17,7 +17,7 @@ const registry = 'https://registry.npmjs.org';
 const { packages } = JSON.parse(await readFile(join(root, 'release/manifest.json'), 'utf8'));
 assert.deepEqual(
     packages.map((pkg) => pkg.name),
-    ['@socket-help/sdk', '@socket-help/cli'],
+    ['@kivel/sdk', '@kivel/cli'],
 );
 
 let plan;
@@ -46,7 +46,7 @@ for (const pkg of packages) {
     if (expectedVersion.includes('-') && tag === 'latest')
         throw new Error('Use beta for prerelease versions.');
     const name = pkg.name.endsWith('/sdk') ? 'sdk' : 'cli';
-    assert.equal(pkg.file, `socket-help-${name}-${expectedVersion}.tgz`);
+    assert.equal(pkg.file, `kivel-${name}-${expectedVersion}.tgz`);
     const current = JSON.parse(
         await readFile(join(root, 'packages', name, 'package.json'), 'utf8'),
     );

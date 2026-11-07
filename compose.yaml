@@ -7,7 +7,7 @@ services:
       args:
         BILLING_ENABLED: ${BILLING_ENABLED:-false}
         SITE_URL: ${SITE_URL:-https://kivel.io}
-    image: ${APP_IMAGE:-socket-help:local}
+    image: ${APP_IMAGE:-kivel:local}
     init: true
     restart: unless-stopped
     ports:
@@ -77,7 +77,7 @@ services:
     build:
       context: .
       dockerfile: deploy/mail.Dockerfile
-    image: ${MAIL_IMAGE:-socket-help-mail:local}
+    image: ${MAIL_IMAGE:-kivel-mail:local}
     restart: unless-stopped
     environment:
       APP_MAIL_ADDRESS: ${MAIL_NETWORK_PREFIX:-10.205.0}.3
@@ -98,7 +98,7 @@ services:
     build:
       context: .
       dockerfile: deploy/postgres.Dockerfile
-    image: ${DATABASE_IMAGE:-socket-help-postgres:local}
+    image: ${DATABASE_IMAGE:-kivel-postgres:local}
     restart: unless-stopped
     environment:
       POSTGRES_DB: socket

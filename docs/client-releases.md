@@ -1,6 +1,6 @@
 # SDK and CLI releases
 
-Public packages: `@socket-help/sdk` and `@socket-help/cli`. The current distribution
+Public packages: `@kivel/sdk` and `@kivel/cli`. The current distribution
 channel is `beta`; neither private app packages nor the internal tool engine are
 published. SDK and CLI versions are independent. CLI's `workspace:*` dependency
 packs as an exact SDK version, so an SDK update also gets a CLI dependency release.
@@ -36,7 +36,7 @@ unreleased source changes. CI still publishes the exact tested archive bytes.
 
 ## One-time GitHub/npm setup
 
-For both packages, trust GitHub owner `TangoBeee`, repository `socket.help`, workflow
+For both packages, trust GitHub owner `TangoBeee`, repository `kivel`, workflow
 `publish-clients.yaml`, environment `npm`, with direct publishing allowed. The
 GitHub `npm` environment must allow main. Do not add environment reviewers if you
 want publishing to proceed automatically after merging the reviewed release PR.

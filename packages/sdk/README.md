@@ -1,21 +1,21 @@
-# @socket-help/sdk
+# @kivel/sdk
 
-The TypeScript client for [socket.help](https://socket.help): webhook URLs,
+The TypeScript client for [Kivel](https://kivel.io): webhook URLs,
 owned email when configured, mock APIs, files, workspace memory, monitors and human approval
 for coding agents. Requires Node.js 22.13+ or a compatible fetch-based runtime.
 The published package is ESM; use `import`, not CommonJS `require`.
 
 ```sh
-npm install @socket-help/sdk@beta
+npm install @kivel/sdk@beta
 ```
 
 Use the explicit beta tag for the current beta channel. Pin an exact version
 when you need reproducible application builds.
 
 ```ts
-import { SocketHelp, SocketError } from '@socket-help/sdk';
+import { Kivel, KivelError } from '@kivel/sdk';
 
-const socket = new SocketHelp({ apiKey: process.env.SOCKET_HELP_API_KEY });
+const socket = new Kivel({ apiKey: process.env.KIVEL_API_KEY });
 const inbox = await socket.createInbox();
 const received = await socket.waitForRequests(inbox.id, { timeoutSeconds: 20 });
 console.log(received.requests);
@@ -24,7 +24,7 @@ await socket.remove('inboxes', inbox.id);
 
 `createInbox()` returns a `webhookUrl` that accepts senders without credentials. Reading and waiting still require your workspace key or the private `inspectionToken`. For token-required receiving, pass `{ visibility: 'private' }` and give the sender the returned `accessToken` for its `X-Access-Token` header.
 
-`baseUrl` defaults to `https://socket.help`; set it to your self-hosted origin.
+`baseUrl` defaults to `https://kivel.io`; set it to your self-hosted origin.
 Remote origins require HTTPS. The default request timeout is 25 seconds. Requests
 are not automatically retried and redirects are refused.
 
@@ -38,15 +38,15 @@ Dedicated methods cover owned email and guarded sending, scheduled callbacks, ev
 management tokens and private caller tokens serve different purposes; keep them
 out of URLs. A timed-out wait is not a human approval or a received event.
 
-Errors from the API use `SocketError` with `status` and optional `requestId` and
+Errors from the API use `KivelError` with `status` and optional `requestId` and
 `retryAfter`, `requiredPlan` and `upgradeUrl`. Relay a 402 to the human instead of retrying. Inputs and credentials go to your configured server; the SDK does not
 write a local credential file. Do not log responses that contain keys or tokens.
 
-[Method reference](https://socket.help/docs/sdk/) ·
-[Agent workflows](https://socket.help/docs/agent-workflows/) ·
-[Plan limits](https://socket.help/plans/)
+[Method reference](https://kivel.io/docs/sdk/) ·
+[Agent workflows](https://kivel.io/docs/agent-workflows/) ·
+[Plan limits](https://kivel.io/plans/)
 
-Licensed under Apache-2.0. Support: support@socket.help.
+Licensed under Apache-2.0. Support: support@kivel.io.
 
 Use `addAuthenticator({ name, uri })`, `getTotpCode(id)`, `listAuthenticators()`,
 `renameAuthenticator(id, name)` and `deleteAuthenticator(id)` only for accounts your
@@ -84,4 +84,4 @@ await socket.deleteOAuthProvider(provider.id);
 
 `oauthProviders()` lists workspace providers; `updateOAuthProvider(id, config)` replaces
 the users, claims and test scenario. Endpoint use is public; management stays private.
-See the [OAuth guide](https://socket.help/docs/mock-oauth/) for token flows and failure scenarios.
+See the [OAuth guide](https://kivel.io/docs/mock-oauth/) for token flows and failure scenarios.

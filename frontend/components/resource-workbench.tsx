@@ -3,10 +3,10 @@ import Link from 'next/link';
 import { EchoWorkbench } from './echo-workbench';
 import { StreamEventsPreview, renderToolResult } from './tool-result';
 import { McpToolEditor } from './mcp-tool-editor';
-import { mockPreset } from '@socket-help/tools/mock-presets';
-import type { MockRoute } from '@socket-help/tools/mock-config';
-import { validateMock } from '@socket-help/tools/mock-config';
-import { formatJson } from '@socket-help/tools/engine';
+import { mockPreset } from '@kivel/tools/mock-presets';
+import type { MockRoute } from '@kivel/tools/mock-config';
+import { validateMock } from '@kivel/tools/mock-config';
+import { formatJson } from '@kivel/tools/engine';
 import { AppSelect, SelectOption } from './app-select';
 import { useEffect, useRef, useState } from 'react';
 import { AlertDialog, Button } from '@radix-ui/themes';
@@ -23,8 +23,8 @@ import { Icon } from './icons';
 import { MockCalls } from './mock-calls';
 import { useViewer } from '../lib/viewer';
 import { CrudConfiguration, CrudRecords, defaultCrudSeed } from './crud-workbench';
-import { validateCrud } from '@socket-help/tools/mock-crud';
-import { parseJsonSafely } from '@socket-help/tools/engine';
+import { validateCrud } from '@kivel/tools/mock-crud';
+import { parseJsonSafely } from '@kivel/tools/engine';
 
 type Route = MockRoute;
 type Resource = {

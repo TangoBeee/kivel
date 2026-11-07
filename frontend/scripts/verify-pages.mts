@@ -2,7 +2,7 @@ import { useCases } from '../lib/use-cases';
 import assert from 'node:assert/strict';
 import { readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
-import { catalog, categories, toolPageHref } from '@socket-help/tools/catalog';
+import { catalog, categories, toolPageHref } from '@kivel/tools/catalog';
 import { articles } from '../lib/articles';
 import { comparisons } from '../lib/comparisons';
 import { docPages } from '../lib/docs';

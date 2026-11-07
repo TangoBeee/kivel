@@ -4,7 +4,7 @@ import { Button, TextArea, TextField } from '@radix-ui/themes';
 import { AppSelect, SelectOption } from './app-select';
 import { CodeExample } from './code-example';
 import { ResultPreview } from './result-preview';
-import { parseJsonSafely } from '@socket-help/tools/engine';
+import { parseJsonSafely } from '@kivel/tools/engine';
 type EchoResource = {
     id: string;
     endpointUrl?: string;
@@ -37,7 +37,7 @@ export function EchoWorkbench({
 }) {
     const [method, setMethod] = useState('POST'),
         [path, setPath] = useState('/check?source=workbench'),
-        [headers, setHeaders] = useState('x-demo-source: socket-help'),
+        [headers, setHeaders] = useState('x-demo-source: kivel'),
         [body, setBody] = useState(
             '{\n  "event": "demo.created",\n  "data": { "id": "demo_1", "ready": true }\n}',
         ),
@@ -326,7 +326,7 @@ export function EchoWorkbench({
                         <summary>Use from curl, SDK, CLI, SSH or MCP</summary>
                         <CodeExample
                             title="Echo client examples"
-                            code={`curl -X POST '${resource.endpointUrl}/check?source=curl' \\\n  -H 'Content-Type: application/json' \\\n${resource.visibility === 'private' ? "  -H 'X-Access-Token: <access-token>' \\\n" : ''}  --data '{"event":"demo.created"}'\n\nconst observed = await socket.request('POST', '/mock/${resource.id}/check',\n  { event: 'demo.created' }, accessToken);\n\n// CLI / SSH: socket-help api GET /mock/${resource.id}/check --token <access-token>\n// MCP: call_mock_api {id, method: 'POST', path: '/check', body, accessToken}`}
+                            code={`curl -X POST '${resource.endpointUrl}/check?source=curl' \\\n  -H 'Content-Type: application/json' \\\n${resource.visibility === 'private' ? "  -H 'X-Access-Token: <access-token>' \\\n" : ''}  --data '{"event":"demo.created"}'\n\nconst observed = await socket.request('POST', '/mock/${resource.id}/check',\n  { event: 'demo.created' }, accessToken);\n\n// CLI / SSH: kivel api GET /mock/${resource.id}/check --token <access-token>\n// MCP: call_mock_api {id, method: 'POST', path: '/check', body, accessToken}`}
                         />
                     </details>
                 </section>

@@ -1,9 +1,9 @@
 import { monitorToolIds, memoryToolIds, scheduledToolIds } from './catalog';
-import { resourceOperations } from '@socket-help/tools/resource-definitions';
-import { mediaOperations } from '@socket-help/tools/media-definitions';
-import { networkOperations } from '@socket-help/tools/network-definitions';
-import { extraOperations } from '@socket-help/tools/extra-definitions';
-import type { ExtraDefinition } from '@socket-help/tools/extra-definitions';
+import { resourceOperations } from '@kivel/tools/resource-definitions';
+import { mediaOperations } from '@kivel/tools/media-definitions';
+import { networkOperations } from '@kivel/tools/network-definitions';
+import { extraOperations } from '@kivel/tools/extra-definitions';
+import type { ExtraDefinition } from '@kivel/tools/extra-definitions';
 import type { CatalogTool } from './catalog';
 interface Guide {
     intro: string;
@@ -393,7 +393,7 @@ export function toolGuide(tool: CatalogTool): Guide {
             ],
             limits: 'An account is required. Free includes one random address for 1–7 days, default 3. Pro includes 10 and Team 50 addresses that remain active while subscribed. Upgrade before Free expiry to keep the same address. Lapsed paid inboxes pause immediately and are deleted after 30 days; explicit downgrades keep the newest inbox for 7 days. Retired addresses are never reused. Each inbox keeps up to 100 messages; text and HTML are stored up to 64 KiB each and owned inboxes store attachment contents, with a 5 MiB message limit and 25 MiB of attachments per inbox. Download links expire after two minutes. Attachment bytes count against workspace storage and are removed with messages or inbox expiry; files are always untrusted downloads. Outbound email is available only when the operator enables a separate mail relay, with verified Free ownership and per-plan sending caps. Address rules match exactly and case-insensitively, with no subdomain or plus-address folding. Inbound blocklists check both header From and envelope sender. An inbound allowlist requires the envelope sender to match, and the header From must also match when present. Redeploy the email worker to include envelope senders before enabling an inbound allowlist. Draft approvals last up to 24 hours, capped at the scheduled send time or draft expiry when sooner. Owners and admins can request a new review for expired or rejected drafts. Workspace access is required for new inboxes. Forwarding to a public webhook requires Pro or Team, stops when the paid plan lapses, and makes one best-effort delivery attempt per received message.',
         };
-    if (tool.id === 'agents-socket-help-mcp')
+    if (tool.id === 'agents-kivel-mcp')
         return {
             intro: 'Use Kivel from an MCP-compatible agent to run utility tools and create, inspect, renew, and delete temporary webhook inboxes, mock APIs, and file shares.',
             steps: [
@@ -701,7 +701,7 @@ const examples: Record<string, { useCase: string; example: string }> = {
         example:
             'Address: k5zfrjb4ird2tgvpaox42dnr3e@socketspace.xyz\nSubject: Confirm your email\nCode: 700412\nVerification link: https://app.example/verify?token=…',
     },
-    'agents-socket-help-mcp': {
+    'agents-kivel-mcp': {
         useCase:
             'Let an agent run a formatter, inspect webhook history, or clean up temporary test resources.',
         example:

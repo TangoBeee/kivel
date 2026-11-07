@@ -139,13 +139,13 @@ curl -X DELETE https://kivel.io/api/inboxes/INBOX_ID \\
                 ],
                 code: {
                     title: 'Authenticated requests',
-                    value: `export SOCKET_HELP_API_KEY='sh_...'
+                    value: `export KIVEL_API_KEY='sh_...'
 
 curl https://kivel.io/api/usage \\
-  -H "Authorization: Bearer $SOCKET_HELP_API_KEY"
+  -H "Authorization: Bearer $KIVEL_API_KEY"
 
 curl -X POST https://kivel.io/api/inboxes \\
-  -H "Authorization: Bearer $SOCKET_HELP_API_KEY"`,
+  -H "Authorization: Bearer $KIVEL_API_KEY"`,
                 },
             },
             {
@@ -257,7 +257,7 @@ curl -X POST https://kivel.io/api/inboxes \\
                 code: {
                     title: 'Use a key',
                     value: `curl https://kivel.io/api/account \\
-  -H "Authorization: Bearer $SOCKET_HELP_API_KEY"`,
+  -H "Authorization: Bearer $KIVEL_API_KEY"`,
                 },
                 note: 'Keep keys in environment variables or a secret manager, never in URLs or source control. Revoke a key from your workspace as soon as it is exposed.',
             },
@@ -311,7 +311,7 @@ curl -X POST https://kivel.io/api/inboxes \\
                 code: {
                     title: 'API key and resource token together',
                     value: `curl https://kivel.io/api/mocks/MOCK_ID \\
-  -H "Authorization: Bearer $SOCKET_HELP_API_KEY" \\
+  -H "Authorization: Bearer $KIVEL_API_KEY" \\
   -H "X-Resource-Token: $MANAGEMENT_TOKEN"`,
                 },
             },
@@ -502,7 +502,7 @@ X-Request-Id: 1e3e28f5-fb64-474f-845f-b06c17f52eef
                 list: [
                     'Retry GET requests and utility runs after Retry-After.',
                     'Do not blindly retry creation requests; check whether the first one succeeded.',
-                    'The SDK exposes retryAfter on SocketError. The SDK and CLI never retry mutations themselves.',
+                    'The SDK exposes retryAfter on KivelError. The SDK and CLI never retry mutations themselves.',
                 ],
             },
             {
@@ -1220,7 +1220,7 @@ curl -o report.txt https://kivel.io/files/FILE_ID \\
                 code: {
                     title: 'Create a mock for one day',
                     value: `curl -X POST 'https://kivel.io/api/mocks?ttlSeconds=86400' \\
-  -H "Authorization: Bearer $SOCKET_HELP_API_KEY" \\
+  -H "Authorization: Bearer $KIVEL_API_KEY" \\
   -H 'Content-Type: application/json' \\
   -d '{"name":"Status","routes":[{"method":"GET","path":"/status","status":200,"body":"{\\"ok\\":true}"}]}'`,
                 },
@@ -1235,7 +1235,7 @@ curl -o report.txt https://kivel.io/files/FILE_ID \\
                 code: {
                     title: 'Renew an inbox',
                     value: `curl -X POST https://kivel.io/api/inboxes/INBOX_ID/renew \\
-  -H "Authorization: Bearer $SOCKET_HELP_API_KEY" \\
+  -H "Authorization: Bearer $KIVEL_API_KEY" \\
   -H 'Content-Type: application/json' \\
   -d '{"persistent":false}'
 
@@ -1360,7 +1360,7 @@ curl -o report.txt https://kivel.io/files/FILE_ID \\
                 code: {
                     title: 'Text and file runs',
                     value: `curl https://kivel.io/api/tools/uuid/run \\
-  -H "Authorization: Bearer $SOCKET_HELP_API_KEY" \\
+  -H "Authorization: Bearer $KIVEL_API_KEY" \\
   -H 'Content-Type: application/json' \\
   -d '{"options":{"count":"2"}}'
 
@@ -1422,19 +1422,19 @@ curl https://kivel.io/api/tools/everyday-file-checksums/run \\
     },
     {
         slug: 'cli',
-        title: 'socket-help command line interface',
+        title: 'kivel command line interface',
         navTitle: 'CLI',
         group: 'Interfaces',
         description:
-            'Use the socket-help CLI to run utilities from a pipe, create webhook inboxes, upload and download files, and call any /api/ endpoint with JSON output.',
+            'Use the kivel CLI to run utilities from a pipe, create webhook inboxes, upload and download files, and call any /api/ endpoint with JSON output.',
         updatedAt: '2026-10-30',
         sections: [
             {
                 id: 'overview',
                 title: 'What the CLI is for',
                 paragraphs: [
-                    'socket-help is a small command line client for shell scripts and CI. It reads input from standard input, prints JSON to standard output, writes errors as JSON to standard error and exits with a nonzero code on failure. It is built on the TypeScript SDK.',
-                    'The CLI beta is published as @socket-help/cli. Install it with npm install --global @socket-help/cli@beta, or run npx --package=@socket-help/cli@beta socket-help --help. It installs the matching SDK automatically. In the repository you can also use pnpm cli instead of socket-help.',
+                    'kivel is a small command line client for shell scripts and CI. It reads input from standard input, prints JSON to standard output, writes errors as JSON to standard error and exits with a nonzero code on failure. It is built on the TypeScript SDK.',
+                    'The CLI beta is published as @kivel/cli. Install it with npm install --global @kivel/cli@beta, or run npx --package=@kivel/cli@beta kivel --help. It installs the matching SDK automatically. In the repository you can also use pnpm cli instead of kivel.',
                 ],
             },
             {
@@ -1447,10 +1447,10 @@ curl https://kivel.io/api/tools/everyday-file-checksums/run \\
                     caption: 'Environment variables',
                     headers: ['Variable', 'Purpose'],
                     rows: [
-                        ['SOCKET_HELP_URL', 'API origin; defaults to https://kivel.io'],
-                        ['SOCKET_HELP_API_KEY', 'Workspace API key sent as a Bearer token'],
+                        ['KIVEL_URL', 'API origin; defaults to https://kivel.io'],
+                        ['KIVEL_API_KEY', 'Workspace API key sent as a Bearer token'],
                         [
-                            'SOCKET_HELP_ACCESS_TOKEN',
+                            'KIVEL_ACCESS_TOKEN',
                             'Access token used by download when --access-token is not given',
                         ],
                     ],
@@ -1463,93 +1463,93 @@ curl https://kivel.io/api/tools/everyday-file-checksums/run \\
                     'Webhook, mock and file creation accepts --ttl-seconds and --persistent. Email uses --active-days (1–7, default 3) and an optional paid --local-part. Webhooks, mocks, mock MCP servers and files default to private visibility. Email addresses accept incoming mail publicly; reading mail always requires management access. Agent login/trial commands use their own fixed expiry rules.',
                 ],
                 table: {
-                    caption: 'socket-help commands',
+                    caption: 'kivel commands',
                     headers: ['Command', 'What it does'],
                     rows: [
-                        ['socket-help tools', 'List tools (GET /api/tools)'],
-                        ['socket-help describe <tool-id>', 'Show one tool and its options'],
-                        ['socket-help usage', 'Show your plan, limits and runs today'],
-                        ['socket-help resources', 'List workspace resources (needs an API key)'],
+                        ['kivel tools', 'List tools (GET /api/tools)'],
+                        ['kivel describe <tool-id>', 'Show one tool and its options'],
+                        ['kivel usage', 'Show your plan, limits and runs today'],
+                        ['kivel resources', 'List workspace resources (needs an API key)'],
                         [
-                            'socket-help agent login <name> / agent token',
+                            'kivel agent login <name> / agent token',
                             'Start device login, then pipe {"deviceCode":"…"} to agent token after browser approval; save the returned key privately',
                         ],
                         [
-                            'socket-help agent trial <name>',
+                            'kivel agent trial <name>',
                             'Start a 72-hour anonymous-limit trial; --human-email optionally notifies the human',
                         ],
                         [
-                            'socket-help email create / messages <id> / wait <id>',
+                            'kivel email create / messages <id> / wait <id>',
                             'Owned mail; email list reopens addresses and email forward reads a webhook URL from stdin; waits accept --after and --timeout-seconds',
                         ],
                         [
-                            'socket-help email threads / thread / draft-create / draft-submit',
+                            'kivel email threads / thread / draft-create / draft-submit',
                             'Read conversations, save a draft from JSON, then send or request approval with an optional sendAt',
                         ],
                         [
-                            'socket-help memory set|get|delete <namespace> <key>',
+                            'kivel memory set|get|delete <namespace> <key>',
                             'Pipe a JSON value to set; memory list <namespace> accepts --prefix',
                         ],
                         [
-                            'socket-help monitor create|list|inspect|pause|resume|delete [id]',
+                            'kivel monitor create|list|inspect|pause|resume|delete [id]',
                             'Pipe monitor settings as JSON to create',
                         ],
                         [
-                            'socket-help monitor ping|fail <ping-token>',
+                            'kivel monitor ping|fail <ping-token>',
                             'Report job success or failure using the secret from pingUrl',
                         ],
                         [
-                            'socket-help approval ask|list|pending|inspect|wait [id]',
+                            'kivel approval ask|list|pending|inspect|wait [id]',
                             'Pipe question/options as JSON to ask; only the signed-in human can answer',
                         ],
                         [
-                            'socket-help inbox requests|wait|response|forward|deliveries <id>',
+                            'kivel inbox requests|wait|response|forward|deliveries <id>',
                             'Read requests, wait, pipe response/forward settings as JSON, or inspect delivery attempts',
                         ],
                         [
-                            'socket-help mock create|update|calls|reset [id]',
+                            'kivel mock create|update|calls|reset [id]',
                             'Pipe mock configuration as JSON to create/update',
                         ],
-                        ['socket-help mcp-server create', 'Pipe a mock MCP configuration as JSON'],
+                        ['kivel mcp-server create', 'Pipe a mock MCP configuration as JSON'],
                         [
-                            'socket-help inbox|email|mock|mcp-server|file inspect|delete|renew <id>',
+                            'kivel inbox|email|mock|mcp-server|file inspect|delete|renew <id>',
                             'Shared lifecycle commands; --token for anonymous management, --persistent on renew for paid leases',
                         ],
                         [
-                            'socket-help run <tool-id> [--options JSON] [--file <name>]',
+                            'kivel run <tool-id> [--options JSON] [--file <name>]',
                             'Run a utility with standard input as text, or as file bytes with --file',
                         ],
                         [
-                            'socket-help inbox create [--visibility private|public]',
+                            'kivel inbox create [--visibility private|public]',
                             'Create a webhook inbox',
                         ],
                         [
-                            'socket-help upload <filename> [--visibility ...] [--max-downloads n]',
+                            'kivel upload <filename> [--visibility ...] [--max-downloads n]',
                             'Upload standard input as a file',
                         ],
                         [
-                            'socket-help download <file-id> [--access-token token]',
+                            'kivel download <file-id> [--access-token token]',
                             'Write file bytes to standard output',
                         ],
                         [
-                            'socket-help api <METHOD> /api/path [--token <resource-token>]',
+                            'kivel api <METHOD> /api/path [--token <resource-token>]',
                             'Call any /api/ endpoint with standard input as the JSON body',
                         ],
                     ],
                 },
                 code: {
                     title: 'Examples',
-                    value: `export SOCKET_HELP_API_KEY='sh_...'
+                    value: `export KIVEL_API_KEY='sh_...'
 
-printf '{"hello":true}' | socket-help run json --options '{"action":"minify"}'
-socket-help run everyday-file-checksums --file report.pdf < report.pdf
+printf '{"hello":true}' | kivel run json --options '{"action":"minify"}'
+kivel run everyday-file-checksums --file report.pdf < report.pdf
 
-socket-help inbox create
-socket-help upload report.txt --max-downloads 1 < report.txt
-socket-help download FILE_ID --access-token "$ACCESS_TOKEN" > report.txt
+kivel inbox create
+kivel upload report.txt --max-downloads 1 < report.txt
+kivel download FILE_ID --access-token "$ACCESS_TOKEN" > report.txt
 
-socket-help api GET /api/inboxes/INBOX_ID/requests --token "$INSPECTION_TOKEN"
-socket-help api DELETE /api/mocks/MOCK_ID --token "$MANAGEMENT_TOKEN"`,
+kivel api GET /api/inboxes/INBOX_ID/requests --token "$INSPECTION_TOKEN"
+kivel api DELETE /api/mocks/MOCK_ID --token "$MANAGEMENT_TOKEN"`,
                 },
             },
             {
@@ -1567,16 +1567,16 @@ socket-help api DELETE /api/mocks/MOCK_ID --token "$MANAGEMENT_TOKEN"`,
         ],
         faqs: [
             {
-                question: 'How do I install the socket-help CLI?',
-                answer: 'Install npm install --global @socket-help/cli@beta, or use npx --package=@socket-help/cli@beta socket-help --help without a global installation. The CLI requires Node.js 22.13+. Use the scoped package name @socket-help/cli; the executable is named socket-help.',
+                question: 'How do I install the kivel CLI?',
+                answer: 'Install npm install --global @kivel/cli@beta, or use npx --package=@kivel/cli@beta kivel --help without a global installation. The CLI requires Node.js 22.13+. Use the scoped package name @kivel/cli; the executable is named kivel.',
             },
             {
                 question: 'How do I run a multi-file tool such as PDF merging from the CLI?',
-                answer: 'Use the api command: pipe a JSON body with a file array to socket-help api POST /api/tools/everyday-merge-pdfs/run.',
+                answer: 'Use the api command: pipe a JSON body with a file array to kivel api POST /api/tools/everyday-merge-pdfs/run.',
             },
             {
                 question: 'How do I point the CLI at a self-hosted installation?',
-                answer: 'Set SOCKET_HELP_URL to its origin. Remote origins must use HTTPS; plain HTTP is allowed only for localhost.',
+                answer: 'Set KIVEL_URL to its origin. Remote origins must use HTTPS; plain HTTP is allowed only for localhost.',
             },
         ],
         related: [
@@ -1592,15 +1592,15 @@ socket-help api DELETE /api/mocks/MOCK_ID --token "$MANAGEMENT_TOKEN"`,
         navTitle: 'TypeScript SDK',
         group: 'Interfaces',
         description:
-            'Use the @socket-help/sdk TypeScript client to run utilities, create inboxes, mocks, files and mock MCP servers, change sharing, renew and handle typed errors.',
+            'Use the @kivel/sdk TypeScript client to run utilities, create inboxes, mocks, files and mock MCP servers, change sharing, renew and handle typed errors.',
         updatedAt: '2026-10-30',
         sections: [
             {
                 id: 'overview',
                 title: 'What the SDK covers',
                 paragraphs: [
-                    '@socket-help/sdk is a small, dependency-free TypeScript client for the Kivel HTTP API. It works in Node.js and any runtime with fetch. Use it when you want typed methods for utilities and resources instead of building requests by hand.',
-                    'Install the SDK beta with npm install @socket-help/sdk@beta. The ESM package includes JavaScript and TypeScript declarations, requires Node.js 22.13+ and uses import rather than CommonJS require. Use an explicit beta tag or version until a latest release is promoted.',
+                    '@kivel/sdk is a small, dependency-free TypeScript client for the Kivel HTTP API. It works in Node.js and any runtime with fetch. Use it when you want typed methods for utilities and resources instead of building requests by hand.',
+                    'Install the SDK beta with npm install @kivel/sdk@beta. The ESM package includes JavaScript and TypeScript declarations, requires Node.js 22.13+ and uses import rather than CommonJS require. Use an explicit beta tag or version until a latest release is promoted.',
                 ],
             },
             {
@@ -1611,10 +1611,10 @@ socket-help api DELETE /api/mocks/MOCK_ID --token "$MANAGEMENT_TOKEN"`,
                 ],
                 code: {
                     title: 'Client setup and a first call',
-                    value: `import { SocketHelp, SocketError } from '@socket-help/sdk';
+                    value: `import { Kivel, KivelError } from '@kivel/sdk';
 
-const socket = new SocketHelp({
-  apiKey: process.env.SOCKET_HELP_API_KEY,
+const socket = new Kivel({
+  apiKey: process.env.KIVEL_API_KEY,
 });
 
 const result = await socket.run('json', '{"hello":true}', { action: 'format' });
@@ -1628,7 +1628,7 @@ console.log(result.output, result.usage.used);`,
                     'Most resource creation methods default to private visibility. Webhook receivers are public by default, and OAuth test endpoints are always public while their management and logs stay private. Methods that take a token send it in X-Resource-Token, so they work alongside an API key.',
                 ],
                 table: {
-                    caption: 'SocketHelp methods',
+                    caption: 'Kivel methods',
                     headers: ['Method', 'Request'],
                     rows: [
                         [
@@ -1758,14 +1758,14 @@ await socket.remove('inboxes', inbox.id);`,
                 id: 'errors',
                 title: 'Errors',
                 paragraphs: [
-                    'Failed requests throw SocketError with message, status, requestId (from X-Request-Id) and retryAfter (from Retry-After, in seconds). The SDK does not retry requests itself and does not follow redirects.',
+                    'Failed requests throw KivelError with message, status, requestId (from X-Request-Id) and retryAfter (from Retry-After, in seconds). The SDK does not retry requests itself and does not follow redirects.',
                 ],
                 code: {
                     title: 'Handle a rate limit',
                     value: `try {
   await socket.run('json', input);
 } catch (error) {
-  if (error instanceof SocketError && error.status === 429 && error.retryAfter) {
+  if (error instanceof KivelError && error.status === 429 && error.retryAfter) {
     // wait error.retryAfter seconds, then try again
   }
   throw error;
@@ -1776,7 +1776,7 @@ await socket.remove('inboxes', inbox.id);`,
         faqs: [
             {
                 question: 'Is the SDK on npm?',
-                answer: 'Yes. Install @socket-help/sdk@beta for the published beta, or pin an exact @socket-help/sdk version. It includes TypeScript declarations. An untagged install requires a latest-tag release.',
+                answer: 'Yes. Install @kivel/sdk@beta for the published beta, or pin an exact @kivel/sdk version. It includes TypeScript declarations. An untagged install requires a latest-tag release.',
             },
             {
                 question: 'Does the SDK create public resources?',
@@ -1796,18 +1796,18 @@ await socket.remove('inboxes', inbox.id);`,
     },
     {
         slug: 'ssh',
-        title: 'SSH gateway for socket-help commands',
+        title: 'SSH gateway for kivel commands',
         navTitle: 'SSH gateway',
         group: 'Interfaces',
         description:
-            'Run socket-help CLI commands over SSH with your API key as the password. No shell, forwarding, SCP or SFTP: one command per session with JSON output.',
+            'Run kivel CLI commands over SSH with your API key as the password. No shell, forwarding, SCP or SFTP: one command per session with JSON output.',
         updatedAt: '2026-10-30',
         sections: [
             {
                 id: 'overview',
                 title: 'What the SSH gateway does',
                 paragraphs: [
-                    'The SSH gateway runs the same commands as the socket-help CLI on the server, so you can use Kivel from any machine with an SSH client and no Node.js. It is an optional component that an operator enables; the Docker setup binds it to localhost:2222 by default and exposing it publicly is an operator decision.',
+                    'The SSH gateway runs the same commands as the kivel CLI on the server, so you can use Kivel from any machine with an SSH client and no Node.js. It is an optional component that an operator enables; the Docker setup binds it to localhost:2222 by default and exposing it publicly is an operator decision.',
                     'Each connection runs one command. There is no interactive shell, no terminal, no port forwarding, no SCP and no SFTP.',
                 ],
             },
@@ -1815,14 +1815,14 @@ await socket.remove('inboxes', inbox.id);`,
                 id: 'connect',
                 title: 'Connect',
                 paragraphs: [
-                    'Log in as user socket with a workspace API key (sh_...) as the password. Commands must start with socket-help. Pipe JSON to memory set, monitor create, approval ask, mock creation and other commands with a body; pipe bytes to upload or run --file. Use -n for read-only commands. The local CLI listen command is not offered over SSH.',
+                    'Log in as user socket with a workspace API key (sh_...) as the password. Commands must start with kivel. Pipe JSON to memory set, monitor create, approval ask, mock creation and other commands with a body; pipe bytes to upload or run --file. Use -n for read-only commands. The local CLI listen command is not offered over SSH.',
                 ],
                 code: {
                     title: 'Run commands over SSH',
                     value: `# Verify the host fingerprint before the first connection.
-printf '{"hello":true}' | ssh -T -p 2222 socket@your-host socket-help run json
-ssh -T -n -p 2222 socket@your-host socket-help resources
-ssh -T -n -p 2222 socket@your-host socket-help inbox create --visibility public`,
+printf '{"hello":true}' | ssh -T -p 2222 socket@your-host kivel run json
+ssh -T -n -p 2222 socket@your-host kivel resources
+ssh -T -n -p 2222 socket@your-host kivel inbox create --visibility public`,
                 },
                 note: 'The gateway logs its SHA256 host key fingerprint at startup. Compare it with the fingerprint your SSH client shows before you send your API key.',
             },
@@ -1845,7 +1845,7 @@ ssh -T -n -p 2222 socket@your-host socket-help inbox create --visibility public`
         faqs: [
             {
                 question: 'Can I open an interactive shell?',
-                answer: 'No. The gateway rejects shell, terminal and subsystem requests, so SCP and SFTP do not work either. Each session runs one socket-help command.',
+                answer: 'No. The gateway rejects shell, terminal and subsystem requests, so SCP and SFTP do not work either. Each session runs one kivel command.',
             },
             {
                 question: 'Which commands are available over SSH?',
@@ -1889,7 +1889,7 @@ ssh -T -n -p 2222 socket@your-host socket-help inbox create --visibility public`
                 code: {
                     title: 'Call run_tool',
                     value: `curl https://kivel.io/mcp \\
-  -H "Authorization: Bearer $SOCKET_HELP_API_KEY" \\
+  -H "Authorization: Bearer $KIVEL_API_KEY" \\
   -H 'Accept: application/json, text/event-stream' \\
   -H 'Content-Type: application/json' \\
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{
@@ -2021,7 +2021,7 @@ ssh -T -n -p 2222 socket@your-host socket-help inbox create --visibility public`
             },
         ],
         related: [
-            { title: 'Kivel MCP', href: '/tools/socket-help-mcp/' },
+            { title: 'Kivel MCP', href: '/tools/kivel-mcp/' },
             { title: 'Mock MCP servers', href: '/docs/mock-mcp-servers/' },
             { title: 'Utilities API', href: '/docs/tools-api/' },
             { title: 'Integrations', href: '/integrations/' },

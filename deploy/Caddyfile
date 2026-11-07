@@ -38,6 +38,8 @@ www.{$DOMAIN} {
 
 {$DOMAIN} {
 	encode zstd gzip
+	# The MCP tool page moved when socket.help became Kivel.
+	redir /tools/socket-help-mcp/ /tools/kivel-mcp/ permanent
 	@uploads {
 		method POST
 		path /api/files

@@ -91,7 +91,7 @@ export const scenarioArticle: Article = {
             ],
             code: {
                 title: 'Run a reviewed scenario with the CLI',
-                value: 'socket-help describe mock-apis-api-test-scenarios\nsocket-help run mock-apis-api-test-scenarios < api-scenario.json\n\n# SDK\nconst result = await socket.run(\n  "mock-apis-api-test-scenarios",\n  JSON.stringify(scenario),\n  { secret: JSON.stringify(secretValues) }\n);\nconst report = JSON.parse(result.output);',
+                value: 'kivel describe mock-apis-api-test-scenarios\nkivel run mock-apis-api-test-scenarios < api-scenario.json\n\n# SDK\nconst result = await socket.run(\n  "mock-apis-api-test-scenarios",\n  JSON.stringify(scenario),\n  { secret: JSON.stringify(secretValues) }\n);\nconst report = JSON.parse(result.output);',
             },
         },
         {
@@ -201,12 +201,12 @@ export const scenarioDoc: DocPage = {
             id: 'clients',
             title: 'HTTP, CLI, SSH and MCP',
             paragraphs: [
-                'All interfaces use the same validation and network runner. The CLI reads the scenario JSON from stdin. For SSH, use the existing socket-help command gateway and the same run command. MCP uses run_tool with toolId mock-apis-api-test-scenarios, the serialized scenario in input, and optional string options.secret. describe_tool returns the input example and current limits.',
+                'All interfaces use the same validation and network runner. The CLI reads the scenario JSON from stdin. For SSH, use the existing kivel command gateway and the same run command. MCP uses run_tool with toolId mock-apis-api-test-scenarios, the serialized scenario in input, and optional string options.secret. describe_tool returns the input example and current limits.',
                 'A successful HTTP execution returns output as a JSON string containing the report, plus normal hosted usage. HTTP 200 means a report was produced; inspect report.passed to decide whether its checks succeeded. A completed report uses one hosted run even when an assertion or a request fails. Configuration errors return 400 and do not consume a run.',
             ],
             code: {
                 title: 'HTTP execution without secret inputs',
-                value: "jq -Rs '{input: .}' api-scenario.json | \\\n  curl https://kivel.io/api/tools/mock-apis-api-test-scenarios/run \\\n    -H 'Content-Type: application/json' --data-binary @-\n\n# CLI\nsocket-help run mock-apis-api-test-scenarios < api-scenario.json",
+                value: "jq -Rs '{input: .}' api-scenario.json | \\\n  curl https://kivel.io/api/tools/mock-apis-api-test-scenarios/run \\\n    -H 'Content-Type: application/json' --data-binary @-\n\n# CLI\nkivel run mock-apis-api-test-scenarios < api-scenario.json",
             },
         },
         {

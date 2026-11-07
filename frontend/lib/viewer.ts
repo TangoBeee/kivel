@@ -10,6 +10,7 @@ export type Viewer =
           status: 'user';
           username: string;
           workspace: string;
+          workspaceId: string;
           plan: string;
           owner: boolean;
           role: string;
@@ -27,6 +28,7 @@ function load(): Promise<Viewer> {
                 status: 'user',
                 username: account.user.username,
                 workspace: account.account.name,
+                workspaceId: account.account.id,
                 plan: account.account.effectivePlan,
                 owner: account.role === 'owner',
                 role: account.role,

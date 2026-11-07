@@ -85,3 +85,14 @@ await kivel.deleteOAuthProvider(provider.id);
 `oauthProviders()` lists workspace providers; `updateOAuthProvider(id, config)` replaces
 the users, claims and test scenario. Endpoint use is public; management stays private.
 See the [OAuth guide](https://kivel.io/docs/mock-oauth/) for token flows and failure scenarios.
+
+## Workspace vault
+
+Use `saveCredential({ name, url, username })` to generate and store a password, or
+include `password` to save one you already have. The generated value is returned
+once. `credentials()` and `credential(id)` return metadata.
+`revealCredential(id)` requests human approval by default. Wait with
+`waitForApproval(approvalId)`, then repeat the reveal with that approval ID.
+Each approval permits one reveal by the same caller. Only signed-in owners and
+admins can change `agentMayRead`. Use `generatePassword(length)` for a standalone
+password, `updateCredential(id, changes)` to edit, and `deleteCredential(id)` to remove it.

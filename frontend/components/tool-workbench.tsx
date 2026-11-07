@@ -1,3 +1,4 @@
+import { VaultWorkbench } from './vault-workbench';
 import Link from 'next/link';
 import { AuthenticatorWorkbench } from './authenticator-workbench';
 import { WebSocketWorkbench } from './websocket-workbench';
@@ -36,7 +37,9 @@ import {
 /** The working part of a tool: the same screen on its public page and inside the dashboard. */
 export function ToolWorkbench({ toolId }: { toolId: string }) {
     const tool = catalog.find((entry) => entry.id === toolId)!;
-    return tool.id === 'agents-agent-authenticator' ? (
+    return tool.id === 'agents-password-vault' ? (
+        <VaultWorkbench toolId={tool.id} />
+    ) : tool.id === 'agents-agent-authenticator' ? (
         <AuthenticatorWorkbench toolId={tool.id} />
     ) : tool.status === 'coming-soon' ? (
         <div className="page-width work-page">

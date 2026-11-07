@@ -11,6 +11,15 @@ interface Guide {
     limits: string;
 }
 const guides: Record<string, Guide> = {
+    'agents-password-vault': {
+        intro: 'Keep the account credentials your agent needs with your workspace. Passwords and notes are encrypted. Your human approves each reveal by default.',
+        steps: [
+            'Save a name, site and username. Add a password or leave it blank to generate one. Optionally link an inbox and authenticator from this workspace.',
+            'An agent calls reveal_credential and shares the approval link with its human. An owner or admin approves in the browser, and the agent resumes with the approval ID.',
+            'Open an entry in Vault to reveal or copy its password after confirmation. It hides after 30 seconds. Owners and admins can enable agent access without asking for an individual entry.',
+        ],
+        limits: 'Free allows 10 entries, Pro 200 and Team 1000. Generated passwords have 12 to 128 characters, default 24. Names allow 80 characters, sites 2,048, usernames 254, passwords 1,024 and notes 4,000. A generated password is returned once when saved. Lists contain metadata only. Reveals require resources:write, are limited to 30 requests per workspace per minute and are recorded without secret values. Approvals last one hour, belong to the requesting caller and permit one reveal of the approved entry version. Updating an entry invalidates earlier approvals. Delete an entry when it is no longer needed.',
+    },
     'agents-agent-authenticator': {
         intro: 'Store a TOTP authenticator for an account your human asked your agent to create or operate. Import the service setup URI, Base32 key or QR image, then request a code when the service asks for it.',
         steps: [
@@ -727,6 +736,13 @@ const examples: Record<string, { useCase: string; example: string }> = {
 };
 
 export function toolExample(id: string) {
+    if (id === 'agents-password-vault')
+        return {
+            useCase:
+                'Keep a service login with its inbox and authenticator so an authorized agent can complete a signup or sign in.',
+            example:
+                'POST /api/credentials\n{"name":"Example service","url":"example.com","username":"agent@example.com"}\n\nPOST /api/credentials/{id}/reveal → approvalId and answerUrl → human approves → repeat with approvalId',
+        };
     if (id === 'agents-agent-authenticator')
         return {
             useCase: 'Complete a sign-in for an account your human asked your agent to operate.',

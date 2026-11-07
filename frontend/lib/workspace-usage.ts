@@ -12,12 +12,14 @@ export interface WorkspaceUsage {
         memoryBytes: number;
         emailInboxes: number;
         authenticators: number;
+        credentials: number;
         oauthProviders: number;
         requestsPerMinute: number;
     };
     agents?: { used: number; limit: number };
     monitors?: { used: number; limit: number };
     authenticators?: { used: number; limit: number };
+    vault?: { used: number; limit: number };
     email?: { day: number; month: number; perDay: number; perMonth: number };
     memory?: { used: number; limit: number };
 }
@@ -38,7 +40,8 @@ export function useWorkspaceUsage(refreshKey: unknown) {
             get('/api/authenticators'),
             get('/api/email-sending/usage'),
             get('/api/memory/default'),
-        ]).then(([plan, agents, monitors, authenticators, email, memory]) => {
+            get('/api/credentials'),
+        ]).then(([plan, agents, monitors, authenticators, email, memory, vault]) => {
             if (!live) return;
             setUsage({
                 runsToday: plan?.runsToday,
@@ -49,6 +52,7 @@ export function useWorkspaceUsage(refreshKey: unknown) {
                     used: authenticators.authenticators.length,
                     limit: authenticators.limit,
                 },
+                vault: vault && { used: vault.credentials.length, limit: vault.limit },
                 email: email?.perMonth !== undefined ? email : undefined,
                 memory: memory && { used: memory.usedBytes, limit: memory.limitBytes },
             });

@@ -18,6 +18,7 @@ export type ToolPanel = Extract<
     | 'files'
     | 'monitors'
     | 'memory'
+    | 'vault'
     | 'authenticators'
     | 'automation'
 >;
@@ -28,6 +29,7 @@ export const toolPanels: ToolPanel[] = [
     'files',
     'monitors',
     'memory',
+    'vault',
     'authenticators',
     'automation',
 ];
@@ -113,14 +115,23 @@ export function readings(
                                   show: `${formatBytes(usage.memory.used)} / ${formatBytes(usage.memory.limit)}`,
                               },
                           ]
-                        : [
-                              usage.authenticators && {
-                                  label: 'Authenticators',
-                                  used: usage.authenticators.used,
-                                  limit: usage.authenticators.limit,
-                                  show: `${usage.authenticators.used} / ${usage.authenticators.limit}`,
-                              },
-                          ];
+                        : panel === 'vault'
+                          ? [
+                                usage.vault && {
+                                    label: 'Vault entries',
+                                    used: usage.vault.used,
+                                    limit: usage.vault.limit,
+                                    show: `${usage.vault.used} / ${usage.vault.limit}`,
+                                },
+                            ]
+                          : [
+                                usage.authenticators && {
+                                    label: 'Authenticators',
+                                    used: usage.authenticators.used,
+                                    limit: usage.authenticators.limit,
+                                    show: `${usage.authenticators.used} / ${usage.authenticators.limit}`,
+                                },
+                            ];
     return list.filter((item): item is Reading => !!item);
 }
 

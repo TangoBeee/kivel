@@ -46,6 +46,7 @@ interface ToolboxContext {
         smtpCapture: boolean;
         phones: boolean;
         authenticators?: boolean;
+        vault?: boolean;
         oauthProviders?: boolean;
     } | null;
 }

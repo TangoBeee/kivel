@@ -1,3 +1,5 @@
+import { MemoryCredentials, registerCredentials } from './credentials.js';
+import type { CredentialRepository } from './credentials.js';
 import { registerEmailDrafts } from './email-drafts.js';
 import { registerEmailAttachments } from './email-attachments.js';
 import { MemoryAuthenticators, registerAuthenticators } from './authenticators.js';
@@ -88,6 +90,7 @@ interface AppOptions {
     identityStore?: IdentityRepository;
     authSecret?: string;
     authenticatorStore?: AuthenticatorRepository;
+    credentialStore?: CredentialRepository;
     billingRepository?: BillingRepository;
     billingConfig?: BillingConfig;
     dodoClient?: DodoPayments;
@@ -152,6 +155,7 @@ export function buildApp({
     identityStore = new MemoryIdentityRepository(),
     authSecret,
     authenticatorStore = new MemoryAuthenticators(),
+    credentialStore = new MemoryCredentials(),
     billingRepository,
     billingConfig,
     dodoClient,
@@ -444,6 +448,7 @@ export function buildApp({
         emailSending: Boolean(agentEmailConfig?.enabled),
         smtpCapture: Boolean(smtpCaptureConfig),
         authenticators: Boolean(authSecret),
+        vault: Boolean(authSecret),
         oauthProviders: Boolean(authSecret),
         phones: Boolean(phoneProvider && phoneEnabled),
         phoneAddonSales: Boolean(billingConfig?.phoneAddonEnabled),
@@ -829,6 +834,18 @@ export function buildApp({
         (owner) => email.lifecycle.reconcile(owner),
     );
     registerSmtpCapture(app, access, resourceStore, emailMessages, rateLimiter, smtpCaptureConfig);
+    registerCredentials(
+        app,
+        access,
+        credentialStore,
+        authenticatorStore,
+        email,
+        approvalStore,
+        review,
+        activity,
+        rateLimiter,
+        authSecret,
+    );
     const deliverEmail = registerEmailSending({
         app,
         access,

@@ -1,3 +1,4 @@
+import { PostgresCredentials } from './credentials.js';
 import { PostgresAuthenticators } from './authenticators.js';
 import { PostgresPhones } from './phone/store.js';
 import { TelnyxProvider } from './phone/telnyx.js';
@@ -57,7 +58,11 @@ try {
         ...(config.agentEmailConfig ? { agentEmailConfig: config.agentEmailConfig } : {}),
         ...(pool ? { activity: new PostgresActivity(pool) } : {}),
         ...(pool
-            ? { memory: new PostgresKv(pool), authenticatorStore: new PostgresAuthenticators(pool) }
+            ? {
+                  memory: new PostgresKv(pool),
+                  authenticatorStore: new PostgresAuthenticators(pool),
+                  credentialStore: new PostgresCredentials(pool),
+              }
             : {}),
         ...(pool ? { agentStore: new PostgresAgents(pool) } : {}),
         ...(pool ? { approvalStore: new PostgresApprovals(pool) } : {}),

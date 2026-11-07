@@ -19,6 +19,12 @@ kivel email clear <id>
 kivel email forward <id> [--token <token>] < forwarding.json
 kivel email send <id> --idempotency-key <unique-key> < message.json
 kivel event wait [--timeout-seconds <1-30>] < sources.json
+kivel credential save < credential.json
+kivel credential list
+kivel credential inspect|delete <id>
+kivel credential update <id> < changes.json
+kivel credential reveal <id> [--approval-id <id>]
+kivel password generate [--length <n>]
 kivel email threads [inbox-id] [--cursor <cursor>] [--limit <n>]
 kivel email thread <inbox-id> <thread-id>
 kivel email drafts|rules <inbox-id>

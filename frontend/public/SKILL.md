@@ -46,6 +46,17 @@ webhooks, mocks, files and utilities, but cannot create email inboxes or memory.
    rules with `email_inbox_rules`; only an owner or admin can change them in a
    signed-in browser.
 
+## Account credentials
+
+Use `save_credential` only for accounts the human asked you to create or operate.
+Omit password to generate and store one. The generated value is returned once.
+Link an owned inbox and authenticator to keep the identity together.
+`list_credentials` returns metadata. `reveal_credential` requires resources:write
+and requests human approval by default, then waits briefly. Show answerUrl and
+resume with approvalId if pending. An approval permits one reveal by the same
+caller and expires after one hour. Only a signed-in owner or admin can enable
+agentMayRead without asking for an entry. Keep passwords out of logs and messages.
+
 ## Ask the human
 
 Before deploying, paying, deleting important data or emailing real people, call

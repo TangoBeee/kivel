@@ -177,6 +177,10 @@ const planned: Record<Category['id'], [string, string][]> = {
     ],
     agents: [
         [
+            'Password vault',
+            'Store encrypted credentials for accounts your human asked you to create or operate, with approval for password reveals.',
+        ],
+        [
             'Agent authenticator',
             'Store encrypted TOTP authenticators and get sign-in codes for accounts your human asked you to create or operate.',
         ],
@@ -407,6 +411,7 @@ export const backendToolIds = [
         ...scheduledToolIds,
         'email-email-webhook-forwarding',
         'email-mock-smtp',
+        'agents-password-vault',
         'agents-agent-authenticator',
         'test-media-music-library',
         ...Object.keys(networkOperations),
@@ -470,6 +475,7 @@ export const catalog: CatalogTool[] = [
                 local,
                 ...([
                     'email-mock-smtp',
+                    'agents-password-vault',
                     'agents-agent-authenticator',
                     'email-temporary-email-inbox',
                     'email-email-webhook-forwarding',
@@ -516,10 +522,12 @@ export interface ServerCapabilities {
     smtpCapture: boolean;
     phones: boolean;
     authenticators?: boolean;
+    vault?: boolean;
     oauthProviders?: boolean;
 }
 export function toolCapability(id: string): keyof ServerCapabilities | undefined {
     if (id === 'mock-apis-mock-oauth-provider') return 'oauthProviders';
+    if (id === 'agents-password-vault') return 'vault';
     if (id === 'agents-agent-authenticator') return 'authenticators';
     if (id === 'email-mock-smtp') return 'smtpCapture';
     if (['email-temporary-email-inbox', 'email-email-webhook-forwarding'].includes(id))

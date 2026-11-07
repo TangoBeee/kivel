@@ -1,5 +1,16 @@
 # @kivel/sdk
 
+## 0.6.0
+
+### Minor Changes
+
+- d096583: Add email threads, draft delivery and inbox rule inspection.
+- a0aa58d: Renamed from `@socket-help/sdk` and `@socket-help/cli`. The client class is now `Kivel`, the error class `KivelError`, the CLI command `kivel`, and the default URL `https://kivel.io`. The CLI reads `KIVEL_URL`, `KIVEL_API_KEY` and `KIVEL_ACCESS_TOKEN`, and still accepts the old `SOCKET_HELP_*` names.
+
+### Patch Changes
+
+- 4185eed: Examples name the client `kivel`, and new API keys start with `kv_`. Existing `sh_` keys keep working.
+
 ## 0.5.1
 
 ### Patch Changes

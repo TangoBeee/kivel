@@ -33,11 +33,11 @@ pnpm cli agent token < login.json
             title: 'Wait for the next event',
             paragraphs: [
                 'wait_for_event long-polls up to ten webhook, email, approval or scheduled-job sources in one request. Pass each source kind and id, plus its last cursor as after. It returns batches and a cursor per source; pass those cursors back to avoid repeats. A timeout is normal. SMS needs an active phone add-on; check /api/capabilities phones before creating a number.',
-                'Scheduled JSON callbacks use POST /api/scheduled-jobs or the SDK createScheduledJob. One-off delays and bounded repeating intervals share a durable scheduler. Delivery is at least once: deduplicate X-Socket-Delivery-Id. SMTP captures use POST /api/smtp-inboxes, then the ordinary email list/wait routes. The capture service requires its own TLS listener and does not relay messages.',
+                'Scheduled JSON callbacks use POST /api/scheduled-jobs or the SDK createScheduledJob. One-off delays and bounded repeating intervals share a durable scheduler. Delivery is at least once: deduplicate X-Kivel-Delivery-Id. SMTP captures use POST /api/smtp-inboxes, then the ordinary email list/wait routes. The capture service requires its own TLS listener and does not relay messages.',
             ],
             code: {
                 title: 'Wait across sources',
-                value: `const next = await socket.waitForEvent([
+                value: `const next = await kivel.waitForEvent([
   { kind: 'webhook', id: inbox.id },
   { kind: 'approval', id: approval.id },
 ], 20);`,
@@ -52,11 +52,11 @@ pnpm cli agent token < login.json
             ],
             code: {
                 title: 'Use the TypeScript SDK',
-                value: `const authenticator = await socket.addAuthenticator({
+                value: `const authenticator = await kivel.addAuthenticator({
   name: 'Project account',
   uri: process.env.SERVICE_TOTP_URI!,
 });
-const { code, secondsRemaining, nextCode } = await socket.getTotpCode(authenticator.id);
+const { code, secondsRemaining, nextCode } = await kivel.getTotpCode(authenticator.id);
 // Enter the code only on the service your human authorized.`,
             },
         },
@@ -70,14 +70,14 @@ const { code, secondsRemaining, nextCode } = await socket.getTotpCode(authentica
             code: {
                 title: 'Email with the TypeScript SDK',
                 value: `import { Kivel } from '@kivel/sdk';
-const socket = new Kivel({ apiKey: process.env.KIVEL_API_KEY });
-const inbox = await socket.createEmailInbox({ activeDays: 3 });
-const result = await socket.waitForEmail(inbox.id, { timeoutSeconds: 20 });
+const kivel = new Kivel({ apiKey: process.env.KIVEL_API_KEY });
+const inbox = await kivel.createEmailInbox({ activeDays: 3 });
+const result = await kivel.waitForEmail(inbox.id, { timeoutSeconds: 20 });
 if (!result.timedOut) {
   const message = result.messages[0];
   console.log(message?.codes, message?.links);
 }
-await socket.remove('email-inboxes', inbox.id);`,
+await kivel.remove('email-inboxes', inbox.id);`,
             },
         },
         {
@@ -89,10 +89,10 @@ await socket.remove('email-inboxes', inbox.id);`,
             ],
             code: {
                 title: 'Save and read a build result',
-                value: `await socket.memorySet('project-a', 'build/latest', { passed: true }, 86400);
-const saved = await socket.memoryGet<{ passed: boolean }>('project-a', 'build/latest');
+                value: `await kivel.memorySet('project-a', 'build/latest', { passed: true }, 86400);
+const saved = await kivel.memoryGet<{ passed: boolean }>('project-a', 'build/latest');
 console.log(saved.value.passed);
-await socket.memoryDelete('project-a', 'build/latest');`,
+await kivel.memoryDelete('project-a', 'build/latest');`,
             },
         },
         {
@@ -104,13 +104,13 @@ await socket.memoryDelete('project-a', 'build/latest');`,
             ],
             code: {
                 title: 'Create and report a job heartbeat',
-                value: `const monitor = await socket.createMonitor({
+                value: `const monitor = await kivel.createMonitor({
   kind: 'heartbeat', name: 'Nightly build', intervalSeconds: 86400,
 });
 const pingToken = new URL(monitor.pingUrl!).pathname.split('/').pop()!;
-await socket.pingMonitor(pingToken);       // success
-await socket.pingMonitor(pingToken, true); // failure
-await socket.pauseMonitor(monitor.id);`,
+await kivel.pingMonitor(pingToken);       // success
+await kivel.pingMonitor(pingToken, true); // failure
+await kivel.pauseMonitor(monitor.id);`,
             },
         },
         {
@@ -122,11 +122,11 @@ await socket.pauseMonitor(monitor.id);`,
             ],
             code: {
                 title: 'Ask and inspect the answer',
-                value: `const question = await socket.askHuman({
+                value: `const question = await kivel.askHuman({
   question: 'Deploy this build to staging?', options: ['Deploy', 'Wait'],
 });
 console.log(question.answerUrl);
-const decision = await socket.waitForApproval(question.id, 20);
+const decision = await kivel.waitForApproval(question.id, 20);
 if (decision.status === 'answered' && decision.answer === 'Deploy') {
   // Continue with the approved staging deployment.
 }`,

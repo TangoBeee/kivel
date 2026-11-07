@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { retentionPlan, runRetention } from './dockerhub-retention.mjs';
 const root = resolve(import.meta.dirname, '..');
-const temporary = mkdtempSync(join(tmpdir(), 'socket-operations-'));
+const temporary = mkdtempSync(join(tmpdir(), 'kivel-operations-'));
 const bin = join(temporary, 'bin');
 mkdirSync(bin);
 const executable = (name, body) =>

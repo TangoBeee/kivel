@@ -19,8 +19,8 @@ async function freePort() {
     return port;
 }
 
-const directory = await mkdtemp(join(tmpdir(), 'socket-https-'));
-const project = `socket-https-${randomBytes(4).toString('hex')}`;
+const directory = await mkdtemp(join(tmpdir(), 'kivel-https-'));
+const project = `kivel-https-${randomBytes(4).toString('hex')}`;
 const port = await freePort();
 const httpPort = await freePort();
 const appPort = await freePort();
@@ -32,7 +32,7 @@ await writeFile(
     proxyConfig,
     sourceProxy.replace(
         '\tencode zstd gzip',
-        '\tencode zstd gzip\n\thandle /__test__/slow {\n\t\treverse_proxy slow:3000 {\n\t\t\timport socket_transport\n\t\t}\n\t}',
+        '\tencode zstd gzip\n\thandle /__test__/slow {\n\t\treverse_proxy slow:3000 {\n\t\t\timport kivel_transport\n\t\t}\n\t}',
     ),
 );
 const slowCommand = [
@@ -92,7 +92,7 @@ try {
         env: {
             ...env,
             NODE_EXTRA_CA_CERTS: certificate,
-            SOCKET_BASE_URL: `https://localhost:${port}`,
+            KIVEL_BASE_URL: `https://localhost:${port}`,
         },
     });
     if (smoke.error) throw smoke.error;

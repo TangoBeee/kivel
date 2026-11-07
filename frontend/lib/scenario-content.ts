@@ -91,7 +91,7 @@ export const scenarioArticle: Article = {
             ],
             code: {
                 title: 'Run a reviewed scenario with the CLI',
-                value: 'kivel describe mock-apis-api-test-scenarios\nkivel run mock-apis-api-test-scenarios < api-scenario.json\n\n# SDK\nconst result = await socket.run(\n  "mock-apis-api-test-scenarios",\n  JSON.stringify(scenario),\n  { secret: JSON.stringify(secretValues) }\n);\nconst report = JSON.parse(result.output);',
+                value: 'kivel describe mock-apis-api-test-scenarios\nkivel run mock-apis-api-test-scenarios < api-scenario.json\n\n# SDK\nconst result = await kivel.run(\n  "mock-apis-api-test-scenarios",\n  JSON.stringify(scenario),\n  { secret: JSON.stringify(secretValues) }\n);\nconst report = JSON.parse(result.output);',
             },
         },
         {
@@ -193,7 +193,7 @@ export const scenarioDoc: DocPage = {
             ],
             code: {
                 title: 'SDK execution',
-                value: 'const result = await socket.run(\n  "mock-apis-api-test-scenarios",\n  JSON.stringify(scenario),\n  { secret: JSON.stringify({ accessToken }) }\n);\nconst report = JSON.parse(result.output);\nif (!report.passed) console.error("Scenario checks failed");',
+                value: 'const result = await kivel.run(\n  "mock-apis-api-test-scenarios",\n  JSON.stringify(scenario),\n  { secret: JSON.stringify({ accessToken }) }\n);\nconst report = JSON.parse(result.output);\nif (!report.passed) console.error("Scenario checks failed");',
             },
             note: 'Secret values are sent to the configured target when you run the scenario. Use test credentials and review any report before sharing it.',
         },

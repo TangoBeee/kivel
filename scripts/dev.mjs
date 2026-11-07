@@ -34,13 +34,13 @@ try {
     if (result !== 0) throw new Error('Workspace package build failed.');
     let databaseUrl = process.env.DATABASE_URL;
     if (!databaseUrl) {
-        const directory = resolve('.data/postgres');
+        const directory = resolve('.data/kivel-postgres');
         const sockets = resolve('.data/sockets');
         await mkdir(sockets, { recursive: true });
         database = new EmbeddedPostgres({
             databaseDir: directory,
             port: 54329,
-            user: 'socket_dev',
+            user: 'kivel_dev',
             password: 'local-development-only',
             persistent: true,
             authMethod: 'scram-sha-256',
@@ -56,13 +56,13 @@ try {
         await client.connect();
         try {
             const result = await client.query(
-                "SELECT 1 FROM pg_database WHERE datname = 'socket_dev'",
+                "SELECT 1 FROM pg_database WHERE datname = 'kivel_dev'",
             );
-            if (!result.rowCount) await database.createDatabase('socket_dev');
+            if (!result.rowCount) await database.createDatabase('kivel_dev');
         } finally {
             await client.end();
         }
-        databaseUrl = 'postgres://socket_dev:local-development-only@127.0.0.1:54329/socket_dev';
+        databaseUrl = 'postgres://kivel_dev:local-development-only@127.0.0.1:54329/kivel_dev';
     }
     for (const name of ['backend', 'frontend']) {
         const child = spawn('pnpm', ['--filter', name, 'dev'], {

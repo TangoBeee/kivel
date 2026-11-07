@@ -6,7 +6,7 @@ import { randomBytes } from 'node:crypto';
 import { createServer } from 'node:net';
 import { spawn } from 'node:child_process';
 
-const directory = await mkdtemp(join(tmpdir(), 'socket-postgres-'));
+const directory = await mkdtemp(join(tmpdir(), 'kivel-postgres-'));
 const reservation = createServer();
 await new Promise((resolve, reject) => {
     reservation.once('error', reject);
@@ -18,7 +18,7 @@ const password = randomBytes(24).toString('hex');
 const database = new EmbeddedPostgres({
     databaseDir: join(directory, 'data'),
     port,
-    user: 'socket_test',
+    user: 'kivel_test',
     password,
     persistent: false,
     authMethod: 'scram-sha-256',
@@ -32,12 +32,12 @@ let testExitCode = 1;
 try {
     await database.initialise();
     await database.start();
-    await database.createDatabase('socket_test');
+    await database.createDatabase('kivel_test');
     const child = spawn('pnpm', ['--filter', 'backend', 'test:integration'], {
         stdio: 'inherit',
         env: {
             ...process.env,
-            TEST_DATABASE_URL: `postgres://socket_test:${password}@127.0.0.1:${port}/socket_test`,
+            TEST_DATABASE_URL: `postgres://kivel_test:${password}@127.0.0.1:${port}/kivel_test`,
         },
     });
     testExitCode = await new Promise((resolve, reject) => {

@@ -131,7 +131,7 @@ export function webhookEvent(
     const body = JSON.stringify(payload);
     const headers: Record<string, string> = {
         'content-type': 'application/json',
-        'x-socket-synthetic-event': 'true',
+        'x-kivel-synthetic-event': 'true',
     };
     if (provider === 'stripe')
         headers['stripe-signature'] =
@@ -143,7 +143,7 @@ export function webhookEvent(
             `sha256=${createHmac('sha256', secret).update(body).digest('hex')}`;
     } else {
         headers['x-shopify-topic'] = eventType;
-        headers['x-shopify-shop-domain'] = 'socket-fixture.myshopify.com';
+        headers['x-shopify-shop-domain'] = 'kivel-fixture.myshopify.com';
         headers['x-shopify-webhook-id'] = id;
         headers['x-shopify-hmac-sha256'] = createHmac('sha256', secret)
             .update(body)

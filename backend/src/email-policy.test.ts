@@ -19,7 +19,7 @@ async function fixture(t: { after(fn: () => Promise<unknown>): void }) {
     identities.setEntitlement(ownerId, 'team', new Date(Date.now() + 7 * 86400000).toISOString());
     const token = randomBytes(32).toString('base64url');
     identities.createSession(owner.id, ownerId, token);
-    const human = { origin, cookie: `socket_session=${token}` };
+    const human = { origin, cookie: `kivel_session=${token}` };
     const key = identities.createKey(
         identities.authenticateSession(token)!,
         'Email agent',
@@ -96,8 +96,8 @@ async function fixture(t: { after(fn: () => Promise<unknown>): void }) {
             payload,
             headers: {
                 'content-type': 'application/json',
-                'x-socket-timestamp': timestamp,
-                'x-socket-signature': createHmac('sha256', secret)
+                'x-kivel-timestamp': timestamp,
+                'x-kivel-signature': createHmac('sha256', secret)
                     .update(`${timestamp}.${payload}`)
                     .digest('hex'),
             },
@@ -110,7 +110,7 @@ async function fixture(t: { after(fn: () => Promise<unknown>): void }) {
         assert.equal(identities.acceptInvite(user.id, user.username, invitation), ownerId);
         const token = randomBytes(32).toString('base64url');
         identities.createSession(user.id, ownerId, token);
-        return { origin, cookie: `socket_session=${token}` };
+        return { origin, cookie: `kivel_session=${token}` };
     }
     return {
         app,

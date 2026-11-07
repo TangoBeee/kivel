@@ -580,7 +580,7 @@ test('readiness reports database failure independently of liveness', async (t) =
 });
 
 test('static hosting applies exact script hashes, immutable assets, and safe 404 handling', async (t) => {
-    const root = await mkdtemp(join(tmpdir(), 'socket-static-'));
+    const root = await mkdtemp(join(tmpdir(), 'kivel-static-'));
     t.after(() => rm(root, { recursive: true, force: true }));
     const script = "console.log('trusted build script')";
     await writeFile(
@@ -629,7 +629,7 @@ test('OpenAPI exposes the configured origin and all resource operations', async 
 });
 
 test('each static page permits only its own inline scripts and missing pages use the 404 policy', async (t) => {
-    const root = await mkdtemp(join(tmpdir(), 'socket-page-csp-'));
+    const root = await mkdtemp(join(tmpdir(), 'kivel-page-csp-'));
     t.after(() => rm(root, { recursive: true, force: true }));
     await mkdir(join(root, 'tools', 'example'), { recursive: true });
     await writeFile(join(root, 'index.html'), '<html><script>window.home=true</script></html>');
@@ -687,7 +687,7 @@ test('generic webhook capture keeps extended methods, nested paths, exact querie
         });
         assert.equal(response.statusCode, 200, response.body);
     }
-    const boundary = 'socket-test-boundary';
+    const boundary = 'kivel-test-boundary';
     const multipart = Buffer.concat([
         Buffer.from(
             `--${boundary}\r\nContent-Disposition: form-data; name="label"\r\n\r\nfixture\r\n--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="sample.bin"\r\nContent-Type: application/octet-stream\r\n\r\n`,

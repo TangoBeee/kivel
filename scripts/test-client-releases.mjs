@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
-const temporary = await mkdtemp(join(tmpdir(), 'socket-release-flow-'));
+const temporary = await mkdtemp(join(tmpdir(), 'kivel-release-flow-'));
 const cli = join(root, 'node_modules/@changesets/cli/bin.js');
 const read = async (path) => JSON.parse(await readFile(path, 'utf8'));
 const json = (path, value) => writeFile(path, JSON.stringify(value, null, 2));

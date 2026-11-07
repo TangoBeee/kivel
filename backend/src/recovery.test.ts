@@ -43,7 +43,7 @@ test('real SMTP verification and password reset preserve ownership, revoke crede
     const strictSender = smtpSender({
         host: '127.0.0.1',
         port,
-        from: 'accounts@socket.test',
+        from: 'accounts@kivel.test',
         local: false,
     });
     await assert.rejects(() =>
@@ -65,7 +65,7 @@ test('real SMTP verification and password reset preserve ownership, revoke crede
         mailSender: smtpSender({
             host: '127.0.0.1',
             port,
-            from: 'accounts@socket.test',
+            from: 'accounts@kivel.test',
             local: true,
         }),
     });
@@ -227,7 +227,7 @@ test('verification requires a current browser session and password; codes expire
     ))!;
     const token = 'a'.repeat(43);
     await identities.createSession(user.id, user.personalAccountId, token);
-    const cookie = `socket_session=${token}`,
+    const cookie = `kivel_session=${token}`,
         id = user.id;
     const request = (email: string, password = original) =>
         app.inject({

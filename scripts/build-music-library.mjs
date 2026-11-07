@@ -6,7 +6,7 @@ import { defaultRecipe, renderAudio, musicTracks, scales } from '../packages/too
 const root = resolve('frontend/public/music');
 await mkdir(root, { recursive: true });
 for (const track of musicTracks) {
-    const directory = await mkdtemp(join(tmpdir(), 'socket-library-'));
+    const directory = await mkdtemp(join(tmpdir(), 'kivel-library-'));
     try {
         const base = defaultRecipe(track.id),
             sections = [4, 8, 8, 8, 8, 8, 4],

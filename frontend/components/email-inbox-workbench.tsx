@@ -43,7 +43,7 @@ interface ThreadSummary {
     messageCount: number;
 }
 
-const KEY = 'socket-email-inbox';
+const KEY = 'kivel-email-inbox';
 const remember = (inbox: EmailInbox | null) => {
     try {
         if (inbox) sessionStorage.setItem(KEY, JSON.stringify(inbox));

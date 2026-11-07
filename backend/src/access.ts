@@ -46,7 +46,7 @@ export class Access {
         readonly origin: string,
         private secret = randomBytes(32).toString('hex'),
     ) {
-        this.cookieName = origin.startsWith('https:') ? '__Host-socket_session' : 'socket_session';
+        this.cookieName = origin.startsWith('https:') ? '__Host-kivel_session' : 'kivel_session';
     }
     async actor(request: FastifyRequest): Promise<Actor> {
         const cached = this.actors.get(request);
@@ -72,8 +72,9 @@ export class Access {
             this.actors.set(request, actor);
             return actor;
         }
-        if (authorization && /^Bearer sh_/i.test(authorization)) {
-            const key = /^Bearer (sh_[A-Za-z0-9_-]{43})$/i.exec(authorization)?.[1];
+        // New keys start with kv_; sh_ keys from before the rename keep working.
+        if (authorization && /^Bearer (?:kv|sh)_/i.test(authorization)) {
+            const key = /^Bearer ((?:kv|sh)_[A-Za-z0-9_-]{43})$/i.exec(authorization)?.[1];
             identity = key ? await this.identities.authenticateKey(key) : undefined;
             if (!identity) throw new HttpError(401, 'API key is invalid, expired, or revoked.');
         } else {

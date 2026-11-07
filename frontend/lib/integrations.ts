@@ -30,12 +30,12 @@ export const integrations: {
         availability: 'Published beta',
         code: `import { Kivel } from '@kivel/sdk';
 
-const socket = new Kivel({
+const kivel = new Kivel({
   apiKey: process.env.KIVEL_API_KEY,
 });
-const inbox = await socket.createEmailInbox();
-const mail = await socket.waitForEmail(inbox.id);
-await socket.memorySet('build', 'verification', mail.messages[0]?.codes ?? []);`,
+const inbox = await kivel.createEmailInbox();
+const mail = await kivel.waitForEmail(inbox.id);
+await kivel.memorySet('build', 'verification', mail.messages[0]?.codes ?? []);`,
         note: 'Install npm install @kivel/sdk@beta (or pin an exact version). Requires Node.js 22.13+; ESM import and TypeScript declarations are included. The package uses your configured API origin.',
     },
     {
@@ -60,8 +60,8 @@ kivel approval pending`,
         availability: 'Optional on self-hosted installs',
         code: `# Use your API key as the SSH password.
 # Verify the host fingerprint before connecting.
-printf '{"hello":true}' | ssh -T -p 2222 socket@your-host kivel run json
-ssh -T -n -p 2222 socket@your-host kivel resources`,
+printf '{"hello":true}' | ssh -T -p 2222 kivel@your-host kivel run json
+ssh -T -n -p 2222 kivel@your-host kivel resources`,
         note: 'The optional Docker gateway binds to localhost:2222 by default. Its startup log shows the host fingerprint. Exposing it is an operator decision. It supports tool commands, with no interactive shell, forwarding, SCP, or SFTP.',
     },
     {

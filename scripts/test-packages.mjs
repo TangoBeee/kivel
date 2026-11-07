@@ -15,7 +15,7 @@ if (process.argv.length > 2 && !fromRegistry)
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const output = resolve(root, 'release');
-const temporary = await mkdtemp(join(tmpdir(), 'socket-packages-'));
+const temporary = await mkdtemp(join(tmpdir(), 'kivel-packages-'));
 const manifests = await Promise.all(
     ['sdk', 'cli'].map(async (name) =>
         JSON.parse(await readFile(join(root, 'packages', name, 'package.json'), 'utf8')),
@@ -210,9 +210,9 @@ try {
         join(consumer, 'check.mjs'),
         `import assert from 'node:assert/strict';
 import { Kivel, KivelError } from '@kivel/sdk';
-const socket = new Kivel({ baseUrl: process.env.KIVEL_URL, apiKey: process.env.KIVEL_API_KEY });
-assert.equal((await socket.tools()).tools[0].id, 'json');
-const result = await socket.run('json', '{"released":true}');
+const kivel = new Kivel({ baseUrl: process.env.KIVEL_URL, apiKey: process.env.KIVEL_API_KEY });
+assert.equal((await kivel.tools()).tools[0].id, 'json');
+const result = await kivel.run('json', '{"released":true}');
 assert.equal(JSON.parse(result.output).released, true);
 await assert.rejects(new Kivel({ baseUrl: process.env.KIVEL_URL }).tools(), error => error instanceof KivelError && error.status === 401 && error.requestId === 'package-denied');
 `,
@@ -221,10 +221,10 @@ await assert.rejects(new Kivel({ baseUrl: process.env.KIVEL_URL }).tools(), erro
         join(consumer, 'check.ts'),
         `import { Kivel, type EmailInbox, type MemoryEntry } from '@kivel/sdk';
 import { command } from '@kivel/cli';
-const socket = new Kivel({ baseUrl: 'http://localhost' });
-const email: Promise<EmailInbox> = socket.createEmailInbox();
-const memory: Promise<MemoryEntry<{ passed: boolean }>> = socket.memoryGet('release', 'result');
-void email; void memory; void command(socket, ['tools']);
+const kivel = new Kivel({ baseUrl: 'http://localhost' });
+const email: Promise<EmailInbox> = kivel.createEmailInbox();
+const memory: Promise<MemoryEntry<{ passed: boolean }>> = kivel.memoryGet('release', 'result');
+void email; void memory; void command(kivel, ['tools']);
 `,
     );
     await run(

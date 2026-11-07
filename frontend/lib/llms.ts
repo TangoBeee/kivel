@@ -133,13 +133,12 @@ function comparisonMarkdown(item: Comparison) {
         '',
         clean(item.summary),
         '',
-        `Choose Kivel: ${clean(item.socketFit)}`,
+        `Choose Kivel: ${clean(item.kivelFit)}`,
         '',
         `Choose ${item.name}: ${clean(item.otherFit)}`,
         '',
         ...item.rows.map(
-            (row) =>
-                `- ${row.topic}: Kivel: ${clean(row.socket)} ${item.name}: ${clean(row.other)}`,
+            (row) => `- ${row.topic}: Kivel: ${clean(row.kivel)} ${item.name}: ${clean(row.other)}`,
         ),
         '',
         `Limitations: ${clean(item.limitations)}`,

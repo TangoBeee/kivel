@@ -58,7 +58,7 @@ export function sendLlmMock(
     const inputTokens = Math.ceil(JSON.stringify(body.messages).length / 4);
     const id = `${anthropic ? 'msg' : 'chatcmpl'}_mock_${randomUUID().replaceAll('-', '')}`;
     const created = Math.floor(Date.now() / 1000);
-    reply.header('X-Socket-Mock', 'llm-text-only').header('X-Mock-Usage', 'estimated');
+    reply.header('X-Kivel-Mock', 'llm-text-only').header('X-Mock-Usage', 'estimated');
     if (!body.stream)
         return reply.send(
             anthropic

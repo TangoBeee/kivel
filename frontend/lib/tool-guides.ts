@@ -340,7 +340,7 @@ export function toolGuide(tool: CatalogTool): Guide {
                 'Enter a JSON payload, delay and optional repeating interval with a run count.',
                 'Review delivery attempts or wait for job events from your agent. Delete the job when finished.',
             ],
-            limits: 'Payloads are at most 16 KiB. Start 5 seconds to 7 days ahead, repeat every 5 minutes or slower, and run at most 100 times within the resource lifetime. Two retries follow network errors, HTTP 429 or 5xx. Redirects are not followed. Timing is best effort. Delivery is at least once: deduplicate X-Socket-Delivery-Id at the receiver. Destination URL and DNS checks are repeated before every delivery. Jobs never run shell commands or arbitrary code.',
+            limits: 'Payloads are at most 16 KiB. Start 5 seconds to 7 days ahead, repeat every 5 minutes or slower, and run at most 100 times within the resource lifetime. Two retries follow network errors, HTTP 429 or 5xx. Redirects are not followed. Timing is best effort. Delivery is at least once: deduplicate X-Kivel-Delivery-Id at the receiver. Destination URL and DNS checks are repeated before every delivery. Jobs never run shell commands or arbitrary code.',
         };
     if (tool.id === 'email-mock-smtp')
         return {
@@ -635,7 +635,7 @@ const examples: Record<string, { useCase: string; example: string }> = {
                 useCase:
                     'Test model-client parsing, loading states and incomplete streams using a configured assistant response.',
                 example:
-                    'POST /api/mocks\n{"name":"Scripted assistant","routes":[],"llm":{"provider":"openai","model":"socket-mock","text":"The test passed.","intervalMs":20}}\n\nPOST /mock/{id}/v1/chat/completions\n{"model":"socket-mock","messages":[{"role":"user","content":"Hello"}],"stream":true}',
+                    'POST /api/mocks\n{"name":"Scripted assistant","routes":[],"llm":{"provider":"openai","model":"kivel-mock","text":"The test passed.","intervalMs":20}}\n\nPOST /mock/{id}/v1/chat/completions\n{"model":"kivel-mock","messages":[{"role":"user","content":"Hello"}],"stream":true}',
             },
         ]),
     ),
@@ -646,7 +646,7 @@ const examples: Record<string, { useCase: string; example: string }> = {
                 useCase:
                     'Deliver a callback after a delay, then inspect the attempt without keeping a script running.',
                 example:
-                    'POST /api/scheduled-jobs?ttlSeconds=3600\n{ "name": "Ready event", "url": "https://example.com/hook", "body": { "event": "test.ready" }, "delaySeconds": 60 }\n\nGET /api/scheduled-jobs/{id} → schedule and delivery events\nReceiver: deduplicate X-Socket-Delivery-Id.',
+                    'POST /api/scheduled-jobs?ttlSeconds=3600\n{ "name": "Ready event", "url": "https://example.com/hook", "body": { "event": "test.ready" }, "delaySeconds": 60 }\n\nGET /api/scheduled-jobs/{id} → schedule and delivery events\nReceiver: deduplicate X-Kivel-Delivery-Id.',
             },
         ]),
     ),

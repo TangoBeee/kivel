@@ -326,7 +326,7 @@ export function EchoWorkbench({
                         <summary>Use from curl, SDK, CLI, SSH or MCP</summary>
                         <CodeExample
                             title="Echo client examples"
-                            code={`curl -X POST '${resource.endpointUrl}/check?source=curl' \\\n  -H 'Content-Type: application/json' \\\n${resource.visibility === 'private' ? "  -H 'X-Access-Token: <access-token>' \\\n" : ''}  --data '{"event":"demo.created"}'\n\nconst observed = await socket.request('POST', '/mock/${resource.id}/check',\n  { event: 'demo.created' }, accessToken);\n\n// CLI / SSH: kivel api GET /mock/${resource.id}/check --token <access-token>\n// MCP: call_mock_api {id, method: 'POST', path: '/check', body, accessToken}`}
+                            code={`curl -X POST '${resource.endpointUrl}/check?source=curl' \\\n  -H 'Content-Type: application/json' \\\n${resource.visibility === 'private' ? "  -H 'X-Access-Token: <access-token>' \\\n" : ''}  --data '{"event":"demo.created"}'\n\nconst observed = await kivel.request('POST', '/mock/${resource.id}/check',\n  { event: 'demo.created' }, accessToken);\n\n// CLI / SSH: kivel api GET /mock/${resource.id}/check --token <access-token>\n// MCP: call_mock_api {id, method: 'POST', path: '/check', body, accessToken}`}
                         />
                     </details>
                 </section>

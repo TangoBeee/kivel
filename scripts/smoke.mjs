@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { Kivel } from '../packages/sdk/dist/index.js';
 import { execFileSync } from 'node:child_process';
 
-const origin = process.env.SOCKET_BASE_URL ?? 'http://localhost:8080';
+const origin = process.env.KIVEL_BASE_URL ?? 'http://localhost:8080';
 const request = (path, options = {}) =>
     fetch(new URL(path, origin), { ...options, signal: AbortSignal.timeout(15000) });
 let skippedHostedChecks = 0;
@@ -312,10 +312,10 @@ const crudCreated = await request('/api/mocks', {
 assert.equal(crudCreated.status, 201);
 const crud = await crudCreated.json();
 try {
-    const socket = new Kivel({ baseUrl: origin });
+    const kivel = new Kivel({ baseUrl: origin });
     const path = `/mock/${crud.id}/tasks`;
     assert.equal((await request(path)).status, 404);
-    const created = await socket.request(
+    const created = await kivel.request(
         'POST',
         path,
         { id: 'sdk', name: 'SDK record' },
@@ -368,7 +368,7 @@ try {
         ).status,
         200,
     );
-    assert.equal((await socket.request('GET', path, undefined, crud.accessToken)).total, 1);
+    assert.equal((await kivel.request('GET', path, undefined, crud.accessToken)).total, 1);
 } finally {
     assert.equal(
         (
@@ -392,8 +392,8 @@ const echo = await echoCreated.json();
 try {
     const path = `/mock/${echo.id}/check?source=sdk`;
     assert.equal((await request(path)).status, 404);
-    const socket = new Kivel({ baseUrl: origin });
-    const observed = await socket.request(
+    const kivel = new Kivel({ baseUrl: origin });
+    const observed = await kivel.request(
         'POST',
         path,
         { event: 'smoke.created', secret: 'do-not-reflect' },

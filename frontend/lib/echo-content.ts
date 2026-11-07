@@ -117,7 +117,7 @@ export const echoDoc: DocPage = {
             ],
             code: {
                 title: 'SDK request',
-                value: 'const observed = await socket.request(\n  "POST", `/mock/${id}/check?source=sdk`,\n  { event: "demo.created", data: { id: "demo_1" } }, accessToken\n);\nconsole.log(observed.body.value);',
+                value: 'const observed = await kivel.request(\n  "POST", `/mock/${id}/check?source=sdk`,\n  { event: "demo.created", data: { id: "demo_1" } }, accessToken\n);\nconsole.log(observed.body.value);',
             },
         },
         {

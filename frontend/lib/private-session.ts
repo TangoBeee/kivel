@@ -3,7 +3,7 @@ export const sessionSource = () => (sourceId ??= crypto.randomUUID());
 export function clearPrivateSession(broadcast = true) {
     try {
         for (const key of Object.keys(sessionStorage))
-            if (key === 'socket-webhook-inbox' || /^socket-.+-resource$/.test(key))
+            if (key === 'kivel-webhook-inbox' || /^socket-.+-resource$/.test(key))
                 sessionStorage.removeItem(key);
     } catch {}
     if (broadcast && typeof BroadcastChannel !== 'undefined') {

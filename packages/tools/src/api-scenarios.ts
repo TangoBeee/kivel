@@ -292,7 +292,7 @@ export const sampleScenario: ApiScenario = {
     version: 1,
     name: 'JSON response checks',
     baseUrl: 'https://httpbin.org',
-    variables: { label: 'socket-preview' },
+    variables: { label: 'kivel-preview' },
     secretNames: [],
     stopOnFailure: true,
     requests: [
@@ -302,7 +302,7 @@ export const sampleScenario: ApiScenario = {
             path: '/anything?label={{label}}',
             headers: { accept: 'application/json' },
             body: '',
-            expect: { status: 200, json: { path: 'args.label', equals: 'socket-preview' } },
+            expect: { status: 200, json: { path: 'args.label', equals: 'kivel-preview' } },
         },
         {
             name: 'Send a JSON event',
@@ -310,7 +310,7 @@ export const sampleScenario: ApiScenario = {
             path: '/anything',
             headers: { 'content-type': 'application/json' },
             body: '{"event":"{{label}}"}',
-            expect: { status: 200, json: { path: 'json.event', equals: 'socket-preview' } },
+            expect: { status: 200, json: { path: 'json.event', equals: 'kivel-preview' } },
         },
     ],
 };

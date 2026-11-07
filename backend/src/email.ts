@@ -837,8 +837,8 @@ export function registerEmail({
             if (
                 !verifyIngest(
                     ingestSecret,
-                    request.headers['x-socket-timestamp'],
-                    request.headers['x-socket-signature'],
+                    request.headers['x-kivel-timestamp'],
+                    request.headers['x-kivel-signature'],
                     raw,
                 )
             )
@@ -955,7 +955,7 @@ export function registerEmail({
                             method: 'POST',
                             headers: {
                                 'content-type': 'application/json',
-                                'x-socket-email-id': message.id,
+                                'x-kivel-email-id': message.id,
                             },
                             requestBody: JSON.stringify({
                                 type: 'email.received',

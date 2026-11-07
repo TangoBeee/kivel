@@ -198,12 +198,12 @@ body {
   inset: -13px;
   border: 1px solid var(--line-strong);
   border-radius: 50%;
-  animation: socket-ping 0.8s ease-out 2;
+  animation: kivel-ping 0.8s ease-out 2;
 }
 .tea-steam {
-  animation: socket-steam 1.5s ease-in-out;
+  animation: kivel-steam 1.5s ease-in-out;
 }
-@keyframes socket-ping {
+@keyframes kivel-ping {
   from {
     transform: scale(0.5);
     opacity: 0.75;
@@ -213,7 +213,7 @@ body {
     opacity: 0;
   }
 }
-@keyframes socket-steam {
+@keyframes kivel-steam {
   0%,
   100% {
     transform: translateY(0);

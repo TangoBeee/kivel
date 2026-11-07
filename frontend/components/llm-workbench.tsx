@@ -25,7 +25,7 @@ type Resource = {
 export function LlmWorkbench({ toolId }: { toolId: string }) {
     const viewer = useViewer();
     const [provider, setProvider] = useState<'openai' | 'anthropic'>('openai');
-    const [model, setModel] = useState('socket-mock');
+    const [model, setModel] = useState('kivel-mock');
     const [text, setText] = useState(
         'The test response is ready. This is the scripted assistant message you configured.',
     );

@@ -10,7 +10,7 @@ Use `/docs/reference/` for the Scalar API reference and `/api/openapi.json` for 
 workers. Network tools use pinned public addresses and validate every redirect,
 with a ten-second deadline. Execution history is not retained. Browser utilities run locally by default.
 
-Account keys use `Authorization: Bearer sh_…`. Anonymous resource tokens use
+Account keys use `Authorization: Bearer kv_…`. Anonymous resource tokens use
 Bearer authentication or `X-Resource-Token`. Owned resources require current
 workspace access; leaking their original token does not grant management access.
 Private endpoint access uses a separate hashed sharing token in `X-Access-Token`

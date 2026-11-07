@@ -10,34 +10,34 @@ export const agentComparisons: Comparison[] = [
             'A cheaper AgentMail alternative: Kivel gives your agent an email inbox with codes and links extracted, plus webhooks, mocks, 2FA codes and approvals in one MCP server. Pro is $2 a month.',
         summary:
             'Both give AI agents real email inboxes over an API and a hosted MCP server. Kivel puts that inbox next to everything else an agent needs to finish a sign-up or an integration test: webhook URLs, mock APIs and OAuth, 2FA codes, monitors, memory and human approval, for $2 a month on Pro.',
-        socketFit:
+        kivelFit:
             'Pick Kivel when email is one step in a bigger job: sign up, read the code, pass 2FA, catch the webhook that follows and ask you before anything risky, all through one MCP connection.',
         otherFit:
             'AgentMail suits teams that only need email at high volume or on their own domains today.',
         rows: [
             {
                 topic: 'What you get',
-                socket: 'Email inboxes plus webhook URLs, mock APIs and OAuth, 2FA authenticators, monitors, memory, human approval and 170 tools.',
+                kivel: 'Email inboxes plus webhook URLs, mock APIs and OAuth, 2FA authenticators, monitors, memory, human approval and 170 tools.',
                 other: 'Email inboxes, threads, drafts and a calendar API.',
             },
             {
                 topic: 'Codes and links',
-                socket: 'Every message comes back with one-time codes and verification links already extracted, verification links first.',
+                kivel: 'Every message comes back with one-time codes and verification links already extracted, verification links first.',
                 other: 'Reply and attachment extraction; no dedicated one-time-code extraction is documented.',
             },
             {
                 topic: '2FA after sign-up',
-                socket: 'Built-in TOTP authenticators, so the agent can pass two-factor prompts on accounts you authorized.',
+                kivel: 'Built-in TOTP authenticators, so the agent can pass two-factor prompts on accounts you authorized.',
                 other: 'Not offered.',
             },
             {
                 topic: 'Price of the first paid plan',
-                socket: 'Pro is $2 a month: 10 inboxes, 500 emails a month, plus every other tool.',
+                kivel: 'Pro is $2 a month: 10 inboxes, 500 emails a month, plus every other tool.',
                 other: 'Developer is $20 a month: 10 inboxes and 10,000 emails a month.',
             },
             {
                 topic: 'Free plan',
-                socket: '1 inbox and 30 sends a month, plus webhooks, mocks and utilities that need no sign-up.',
+                kivel: '1 inbox and 30 sends a month, plus webhooks, mocks and utilities that need no sign-up.',
                 other: '3 inboxes and 3,000 emails a month, no card required.',
             },
         ],
@@ -63,7 +63,7 @@ export const agentComparisons: Comparison[] = [
         ],
         reviewedAt: '2026-11-05',
         bestFor: {
-            socket: [
+            kivel: [
                 'Your agent signs up for services and needs the code, the 2FA and the webhook',
                 'You want one MCP server instead of one per capability',
                 'You want approval before risky steps, built in',
@@ -102,34 +102,34 @@ export const agentComparisons: Comparison[] = [
             'A Mailtrap alternative for AI agents: Kivel inboxes receive real email from any service, extract codes and links, and come with webhooks, mocks and 2FA. Pro is $2 a month.',
         summary:
             'Mailtrap Email Sandbox catches the email your own app sends from staging. Kivel gives you and your agents real inboxes that receive email from any service, which is what an end-to-end sign-up test or an agent that registers for tools actually needs.',
-        socketFit:
+        kivelFit:
             'Pick Kivel when the email comes from somewhere else, such as a third-party sign-up, a password reset or a vendor notification, or when an AI agent needs to read it and act.',
         otherFit:
             'Mailtrap fits when you only need to catch and preview the emails your own application sends.',
         rows: [
             {
                 topic: 'Receiving email',
-                socket: 'Real inboxes that receive email from any sender on the internet.',
+                kivel: 'Real inboxes that receive email from any sender on the internet.',
                 other: 'A sandbox that catches mail your own app sends to it over SMTP or API.',
             },
             {
                 topic: 'Built for agents',
-                socket: 'Hosted MCP server; wait_for_email returns codes and links already extracted.',
+                kivel: 'Hosted MCP server; wait_for_email returns codes and links already extracted.',
                 other: 'A local MCP server for sending and reading sandbox messages; no code extraction documented.',
             },
             {
                 topic: 'Beyond email',
-                socket: 'Webhook URLs, mock APIs and OAuth, 2FA authenticators, monitors, memory and approvals.',
+                kivel: 'Webhook URLs, mock APIs and OAuth, 2FA authenticators, monitors, memory and approvals.',
                 other: 'Email sending and the email sandbox.',
             },
             {
                 topic: 'Price of the first paid plan',
-                socket: 'Pro is $2 a month with 10 inboxes and every tool.',
+                kivel: 'Pro is $2 a month with 10 inboxes and every tool.',
                 other: 'Sandbox Basic is $17 a month for 500 test emails and 1 sandbox.',
             },
             {
                 topic: 'Free plan',
-                socket: '1 inbox plus no-sign-up webhooks, mocks and 170 tools.',
+                kivel: '1 inbox plus no-sign-up webhooks, mocks and 170 tools.',
                 other: 'Sandbox Free: 50 test emails a month, 10 kept per sandbox.',
             },
         ],
@@ -150,7 +150,7 @@ export const agentComparisons: Comparison[] = [
         ],
         reviewedAt: '2026-11-05',
         bestFor: {
-            socket: [
+            kivel: [
                 'You test sign-up or reset flows that send from a real service',
                 'An AI agent needs to read the email and continue',
                 'You also need webhooks, mocks or 2FA in the same test',
@@ -185,33 +185,33 @@ export const agentComparisons: Comparison[] = [
             'A private Mailinator alternative: Kivel inboxes are private to your workspace, can send and reply, extract codes and links, and include webhooks and mocks. Pro is $2 a month.',
         summary:
             'Mailinator public inboxes are free and need no sign-up, but anyone can read them and they cannot send. Kivel inboxes are private to your workspace, send and reply, extract codes for your agent, and sit next to webhooks, mocks and approvals.',
-        socketFit:
+        kivelFit:
             'Pick Kivel when the email holds something you would not post publicly, such as a login code or reset link, or when your agent must reply.',
         otherFit: 'Mailinator public inboxes fit throwaway checks where privacy does not matter.',
         rows: [
             {
                 topic: 'Privacy',
-                socket: 'Inboxes are private to your workspace. Attachments download through signed links.',
+                kivel: 'Inboxes are private to your workspace. Attachments download through signed links.',
                 other: 'Public inboxes are readable and deletable by anyone; private domains need a plan.',
             },
             {
                 topic: 'Sending',
-                socket: 'Send and reply from the inbox, with threading.',
+                kivel: 'Send and reply from the inbox, with threading.',
                 other: 'Receive-only; it cannot send email.',
             },
             {
                 topic: 'Built for agents',
-                socket: 'Hosted MCP server with codes and links extracted for every message.',
+                kivel: 'Hosted MCP server with codes and links extracted for every message.',
                 other: 'A local CLI-based MCP server with list and read tools.',
             },
             {
                 topic: 'Beyond email',
-                socket: 'Webhook URLs, mock APIs and OAuth, monitors, memory, approvals and 170 tools.',
+                kivel: 'Webhook URLs, mock APIs and OAuth, monitors, memory, approvals and 170 tools.',
                 other: 'TOTP authenticator, email webhooks and SMS testing.',
             },
             {
                 topic: 'Price of the first paid plan',
-                socket: 'Pro is $2 a month.',
+                kivel: 'Pro is $2 a month.',
                 other: 'Business is $79 a month, billed yearly.',
             },
         ],
@@ -236,7 +236,7 @@ export const agentComparisons: Comparison[] = [
         ],
         reviewedAt: '2026-11-05',
         bestFor: {
-            socket: [
+            kivel: [
                 'The email contains a login code or reset link',
                 'Your agent needs to reply or send',
                 'You want codes and links extracted automatically',
@@ -271,33 +271,33 @@ export const agentComparisons: Comparison[] = [
             'Looking for a RequestBin alternative? Kivel gives you a private webhook URL in one click, no sign-up, with custom responses, replay, signature checks and an MCP server for agents.',
         summary:
             'RequestBin.com now redirects to Pipedream, which says its Workflows product no longer accepts sign-ups and shuts down on March 31, 2027. Kivel gives you a webhook inbox in one click with no account: private by default, with custom responses, replay, signature verification and forwarding.',
-        socketFit:
+        kivelFit:
             'Pick Kivel when you want to catch a webhook right now, keep the payloads private, check its signature and replay it, or let an AI agent wait for it.',
         otherFit: 'Existing Pipedream users can keep using their bins until Workflows shuts down.',
         rows: [
             {
                 topic: 'Getting started',
-                socket: 'One click, no account. A free account keeps inboxes for up to seven days.',
+                kivel: 'One click, no account. A free account keeps inboxes for up to seven days.',
                 other: 'requestbin.com redirects to Pipedream, which is not accepting new Workflows sign-ups.',
             },
             {
                 topic: 'Privacy',
-                socket: 'Private by default: senders need a token and reading history needs a separate credential.',
+                kivel: 'Private by default: senders need a token and reading history needs a separate credential.',
                 other: 'HTTP triggers are public by default unless you add authorization.',
             },
             {
                 topic: 'Working with requests',
-                socket: 'Any method and sub-path, parsed JSON, form, multipart and XML, custom responses, replay and signature checks for Stripe, GitHub, Shopify, Slack and more.',
+                kivel: 'Any method and sub-path, parsed JSON, form, multipart and XML, custom responses, replay and signature checks for Stripe, GitHub, Shopify, Slack and more.',
                 other: 'An HTTP trigger with an event inspector inside a workflow.',
             },
             {
                 topic: 'Built for agents',
-                socket: 'wait_for_webhook over a hosted MCP server, next to email, mocks and approvals.',
+                kivel: 'wait_for_webhook over a hosted MCP server, next to email, mocks and approvals.',
                 other: 'No MCP tool for inspecting requests.',
             },
             {
                 topic: 'Future',
-                socket: 'Actively developed, free to start, Pro is $2 a month.',
+                kivel: 'Actively developed, free to start, Pro is $2 a month.',
                 other: 'Pipedream Workflows shuts down on March 31, 2027.',
             },
         ],
@@ -321,7 +321,7 @@ export const agentComparisons: Comparison[] = [
         ],
         reviewedAt: '2026-11-05',
         bestFor: {
-            socket: [
+            kivel: [
                 'You need a webhook URL now, without an account',
                 'Payloads should stay private',
                 'You want to verify signatures and replay requests',
@@ -356,34 +356,34 @@ export const agentComparisons: Comparison[] = [
             'A free Mailosaur alternative: Kivel gives you and your AI agents real inboxes with codes and links extracted, a hosted MCP server, webhooks and mocks. Free to start, Pro is $2 a month.',
         summary:
             'Mailosaur is a paid email and SMS testing service with a 14-day trial. Kivel is free to start and gives AI agents real inboxes over a hosted MCP server, with one-time codes and links extracted, plus webhook URLs, mock APIs, 2FA codes and approvals.',
-        socketFit:
+        kivelFit:
             'Pick Kivel when you want to start free, connect an AI agent over MCP, or test email together with webhooks and mock APIs.',
         otherFit:
             'Mailosaur fits QA teams that need real-device email previews or SMS testing today.',
         rows: [
             {
                 topic: 'Getting started',
-                socket: 'Free plan; webhooks, mocks and utilities need no account.',
+                kivel: 'Free plan; webhooks, mocks and utilities need no account.',
                 other: '14-day trial, then a paid plan.',
             },
             {
                 topic: 'Price',
-                socket: 'Pro is $2 a month.',
+                kivel: 'Pro is $2 a month.',
                 other: 'Personal is from $20 a month and Core from $50 a month, billed annually.',
             },
             {
                 topic: 'Built for agents',
-                socket: 'Hosted MCP server with codes and links extracted for every message.',
+                kivel: 'Hosted MCP server with codes and links extracted for every message.',
                 other: 'No official MCP server.',
             },
             {
                 topic: 'Beyond email',
-                socket: 'Webhook URLs, mock APIs and OAuth, monitors, memory and approvals.',
+                kivel: 'Webhook URLs, mock APIs and OAuth, monitors, memory and approvals.',
                 other: 'SMS testing as an add-on, and a TOTP authenticator on Core and above.',
             },
             {
                 topic: '2FA codes',
-                socket: 'TOTP authenticators on every plan, including Free.',
+                kivel: 'TOTP authenticators on every plan, including Free.',
                 other: 'Virtual authenticator on Core and above.',
             },
         ],
@@ -400,7 +400,7 @@ export const agentComparisons: Comparison[] = [
         ],
         reviewedAt: '2026-11-05',
         bestFor: {
-            socket: [
+            kivel: [
                 'You want to start free, not with a trial',
                 'An AI agent reads the email over MCP',
                 'You need 2FA codes on a free plan',
@@ -431,29 +431,29 @@ export const agentComparisons: Comparison[] = [
             'A private Smee.io alternative: Kivel webhook inboxes keep history, require credentials to read, send custom responses and forward to your server, with an MCP server for agents.',
         summary:
             'Smee.io relays webhooks to your local app over Server-Sent Events, without storing them, and anyone with the channel ID can see the payloads. Kivel keeps a private, searchable history you can replay, answer with custom responses and forward to your server.',
-        socketFit:
+        kivelFit:
             'Pick Kivel when you need to see a webhook after the fact, keep it private, verify its signature or replay it.',
         otherFit:
             'Smee.io fits a quick, open-source relay from GitHub to a laptop while it is connected.',
         rows: [
             {
                 topic: 'History',
-                socket: 'Requests are stored and searchable, so you can inspect and replay them later.',
+                kivel: 'Requests are stored and searchable, so you can inspect and replay them later.',
                 other: 'Payloads are not stored on the server; they reach only clients connected at that moment.',
             },
             {
                 topic: 'Privacy',
-                socket: 'Private by default with separate send and read credentials.',
+                kivel: 'Private by default with separate send and read credentials.',
                 other: 'Channels are not authenticated; anyone with the channel ID can see the payloads.',
             },
             {
                 topic: 'Responses',
-                socket: 'Custom status, headers, body and delay.',
+                kivel: 'Custom status, headers, body and delay.',
                 other: 'No custom responses.',
             },
             {
                 topic: 'Built for agents',
-                socket: 'wait_for_webhook over a hosted MCP server.',
+                kivel: 'wait_for_webhook over a hosted MCP server.',
                 other: 'No MCP server.',
             },
         ],
@@ -470,7 +470,7 @@ export const agentComparisons: Comparison[] = [
         ],
         reviewedAt: '2026-11-05',
         bestFor: {
-            socket: [
+            kivel: [
                 'Payloads must stay private',
                 'You need to look at a webhook after it arrived',
                 'You want to verify signatures and replay',

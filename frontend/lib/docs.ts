@@ -134,12 +134,12 @@ curl -X DELETE https://kivel.io/api/inboxes/INBOX_ID \\
                 id: 'add-an-api-key',
                 title: 'Switch to an API key',
                 paragraphs: [
-                    'Create a free account at /account/, open your workspace’s API keys section and create a key. Keys start with sh_ and are shown once. Send the key as a Bearer token on any request.',
+                    'Create a free account at /account/, open your workspace’s API keys section and create a key. Keys start with kv_ and are shown once. Send the key as a Bearer token on any request.',
                     'With a key, resources belong to your workspace, usage counts against the workspace plan, and you can list everything you own with GET /api/account/resources. GET /api/usage shows the plan, its limits and today’s hosted runs for the caller.',
                 ],
                 code: {
                     title: 'Authenticated requests',
-                    value: `export KIVEL_API_KEY='sh_...'
+                    value: `export KIVEL_API_KEY='kv_...'
 
 curl https://kivel.io/api/usage \\
   -H "Authorization: Bearer $KIVEL_API_KEY"
@@ -210,13 +210,13 @@ curl -X POST https://kivel.io/api/inboxes \\
                     rows: [
                         [
                             'API key',
-                            'sh_ followed by 43 characters',
+                            'kv_ followed by 43 characters',
                             'Authorization: Bearer',
                             'Workspace actions allowed by the key’s scopes',
                         ],
                         [
                             'Session cookie',
-                            '__Host-socket_session (HttpOnly)',
+                            '__Host-kivel_session (HttpOnly)',
                             'Cookie, set by signing in',
                             'Browser use of the site and account administration',
                         ],
@@ -1539,7 +1539,7 @@ curl https://kivel.io/api/tools/everyday-file-checksums/run \\
                 },
                 code: {
                     title: 'Examples',
-                    value: `export KIVEL_API_KEY='sh_...'
+                    value: `export KIVEL_API_KEY='kv_...'
 
 printf '{"hello":true}' | kivel run json --options '{"action":"minify"}'
 kivel run everyday-file-checksums --file report.pdf < report.pdf
@@ -1613,11 +1613,11 @@ kivel api DELETE /api/mocks/MOCK_ID --token "$MANAGEMENT_TOKEN"`,
                     title: 'Client setup and a first call',
                     value: `import { Kivel, KivelError } from '@kivel/sdk';
 
-const socket = new Kivel({
+const kivel = new Kivel({
   apiKey: process.env.KIVEL_API_KEY,
 });
 
-const result = await socket.run('json', '{"hello":true}', { action: 'format' });
+const result = await kivel.run('json', '{"hello":true}', { action: 'format' });
 console.log(result.output, result.usage.used);`,
                 },
             },
@@ -1740,18 +1740,18 @@ console.log(result.output, result.usage.used);`,
                 ],
                 code: {
                     title: 'Inbox and file lifecycle',
-                    value: `const inbox = await socket.createInbox({ ttlSeconds: 1800 });
+                    value: `const inbox = await kivel.createInbox({ ttlSeconds: 1800 });
 // inbox.webhookUrl, inbox.accessToken; manage with your API key
 
-const history = await socket.inspectInbox(inbox.id);
+const history = await kivel.inspectInbox(inbox.id);
 
-const file = await socket.upload('report.txt', new TextEncoder().encode('hello'), {
+const file = await kivel.upload('report.txt', new TextEncoder().encode('hello'), {
   maxDownloads: 1,
 });
-const bytes = await socket.downloadFile(file.id, file.accessToken);
+const bytes = await kivel.downloadFile(file.id, file.accessToken);
 
-const mock = await socket.inspectResource('mocks', 'MOCK_ID');
-await socket.remove('inboxes', inbox.id);`,
+const mock = await kivel.inspectResource('mocks', 'MOCK_ID');
+await kivel.remove('inboxes', inbox.id);`,
                 },
             },
             {
@@ -1763,7 +1763,7 @@ await socket.remove('inboxes', inbox.id);`,
                 code: {
                     title: 'Handle a rate limit',
                     value: `try {
-  await socket.run('json', input);
+  await kivel.run('json', input);
 } catch (error) {
   if (error instanceof KivelError && error.status === 429 && error.retryAfter) {
     // wait error.retryAfter seconds, then try again
@@ -1815,14 +1815,14 @@ await socket.remove('inboxes', inbox.id);`,
                 id: 'connect',
                 title: 'Connect',
                 paragraphs: [
-                    'Log in as user socket with a workspace API key (sh_...) as the password. Commands must start with kivel. Pipe JSON to memory set, monitor create, approval ask, mock creation and other commands with a body; pipe bytes to upload or run --file. Use -n for read-only commands. The local CLI listen command is not offered over SSH.',
+                    'Log in as user kivel with a workspace API key (kv_...) as the password. Commands must start with kivel. Pipe JSON to memory set, monitor create, approval ask, mock creation and other commands with a body; pipe bytes to upload or run --file. Use -n for read-only commands. The local CLI listen command is not offered over SSH.',
                 ],
                 code: {
                     title: 'Run commands over SSH',
                     value: `# Verify the host fingerprint before the first connection.
-printf '{"hello":true}' | ssh -T -p 2222 socket@your-host kivel run json
-ssh -T -n -p 2222 socket@your-host kivel resources
-ssh -T -n -p 2222 socket@your-host kivel inbox create --visibility public`,
+printf '{"hello":true}' | ssh -T -p 2222 kivel@your-host kivel run json
+ssh -T -n -p 2222 kivel@your-host kivel resources
+ssh -T -n -p 2222 kivel@your-host kivel inbox create --visibility public`,
                 },
                 note: 'The gateway logs its SHA256 host key fingerprint at startup. Compare it with the fingerprint your SSH client shows before you send your API key.',
             },
@@ -1830,7 +1830,7 @@ ssh -T -n -p 2222 socket@your-host kivel inbox create --visibility public`,
                 id: 'limits',
                 title: 'Session limits',
                 list: [
-                    'Authentication: password only, user socket, up to 4 attempts per connection and 10 per 15 minutes per IP address.',
+                    'Authentication: password only, user kivel, up to 4 attempts per connection and 10 per 15 minutes per IP address.',
                     'One command per session; send it within 10 seconds of opening the session.',
                     'Commands stop after 30 seconds; a connection closes after 120 seconds.',
                     'Standard input up to 10 MiB.',

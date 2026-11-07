@@ -7,16 +7,16 @@ export interface Comparison {
     focus: string;
     description: string;
     summary: string;
-    socketFit: string;
+    kivelFit: string;
     otherFit: string;
-    rows: { topic: string; socket: string; other: string }[];
+    rows: { topic: string; kivel: string; other: string }[];
     limitations: string;
     sources: { title: string; url: string }[];
     tools: { title: string; href: string }[];
     /** ISO date the competitor facts were last checked against official sources. */
     reviewedAt: string;
     /** Short "choose this when" bullets, 3 to 5 each. */
-    bestFor: { socket: string[]; other: string[] };
+    bestFor: { kivel: string[]; other: string[] };
     /** 3 to 6 plain questions people search for, answered in 1 to 3 sentences. */
     faqs: { question: string; answer: string }[];
 }
@@ -31,34 +31,34 @@ export const comparisons: Comparison[] = [
             'Kivel gives private webhook inboxes with custom responses, forwarding, email inboxes and MCP for agents; Webhook.site adds workflows, schedules and custom domains.',
         summary:
             'Both give a callback a temporary destination with a custom response. Kivel inboxes are private by default, forward to your server on Pro, and sit next to email inboxes, mocks, files, utilities and MCP for agents. Webhook.site adds a larger automation platform with workflows and schedules.',
-        socketFit:
+        kivelFit:
             'Choose Kivel when a disposable inbox is one part of a development workflow: capture a callback, format its JSON, test a mock response, or let an MCP agent inspect the result.',
         otherFit:
             'Choose Webhook.site when you need custom actions, workflows, schedules or custom domains. Its documentation covers automation well beyond request inspection.',
         rows: [
             {
                 topic: 'Main workflow',
-                socket: 'Temporary testing resources and browser utilities in one toolbox.',
+                kivel: 'Temporary testing resources and browser utilities in one toolbox.',
                 other: 'Webhook and email inspection plus workflow automation and custom actions.',
             },
             {
                 topic: 'Receiver and history access',
-                socket: 'Private receiver by default; separate caller and inspection credentials. Public reception is an explicit choice.',
+                kivel: 'Private receiver by default; separate caller and inspection credentials. Public reception is an explicit choice.',
                 other: 'Free history is accessible to people who know the URL ID. Paid account URLs are protected by login.',
             },
             {
                 topic: 'Anonymous history',
-                socket: 'One-hour starting lifetime; up to 100 requests or 1 MiB per inbox, 100 KiB per body.',
+                kivel: 'One-hour starting lifetime; up to 100 requests or 1 MiB per inbox, 100 KiB per body.',
                 other: 'Free URLs expire after seven days and accept up to 100 requests or emails, according to its FAQ.',
             },
             {
                 topic: 'Response to the sender',
-                socket: 'Any status from 200 to 599, a JSON, text or XML body, X- headers and a delay of up to 5 seconds.',
+                kivel: 'Any status from 200 to 599, a JSON, text or XML body, X- headers and a delay of up to 5 seconds.',
                 other: 'The default response can be edited on free URLs.',
             },
             {
                 topic: 'Related work',
-                socket: 'Owned email inboxes when configured, forwarding with retries on Pro, replay, mock APIs, file shares, utilities and MCP tools such as wait_for_webhook.',
+                kivel: 'Owned email inboxes when configured, forwarding with retries on Pro, replay, mock APIs, file shares, utilities and MCP tools such as wait_for_webhook.',
                 other: 'Forwarding, schedules, CSV export, and email workflows on paid plans.',
             },
         ],
@@ -77,7 +77,7 @@ export const comparisons: Comparison[] = [
         ],
         reviewedAt: '2026-10-29',
         bestFor: {
-            socket: [
+            kivel: [
                 'You want captured payloads private unless you choose public access',
                 'The test fits within an hour, or seven days with a free account',
                 'You also need a mock API, file share, or JSON formatter in the same session',
@@ -120,34 +120,34 @@ export const comparisons: Comparison[] = [
             'Kivel hosts small, expiring mock APIs from the browser; Mockoon is a desktop and CLI mocking tool with templating, proxying, recording, and CRUD.',
         summary:
             'Kivel creates a small hosted mock API that expires. Mockoon is a dedicated, open source mocking environment that runs as a desktop application or headless through its CLI and Docker image.',
-        socketFit:
+        kivelFit:
             'Choose Kivel for a small disposable endpoint with predictable bodies, status codes, and delays that other people or CI can reach without installing anything, especially when you also need webhook inspection or file sharing.',
         otherFit:
             'Choose Mockoon for richer mock design and reusable environments, including Faker.js templating, response rules, CRUD routes, recording, proxying, and running mocks locally or through its CLI.',
         rows: [
             {
                 topic: 'Authoring',
-                socket: 'Browser editor for routes, methods, statuses, bodies, headers, and delays.',
+                kivel: 'Browser editor for routes, methods, statuses, bodies, headers, and delays.',
                 other: 'Desktop mock editor; the CLI runs the same mock definitions headless.',
             },
             {
                 topic: 'Response behavior',
-                socket: 'Up to 20 routes with request-value and fake-data templates, conditions, random failure rates and a live call log, plus one seeded CRUD collection with record editing and reset.',
+                kivel: 'Up to 20 routes with request-value and fake-data templates, conditions, random failure rates and a live call log, plus one seeded CRUD collection with record editing and reset.',
                 other: 'Templating helpers with Faker.js data, multiple responses with rules, CRUD routes, data buckets, and callbacks.',
             },
             {
                 topic: 'OpenAPI',
-                socket: 'Converts an OpenAPI 3.x JSON document into a static mock of up to 20 routes.',
+                kivel: 'Converts an OpenAPI 3.x JSON document into a static mock of up to 20 routes.',
                 other: 'Imports and exports OpenAPI specifications.',
             },
             {
                 topic: 'Where it runs',
-                socket: 'Hosted on the Kivel installation with a public URL and private access by default.',
+                kivel: 'Hosted on the Kivel installation with a public URL and private access by default.',
                 other: 'Locally in the desktop app, or self-hosted with the CLI and Docker. Cloud deployments are a Pro feature.',
             },
             {
                 topic: 'Reuse',
-                socket: 'Resources start at one hour; configurations can be exported and imported as JSON.',
+                kivel: 'Resources start at one hour; configurations can be exported and imported as JSON.',
                 other: 'Mock data files can be stored in a repository and reused with the CLI.',
             },
         ],
@@ -176,7 +176,7 @@ export const comparisons: Comparison[] = [
         ],
         reviewedAt: '2026-10-29',
         bestFor: {
-            socket: [
+            kivel: [
                 'You need a reachable mock URL without installing anything',
                 'A teammate or CI job must call the mock from another machine',
                 'The mock has a few static routes and should expire on its own',
@@ -216,29 +216,29 @@ export const comparisons: Comparison[] = [
             'Kivel offers single-purpose browser utilities also callable by API, CLI, and MCP; CyberChef chains hundreds of operations into reusable recipes.',
         summary:
             'Both offer browser data operations. Kivel favors one task per page, with the same utilities available through its API, CLI, SDK, SSH, and MCP. CyberChef combines hundreds of operations into repeatable recipes.',
-        socketFit:
+        kivelFit:
             'Choose Kivel when you want a focused formatter, encoder, generator, or checksum tool, or want to call supported utilities through HTTP, CLI, SDK, SSH, or MCP.',
         otherFit:
             'Choose CyberChef for multi-step decoding or analysis, exploring unfamiliar encodings, and building recipes from a much larger set of operations.',
         rows: [
             {
                 topic: 'Interaction',
-                socket: 'Separate task pages with input, explicit actions, and output.',
+                kivel: 'Separate task pages with input, explicit actions, and output.',
                 other: 'Operations composed into a recipe, with input and output panels.',
             },
             {
                 topic: 'Processing location',
-                socket: 'Browser utilities run locally. Hosted interfaces send input to the Kivel server.',
+                kivel: 'Browser utilities run locally. Hosted interfaces send input to the Kivel server.',
                 other: 'Runs entirely in the browser; three operations call external services.',
             },
             {
                 topic: 'Analysis depth',
-                socket: 'Focused JSON, YAML, CSV, encoding, hashing, generation, and timestamp utilities.',
+                kivel: 'Focused JSON, YAML, CSV, encoding, hashing, generation, and timestamp utilities.',
                 other: 'Hundreds of operations, recipe composition, Fork, and Magic detection.',
             },
             {
                 topic: 'Running your own copy',
-                socket: 'Portable Docker platform with PostgreSQL for hosted resources.',
+                kivel: 'Portable Docker platform with PostgreSQL for hosted resources.',
                 other: 'Standalone ZIP of the web app that runs locally or on any web server.',
             },
         ],
@@ -258,7 +258,7 @@ export const comparisons: Comparison[] = [
         ],
         reviewedAt: '2026-10-27',
         bestFor: {
-            socket: [
+            kivel: [
                 'You need one quick task, such as formatting JSON or generating a UUID',
                 'A script or agent should run the same utility through HTTP, CLI, or MCP',
                 'You want test fixtures, mocks, or webhook inboxes next to the utilities',
@@ -297,34 +297,34 @@ export const comparisons: Comparison[] = [
             'Kivel mock APIs are private by default, log every call, generate fake data and proxy real APIs on Pro for $2; Beeceptor adds tunnels, gRPC and SOAP.',
         summary:
             'Both give you a hosted endpoint you can inspect and mock without writing a server. Kivel endpoints are private by default and expire on their own. Beeceptor endpoints are public by default and cover more protocols and behaviors.',
-        socketFit:
+        kivelFit:
             'Choose Kivel when you want mocks private by default, a live log of every call, fake data, random failures and proxy-and-record on Pro at $2 a month, all usable by an AI agent over MCP.',
         otherFit:
             'Choose Beeceptor when a mock needs to expose a local service, use advanced CRUD filters, or speak gRPC or SOAP from a contract.',
         rows: [
             {
                 topic: 'Default access',
-                socket: 'Private by default; callers need an access token and management uses a separate credential.',
+                kivel: 'Private by default; callers need an access token and management uses a separate credential.',
                 other: 'Endpoints are public by default, and anyone with the dashboard URL can view requests. A private dashboard is an upgrade.',
             },
             {
                 topic: 'Mocking',
-                socket: 'Up to 20 routes with request-value and fake-data templates, conditions and random failure rates, plus one CRUD collection with seed reset and revision guards.',
+                kivel: 'Up to 20 routes with request-value and fake-data templates, conditions and random failure rates, plus one CRUD collection with seed reset and revision guards.',
                 other: 'Matching rules, template operators, and stateful CRUD routes.',
             },
             {
                 topic: 'Contracts and protocols',
-                socket: 'OpenAPI 3.x JSON to a static REST mock; GraphQL responses selected by operation name.',
+                kivel: 'OpenAPI 3.x JSON to a static REST mock; GraphQL responses selected by operation name.',
                 other: 'OpenAPI import, GraphQL mocks, gRPC mocks from .proto files, and SOAP mocks from WSDL.',
             },
             {
                 topic: 'Traffic',
-                socket: 'A live log of the last 100 calls on every mock. Proxy and record a real API on Pro. No local tunnel.',
+                kivel: 'A live log of the last 100 calls on every mock. Proxy and record a real API on Pro. No local tunnel.',
                 other: 'Request inspection on the mock endpoint, forward proxy to a real API, and local tunneling.',
             },
             {
                 topic: 'Lifetime',
-                socket: 'Resources start at one hour, up to seven days on a free account.',
+                kivel: 'Resources start at one hour, up to seven days on a free account.',
                 other: 'Free endpoints last 30 days from creation, or 90 days from creation once claimed with a free account.',
             },
         ],
@@ -358,7 +358,7 @@ export const comparisons: Comparison[] = [
         ],
         reviewedAt: '2026-10-30',
         bestFor: {
-            socket: [
+            kivel: [
                 'Mock responses or captured payloads should not be public',
                 'The endpoint should clean itself up after the test',
                 'You want every call logged and fake data in responses',
@@ -397,34 +397,34 @@ export const comparisons: Comparison[] = [
             'Kivel makes standalone, expiring mock APIs in the browser; Postman mock servers run in Postman Cloud from collection examples in your workspace.',
         summary:
             'Kivel creates a standalone mock that expires, with no collection or workspace needed. Postman mock servers live in Postman Cloud and return saved examples from a collection, matched to each request.',
-        socketFit:
+        kivelFit:
             'Choose Kivel for a quick endpoint you configure route by route, share with a token, and let expire, without setting up a collection.',
         otherFit:
             'Choose Postman mock servers when your API is already described in a Postman collection and the team designs and tests it in a shared workspace.',
         rows: [
             {
                 topic: 'Source of responses',
-                socket: 'Routes you define in the editor, or converted from OpenAPI 3.x JSON.',
+                kivel: 'Routes you define in the editor, or converted from OpenAPI 3.x JSON.',
                 other: 'Saved examples in a collection, matched to each request by Postman’s algorithm.',
             },
             {
                 topic: 'Dynamic behavior',
-                socket: 'Simple path, query, and body placeholders and one-field conditions.',
+                kivel: 'Simple path, query, and body placeholders and one-field conditions.',
                 other: 'Variables and templates in collection mocks; mocks can also use JavaScript request handlers.',
             },
             {
                 topic: 'Access',
-                socket: 'Private by default with a separate access token; public is an explicit choice.',
+                kivel: 'Private by default with a separate access token; public is an explicit choice.',
                 other: 'Private mock servers require a Postman API key in the x-api-key header.',
             },
             {
                 topic: 'Hosting and lifetime',
-                socket: 'Hosted on Kivel; starts at one hour, up to seven days on a free account.',
+                kivel: 'Hosted on Kivel; starts at one hour, up to seven days on a free account.',
                 other: 'Deployed to Postman Cloud and always available; mocks can also run locally.',
             },
             {
                 topic: 'Delays',
-                socket: 'Up to two seconds per route.',
+                kivel: 'Up to two seconds per route.',
                 other: 'A fixed network delay setting.',
             },
         ],
@@ -452,7 +452,7 @@ export const comparisons: Comparison[] = [
         ],
         reviewedAt: '2026-10-27',
         bestFor: {
-            socket: [
+            kivel: [
                 'You need a mock in minutes without building a collection',
                 'The mock is for one test session and should expire',
                 'You want to test a specific error status or slow response',
@@ -492,34 +492,34 @@ export const comparisons: Comparison[] = [
             'Kivel webhook inboxes are private, answer with custom responses and forward to your server on Pro; Hookdeck Inspect keeps requests 3 days and forwards to localhost.',
         summary:
             'Both give you a test webhook URL without an account. Kivel keeps the receiver and history private by default with a short lifetime. Hookdeck Inspect keeps requests for three days and adds retries, sample webhooks, and forwarding to localhost.',
-        socketFit:
+        kivelFit:
             'Choose Kivel when you want the receiver private, a custom response, replay to a public URL, forwarding to your server on Pro, and mocks, email inboxes, utilities and MCP in the same place.',
         otherFit:
             'Choose Hookdeck Inspect when you want to forward webhooks to a handler on localhost or trigger sample events from common providers.',
         rows: [
             {
                 topic: 'Account',
-                socket: 'Not required. A free account extends resources to seven days.',
+                kivel: 'Not required. A free account extends resources to seven days.',
                 other: 'Not required. Saving data creates a free Hookdeck account.',
             },
             {
                 topic: 'Retention',
-                socket: 'One-hour anonymous lifetime; up to 100 requests or 1 MiB per inbox.',
+                kivel: 'One-hour anonymous lifetime; up to 100 requests or 1 MiB per inbox.',
                 other: 'Source URLs last with the browser session (90 days); captured requests are kept for three days.',
             },
             {
                 topic: 'Access',
-                socket: 'Private sender and inspection credentials by default.',
+                kivel: 'Private sender and inspection credentials by default.',
                 other: 'Share a Source URL so colleagues see the same requests.',
             },
             {
                 topic: 'Local development',
-                socket: 'No localhost forwarding yet. Replay any captured request to a public URL; Pro forwards every request to your server with retries.',
+                kivel: 'No localhost forwarding yet. Replay any captured request to a public URL; Pro forwards every request to your server with retries.',
                 other: 'Forwards requests to localhost through the Hookdeck CLI and retries captured requests.',
             },
             {
                 topic: 'Automation',
-                socket: 'HTTP API, CLI, SDK, SSH, and MCP create and read inboxes; wait_for_webhook blocks until a request arrives.',
+                kivel: 'HTTP API, CLI, SDK, SSH, and MCP create and read inboxes; wait_for_webhook blocks until a request arrives.',
                 other: 'Inspect API creates Source URLs and waits for the next request, with no API key.',
             },
         ],
@@ -539,7 +539,7 @@ export const comparisons: Comparison[] = [
         ],
         reviewedAt: '2026-10-29',
         bestFor: {
-            socket: [
+            kivel: [
                 'Senders and viewers should need a token, not just the URL',
                 'The test is short and the data should disappear soon after',
                 'An MCP agent or script should create and read the inbox',
@@ -578,34 +578,34 @@ export const comparisons: Comparison[] = [
             'Kivel hosts mock MCP servers and checks public ones from the browser; MCP Inspector is the local reference client for calling and debugging any server.',
         summary:
             'They solve opposite sides of MCP testing. Kivel gives you hosted mock MCP servers plus a browser check of a public server’s tools. MCP Inspector is the official local client for connecting to, calling, and debugging a server.',
-        socketFit:
+        kivelFit:
             'Choose Kivel when your MCP client or agent needs a predictable server to call, or when you want a quick look at a public server’s tools without installing anything.',
         otherFit:
             'Choose MCP Inspector when you are building an MCP server and need to call tools, read resources, render prompts, and watch the JSON-RPC traffic, including for local stdio servers.',
         rows: [
             {
                 topic: 'Role',
-                socket: 'Hosted mock MCP servers with configurable tools, plus a read-only inspector for public servers.',
+                kivel: 'Hosted mock MCP servers with configurable tools, plus a read-only inspector for public servers.',
                 other: 'A client that connects to your server, with web, CLI, and terminal interfaces.',
             },
             {
                 topic: 'Where it runs',
-                socket: 'In the browser, with no installation.',
+                kivel: 'In the browser, with no installation.',
                 other: 'Locally through npx; requires Node 22.19.0 or newer.',
             },
             {
                 topic: 'Transports',
-                socket: 'Public Streamable HTTP endpoints only.',
+                kivel: 'Public Streamable HTTP endpoints only.',
                 other: 'Local stdio servers and remote HTTP or SSE servers.',
             },
             {
                 topic: 'Inspection depth',
-                socket: 'Lists tools, resources, or prompts and their schemas. Does not call tools or read resources.',
+                kivel: 'Lists tools, resources, or prompts and their schemas. Does not call tools or read resources.',
                 other: 'Calls tools, reads and subscribes to resources, renders prompts, and shows protocol and network traffic.',
             },
             {
                 topic: 'Authorization',
-                socket: 'Bearer token or X-* headers. No OAuth login.',
+                kivel: 'Bearer token or X-* headers. No OAuth login.',
                 other: 'Full OAuth flow, plus custom headers.',
             },
         ],
@@ -633,7 +633,7 @@ export const comparisons: Comparison[] = [
         ],
         reviewedAt: '2026-10-27',
         bestFor: {
-            socket: [
+            kivel: [
                 'Your MCP client needs a predictable server to call',
                 'You want to test how an agent handles tool errors and latency',
                 'You want to check a public server’s tools without installing anything',
@@ -673,29 +673,29 @@ export const comparisons: Comparison[] = [
             'Kivel covers core PDF tasks (merge, split, reorder, render, extract text) via browser and API; iLovePDF adds OCR, Office conversion, signing, and more.',
         summary:
             'Both handle everyday PDF tasks online. Kivel covers the core page operations and makes them callable from its API, CLI, and MCP. iLovePDF offers a much wider set of tools, including OCR, Office conversion, editing, and signing, plus desktop and mobile apps.',
-        socketFit:
+        kivelFit:
             'Choose Kivel to merge, split, reorder, or render a PDF without an account, or to run the same operation from a script or agent.',
         otherFit:
             'Choose iLovePDF when you need to convert to or from Word, Excel, or PowerPoint, run OCR, sign, protect, or edit a PDF, or work offline in a desktop app.',
         rows: [
             {
                 topic: 'Tool range',
-                socket: 'Merge, split, reorder pages, optimize, PDF to image, image to PDF, and text extraction.',
+                kivel: 'Merge, split, reorder pages, optimize, PDF to image, image to PDF, and text extraction.',
                 other: 'Organize, optimize, OCR, Office and image conversion, editing, forms, signing, redaction, and comparison.',
             },
             {
                 topic: 'File handling',
-                socket: 'Processed on the server and not retained after the result is returned.',
+                kivel: 'Processed on the server and not retained after the result is returned.',
                 other: 'Files are kept for up to two hours for download, then removed, according to its FAQ.',
             },
             {
                 topic: 'Limits',
-                socket: 'Up to 10 MiB input, 200 pages, and 5 MiB output. Encrypted PDFs are unsupported.',
+                kivel: 'Up to 10 MiB input, 200 pages, and 5 MiB output. Encrypted PDFs are unsupported.',
                 other: 'Not stated in the pages we reviewed.',
             },
             {
                 topic: 'Other ways to use it',
-                socket: 'HTTP API, CLI, SDK, SSH, and MCP with the same limits.',
+                kivel: 'HTTP API, CLI, SDK, SSH, and MCP with the same limits.',
                 other: 'Desktop app for Mac and Windows, mobile apps, and a developer API.',
             },
         ],
@@ -714,7 +714,7 @@ export const comparisons: Comparison[] = [
         ],
         reviewedAt: '2026-10-27',
         bestFor: {
-            socket: [
+            kivel: [
                 'You need to merge, split, or reorder pages quickly',
                 'Uploads and results should not be kept after processing',
                 'A script or agent should run the same PDF operation',

@@ -191,7 +191,7 @@ export function registerScheduledJobs(
             await publicRequest(url, signal, {
                 method: 'POST',
                 requestBody: body,
-                headers: { 'content-type': 'application/json', 'x-socket-delivery-id': id },
+                headers: { 'content-type': 'application/json', 'x-kivel-delivery-id': id },
                 body: false,
             })
         ).status,

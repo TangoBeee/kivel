@@ -194,7 +194,7 @@ export function ResourceWorkbench({
     const resultSection = useRef<HTMLElement | null>(null);
     const focusResult = useRef(false);
     const reduceMotion = useReducedMotion();
-    const key = `socket-${toolId}-resource`;
+    const key = `kivel-${toolId}-resource`;
     const base = `/api/${kind === 'mock' ? 'mocks' : kind === 'mcp' ? 'mcp-servers' : 'files'}`;
     const route = routes[active] ?? routes[0] ?? freshRoute();
     useEffect(() => {
@@ -209,7 +209,7 @@ export function ResourceWorkbench({
             'mock-apis-mock-rest-api',
             'agents-mock-mcp-server',
         ].includes(toolId);
-        const legacyKey = `socket-${kind}-resource`;
+        const legacyKey = `kivel-${kind}-resource`;
         const saved = restore(key) ?? (primary ? restore(legacyKey) : null);
         if (saved) {
             remember(key, saved);

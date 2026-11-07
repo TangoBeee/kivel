@@ -18,7 +18,7 @@ const sql = (database, query) =>
         ['psql', '-U', 'socket_admin', '-d', database, '-At', '-v', 'ON_ERROR_STOP=1', '-c', query],
         { encoding: 'utf8' },
     ).trim();
-const restored = `socket_restore_${randomBytes(6).toString('hex')}`;
+const restored = `kivel_restore_${randomBytes(6).toString('hex')}`;
 const directory = mkdtempSync(join(tmpdir(), 'socket-backup-'));
 const dump = join(directory, 'backup.dump');
 let created = false;

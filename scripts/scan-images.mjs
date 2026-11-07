@@ -15,7 +15,7 @@ for (const image of [
             '-v',
             '/var/run/docker.sock:/var/run/docker.sock',
             '-v',
-            'socket_trivy_cache:/root/.cache/trivy',
+            'kivel_trivy_cache:/root/.cache/trivy',
             '-v',
             `${resolve('.trivyignore.yaml')}:/trivyignore.yaml:ro`,
             'aquasec/trivy:0.76.1',

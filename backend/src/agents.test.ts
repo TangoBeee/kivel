@@ -60,7 +60,7 @@ test('an agent joins a workspace only after its human approves, and gets its key
     const token = await poll(app, login.deviceCode);
     assert.equal(token.statusCode, 200);
     const apiKey = token.json().apiKey;
-    assert.match(apiKey, /^sh_/);
+    assert.match(apiKey, /^kv_/);
     assert.equal((await poll(app, login.deviceCode)).statusCode, 410);
     const me = await app.inject({
         url: '/api/account',
@@ -202,7 +202,7 @@ test('an agent can connect over MCP with no key, using start_login and finish_lo
     });
     const finished = await waiting;
     assert.equal(finished.status, 'approved');
-    assert.match(finished.apiKey, /^sh_/);
+    assert.match(finished.apiKey, /^kv_/);
 });
 
 test('agents without a human get a capped trial that keeps working until claimed', async (t) => {

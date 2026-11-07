@@ -90,7 +90,7 @@ export default function Compare() {
                                         <Link href={`/compare/${item.slug}/`}>{item.name}</Link>
                                     </th>
                                     <td>{item.focus}</td>
-                                    <td>{item.bestFor.socket[0]}</td>
+                                    <td>{item.bestFor.kivel[0]}</td>
                                     <td>{item.bestFor.other[0]}</td>
                                 </tr>
                             ))}

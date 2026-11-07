@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 const suffix = `${process.pid}-${Date.now()}`,
-    network = `socket-mail-${suffix}`,
+    network = `kivel-mail-${suffix}`,
     relay = `${network}-relay`,
     client = `${network}-client`;
 const appImage = process.env.APP_IMAGE ?? 'kivel:local';

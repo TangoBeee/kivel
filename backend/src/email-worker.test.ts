@@ -57,7 +57,7 @@ test('the email worker preserves the envelope sender independently of a forged h
             setReject: (reason: string) => assert.fail(reason),
         },
         {
-            INGEST_URL: 'https://socket.example/hooks/email',
+            INGEST_URL: 'https://kivel.example/hooks/email',
             EMAIL_INGEST_SECRET: 'test-worker-secret',
         },
     );

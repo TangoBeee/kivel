@@ -15,7 +15,7 @@ export function downloadBlob(blob: Blob, name: string) {
 export function ResultPreview({
     text,
     title = 'Output',
-    filename = 'socket-result.txt',
+    filename = 'kivel-result.txt',
     downloadable = true,
 }: {
     text: string;

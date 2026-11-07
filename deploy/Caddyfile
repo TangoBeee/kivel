@@ -16,7 +16,7 @@
 	}
 }
 
-(socket_transport) {
+(kivel_transport) {
 	transport http {
 		dial_timeout 5s
 		response_header_timeout 35s
@@ -24,9 +24,9 @@
 	}
 }
 
-(socket_upstream) {
+(kivel_upstream) {
 	reverse_proxy app:3000 {
-		import socket_transport
+		import kivel_transport
 		# The app sees one address: the verified client, never a chain it has to trust.
 		header_up X-Forwarded-For {client_ip}
 	}
@@ -52,20 +52,20 @@ www.{$DOMAIN} {
 		request_body {
 			max_size 16777216
 		}
-		import socket_upstream
+		import kivel_upstream
 	}
 	handle @uploads {
 		request_body {
 			max_size 10485760
 		}
-		import socket_upstream
+		import kivel_upstream
 	}
 	@inbound_mail path /hooks/email
 	handle @inbound_mail {
 		request_body {
 			max_size 8388608
 		}
-		import socket_upstream
+		import kivel_upstream
 	}
 	@authenticator_import {
 		method POST
@@ -75,19 +75,19 @@ www.{$DOMAIN} {
 		request_body {
 			max_size 1500000
 		}
-		import socket_upstream
+		import kivel_upstream
 	}
 	@email path /api/email-inboxes/*/send
 	handle @email {
 		request_body {
 			max_size 1048576
 		}
-		import socket_upstream
+		import kivel_upstream
 	}
 	handle {
 		request_body {
 			max_size 102400
 		}
-		import socket_upstream
+		import kivel_upstream
 	}
 }

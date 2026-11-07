@@ -190,7 +190,7 @@ export function ScheduledJobWorkbench({ toolId }: { toolId: string }) {
                         <p className="muted">
                             Public HTTP(S) destinations only. Up to 16 KiB of JSON and 100 runs
                             within seven days. Failed deliveries retry twice with the same
-                            X-Socket-Delivery-Id; your receiver should deduplicate it. Delivery
+                            X-Kivel-Delivery-Id; your receiver should deduplicate it. Delivery
                             timing can vary by a few seconds.
                         </p>
                         <Button type="submit" disabled={busy}>

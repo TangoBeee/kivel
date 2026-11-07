@@ -57,7 +57,7 @@ export function openApi(origin: string) {
                 '## Start here',
                 'Use the [quickstart](/docs/) for a first request or [integrations](/integrations/) for SDK, CLI, SSH, and MCP setup. SDK and CLI packages currently ship in the repository.',
                 '## Credentials',
-                '- **Account:** `Authorization: Bearer sh_…`. Scoped keys share workspace access and allowances.',
+                '- **Account:** `Authorization: Bearer kv_…`. Scoped keys share workspace access and allowances.',
                 '- **Anonymous management:** the returned inspection or management token, sent as Bearer or `X-Resource-Token` when an account key occupies Authorization.',
                 '- **Private callers:** a separate token in `X-Access-Token`, or authorized workspace access. Webhook receiving is public by default; inspection is always private. Other resources are private by default. Keep credentials out of URLs.',
                 '## Lifetimes and usage',
@@ -714,14 +714,14 @@ export function openApi(origin: string) {
                 accountKey: {
                     type: 'http',
                     scheme: 'bearer',
-                    bearerFormat: 'sh_…',
+                    bearerFormat: 'kv_…',
                     description:
                         'Revocable workspace API key. Scopes and membership are checked for each request.',
                 },
                 sessionCookie: {
                     type: 'apiKey',
                     in: 'cookie',
-                    name: origin.startsWith('https:') ? '__Host-socket_session' : 'socket_session',
+                    name: origin.startsWith('https:') ? '__Host-kivel_session' : 'kivel_session',
                     description:
                         'HttpOnly browser session. Mutating session requests require a matching Origin header.',
                 },

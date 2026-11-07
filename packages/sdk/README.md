@@ -15,11 +15,11 @@ when you need reproducible application builds.
 ```ts
 import { Kivel, KivelError } from '@kivel/sdk';
 
-const socket = new Kivel({ apiKey: process.env.KIVEL_API_KEY });
-const inbox = await socket.createInbox();
-const received = await socket.waitForRequests(inbox.id, { timeoutSeconds: 20 });
+const kivel = new Kivel({ apiKey: process.env.KIVEL_API_KEY });
+const inbox = await kivel.createInbox();
+const received = await kivel.waitForRequests(inbox.id, { timeoutSeconds: 20 });
 console.log(received.requests);
-await socket.remove('inboxes', inbox.id);
+await kivel.remove('inboxes', inbox.id);
 ```
 
 `createInbox()` returns a `webhookUrl` that accepts senders without credentials. Reading and waiting still require your workspace key or the private `inspectionToken`. For token-required receiving, pass `{ visibility: 'private' }` and give the sender the returned `accessToken` for its `X-Access-Token` header.
@@ -70,16 +70,16 @@ Use an approved workspace key and synthetic users to test sign in. The issuer ex
 OIDC discovery, JWKS, authorization, token, userinfo and revocation endpoints.
 
 ```ts
-const provider = await socket.createOAuthProvider({
+const provider = await kivel.createOAuthProvider({
     name: 'Test app',
     redirectUris: ['http://localhost:3000/auth/callback'],
     users: [{ sub: 'test-user', email: 'alex@example.test', name: 'Alex' }],
 });
 // Save provider.client_secret privately at creation.
 // Configure your OAuth client with provider.discoveryUrl and S256 PKCE.
-await socket.oauthProvider(provider.id);
-await socket.mockCalls(provider.id);
-await socket.deleteOAuthProvider(provider.id);
+await kivel.oauthProvider(provider.id);
+await kivel.mockCalls(provider.id);
+await kivel.deleteOAuthProvider(provider.id);
 ```
 
 `oauthProviders()` lists workspace providers; `updateOAuthProvider(id, config)` replaces

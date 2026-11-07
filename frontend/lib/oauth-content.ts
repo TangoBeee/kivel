@@ -17,7 +17,7 @@ export const oauthDoc: DocPage = {
             ],
             code: {
                 title: 'Create with the TypeScript SDK',
-                value: `const provider = await socket.createOAuthProvider({
+                value: `const provider = await kivel.createOAuthProvider({
   name: 'Checkout test',
   redirectUris: ['http://localhost:3000/auth/callback'],
   users: [{ sub: 'test-user', email: 'alex@example.test', name: 'Alex',

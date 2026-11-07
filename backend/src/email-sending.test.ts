@@ -89,8 +89,8 @@ async function fixture(
             url: '/hooks/email',
             headers: {
                 'content-type': 'application/json',
-                'x-socket-timestamp': timestamp,
-                'x-socket-signature': valid ? signature : '0'.repeat(64),
+                'x-kivel-timestamp': timestamp,
+                'x-kivel-signature': valid ? signature : '0'.repeat(64),
             },
             payload,
         });
@@ -350,8 +350,8 @@ test('replyTo sets threading headers from received mail and cross-workspace send
         payload,
         headers: {
             'content-type': 'application/json',
-            'x-socket-timestamp': timestamp,
-            'x-socket-signature': createHmac('sha256', 'x'.repeat(40))
+            'x-kivel-timestamp': timestamp,
+            'x-kivel-signature': createHmac('sha256', 'x'.repeat(40))
                 .update(`${timestamp}.${payload}`)
                 .digest('hex'),
         },
@@ -467,8 +467,8 @@ test('every plan monthly limit is enforced and forged bounce addresses cannot su
         url: '/hooks/email',
         headers: {
             'content-type': 'application/json',
-            'x-socket-timestamp': timestamp,
-            'x-socket-signature': createHmac('sha256', 'x'.repeat(40))
+            'x-kivel-timestamp': timestamp,
+            'x-kivel-signature': createHmac('sha256', 'x'.repeat(40))
                 .update(`${timestamp}.${payload}`)
                 .digest('hex'),
         },

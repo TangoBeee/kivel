@@ -20,7 +20,7 @@ async function fixture(
             routes: [],
             llm: {
                 provider,
-                model: 'socket-mock',
+                model: 'kivel-mock',
                 text,
                 intervalMs: 1,
                 ...(interruptAfterChunks ? { interruptAfterChunks } : {}),
@@ -32,7 +32,7 @@ async function fixture(
     const url = `/mock/${resource.id}/v1/${provider === 'openai' ? 'chat/completions' : 'messages'}`;
     const headers = { 'x-access-token': resource.accessToken };
     const body = {
-        model: 'socket-mock',
+        model: 'kivel-mock',
         max_tokens: 1024,
         messages: [{ role: 'user', content: 'Test this client.' }],
     };
@@ -134,7 +134,7 @@ test('streaming uses correct provider events, assembles Unicode text and signals
 });
 
 test('LLM configurations reject conflicting modes and overlong/slow streams', () => {
-    const llm = { provider: 'openai', model: 'socket-mock', text: 'Hello', intervalMs: 20 };
+    const llm = { provider: 'openai', model: 'kivel-mock', text: 'Hello', intervalMs: 20 };
     assert.ok(validateMock({ name: 'Mock', routes: [], llm }).llm);
     assert.throws(
         () => validateMock({ name: 'Mock', routes: [], echo: true, llm }),

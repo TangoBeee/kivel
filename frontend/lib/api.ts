@@ -74,7 +74,7 @@ export function resourceHeaders(token: string): Record<string, string> {
     return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-const SESSION_KEY = 'socket-webhook-inbox';
+const SESSION_KEY = 'kivel-webhook-inbox';
 export function remember(inbox: Inbox | null): void {
     try {
         if (inbox) sessionStorage.setItem(SESSION_KEY, JSON.stringify(inbox));

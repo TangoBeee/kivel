@@ -9,29 +9,29 @@ export const toolboxComparisons: Comparison[] = [
             'Compare IT Tools and Kivel for everyday developer utilities, self-hosting and temporary test resources, with official sources and practical limits.',
         summary:
             'IT Tools is a focused collection of developer utilities. Kivel combines utilities with temporary webhook inboxes, mock APIs, file shares and MCP access. Choose by the job you need to finish.',
-        socketFit:
+        kivelFit:
             'Choose Kivel when formatting or generating data is part of an integration test. You can inspect a callback, create a temporary mock, generate fixtures and use the shared API, CLI or MCP interface without assembling several services. Available tools are distinguished from the roadmap.',
         otherFit:
             'Choose IT Tools when you want a dedicated developer toolbox and its established open-source application. Its repository documents local development and Docker deployment, so it is a practical option when a focused, self-hostable utility collection is the whole job.',
         rows: [
             {
                 topic: 'Primary job',
-                socket: 'Utilities plus disposable integration-testing resources.',
+                kivel: 'Utilities plus disposable integration-testing resources.',
                 other: 'A collection of small developer utilities in one application.',
             },
             {
                 topic: 'Working with callbacks',
-                socket: 'Create an expiring inbox and inspect captured requests with separate management access.',
+                kivel: 'Create an expiring inbox and inspect captured requests with separate management access.',
                 other: 'Use a separate receiver when your workflow needs an externally reachable webhook inbox.',
             },
             {
                 topic: 'Repeat visits',
-                socket: 'Save available tools in this browser and return through the catalog or dashboard. Saved entries contain tool IDs only.',
+                kivel: 'Save available tools in this browser and return through the catalog or dashboard. Saved entries contain tool IDs only.',
                 other: 'A focused toolbox is useful as a regular destination for developer tasks.',
             },
             {
                 topic: 'Running your own copy',
-                socket: 'Portable Docker setup for the application and PostgreSQL; deployment still requires operator configuration.',
+                kivel: 'Portable Docker setup for the application and PostgreSQL; deployment still requires operator configuration.',
                 other: 'The official repository includes Docker deployment instructions and the open-source application.',
             },
         ],
@@ -50,7 +50,7 @@ export const toolboxComparisons: Comparison[] = [
         ],
         reviewedAt: '2026-10-27',
         bestFor: {
-            socket: [
+            kivel: [
                 'You need a temporary endpoint as well as a utility',
                 'You want the same hosted operation in scripts and an MCP client',
                 'You want file and media previews next to integration tools',
@@ -84,34 +84,34 @@ export const toolboxComparisons: Comparison[] = [
             'Compare Hoppscotch and Kivel for API workflows: reusable collections, import/export, temporary receivers, mocks, client interfaces and current limits.',
         summary:
             'Hoppscotch organizes reusable API requests into collections. Kivel supplies disposable resources and utility operations for integration testing. They can work together: send a request from Hoppscotch to a Kivel mock or receiver.',
-        socketFit:
+        kivelFit:
             'Choose Kivel when you need a destination for a callback, a temporary mock response, a test file or an operation an agent can discover. Resources expose explicit lifetimes and public/private access. The same hosted operations are reachable through ordinary HTTP, the SDK, CLI and MCP.',
         otherFit:
             'Choose Hoppscotch when the main job is maintaining and reusing an API request collection. Its documentation covers nested collections, sharing, and import/export with Hoppscotch, OpenAPI and Postman formats. That is a different job from creating a temporary receiving endpoint.',
         rows: [
             {
                 topic: 'Starting point',
-                socket: 'Create a resource, run a utility or repeat a small API scenario.',
+                kivel: 'Create a resource, run a utility or repeat a small API scenario.',
                 other: 'Organize and reuse requests in collections and sub-collections.',
             },
             {
                 topic: 'Running checks',
-                socket: 'Up to six sequential requests on one public origin, with variables, secret headers, JSON captures and response checks. Browser saves and JSON exports exclude secret values.',
+                kivel: 'Up to six sequential requests on one public origin, with variables, secret headers, JSON captures and response checks. Browser saves and JSON exports exclude secret values.',
                 other: 'A collection runner with configurable delays, iterations and environment variables.',
             },
             {
                 topic: 'Portability',
-                socket: 'Export and import supported mock configurations as JSON; use the published API contract and client examples.',
+                kivel: 'Export and import supported mock configurations as JSON; use the published API contract and client examples.',
                 other: 'Collection import/export includes Hoppscotch, OpenAPI and Postman formats.',
             },
             {
                 topic: 'Receiving callbacks',
-                socket: 'A webhook inbox captures method, path, headers, query and body, with searchable history.',
+                kivel: 'A webhook inbox captures method, path, headers, query and body, with searchable history.',
                 other: 'Use your API client to send requests to a receiver such as a Kivel inbox.',
             },
             {
                 topic: 'Using them together',
-                socket: 'Create a mock or inbox; copy its endpoint and provide a separate access header when private.',
+                kivel: 'Create a mock or inbox; copy its endpoint and provide a separate access header when private.',
                 other: 'Keep the request in a collection and reuse it while changing the destination or test body.',
             },
         ],
@@ -135,7 +135,7 @@ export const toolboxComparisons: Comparison[] = [
         ],
         reviewedAt: '2026-10-27',
         bestFor: {
-            socket: [
+            kivel: [
                 'You need an externally reachable test receiver',
                 'You need short-lived mocks or file shares',
                 'You want utility results from the same API as your test resources',

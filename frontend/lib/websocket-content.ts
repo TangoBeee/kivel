@@ -14,7 +14,7 @@ export const websocketDoc: DocPage = {
             title: 'Create a mock and connect',
             paragraphs: [
                 'Create a mock with empty HTTP routes and a websocket object. The response includes a WebSocket endpoint URL and management credentials. Mocks are private by default. Send the access token in the X-Access-Token handshake header. A browser on Kivel can also use its signed-in workspace session. For native browser clients on another site, explicitly enable public access and use synthetic data.',
-                'The CLI accepts the same JSON through kivel mock create. With the TypeScript SDK, pass it to socket.createMock(config). Agents can call create_mock_api with the same fields, or use resource_request with kind mocks and action create.',
+                'The CLI accepts the same JSON through kivel mock create. With the TypeScript SDK, pass it to kivel.createMock(config). Agents can call create_mock_api with the same fields, or use resource_request with kind mocks and action create.',
             ],
             code: {
                 title: 'Create a private mock over HTTP',

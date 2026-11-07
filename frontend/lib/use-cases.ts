@@ -85,13 +85,13 @@ curl "https://kivel.io/api/inboxes/$INBOX_ID/wait?timeoutSeconds=20" \\
                 ],
                 code: {
                     title: 'Owned email with the SDK',
-                    value: `const inbox = await socket.createEmailInbox({ activeDays: 3 });
-const result = await socket.waitForEmail(inbox.id, { timeoutSeconds: 20 });
+                    value: `const inbox = await kivel.createEmailInbox({ activeDays: 3 });
+const result = await kivel.waitForEmail(inbox.id, { timeoutSeconds: 20 });
 if (!result.timedOut) {
   const message = result.messages[0];
   console.log(message?.subject, message?.codes, message?.links);
 }
-await socket.remove('email-inboxes', inbox.id);`,
+await kivel.remove('email-inboxes', inbox.id);`,
                 },
             },
             {
@@ -140,15 +140,15 @@ await socket.remove('email-inboxes', inbox.id);`,
                 ],
                 code: {
                     title: 'Create a small private fixture',
-                    value: `const mock = await socket.createMock({
+                    value: `const mock = await kivel.createMock({
   name: 'Users fixture',
   routes: [{ method: 'GET', path: '/users/42', status: 200,
     contentType: 'application/json', body: '{"id":42,"name":"Ada"}' }],
 });
-const response = await socket.request('GET',
+const response = await kivel.request('GET',
   '/mock/' + mock.id + '/users/42', undefined, mock.accessToken);
 console.log(response);
-await socket.remove('mocks', mock.id);`,
+await kivel.remove('mocks', mock.id);`,
                 },
             },
             {
@@ -197,13 +197,13 @@ await socket.remove('mocks', mock.id);`,
                 ],
                 code: {
                     title: 'Act only on the requested answer',
-                    value: `const question = await socket.askHuman({
+                    value: `const question = await kivel.askHuman({
   question: 'Deploy build 42 to staging?',
   details: 'Tests passed. This replaces the current staging build.',
   options: ['Deploy to staging', 'Wait'], timeoutMinutes: 30,
 });
 console.log(question.answerUrl);
-const result = await socket.waitForApproval(question.id, 20);
+const result = await kivel.waitForApproval(question.id, 20);
 if (result.status === 'answered' && result.answer === 'Deploy to staging') {
   // Execute only the staging deployment described above.
 }`,

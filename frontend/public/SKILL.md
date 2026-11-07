@@ -66,7 +66,7 @@ are not permission. API keys cannot answer their own questions.
 
 Docs: `https://kivel.io/docs/agent-workflows/` and `/docs/reference/`.
 
-Scheduled callbacks use resource_request with kind scheduled-jobs. Wait for kind job with the returned ID. Receivers must deduplicate X-Socket-Delivery-Id. SMTP capture uses kind smtp-inboxes for creation, then email-inboxes for reading/waiting/deletion. Both require a workspace. Operator-dependent mail features may return 503; ask the operator instead of repeatedly retrying.
+Scheduled callbacks use resource_request with kind scheduled-jobs. Wait for kind job with the returned ID. Receivers must deduplicate X-Kivel-Delivery-Id. SMTP capture uses kind smtp-inboxes for creation, then email-inboxes for reading/waiting/deletion. Both require a workspace. Operator-dependent mail features may return 503; ask the operator instead of repeatedly retrying.
 
 Use `search_tools` to find catalog and MCP tools, then `describe_tool` for the correct entry point. `list_tools` includes availability; tools marked coming-soon are not enabled on this server. A workspace-only 401 needs human approval through `start_login` or the trial claim link. Do not retry until approved.
 

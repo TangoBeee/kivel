@@ -17,8 +17,8 @@ const signed = (body: object, key = secret, timestamp = Math.floor(Date.now() / 
         payload,
         headers: {
             'content-type': 'application/json',
-            'x-socket-timestamp': String(timestamp),
-            'x-socket-signature': `sha256=${createHmac('sha256', key).update(`${timestamp}.${payload}`).digest('hex')}`,
+            'x-kivel-timestamp': String(timestamp),
+            'x-kivel-signature': `sha256=${createHmac('sha256', key).update(`${timestamp}.${payload}`).digest('hex')}`,
         },
     };
 };
@@ -535,8 +535,8 @@ test('clearing owned email history frees storage and keeps the same receiving ad
         timestamp = String(Math.floor(Date.now() / 1000));
     const headers = {
         'content-type': 'application/json',
-        'x-socket-timestamp': timestamp,
-        'x-socket-signature': createHmac('sha256', 'x'.repeat(40))
+        'x-kivel-timestamp': timestamp,
+        'x-kivel-signature': createHmac('sha256', 'x'.repeat(40))
             .update(`${timestamp}.${payload}`)
             .digest('hex'),
     };

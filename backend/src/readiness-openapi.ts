@@ -257,7 +257,7 @@ export function readinessOpenApi() {
                     requestBody: body(jobConfig),
                     responses: { '201': json(), ...errors },
                     description:
-                        'Owned private job. At most 100 runs within its lifetime. Four deliveries run concurrently per process, with a 10-second attempt timeout. Network errors, 429 and 5xx retry twice after 60/120 seconds. At-least-once delivery: deduplicate X-Socket-Delivery-Id. Inspect recent events or use wait_for_event with kind job.',
+                        'Owned private job. At most 100 runs within its lifetime. Four deliveries run concurrently per process, with a 10-second attempt timeout. Network errors, 429 and 5xx retry twice after 60/120 seconds. At-least-once delivery: deduplicate X-Kivel-Delivery-Id. Inspect recent events or use wait_for_event with kind job.',
                 },
             ),
             get: operation(

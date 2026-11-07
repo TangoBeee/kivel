@@ -68,8 +68,8 @@ export function createEmailWorker(parse) {
                 method: 'POST',
                 headers: {
                     'content-type': 'application/json',
-                    'x-socket-timestamp': timestamp,
-                    'x-socket-signature': `sha256=${await sign(env.EMAIL_INGEST_SECRET, `${timestamp}.${body}`)}`,
+                    'x-kivel-timestamp': timestamp,
+                    'x-kivel-signature': `sha256=${await sign(env.EMAIL_INGEST_SECRET, `${timestamp}.${body}`)}`,
                 },
                 body,
             });

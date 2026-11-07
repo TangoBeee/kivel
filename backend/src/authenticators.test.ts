@@ -416,7 +416,7 @@ test('only write credentials generate codes and audit records identify sessions 
         assert.equal(f.identities.acceptInvite(user.id, user.username, invite), f.owner);
         assert.ok(f.identities.createSession(user.id, f.owner, session));
         sessions.set(role, {
-            cookie: `socket_session=${session}`,
+            cookie: `kivel_session=${session}`,
             origin: 'http://localhost:3000',
         });
     }
@@ -459,7 +459,7 @@ test('only write credentials generate codes and audit records identify sessions 
         createdAt: new Date().toISOString(),
     });
     const browserOwner = {
-        cookie: `socket_session=${'a'.repeat(43)}`,
+        cookie: `kivel_session=${'a'.repeat(43)}`,
         origin: 'http://localhost:3000',
     };
     for (const headers of [browserOwner, sessions.get('admin')!, f.headers]) {

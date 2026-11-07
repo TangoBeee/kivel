@@ -49,9 +49,9 @@ export default async function Comparison({ params }: { params: Promise<{ slug: s
                 <div className="comparison-fit">
                     <div className="is-ours">
                         <span className="content-label">Pick Kivel when</span>
-                        <p>{item.socketFit}</p>
+                        <p>{item.kivelFit}</p>
                         <ul className="fit-list">
-                            {item.bestFor.socket.map((point) => (
+                            {item.bestFor.kivel.map((point) => (
                                 <li key={point}>{point}</li>
                             ))}
                         </ul>
@@ -90,7 +90,7 @@ export default async function Comparison({ params }: { params: Promise<{ slug: s
                             {item.rows.map((row) => (
                                 <tr key={row.topic}>
                                     <th scope="row">{row.topic}</th>
-                                    <td className="is-ours">{row.socket}</td>
+                                    <td className="is-ours">{row.kivel}</td>
                                     <td className="is-theirs">{row.other}</td>
                                 </tr>
                             ))}

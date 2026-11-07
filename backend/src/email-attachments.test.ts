@@ -80,8 +80,8 @@ async function fixture(
             url: '/hooks/email',
             headers: {
                 'content-type': 'application/json',
-                'x-socket-timestamp': timestamp,
-                'x-socket-signature': `sha256=${createHmac('sha256', ingestSecret).update(`${timestamp}.${body}`).digest('hex')}`,
+                'x-kivel-timestamp': timestamp,
+                'x-kivel-signature': `sha256=${createHmac('sha256', ingestSecret).update(`${timestamp}.${body}`).digest('hex')}`,
             },
             payload: body,
         });

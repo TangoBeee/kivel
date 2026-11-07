@@ -83,7 +83,7 @@ export class AvRunner {
                     file.bytes.length > MEDIA_INPUT_BYTES)
             )
                 throw new ToolExecutionError('Choose one audio or video file up to 10 MiB.');
-            directory = await mkdtemp(join(tmpdir(), 'socket-media-'));
+            directory = await mkdtemp(join(tmpdir(), 'kivel-media-'));
             const source = join(directory, 'input');
             const args: string[] = [
                 '-hide_banner',

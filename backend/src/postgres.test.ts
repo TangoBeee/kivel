@@ -704,7 +704,7 @@ test('SSH verifies host identity, executes the shared engine, rejects shell comm
             client.connect({
                 host: '127.0.0.1',
                 port: address.port,
-                username: 'socket',
+                username: 'kivel',
                 password: credential.key,
                 hostHash: 'sha256',
                 hostVerifier: (value: string) => value === fingerprint,
@@ -2155,7 +2155,7 @@ test('approved workspace keys exercise agent memory, monitors, human approvals, 
             payload: { deviceCode: login.deviceCode },
         })
     ).json().apiKey;
-    assert.match(key, /^sh_/);
+    assert.match(key, /^kv_/);
     const headers = { authorization: `Bearer ${key}` };
     const trialResponse = await app.inject({
         method: 'POST',
@@ -2736,7 +2736,7 @@ test('email threads, human inbox controls and approved drafts work across replic
         const token = randomBytes(32).toString('base64url');
         await identities.createSession(userId, workspace, token);
         return {
-            headers: { origin: 'http://localhost:3000', cookie: `socket_session=${token}` },
+            headers: { origin: 'http://localhost:3000', cookie: `kivel_session=${token}` },
             identity: (await identities.authenticateSession(token))!,
         };
     }
@@ -2830,8 +2830,8 @@ test('email threads, human inbox controls and approved drafts work across replic
             payload,
             headers: {
                 'content-type': 'application/json',
-                'x-socket-timestamp': timestamp,
-                'x-socket-signature': createHmac('sha256', secret)
+                'x-kivel-timestamp': timestamp,
+                'x-kivel-signature': createHmac('sha256', secret)
                     .update(`${timestamp}.${payload}`)
                     .digest('hex'),
             },

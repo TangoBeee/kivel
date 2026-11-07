@@ -34,7 +34,7 @@ const clients: { id: string; name: string; where: string; code: string; note?: s
   "mcpServers": {
     "kivel": {
       "url": "${endpoint}",
-      "headers": { "Authorization": "Bearer sh_your_api_key" }
+      "headers": { "Authorization": "Bearer kv_your_api_key" }
     }
   }
 }`,
@@ -83,7 +83,7 @@ Authentication:  None (anonymous limits)`,
         name: 'Any MCP client',
         where: 'Streamable HTTP',
         code: `URL:     ${endpoint}
-Header:  Authorization: Bearer sh_your_api_key
+Header:  Authorization: Bearer kv_your_api_key
 Accept:  application/json, text/event-stream`,
     },
 ];

@@ -43,8 +43,7 @@ export function splitCommand(value: string): string[] {
     }
     if (escaped || quote) throw new Error('Unclosed command quote.');
     if (started) result.push(token);
-    if (result[0] !== 'socket' && result[0] !== 'kivel')
-        throw new Error('Commands must start with kivel.');
+    if (result[0] !== 'kivel') throw new Error('Commands must start with kivel.');
     return result.slice(1);
 }
 export async function loadHostKey(path: string) {
@@ -107,8 +106,8 @@ export function createSshServer(
                 if (
                     ++attempts > 4 ||
                     context.method !== 'password' ||
-                    context.username !== 'socket' ||
-                    !/^sh_[A-Za-z0-9_-]{43}$/.test(context.password)
+                    context.username !== 'kivel' ||
+                    !/^(?:kv|sh)_[A-Za-z0-9_-]{43}$/.test(context.password)
                 )
                     return context.reject(['password']);
                 if (await limits.consume(`ssh-auth:${peer}`, 10, 15 * 60000))

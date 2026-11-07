@@ -53,7 +53,7 @@ export default function Integrations() {
                         <h3>Account keys</h3>
                         <p>
                             Create scoped keys in your workspace. Send{' '}
-                            <code>Authorization: Bearer sh_…</code> for account access. Keys can be
+                            <code>Authorization: Bearer kv_…</code> for account access. Keys can be
                             revoked at any time. Workspace membership controls access to
                             account-owned resources.
                         </p>

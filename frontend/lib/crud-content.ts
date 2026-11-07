@@ -157,7 +157,7 @@ export const crudDoc: DocPage = {
             ],
             code: {
                 title: 'SDK and CLI record requests',
-                value: 'const record = await socket.request("POST", `/mock/${id}/tasks`,\n  { name: "Check the receipt", status: "todo" }, accessToken);\n\n// CLI / SSH: provide a caller token separately\n// kivel api GET /mock/<id>/tasks --token <access-token>',
+                value: 'const record = await kivel.request("POST", `/mock/${id}/tasks`,\n  { name: "Check the receipt", status: "todo" }, accessToken);\n\n// CLI / SSH: provide a caller token separately\n// kivel api GET /mock/<id>/tasks --token <access-token>',
             },
         },
         {

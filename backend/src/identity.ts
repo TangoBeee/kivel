@@ -234,7 +234,7 @@ export class MemoryIdentityRepository implements IdentityRepository {
                 new Error('At most 20 active API keys are allowed per user and workspace.'),
                 { statusCode: 409 },
             );
-        const key = `sh_${randomBytes(32).toString('base64url')}`;
+        const key = `kv_${randomBytes(32).toString('base64url')}`;
         const info: KeyInfo = {
             id: randomUUID(),
             name,
@@ -525,7 +525,7 @@ export class PostgresIdentityRepository implements IdentityRepository {
         await this.pool.query('DELETE FROM auth_sessions WHERE token_hash = $1', [digest(token)]);
     }
     async createKey(identity: Identity, name: string, keyScopes: Scope[], expiresAt: string) {
-        const key = `sh_${randomBytes(32).toString('base64url')}`,
+        const key = `kv_${randomBytes(32).toString('base64url')}`,
             id = randomUUID();
         const result = await transaction(this.pool, async (client) => {
             await client.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [identity.userId]);

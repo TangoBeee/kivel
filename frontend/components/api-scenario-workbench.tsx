@@ -26,7 +26,7 @@ const clientExample = [
     '# For a scenario without secret inputs:',
     'kivel run mock-apis-api-test-scenarios < api-scenario.json',
     '',
-    '# SDK: socket.run("mock-apis-api-test-scenarios", JSON.stringify(scenario))',
+    '# SDK: kivel.run("mock-apis-api-test-scenarios", JSON.stringify(scenario))',
     '# MCP: run_tool with the same toolId and input',
     '# Supply declared secrets separately in options.secret as a JSON string.',
 ].join('\n');

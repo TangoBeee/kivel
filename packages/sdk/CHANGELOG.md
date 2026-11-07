@@ -1,5 +1,11 @@
 # @kivel.io/sdk
 
+## 0.6.1
+
+### Patch Changes
+
+- b6437db: Published as `@kivel.io/sdk` and `@kivel.io/cli`, under the npm organization for kivel.io.
+
 ## 0.6.0
 
 ### Minor Changes

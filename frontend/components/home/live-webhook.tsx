@@ -107,7 +107,7 @@ export function LiveWebhook() {
         if (!inbox) return;
         setSending(true);
         try {
-            await fetch(`${inbox.webhookUrl}?source=socket.help`, {
+            await fetch(`${inbox.webhookUrl}?source=Kivel`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ type: 'order.created', id: 'demo-001', test: true }),

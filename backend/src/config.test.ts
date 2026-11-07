@@ -4,23 +4,20 @@ import { readConfig } from './config.js';
 
 const production = {
     SMTP_HOST: 'smtp.example.test',
-    SMTP_FROM: 'support@socket.help',
+    SMTP_FROM: 'support@kivel.io',
     NODE_ENV: 'production',
     AUTH_SECRET: 'test-secret-at-least-32-characters-long',
-    PUBLIC_BASE_URL: 'https://socket.help',
+    PUBLIC_BASE_URL: 'https://kivel.io',
     DATABASE_URL: 'postgres://socket:password@database/socket',
 };
 
 test('production requires persistent storage, a public origin, and HTTPS', () => {
     assert.throws(() => readConfig({ NODE_ENV: 'production' }), /PUBLIC_BASE_URL/);
     assert.throws(
-        () => readConfig({ NODE_ENV: 'production', PUBLIC_BASE_URL: 'https://socket.help' }),
+        () => readConfig({ NODE_ENV: 'production', PUBLIC_BASE_URL: 'https://kivel.io' }),
         /DATABASE_URL/,
     );
-    assert.throws(
-        () => readConfig({ ...production, PUBLIC_BASE_URL: 'http://socket.help' }),
-        /HTTPS/,
-    );
+    assert.throws(() => readConfig({ ...production, PUBLIC_BASE_URL: 'http://kivel.io' }), /HTTPS/);
     assert.equal(readConfig(production).host, '0.0.0.0');
     assert.equal(readConfig({}).host, '127.0.0.1');
 });

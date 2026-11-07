@@ -487,8 +487,8 @@ export function registerAgents({
                 await mail
                     .send({
                         to: humanEmail,
-                        subject: `An AI agent wants to use socket.help for you`,
-                        text: `An AI agent called "${login.name}" started a socket.help trial and listed this address as its human.\n\nTo keep it, open ${claimUrl} and approve it within 72 hours. If you do not know this agent, ignore this email; the trial ends on its own and nothing is charged.\n`,
+                        subject: `An AI agent wants to use Kivel for you`,
+                        text: `An AI agent called "${login.name}" started a Kivel trial and listed this address as its human.\n\nTo keep it, open ${claimUrl} and approve it within 72 hours. If you do not know this agent, ignore this email; the trial ends on its own and nothing is charged.\n`,
                     })
                     .then(() => {
                         notified = true;

@@ -25,7 +25,7 @@ import { parseJsonSafely } from '@socket-help/tools/engine';
 const STORAGE = 'socket-help:api-scenarios:v1';
 const clientExample = [
     "jq -Rs '{input: .}' api-scenario.json |",
-    "  curl https://socket.help/api/tools/mock-apis-api-test-scenarios/run -H 'Content-Type: application/json' --data-binary @-",
+    "  curl https://kivel.io/api/tools/mock-apis-api-test-scenarios/run -H 'Content-Type: application/json' --data-binary @-",
     '',
     '# For a scenario without secret inputs:',
     'socket-help run mock-apis-api-test-scenarios < api-scenario.json',
@@ -753,7 +753,7 @@ export function ApiScenarioWorkbench() {
                 </div>
             </div>
             <p className="tool-notice">
-                Sends real HTTP requests from socket.help. Use a test endpoint you control or are
+                Sends real HTTP requests from Kivel. Use a test endpoint you control or are
                 authorized to test. Nothing runs on page load. A completed report uses one hosted
                 run, including failed checks.
             </p>
@@ -794,7 +794,7 @@ export function ApiScenarioWorkbench() {
                     </Button>
                 </div>
                 <label>
-                    Import socket.help scenario JSON
+                    Import Kivel scenario JSON
                     <TextArea
                         aria-label="Import scenario JSON"
                         value={importText}
@@ -831,8 +831,7 @@ export function ApiScenarioWorkbench() {
                 </Button>
                 <p className="tool-notice">
                     Imports configure the editor; they never run automatically. This version uses
-                    the socket.help scenario format rather than importing executable Postman
-                    scripts.
+                    the Kivel scenario format rather than importing executable Postman scripts.
                 </p>
                 <CodeExample title="Use the scenario from curl" code={clientExample} />
             </details>

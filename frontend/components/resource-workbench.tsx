@@ -45,7 +45,7 @@ const freshRoute = (): Route => ({
     method: 'GET',
     path: '/hello',
     status: 200,
-    body: '{\n  "message": "Hello from socket.help"\n}',
+    body: '{\n  "message": "Hello from Kivel"\n}',
     headers: { 'content-type': 'application/json' },
     delayMs: 0,
 });
@@ -800,7 +800,7 @@ export function ResourceWorkbench({
                                 <p>
                                     Point the mock at your real API: unmatched calls pass through
                                     and real answers are saved as routes. Beeceptor charges $10 a
-                                    month for its paid plans; this is part of socket.help Pro.
+                                    month for its paid plans; this is part of Kivel Pro.
                                 </p>
                                 <Link className="button button-primary button-small" href="/plans/">
                                     Get Pro for $2 a month

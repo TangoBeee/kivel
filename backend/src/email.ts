@@ -711,7 +711,7 @@ export function registerEmail({
                 throw new HttpError(400, 'Forwarding requires a public HTTP(S) webhook URL.');
             }
             if (new URL(url).hostname === new URL(access.origin).hostname)
-                throw new HttpError(400, 'Forward to your own endpoint, not socket.help.');
+                throw new HttpError(400, 'Forward to your own endpoint, not Kivel.');
         }
         await resources.update(
             inbox.id,

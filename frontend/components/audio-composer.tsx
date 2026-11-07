@@ -381,7 +381,7 @@ export function AudioComposer({ toolId }: { toolId: string }) {
                 </Button>
                 <CodeExample
                     title="Run the same composition over HTTP"
-                    code={`curl -X POST https://socket.help/api/tools/test-media-audio-composer/run \\\n  -H 'Content-Type: application/json' \\\n  --data-binary @request.json\n\nrequest.json:\n${JSON.stringify({ input: JSON.stringify(recipe) }, null, 2)}`}
+                    code={`curl -X POST https://kivel.io/api/tools/test-media-audio-composer/run \\\n  -H 'Content-Type: application/json' \\\n  --data-binary @request.json\n\nrequest.json:\n${JSON.stringify({ input: JSON.stringify(recipe) }, null, 2)}`}
                 />
             </details>
             <p className="tool-notice">

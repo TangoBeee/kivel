@@ -4,7 +4,7 @@ import { pageMetadata } from '../../lib/seo';
 import { supportEmail, supportHref, policyUpdated } from '../../lib/support';
 export const metadata = pageMetadata(
     'Refund & cancellation policy',
-    'Understand socket.help refunds and cancellation: free open beta, a seven-day refund window for the first subscription payment, renewal rules, and billing-error support.',
+    'Understand Kivel refunds and cancellation: free open beta, a seven-day refund window for the first subscription payment, renewal rules, and billing-error support.',
     '/refunds/',
 );
 export default function Refunds() {
@@ -41,11 +41,11 @@ export default function Refunds() {
             <section id="first-payment">
                 <h2>Seven-day first-payment refund</h2>
                 <p>
-                    If you buy your first paid socket.help subscription, you can request a refund of
-                    that first subscription payment within seven calendar days of the charge. The
-                    window starts on the payment date shown on your receipt. This applies to the
-                    first subscription payment for the workspace, not later renewals, upgrades or
-                    repeat subscriptions.
+                    If you buy your first paid Kivel subscription, you can request a refund of that
+                    first subscription payment within seven calendar days of the charge. The window
+                    starts on the payment date shown on your receipt. This applies to the first
+                    subscription payment for the workspace, not later renewals, upgrades or repeat
+                    subscriptions.
                 </p>
                 <p>
                     When that first payment is refunded, we cancel the paid subscription and return

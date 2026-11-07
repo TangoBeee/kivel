@@ -4,7 +4,7 @@ import { ReadingLayout } from '../../components/content-layout';
 import { pageMetadata } from '../../lib/seo';
 export const metadata = pageMetadata(
     'Privacy & data handling',
-    'Understand what socket.help processes locally, what temporary tools store, how private access works, and how accounts, email recovery, logs, and cleanup handle data.',
+    'Understand what Kivel processes locally, what temporary tools store, how private access works, and how accounts, email recovery, logs, and cleanup handle data.',
     '/privacy/',
 );
 const sections = [
@@ -41,7 +41,7 @@ export default function Privacy() {
                 <p>
                     Formatters, encoders, generators, and file checksums marked as browser-local
                     process input on your device. Their inputs, secrets, and results are not sent to
-                    socket.help.
+                    Kivel.
                 </p>
                 <p>
                     Using the same utility through the API, SDK, CLI, SSH, or MCP sends your input

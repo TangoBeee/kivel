@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: false
 env:
   REPOSITORY: tangobee/socket
-  DOMAIN: socket.help
+  DOMAIN: kivel.io
 jobs:
   deploy:
     # Nothing runs until the DEPLOY_HOST variable names the server.

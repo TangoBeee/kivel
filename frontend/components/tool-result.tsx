@@ -994,9 +994,7 @@ export function renderToolResult(toolId: string, text: string, input?: string): 
                         authorizationError: value.authorizationError,
                     }}
                 />
-                <p className="tool-notice">
-                    Certificate trust and hostname checked from socket.help.
-                </p>
+                <p className="tool-notice">Certificate trust and hostname checked from Kivel.</p>
                 <section className="result-group">
                     <h3>Certificate chain</h3>
                     {array(value.chain).map((cert, index) => (
@@ -1156,7 +1154,7 @@ export function renderToolResult(toolId: string, text: string, input?: string): 
                 title={toolId === 'network-redirect-tester' ? 'Redirect journey' : 'HTTP response'}
                 detail={`HTTP ${value.status}`}
             >
-                <p className="tool-notice">Measured from socket.help’s server.</p>
+                <p className="tool-notice">Measured from Kivel’s server.</p>
                 <Facts
                     value={{
                         url: value.url,

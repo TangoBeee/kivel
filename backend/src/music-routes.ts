@@ -41,7 +41,7 @@ export function registerMusic(app: FastifyInstance, frontendDir?: string) {
     app.get('/api/music', async () => ({
         license: 'CC0-1.0',
         licenseUrl: 'https://creativecommons.org/publicdomain/zero/1.0/',
-        origin: 'Original socket.help procedural compositions and synthesized recordings. No third-party samples.',
+        origin: 'Original Kivel procedural compositions and synthesized recordings. No third-party samples.',
         tracks: musicTracks.map((t) => ({
             ...t,
             durationSeconds: (48 * 240) / t.bpm,

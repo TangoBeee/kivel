@@ -38,17 +38,17 @@ export default async function Comparison({ params }: { params: Promise<{ slug: s
     return (
         <ReadingLayout
             meta={`${item.focus} · Reviewed ${formatDate(item.reviewedAt)}`}
-            title={`socket.help vs ${item.name}`}
+            title={`Kivel vs ${item.name}`}
             description={item.summary}
             path={`/compare/${slug}/`}
             sections={sections}
             parent={{ name: 'All comparisons', path: '/compare/' }}
         >
             <section id="fit">
-                <h2>Why teams pick socket.help.</h2>
+                <h2>Why teams pick Kivel.</h2>
                 <div className="comparison-fit">
                     <div className="is-ours">
-                        <span className="content-label">Pick socket.help when</span>
+                        <span className="content-label">Pick Kivel when</span>
                         <p>{item.socketFit}</p>
                         <ul className="fit-list">
                             {item.bestFor.socket.map((point) => (
@@ -68,20 +68,20 @@ export default async function Comparison({ params }: { params: Promise<{ slug: s
                 </div>
             </section>
             <p className="comparison-included">
-                Every socket.help plan includes webhook and email inboxes, mock APIs and MCP
-                servers, files, memory, monitors and approvals for AI agents over one MCP
-                connection, plus {available} tools in all. Free to start; Pro is $2 a month.
+                Every Kivel plan includes webhook and email inboxes, mock APIs and MCP servers,
+                files, memory, monitors and approvals for AI agents over one MCP connection, plus{' '}
+                {available} tools in all. Free to start; Pro is $2 a month.
             </p>
             <section id="differences">
                 <h2>The differences that matter.</h2>
                 <div className="content-table-wrap">
                     <table className="content-table comparison-table">
-                        <caption>{`Workflow comparison: socket.help and ${item.name}`}</caption>
+                        <caption>{`Workflow comparison: Kivel and ${item.name}`}</caption>
                         <thead>
                             <tr>
                                 <th scope="col">Area</th>
                                 <th scope="col" className="is-ours">
-                                    socket.help
+                                    Kivel
                                 </th>
                                 <th scope="col">{item.name}</th>
                             </tr>
@@ -114,8 +114,8 @@ export default async function Comparison({ params }: { params: Promise<{ slug: s
                 <p>
                     Reviewed on{' '}
                     <time dateTime={item.reviewedAt}>{formatDate(item.reviewedAt)}</time> against
-                    official documentation. Features can change. This page is written by socket.help
-                    and is not an endorsement by {item.name}.
+                    official documentation. Features can change. This page is written by Kivel and
+                    is not an endorsement by {item.name}.
                 </p>
                 <ul className="source-list">
                     {item.sources.map((source) => (
@@ -141,7 +141,7 @@ export default async function Comparison({ params }: { params: Promise<{ slug: s
                     {others.map((entry) => (
                         <Link key={entry.slug} href={`/compare/${entry.slug}/`}>
                             <small>{entry.focus}</small>
-                            <strong>socket.help vs {entry.name}</strong>
+                            <strong>Kivel vs {entry.name}</strong>
                         </Link>
                     ))}
                 </div>

@@ -44,11 +44,11 @@ export const docPages: DocPage[] = [
     scenarioDoc,
     {
         slug: 'quickstart',
-        title: 'Quickstart: your first socket.help API request',
+        title: 'Quickstart: your first Kivel API request',
         navTitle: 'Quickstart',
         group: 'Get started',
         description:
-            'Make your first socket.help API call with curl and no account: format JSON, create a webhook inbox, send a test callback, then add a workspace API key.',
+            'Make your first Kivel API call with curl and no account: format JSON, create a webhook inbox, send a test callback, then add a workspace API key.',
         updatedAt,
         sections: [
             {
@@ -57,7 +57,7 @@ export const docPages: DocPage[] = [
                 paragraphs: [
                     `The catalog contains ${catalog.filter((tool) => tool.status === 'available').length} tools across ${categories.length} categories: HTTP and webhooks, email, mocks and OAuth, files, monitors, memory, authenticators, scheduled jobs and status pages, test data and media, developer utilities, DNS and network. Use MCP search_tools to discover them, or call the same tools over HTTP, SDK, CLI or SSH.`,
                     'Browser utilities are free. Anonymous HTTP calls use published allowances; workspace-only features require an account and a scoped key. Hosted resources use their own entry points and lifecycle controls.',
-                    'This page walks through one utility run, one webhook inbox and the switch to an API key. Every example uses plain curl against https://socket.help.',
+                    'This page walks through one utility run, one webhook inbox and the switch to an API key. Every example uses plain curl against https://kivel.io.',
                 ],
             },
             {
@@ -69,7 +69,7 @@ export const docPages: DocPage[] = [
                 ],
                 code: {
                     title: 'Format JSON with curl',
-                    value: `curl https://socket.help/api/tools/json/run \\
+                    value: `curl https://kivel.io/api/tools/json/run \\
   -H 'Content-Type: application/json' \\
   -d '{"input":"{\\"hello\\":true}","options":{"action":"format"}}'
 
@@ -90,7 +90,7 @@ export const docPages: DocPage[] = [
                 ],
                 code: {
                     title: 'Create a private inbox',
-                    value: `curl -X POST https://socket.help/api/inboxes
+                    value: `curl -X POST https://kivel.io/api/inboxes
 
 # 201 Created
 {
@@ -100,7 +100,7 @@ export const docPages: DocPage[] = [
   "visibility": "private",
   "accessVersion": "ACCESS_VERSION",
   "accessToken": "ACCESS_TOKEN",
-  "webhookUrl": "https://socket.help/hooks/INBOX_ID"
+  "webhookUrl": "https://kivel.io/hooks/INBOX_ID"
 }`,
                 },
             },
@@ -112,19 +112,19 @@ export const docPages: DocPage[] = [
                 ],
                 code: {
                     title: 'Send, inspect and delete',
-                    value: `curl -X POST https://socket.help/hooks/INBOX_ID \\
+                    value: `curl -X POST https://kivel.io/hooks/INBOX_ID \\
   -H "X-Access-Token: $ACCESS_TOKEN" \\
   -H 'Content-Type: application/json' \\
   -d '{"event":"ping"}'
 # {"received":true,"requestId":"CAPTURE_ID"}
 
-curl https://socket.help/api/inboxes/INBOX_ID/requests \\
+curl https://kivel.io/api/inboxes/INBOX_ID/requests \\
   -H "Authorization: Bearer $INSPECTION_TOKEN"
 # {"requests":[{"method":"POST","path":"/hooks/INBOX_ID","headers":{...},
 #   "query":{},"body":"{\\"event\\":\\"ping\\"}","bodyEncoding":"utf8",
 #   "bodySize":16,"id":"CAPTURE_ID","timestamp":"..."}]}
 
-curl -X DELETE https://socket.help/api/inboxes/INBOX_ID \\
+curl -X DELETE https://kivel.io/api/inboxes/INBOX_ID \\
   -H "Authorization: Bearer $INSPECTION_TOKEN"
 # 204 No Content`,
                 },
@@ -141,10 +141,10 @@ curl -X DELETE https://socket.help/api/inboxes/INBOX_ID \\
                     title: 'Authenticated requests',
                     value: `export SOCKET_HELP_API_KEY='sh_...'
 
-curl https://socket.help/api/usage \\
+curl https://kivel.io/api/usage \\
   -H "Authorization: Bearer $SOCKET_HELP_API_KEY"
 
-curl -X POST https://socket.help/api/inboxes \\
+curl -X POST https://kivel.io/api/inboxes \\
   -H "Authorization: Bearer $SOCKET_HELP_API_KEY"`,
                 },
             },
@@ -164,7 +164,7 @@ curl -X POST https://socket.help/api/inboxes \\
         ],
         faqs: [
             {
-                question: 'Do I need an account to use the socket.help API?',
+                question: 'Do I need an account to use the Kivel API?',
                 answer: 'No. Utility runs and resource creation work anonymously with the smallest allowances: 5 active resources, one-hour lifetimes and 100 hosted runs per day. An account raises those limits and lets you manage resources from a workspace.',
             },
             {
@@ -194,14 +194,14 @@ curl -X POST https://socket.help/api/inboxes \\
         navTitle: 'Authentication',
         group: 'Get started',
         description:
-            'How socket.help authenticates requests: anonymous use, scoped workspace API keys, browser sessions, and the separate inspection, management and access tokens.',
+            'How Kivel authenticates requests: anonymous use, scoped workspace API keys, browser sessions, and the separate inspection, management and access tokens.',
         updatedAt,
         sections: [
             {
                 id: 'overview',
                 title: 'Which credential do I need?',
                 paragraphs: [
-                    'socket.help has two kinds of credentials. Account credentials (an API key or a signed-in browser session) identify your workspace. Resource tokens are returned when a resource is created and control one resource: either managing it or calling it.',
+                    'Kivel has two kinds of credentials. Account credentials (an API key or a signed-in browser session) identify your workspace. Resource tokens are returned when a resource is created and control one resource: either managing it or calling it.',
                     'Most endpoints also work without any credential. Anonymous requests use the anonymous plan, and their usage is tracked by a hashed IP address, so people on the same connection share limits.',
                 ],
                 table: {
@@ -256,7 +256,7 @@ curl -X POST https://socket.help/api/inboxes \\
                 ],
                 code: {
                     title: 'Use a key',
-                    value: `curl https://socket.help/api/account \\
+                    value: `curl https://kivel.io/api/account \\
   -H "Authorization: Bearer $SOCKET_HELP_API_KEY"`,
                 },
                 note: 'Keep keys in environment variables or a secret manager, never in URLs or source control. Revoke a key from your workspace as soon as it is exposed.',
@@ -310,7 +310,7 @@ curl -X POST https://socket.help/api/inboxes \\
                 ],
                 code: {
                     title: 'API key and resource token together',
-                    value: `curl https://socket.help/api/mocks/MOCK_ID \\
+                    value: `curl https://kivel.io/api/mocks/MOCK_ID \\
   -H "Authorization: Bearer $SOCKET_HELP_API_KEY" \\
   -H "X-Resource-Token: $MANAGEMENT_TOKEN"`,
                 },
@@ -356,7 +356,7 @@ curl -X POST https://socket.help/api/inboxes \\
         navTitle: 'Limits and errors',
         group: 'Get started',
         description:
-            'socket.help plan allowances, rate limits, request sizes and retention, plus the JSON error format, status codes and how to handle Retry-After on 429 and 503.',
+            'Kivel plan allowances, rate limits, request sizes and retention, plus the JSON error format, status codes and how to handle Retry-After on 429 and 503.',
         updatedAt,
         sections: [
             {
@@ -545,7 +545,7 @@ X-Request-Id: 1e3e28f5-fb64-474f-845f-b06c17f52eef
         navTitle: 'Webhook inboxes',
         group: 'Resources',
         description:
-            'Create a temporary webhook URL with the socket.help API, receive callbacks from any service, and read captured methods, headers, query values and bodies.',
+            'Create a temporary webhook URL with the Kivel API, receive callbacks from any service, and read captured methods, headers, query values and bodies.',
         updatedAt,
         sections: [
             {
@@ -563,7 +563,7 @@ X-Request-Id: 1e3e28f5-fb64-474f-845f-b06c17f52eef
                 ],
                 code: {
                     title: 'Create a public inbox for 30 minutes',
-                    value: `curl -X POST 'https://socket.help/api/inboxes?visibility=public&ttlSeconds=1800'
+                    value: `curl -X POST 'https://kivel.io/api/inboxes?visibility=public&ttlSeconds=1800'
 
 # 201 Created
 {
@@ -572,7 +572,7 @@ X-Request-Id: 1e3e28f5-fb64-474f-845f-b06c17f52eef
   "expiresAt": "2026-10-27T12:30:00.000Z",
   "visibility": "public",
   "accessVersion": "ACCESS_VERSION",
-  "webhookUrl": "https://socket.help/hooks/INBOX_ID"
+  "webhookUrl": "https://kivel.io/hooks/INBOX_ID"
 }`,
                 },
             },
@@ -586,7 +586,7 @@ X-Request-Id: 1e3e28f5-fb64-474f-845f-b06c17f52eef
                 ],
                 code: {
                     title: 'Send to a private inbox',
-                    value: `curl -X POST 'https://socket.help/hooks/INBOX_ID?source=test' \\
+                    value: `curl -X POST 'https://kivel.io/hooks/INBOX_ID?source=test' \\
   -H "X-Access-Token: $ACCESS_TOKEN" \\
   -H 'Content-Type: application/json' \\
   -d '{"type":"invoice.paid","id":"evt_test_1"}'
@@ -606,7 +606,7 @@ X-Request-Id: 1e3e28f5-fb64-474f-845f-b06c17f52eef
                 ],
                 code: {
                     title: 'Poll with an ETag',
-                    value: `curl -i https://socket.help/api/inboxes/INBOX_ID/requests \\
+                    value: `curl -i https://kivel.io/api/inboxes/INBOX_ID/requests \\
   -H "Authorization: Bearer $INSPECTION_TOKEN" \\
   -H 'If-None-Match: "ETAG_FROM_LAST_RESPONSE"'`,
                 },
@@ -674,7 +674,7 @@ X-Request-Id: 1e3e28f5-fb64-474f-845f-b06c17f52eef
         navTitle: 'Mock REST APIs',
         group: 'Resources',
         description:
-            'Create a temporary mock REST API on socket.help with up to 20 routes, path parameters, response templates, conditions, delays, rate limits and streaming.',
+            'Create a temporary mock REST API on Kivel with up to 20 routes, path parameters, response templates, conditions, delays, rate limits and streaming.',
         updatedAt,
         sections: [
             {
@@ -692,7 +692,7 @@ X-Request-Id: 1e3e28f5-fb64-474f-845f-b06c17f52eef
                 ],
                 code: {
                     title: 'Create a public mock with a templated route',
-                    value: `curl -X POST 'https://socket.help/api/mocks?visibility=public' \\
+                    value: `curl -X POST 'https://kivel.io/api/mocks?visibility=public' \\
   -H 'Content-Type: application/json' \\
   -d '{
     "name": "Users",
@@ -711,10 +711,10 @@ X-Request-Id: 1e3e28f5-fb64-474f-845f-b06c17f52eef
   "expiresAt": "2026-10-27T13:00:00.000Z",
   "visibility": "public",
   "accessVersion": "ACCESS_VERSION",
-  "endpointUrl": "https://socket.help/mock/MOCK_ID"
+  "endpointUrl": "https://kivel.io/mock/MOCK_ID"
 }
 
-curl https://socket.help/mock/MOCK_ID/users/42
+curl https://kivel.io/mock/MOCK_ID/users/42
 # {"id":"42"}`,
                 },
             },
@@ -774,7 +774,7 @@ curl https://socket.help/mock/MOCK_ID/users/42
                 id: 'matching',
                 title: 'How requests are matched',
                 paragraphs: [
-                    'Call routes under endpointUrl, for example https://socket.help/mock/MOCK_ID/users/42. A route matches when the method is equal, the path has the same number of segments with equal literal segments, and the condition (if any) holds. Trailing slashes are ignored.',
+                    'Call routes under endpointUrl, for example https://kivel.io/mock/MOCK_ID/users/42. A route matches when the method is equal, the path has the same number of segments with equal literal segments, and the condition (if any) holds. Trailing slashes are ignored.',
                     'The first route in configuration order wins. If no route has the request method, HEAD falls back to a GET route, then any method falls back to an ANY route. No match returns 404 with {"error":"No matching mock route."}.',
                     'A condition compares one request header, query parameter or top-level JSON body field to an exact string. Use conditions to return different responses from the same path, for example a 401 route and a 200 route for the same path selected by an Authorization value.',
                 ],
@@ -796,7 +796,7 @@ curl https://socket.help/mock/MOCK_ID/users/42
                 ],
                 code: {
                     title: 'Replace routes',
-                    value: `curl -X PUT https://socket.help/api/mocks/MOCK_ID \\
+                    value: `curl -X PUT https://kivel.io/api/mocks/MOCK_ID \\
   -H "Authorization: Bearer $MANAGEMENT_TOKEN" \\
   -H 'Content-Type: application/json' \\
   -d '{"name":"Users","routes":[{"method":"ANY","path":"/health","status":200,"body":"ok","headers":{"content-type":"text/plain"}}]}'
@@ -844,7 +844,7 @@ curl https://socket.help/mock/MOCK_ID/users/42
         navTitle: 'File sharing',
         group: 'Resources',
         description:
-            'Upload a file up to 10 MiB with the socket.help API, share it privately or publicly, limit downloads with maxDownloads, and create one-time download links.',
+            'Upload a file up to 10 MiB with the Kivel API, share it privately or publicly, limit downloads with maxDownloads, and create one-time download links.',
         updatedAt,
         sections: [
             {
@@ -876,7 +876,7 @@ curl https://socket.help/mock/MOCK_ID/users/42
                 },
                 code: {
                     title: 'Upload a private one-time file',
-                    value: `curl -X POST 'https://socket.help/api/files?maxDownloads=1' \\
+                    value: `curl -X POST 'https://kivel.io/api/files?maxDownloads=1' \\
   -H 'Content-Type: application/octet-stream' \\
   -H 'X-File-Name: report.txt' \\
   --data-binary @report.txt
@@ -891,7 +891,7 @@ curl https://socket.help/mock/MOCK_ID/users/42
   "accessToken": "ACCESS_TOKEN",
   "name": "report.txt",
   "size": 5,
-  "downloadUrl": "https://socket.help/files/FILE_ID",
+  "downloadUrl": "https://kivel.io/files/FILE_ID",
   "remainingDownloads": 1
 }`,
                 },
@@ -905,10 +905,10 @@ curl https://socket.help/mock/MOCK_ID/users/42
                 ],
                 code: {
                     title: 'Check, then download',
-                    value: `curl https://socket.help/files/FILE_ID/info \\
+                    value: `curl https://kivel.io/files/FILE_ID/info \\
   -H "X-Access-Token: $ACCESS_TOKEN"
 
-curl -o report.txt https://socket.help/files/FILE_ID \\
+curl -o report.txt https://kivel.io/files/FILE_ID \\
   -H "X-Access-Token: $ACCESS_TOKEN"`,
                 },
                 note: 'Private download links contain only the file ID. Send the access token to the recipient separately and never put it in a URL or query string; URL fragments do not authorize downloads.',
@@ -966,7 +966,7 @@ curl -o report.txt https://socket.help/files/FILE_ID \\
         navTitle: 'Mock MCP servers',
         group: 'Resources',
         description:
-            'Create a temporary mock MCP server on socket.help with up to 10 tools, input schemas, static responses, errors and delays, served over Streamable HTTP.',
+            'Create a temporary mock MCP server on Kivel with up to 10 tools, input schemas, static responses, errors and delays, served over Streamable HTTP.',
         updatedAt,
         sections: [
             {
@@ -984,7 +984,7 @@ curl -o report.txt https://socket.help/files/FILE_ID \\
                 ],
                 code: {
                     title: 'Create a private mock MCP server',
-                    value: `curl -X POST https://socket.help/api/mcp-servers \\
+                    value: `curl -X POST https://kivel.io/api/mcp-servers \\
   -H 'Content-Type: application/json' \\
   -d '{
     "name": "Weather",
@@ -1009,7 +1009,7 @@ curl -o report.txt https://socket.help/files/FILE_ID \\
   "visibility": "private",
   "accessVersion": "ACCESS_VERSION",
   "accessToken": "ACCESS_TOKEN",
-  "endpointUrl": "https://socket.help/mcp/mock/SERVER_ID"
+  "endpointUrl": "https://kivel.io/mcp/mock/SERVER_ID"
 }`,
                 },
             },
@@ -1043,7 +1043,7 @@ curl -o report.txt https://socket.help/files/FILE_ID \\
                 ],
                 code: {
                     title: 'Call a mock tool',
-                    value: `curl https://socket.help/mcp/mock/SERVER_ID \\
+                    value: `curl https://kivel.io/mcp/mock/SERVER_ID \\
   -H "X-Access-Token: $ACCESS_TOKEN" \\
   -H 'Accept: application/json, text/event-stream' \\
   -H 'Content-Type: application/json' \\
@@ -1092,7 +1092,7 @@ curl -o report.txt https://socket.help/files/FILE_ID \\
         navTitle: 'Sharing and access',
         group: 'Resources',
         description:
-            'How socket.help visibility works: private resources require an X-Access-Token, public ones accept anyone with the URL, and access tokens can be rotated.',
+            'How Kivel visibility works: private resources require an X-Access-Token, public ones accept anyone with the URL, and access tokens can be rotated.',
         updatedAt,
         sections: [
             {
@@ -1128,7 +1128,7 @@ curl -o report.txt https://socket.help/files/FILE_ID \\
                 ],
                 code: {
                     title: 'Call a private endpoint',
-                    value: `curl https://socket.help/mock/MOCK_ID/users/42 \\
+                    value: `curl https://kivel.io/mock/MOCK_ID/users/42 \\
   -H "X-Access-Token: $ACCESS_TOKEN"`,
                 },
                 note: 'Never put access tokens in URLs or query strings, and do not rely on URL fragments: they do not authorize access. Share the link and the token through separate channels.',
@@ -1142,7 +1142,7 @@ curl -o report.txt https://socket.help/files/FILE_ID \\
                 ],
                 code: {
                     title: 'Rotate the access token of an inbox',
-                    value: `curl -X POST https://socket.help/api/inboxes/INBOX_ID/sharing \\
+                    value: `curl -X POST https://kivel.io/api/inboxes/INBOX_ID/sharing \\
   -H "Authorization: Bearer $INSPECTION_TOKEN" \\
   -H 'Content-Type: application/json' \\
   -d '{"visibility":"private"}'
@@ -1190,7 +1190,7 @@ curl -o report.txt https://socket.help/files/FILE_ID \\
         navTitle: 'Lifetimes and renewal',
         group: 'Resources',
         description:
-            'How long socket.help resources last: the one-hour default, ttlSeconds, renewal up to your plan’s maximum retention, persistent paid leases and cleanup.',
+            'How long Kivel resources last: the one-hour default, ttlSeconds, renewal up to your plan’s maximum retention, persistent paid leases and cleanup.',
         updatedAt,
         sections: [
             {
@@ -1219,7 +1219,7 @@ curl -o report.txt https://socket.help/files/FILE_ID \\
                 ],
                 code: {
                     title: 'Create a mock for one day',
-                    value: `curl -X POST 'https://socket.help/api/mocks?ttlSeconds=86400' \\
+                    value: `curl -X POST 'https://kivel.io/api/mocks?ttlSeconds=86400' \\
   -H "Authorization: Bearer $SOCKET_HELP_API_KEY" \\
   -H 'Content-Type: application/json' \\
   -d '{"name":"Status","routes":[{"method":"GET","path":"/status","status":200,"body":"{\\"ok\\":true}"}]}'`,
@@ -1234,7 +1234,7 @@ curl -o report.txt https://socket.help/files/FILE_ID \\
                 ],
                 code: {
                     title: 'Renew an inbox',
-                    value: `curl -X POST https://socket.help/api/inboxes/INBOX_ID/renew \\
+                    value: `curl -X POST https://kivel.io/api/inboxes/INBOX_ID/renew \\
   -H "Authorization: Bearer $SOCKET_HELP_API_KEY" \\
   -H 'Content-Type: application/json' \\
   -d '{"persistent":false}'
@@ -1288,14 +1288,14 @@ curl -o report.txt https://socket.help/files/FILE_ID \\
         navTitle: 'Utilities API',
         group: 'Interfaces',
         description:
-            'Run socket.help utilities over HTTP with POST /api/tools/{id}/run: find tool IDs with GET /api/tools, pass input, options and files, and read the output.',
+            'Run Kivel utilities over HTTP with POST /api/tools/{id}/run: find tool IDs with GET /api/tools, pass input, options and files, and read the output.',
         updatedAt,
         sections: [
             {
                 id: 'overview',
                 title: 'Hosted execution of the same utilities',
                 paragraphs: [
-                    'Most socket.help utilities (formatters, encoders, generators, converters, image and PDF operations, media processors, email inspectors and network checks) can run on the server through one endpoint: POST /api/tools/{id}/run. Use it from scripts, CI jobs and agents when you cannot open the browser tool.',
+                    'Most Kivel utilities (formatters, encoders, generators, converters, image and PDF operations, media processors, email inspectors and network checks) can run on the server through one endpoint: POST /api/tools/{id}/run. Use it from scripts, CI jobs and agents when you cannot open the browser tool.',
                     'On the website, browser-local tools process input on your device. Through the API, SDK, CLI, SSH or MCP, your input is sent to a bounded server worker. Inputs and results are not stored as execution history.',
                 ],
             },
@@ -1308,7 +1308,7 @@ curl -o report.txt https://socket.help/files/FILE_ID \\
                 ],
                 code: {
                     title: 'Describe the JSON tool',
-                    value: `curl https://socket.help/api/tools/json
+                    value: `curl https://kivel.io/api/tools/json
 
 {
   "id": "json",
@@ -1359,12 +1359,12 @@ curl -o report.txt https://socket.help/files/FILE_ID \\
                 },
                 code: {
                     title: 'Text and file runs',
-                    value: `curl https://socket.help/api/tools/uuid/run \\
+                    value: `curl https://kivel.io/api/tools/uuid/run \\
   -H "Authorization: Bearer $SOCKET_HELP_API_KEY" \\
   -H 'Content-Type: application/json' \\
   -d '{"options":{"count":"2"}}'
 
-curl https://socket.help/api/tools/everyday-file-checksums/run \\
+curl https://kivel.io/api/tools/everyday-file-checksums/run \\
   -H 'Content-Type: application/json' \\
   -d '{"file":{"name":"hello.txt","base64":"aGVsbG8="}}'
 
@@ -1447,7 +1447,7 @@ curl https://socket.help/api/tools/everyday-file-checksums/run \\
                     caption: 'Environment variables',
                     headers: ['Variable', 'Purpose'],
                     rows: [
-                        ['SOCKET_HELP_URL', 'API origin; defaults to https://socket.help'],
+                        ['SOCKET_HELP_URL', 'API origin; defaults to https://kivel.io'],
                         ['SOCKET_HELP_API_KEY', 'Workspace API key sent as a Bearer token'],
                         [
                             'SOCKET_HELP_ACCESS_TOKEN',
@@ -1588,7 +1588,7 @@ socket-help api DELETE /api/mocks/MOCK_ID --token "$MANAGEMENT_TOKEN"`,
     },
     {
         slug: 'sdk',
-        title: 'TypeScript SDK for socket.help',
+        title: 'TypeScript SDK for Kivel',
         navTitle: 'TypeScript SDK',
         group: 'Interfaces',
         description:
@@ -1599,7 +1599,7 @@ socket-help api DELETE /api/mocks/MOCK_ID --token "$MANAGEMENT_TOKEN"`,
                 id: 'overview',
                 title: 'What the SDK covers',
                 paragraphs: [
-                    '@socket-help/sdk is a small, dependency-free TypeScript client for the socket.help HTTP API. It works in Node.js and any runtime with fetch. Use it when you want typed methods for utilities and resources instead of building requests by hand.',
+                    '@socket-help/sdk is a small, dependency-free TypeScript client for the Kivel HTTP API. It works in Node.js and any runtime with fetch. Use it when you want typed methods for utilities and resources instead of building requests by hand.',
                     'Install the SDK beta with npm install @socket-help/sdk@beta. The ESM package includes JavaScript and TypeScript declarations, requires Node.js 22.13+ and uses import rather than CommonJS require. Use an explicit beta tag or version until a latest release is promoted.',
                 ],
             },
@@ -1607,7 +1607,7 @@ socket-help api DELETE /api/mocks/MOCK_ID --token "$MANAGEMENT_TOKEN"`,
                 id: 'setup',
                 title: 'Create a client',
                 paragraphs: [
-                    'All options are optional. baseUrl defaults to https://socket.help and must be an origin; remote origins must use HTTPS. timeoutMs defaults to 25000. You can pass your own fetch implementation.',
+                    'All options are optional. baseUrl defaults to https://kivel.io and must be an origin; remote origins must use HTTPS. timeoutMs defaults to 25000. You can pass your own fetch implementation.',
                 ],
                 code: {
                     title: 'Client setup and a first call',
@@ -1807,7 +1807,7 @@ await socket.remove('inboxes', inbox.id);`,
                 id: 'overview',
                 title: 'What the SSH gateway does',
                 paragraphs: [
-                    'The SSH gateway runs the same commands as the socket-help CLI on the server, so you can use socket.help from any machine with an SSH client and no Node.js. It is an optional component that an operator enables; the Docker setup binds it to localhost:2222 by default and exposing it publicly is an operator decision.',
+                    'The SSH gateway runs the same commands as the socket-help CLI on the server, so you can use Kivel from any machine with an SSH client and no Node.js. It is an optional component that an operator enables; the Docker setup binds it to localhost:2222 by default and exposing it publicly is an operator decision.',
                     'Each connection runs one command. There is no interactive shell, no terminal, no port forwarding, no SCP and no SFTP.',
                 ],
             },
@@ -1868,27 +1868,27 @@ ssh -T -n -p 2222 socket@your-host socket-help inbox create --visibility public`
         navTitle: 'MCP for agents',
         group: 'Interfaces',
         description:
-            'Connect an AI agent to the socket.help MCP endpoint at /mcp to run utilities and manage webhook inboxes, mock APIs, files and mock MCP servers over HTTP.',
+            'Connect an AI agent to the Kivel MCP endpoint at /mcp to run utilities and manage webhook inboxes, mock APIs, files and mock MCP servers over HTTP.',
         updatedAt: '2026-10-30',
         sections: [
             {
                 id: 'overview',
                 title: 'What the platform MCP endpoint does',
                 paragraphs: [
-                    'https://socket.help/mcp is a Model Context Protocol server that gives an agent the same capabilities as the HTTP API: run any executable utility, and create, inspect, renew, share and delete temporary resources. It shares permissions and quotas with HTTP, so an agent using your API key works within your workspace plan.',
-                    'This endpoint is different from a mock MCP server. The platform endpoint exposes socket.help itself; a mock MCP server at /mcp/mock/{id} returns tools and responses you configure.',
+                    'https://kivel.io/mcp is a Model Context Protocol server that gives an agent the same capabilities as the HTTP API: run any executable utility, and create, inspect, renew, share and delete temporary resources. It shares permissions and quotas with HTTP, so an agent using your API key works within your workspace plan.',
+                    'This endpoint is different from a mock MCP server. The platform endpoint exposes Kivel itself; a mock MCP server at /mcp/mock/{id} returns tools and responses you configure.',
                 ],
             },
             {
                 id: 'connect',
                 title: 'Connect a client',
                 paragraphs: [
-                    'Configure your client for Streamable HTTP with the URL https://socket.help/mcp. Add Authorization: Bearer with an API key to use your workspace; without it the agent works anonymously. Initialize before calling tools.',
+                    'Configure your client for Streamable HTTP with the URL https://kivel.io/mcp. Add Authorization: Bearer with an API key to use your workspace; without it the agent works anonymously. Initialize before calling tools.',
                     'Requests are POST with Accept: application/json, text/event-stream. Responses are plain JSON. GET returns 405 because SSE streams and transport sessions are not provided. Supported protocol versions are 2025-11-25, 2025-06-18 and 2025-03-26. Platform request bodies can be up to 16 MiB, including Base64 file input, with four concurrent requests admitted before body parsing. Individual file limits still apply.',
                 ],
                 code: {
                     title: 'Call run_tool',
-                    value: `curl https://socket.help/mcp \\
+                    value: `curl https://kivel.io/mcp \\
   -H "Authorization: Bearer $SOCKET_HELP_API_KEY" \\
   -H 'Accept: application/json, text/event-stream' \\
   -H 'Content-Type: application/json' \\
@@ -2004,11 +2004,11 @@ ssh -T -n -p 2222 socket@your-host socket-help inbox create --visibility public`
         ],
         faqs: [
             {
-                question: 'What is the socket.help MCP server URL?',
-                answer: 'https://socket.help/mcp, using Streamable HTTP. Send Authorization: Bearer with an API key to use your workspace allowances.',
+                question: 'What is the Kivel MCP server URL?',
+                answer: 'https://kivel.io/mcp, using Streamable HTTP. Send Authorization: Bearer with an API key to use your workspace allowances.',
             },
             {
-                question: 'Can an agent use socket.help MCP without an account?',
+                question: 'Can an agent use Kivel MCP without an account?',
                 answer: 'Yes. Without Authorization it works with anonymous allowances, and resources it creates are managed with the tokens returned in the tool results.',
             },
             {
@@ -2021,7 +2021,7 @@ ssh -T -n -p 2222 socket@your-host socket-help inbox create --visibility public`
             },
         ],
         related: [
-            { title: 'socket.help MCP', href: '/tools/socket-help-mcp/' },
+            { title: 'Kivel MCP', href: '/tools/socket-help-mcp/' },
             { title: 'Mock MCP servers', href: '/docs/mock-mcp-servers/' },
             { title: 'Utilities API', href: '/docs/tools-api/' },
             { title: 'Integrations', href: '/integrations/' },

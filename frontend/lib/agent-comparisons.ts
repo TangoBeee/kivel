@@ -7,11 +7,11 @@ export const agentComparisons: Comparison[] = [
         name: 'AgentMail',
         focus: 'Email for AI agents',
         description:
-            'A cheaper AgentMail alternative: socket.help gives your agent an email inbox with codes and links extracted, plus webhooks, mocks, 2FA codes and approvals in one MCP server. Pro is $2 a month.',
+            'A cheaper AgentMail alternative: Kivel gives your agent an email inbox with codes and links extracted, plus webhooks, mocks, 2FA codes and approvals in one MCP server. Pro is $2 a month.',
         summary:
-            'Both give AI agents real email inboxes over an API and a hosted MCP server. socket.help puts that inbox next to everything else an agent needs to finish a sign-up or an integration test: webhook URLs, mock APIs and OAuth, 2FA codes, monitors, memory and human approval, for $2 a month on Pro.',
+            'Both give AI agents real email inboxes over an API and a hosted MCP server. Kivel puts that inbox next to everything else an agent needs to finish a sign-up or an integration test: webhook URLs, mock APIs and OAuth, 2FA codes, monitors, memory and human approval, for $2 a month on Pro.',
         socketFit:
-            'Pick socket.help when email is one step in a bigger job: sign up, read the code, pass 2FA, catch the webhook that follows and ask you before anything risky, all through one MCP connection.',
+            'Pick Kivel when email is one step in a bigger job: sign up, read the code, pass 2FA, catch the webhook that follows and ask you before anything risky, all through one MCP connection.',
         otherFit:
             'AgentMail suits teams that only need email at high volume or on their own domains today.',
         rows: [
@@ -42,7 +42,7 @@ export const agentComparisons: Comparison[] = [
             },
         ],
         limitations:
-            'socket.help addresses use a shared socket.help domain; custom domains are planned. The Free plan is sized for testing, and Pro raises email limits for $2 a month.',
+            'Kivel addresses use a shared Kivel domain; custom domains are planned. The Free plan is sized for testing, and Pro raises email limits for $2 a month.',
         sources: [
             { title: 'AgentMail pricing', url: 'https://www.agentmail.to/pricing' },
             { title: 'AgentMail documentation', url: 'https://docs.agentmail.to/' },
@@ -74,22 +74,22 @@ export const agentComparisons: Comparison[] = [
         faqs: [
             {
                 question: 'What is a cheaper alternative to AgentMail?',
-                answer: 'socket.help gives AI agents email inboxes with extracted codes and links on its Pro plan for $2 a month, compared with $20 for AgentMail Developer. The same plan includes webhook URLs, mock APIs, 2FA codes and approvals.',
+                answer: 'Kivel gives AI agents email inboxes with extracted codes and links on its Pro plan for $2 a month, compared with $20 for AgentMail Developer. The same plan includes webhook URLs, mock APIs, 2FA codes and approvals.',
             },
             {
                 question: 'Is AgentMail free?',
                 answer: 'Yes. AgentMail lists a free plan with 3 inboxes and 3,000 emails a month and no credit card. Paid plans start at $20 a month.',
             },
             {
-                question: 'Does socket.help have an MCP server like AgentMail?',
-                answer: 'Yes. socket.help is a hosted MCP server at socket.help/mcp. One connection covers email, webhooks, mocks, files, monitors, memory, authenticators and approvals.',
+                question: 'Does Kivel have an MCP server like AgentMail?',
+                answer: 'Yes. Kivel is a hosted MCP server at kivel.io/mcp. One connection covers email, webhooks, mocks, files, monitors, memory, authenticators and approvals.',
             },
             {
-                question: 'Can my agent get verification codes from email with socket.help?',
+                question: 'Can my agent get verification codes from email with Kivel?',
                 answer: 'Yes. wait_for_email blocks until mail arrives and returns one-time codes and verification links already extracted, so the agent does not have to parse the message.',
             },
             {
-                question: 'Can socket.help send email?',
+                question: 'Can Kivel send email?',
                 answer: 'Yes. Agents can send and reply from their inbox, with threading, daily and monthly limits, and an unsubscribe footer. Free accounts send after verifying the owner email.',
             },
         ],
@@ -99,11 +99,11 @@ export const agentComparisons: Comparison[] = [
         name: 'Mailtrap',
         focus: 'Email testing',
         description:
-            'A Mailtrap alternative for AI agents: socket.help inboxes receive real email from any service, extract codes and links, and come with webhooks, mocks and 2FA. Pro is $2 a month.',
+            'A Mailtrap alternative for AI agents: Kivel inboxes receive real email from any service, extract codes and links, and come with webhooks, mocks and 2FA. Pro is $2 a month.',
         summary:
-            'Mailtrap Email Sandbox catches the email your own app sends from staging. socket.help gives you and your agents real inboxes that receive email from any service, which is what an end-to-end sign-up test or an agent that registers for tools actually needs.',
+            'Mailtrap Email Sandbox catches the email your own app sends from staging. Kivel gives you and your agents real inboxes that receive email from any service, which is what an end-to-end sign-up test or an agent that registers for tools actually needs.',
         socketFit:
-            'Pick socket.help when the email comes from somewhere else, such as a third-party sign-up, a password reset or a vendor notification, or when an AI agent needs to read it and act.',
+            'Pick Kivel when the email comes from somewhere else, such as a third-party sign-up, a password reset or a vendor notification, or when an AI agent needs to read it and act.',
         otherFit:
             'Mailtrap fits when you only need to catch and preview the emails your own application sends.',
         rows: [
@@ -134,7 +134,7 @@ export const agentComparisons: Comparison[] = [
             },
         ],
         limitations:
-            'socket.help does not render client previews or spam scores for emails your app sends; use it for real inbound email and agent workflows.',
+            'Kivel does not render client previews or spam scores for emails your app sends; use it for real inbound email and agent workflows.',
         sources: [
             { title: 'Mailtrap pricing', url: 'https://mailtrap.io/pricing/' },
             { title: 'Mailtrap Email Sandbox', url: 'https://mailtrap.io/email-sandbox/' },
@@ -161,7 +161,7 @@ export const agentComparisons: Comparison[] = [
         faqs: [
             {
                 question: 'What is a Mailtrap alternative for AI agents?',
-                answer: 'socket.help gives agents real inboxes over a hosted MCP server, with one-time codes and links extracted from each message. Mailtrap Sandbox only catches mail your own application sends.',
+                answer: 'Kivel gives agents real inboxes over a hosted MCP server, with one-time codes and links extracted from each message. Mailtrap Sandbox only catches mail your own application sends.',
             },
             {
                 question: 'Is Mailtrap free?',
@@ -169,10 +169,10 @@ export const agentComparisons: Comparison[] = [
             },
             {
                 question: 'Can Mailtrap receive email from other websites?',
-                answer: 'Mailtrap Sandbox catches messages your app sends to it. To receive email from third-party services, use a real inbox such as a socket.help email inbox.',
+                answer: 'Mailtrap Sandbox catches messages your app sends to it. To receive email from third-party services, use a real inbox such as a Kivel email inbox.',
             },
             {
-                question: 'Does socket.help catch the emails my app sends?',
+                question: 'Does Kivel catch the emails my app sends?',
                 answer: 'Yes. Mock SMTP captures mail your app sends without delivering it, and agent email inboxes receive real mail from anywhere.',
             },
         ],
@@ -182,11 +182,11 @@ export const agentComparisons: Comparison[] = [
         name: 'Mailinator',
         focus: 'Disposable email',
         description:
-            'A private Mailinator alternative: socket.help inboxes are private to your workspace, can send and reply, extract codes and links, and include webhooks and mocks. Pro is $2 a month.',
+            'A private Mailinator alternative: Kivel inboxes are private to your workspace, can send and reply, extract codes and links, and include webhooks and mocks. Pro is $2 a month.',
         summary:
-            'Mailinator public inboxes are free and need no sign-up, but anyone can read them and they cannot send. socket.help inboxes are private to your workspace, send and reply, extract codes for your agent, and sit next to webhooks, mocks and approvals.',
+            'Mailinator public inboxes are free and need no sign-up, but anyone can read them and they cannot send. Kivel inboxes are private to your workspace, send and reply, extract codes for your agent, and sit next to webhooks, mocks and approvals.',
         socketFit:
-            'Pick socket.help when the email holds something you would not post publicly, such as a login code or reset link, or when your agent must reply.',
+            'Pick Kivel when the email holds something you would not post publicly, such as a login code or reset link, or when your agent must reply.',
         otherFit: 'Mailinator public inboxes fit throwaway checks where privacy does not matter.',
         rows: [
             {
@@ -216,7 +216,7 @@ export const agentComparisons: Comparison[] = [
             },
         ],
         limitations:
-            'socket.help inboxes need a free account, while Mailinator public inboxes need none. Webhook URLs, mocks and utilities on socket.help work without an account.',
+            'Kivel inboxes need a free account, while Mailinator public inboxes need none. Webhook URLs, mocks and utilities on Kivel work without an account.',
         sources: [
             { title: 'Mailinator pricing', url: 'https://www.mailinator.com/pricing/' },
             { title: 'Mailinator FAQ', url: 'https://www.mailinator.com/mailinator-faqs/' },
@@ -251,15 +251,15 @@ export const agentComparisons: Comparison[] = [
             },
             {
                 question: 'What is a private alternative to Mailinator?',
-                answer: 'socket.help email inboxes are private to your workspace, send and reply, and return extracted codes and links. Pro is $2 a month.',
+                answer: 'Kivel email inboxes are private to your workspace, send and reply, and return extracted codes and links. Pro is $2 a month.',
             },
             {
                 question: 'Can Mailinator send email?',
-                answer: 'No. Mailinator describes itself as receive-only. socket.help inboxes can send and reply.',
+                answer: 'No. Mailinator describes itself as receive-only. Kivel inboxes can send and reply.',
             },
             {
                 question: 'Is there a Mailinator alternative with an MCP server for agents?',
-                answer: 'Yes. socket.help is a hosted MCP server: no local install, and the same connection gives agents webhooks, mocks, 2FA codes and approvals.',
+                answer: 'Yes. Kivel is a hosted MCP server: no local install, and the same connection gives agents webhooks, mocks, 2FA codes and approvals.',
             },
         ],
     },
@@ -268,11 +268,11 @@ export const agentComparisons: Comparison[] = [
         name: 'RequestBin',
         focus: 'Webhook inspection',
         description:
-            'Looking for a RequestBin alternative? socket.help gives you a private webhook URL in one click, no sign-up, with custom responses, replay, signature checks and an MCP server for agents.',
+            'Looking for a RequestBin alternative? Kivel gives you a private webhook URL in one click, no sign-up, with custom responses, replay, signature checks and an MCP server for agents.',
         summary:
-            'RequestBin.com now redirects to Pipedream, which says its Workflows product no longer accepts sign-ups and shuts down on March 31, 2027. socket.help gives you a webhook inbox in one click with no account: private by default, with custom responses, replay, signature verification and forwarding.',
+            'RequestBin.com now redirects to Pipedream, which says its Workflows product no longer accepts sign-ups and shuts down on March 31, 2027. Kivel gives you a webhook inbox in one click with no account: private by default, with custom responses, replay, signature verification and forwarding.',
         socketFit:
-            'Pick socket.help when you want to catch a webhook right now, keep the payloads private, check its signature and replay it, or let an AI agent wait for it.',
+            'Pick Kivel when you want to catch a webhook right now, keep the payloads private, check its signature and replay it, or let an AI agent wait for it.',
         otherFit: 'Existing Pipedream users can keep using their bins until Workflows shuts down.',
         rows: [
             {
@@ -302,7 +302,7 @@ export const agentComparisons: Comparison[] = [
             },
         ],
         limitations:
-            'socket.help bodies are capped at 100 KiB per request, and inboxes keep up to 100 requests anonymously or 1,000 on a free account.',
+            'Kivel bodies are capped at 100 KiB per request, and inboxes keep up to 100 requests anonymously or 1,000 on a free account.',
         sources: [
             {
                 title: 'Pipedream Workflows shutdown notice',
@@ -336,14 +336,14 @@ export const agentComparisons: Comparison[] = [
             },
             {
                 question: 'What is the best RequestBin alternative?',
-                answer: 'socket.help creates a private webhook inbox in one click with no sign-up, with custom responses, replay, signature verification and an MCP server for AI agents.',
+                answer: 'Kivel creates a private webhook inbox in one click with no sign-up, with custom responses, replay, signature verification and an MCP server for AI agents.',
             },
             {
                 question: 'Are RequestBin URLs private?',
-                answer: 'Pipedream HTTP triggers are public by default unless you add authorization. socket.help inboxes are private by default.',
+                answer: 'Pipedream HTTP triggers are public by default unless you add authorization. Kivel inboxes are private by default.',
             },
             {
-                question: 'How long does socket.help keep webhook requests?',
+                question: 'How long does Kivel keep webhook requests?',
                 answer: 'Anonymous inboxes start with one hour and 100 requests. A free account keeps them for up to seven days with up to 1,000 requests per inbox.',
             },
         ],
@@ -353,11 +353,11 @@ export const agentComparisons: Comparison[] = [
         name: 'Mailosaur',
         focus: 'Email testing',
         description:
-            'A free Mailosaur alternative: socket.help gives you and your AI agents real inboxes with codes and links extracted, a hosted MCP server, webhooks and mocks. Free to start, Pro is $2 a month.',
+            'A free Mailosaur alternative: Kivel gives you and your AI agents real inboxes with codes and links extracted, a hosted MCP server, webhooks and mocks. Free to start, Pro is $2 a month.',
         summary:
-            'Mailosaur is a paid email and SMS testing service with a 14-day trial. socket.help is free to start and gives AI agents real inboxes over a hosted MCP server, with one-time codes and links extracted, plus webhook URLs, mock APIs, 2FA codes and approvals.',
+            'Mailosaur is a paid email and SMS testing service with a 14-day trial. Kivel is free to start and gives AI agents real inboxes over a hosted MCP server, with one-time codes and links extracted, plus webhook URLs, mock APIs, 2FA codes and approvals.',
         socketFit:
-            'Pick socket.help when you want to start free, connect an AI agent over MCP, or test email together with webhooks and mock APIs.',
+            'Pick Kivel when you want to start free, connect an AI agent over MCP, or test email together with webhooks and mock APIs.',
         otherFit:
             'Mailosaur fits QA teams that need real-device email previews or SMS testing today.',
         rows: [
@@ -387,8 +387,7 @@ export const agentComparisons: Comparison[] = [
                 other: 'Virtual authenticator on Core and above.',
             },
         ],
-        limitations:
-            'socket.help does not offer device previews or SMS yet; phone numbers are planned.',
+        limitations: 'Kivel does not offer device previews or SMS yet; phone numbers are planned.',
         sources: [
             { title: 'Mailosaur pricing', url: 'https://mailosaur.com/pricing' },
             { title: 'Mailosaur', url: 'https://mailosaur.com/' },
@@ -412,15 +411,15 @@ export const agentComparisons: Comparison[] = [
         faqs: [
             {
                 question: 'Is Mailosaur free?',
-                answer: 'No. Mailosaur offers a 14-day trial, then plans from $20 a month billed annually. socket.help has a free plan, and Pro is $2 a month.',
+                answer: 'No. Mailosaur offers a 14-day trial, then plans from $20 a month billed annually. Kivel has a free plan, and Pro is $2 a month.',
             },
             {
                 question: 'Does Mailosaur have an MCP server?',
-                answer: 'Mailosaur does not list an official MCP server. socket.help is a hosted MCP server for email, webhooks, mocks, 2FA codes and approvals.',
+                answer: 'Mailosaur does not list an official MCP server. Kivel is a hosted MCP server for email, webhooks, mocks, 2FA codes and approvals.',
             },
             {
                 question: 'What is a cheaper alternative to Mailosaur?',
-                answer: 'socket.help gives you real email inboxes with extracted codes and links, TOTP authenticators and webhook inboxes, free to start and $2 a month on Pro.',
+                answer: 'Kivel gives you real email inboxes with extracted codes and links, TOTP authenticators and webhook inboxes, free to start and $2 a month on Pro.',
             },
         ],
     },
@@ -429,11 +428,11 @@ export const agentComparisons: Comparison[] = [
         name: 'Smee.io',
         focus: 'Webhook delivery to localhost',
         description:
-            'A private Smee.io alternative: socket.help webhook inboxes keep history, require credentials to read, send custom responses and forward to your server, with an MCP server for agents.',
+            'A private Smee.io alternative: Kivel webhook inboxes keep history, require credentials to read, send custom responses and forward to your server, with an MCP server for agents.',
         summary:
-            'Smee.io relays webhooks to your local app over Server-Sent Events, without storing them, and anyone with the channel ID can see the payloads. socket.help keeps a private, searchable history you can replay, answer with custom responses and forward to your server.',
+            'Smee.io relays webhooks to your local app over Server-Sent Events, without storing them, and anyone with the channel ID can see the payloads. Kivel keeps a private, searchable history you can replay, answer with custom responses and forward to your server.',
         socketFit:
-            'Pick socket.help when you need to see a webhook after the fact, keep it private, verify its signature or replay it.',
+            'Pick Kivel when you need to see a webhook after the fact, keep it private, verify its signature or replay it.',
         otherFit:
             'Smee.io fits a quick, open-source relay from GitHub to a laptop while it is connected.',
         rows: [
@@ -459,7 +458,7 @@ export const agentComparisons: Comparison[] = [
             },
         ],
         limitations:
-            'socket.help forwards captured requests to a public URL on Pro; to reach localhost, forward to a tunnel or replay from the inbox.',
+            'Kivel forwards captured requests to a public URL on Pro; to reach localhost, forward to a tunnel or replay from the inbox.',
         sources: [
             { title: 'Smee.io', url: 'https://smee.io/' },
             { title: 'Smee.io on GitHub', url: 'https://github.com/probot/smee.io' },
@@ -482,15 +481,15 @@ export const agentComparisons: Comparison[] = [
         faqs: [
             {
                 question: 'Is Smee.io secure?',
-                answer: 'Smee.io channels are not authenticated, so anyone with the channel ID can see the payloads, according to its README. socket.help inboxes are private by default.',
+                answer: 'Smee.io channels are not authenticated, so anyone with the channel ID can see the payloads, according to its README. Kivel inboxes are private by default.',
             },
             {
                 question: 'Does Smee.io store webhooks?',
-                answer: 'No. Payloads are not stored on the server and reach only clients connected at that moment. socket.help keeps a private history you can search and replay.',
+                answer: 'No. Payloads are not stored on the server and reach only clients connected at that moment. Kivel keeps a private history you can search and replay.',
             },
             {
                 question: 'What is a Smee.io alternative with history?',
-                answer: 'socket.help webhook inboxes store every request privately, with custom responses, replay, signature verification and forwarding on Pro.',
+                answer: 'Kivel webhook inboxes store every request privately, with custom responses, replay, signature verification and forwarding on Pro.',
             },
         ],
     },

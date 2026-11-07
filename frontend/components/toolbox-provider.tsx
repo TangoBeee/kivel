@@ -460,8 +460,8 @@ export function ToolboxProvider({ children }: { children: React.ReactNode }) {
                                     <div className="preview-note">
                                         <Icon name="clock" size={17} />
                                         <p>
-                                            Part of the socket.help roadmap. This tool isn’t
-                                            available yet.
+                                            Part of the Kivel roadmap. This tool isn’t available
+                                            yet.
                                         </p>
                                     </div>
                                     {activeCategory && (

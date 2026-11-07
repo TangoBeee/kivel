@@ -338,7 +338,7 @@ export function buildApp({
         });
     });
 
-    // Every JSON error socket.help sends carries the request ID, so a failure can be traced.
+    // Every JSON error Kivel sends carries the request ID, so a failure can be traced.
     // Mock endpoints are skipped: their responses are configured by the user and sent as written.
     app.addHook('onSend', async (request, reply, payload) => {
         if (
@@ -651,11 +651,9 @@ export function buildApp({
                 error: 'Use a public http(s) URL on port 80, 443, 8080 or 8443, up to 2,048 characters.',
             });
         }
-        // Forwarding back to socket.help could make inboxes relay to each other forever.
+        // Forwarding back to Kivel could make inboxes relay to each other forever.
         if (target.hostname === baseUrl.hostname)
-            return reply
-                .code(400)
-                .send({ error: 'Forward to your own endpoint, not socket.help.' });
+            return reply.code(400).send({ error: 'Forward to your own endpoint, not Kivel.' });
         const info = await inboxStore.info(
             request.params.id,
             resourceToken(request),

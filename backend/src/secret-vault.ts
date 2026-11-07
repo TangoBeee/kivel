@@ -1,6 +1,7 @@
 import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from 'node:crypto';
 
 export function secretVault(serverSecret: string, purpose: string) {
+    // The salt is the old name on purpose: changing it would make stored secrets unreadable.
     const key = Buffer.from(hkdfSync('sha256', serverSecret, 'socket.help', purpose, 32));
     return {
         encrypt(value: string, associatedData: string) {

@@ -180,9 +180,7 @@ export function readConfig(env: Record<string, string | undefined>) {
     if (mailDomain && !/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(mailDomain))
         throw new Error('MAIL_DOMAIN must be a domain name such as socketspace.xyz.');
     if (production && mailDomain && mailDomain !== 'socketspace.xyz')
-        throw new Error(
-            'Agent email must use socketspace.xyz, separate from socket.help account mail.',
-        );
+        throw new Error('Agent email must use socketspace.xyz, separate from Kivel account mail.');
     if (emailIngestSecret && emailIngestSecret.length < 32)
         throw new Error('EMAIL_INGEST_SECRET must be at least 32 characters.');
     if (env.EMAIL_SENDING_ENABLED && !['true', 'false'].includes(env.EMAIL_SENDING_ENABLED))

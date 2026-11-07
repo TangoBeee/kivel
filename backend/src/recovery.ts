@@ -118,9 +118,7 @@ export class RecoveryService {
             payload: this.seal({
                 to: email,
                 subject:
-                    purpose === 'verify'
-                        ? 'Verify your socket.help email'
-                        : 'Reset your socket.help password',
+                    purpose === 'verify' ? 'Verify your Kivel email' : 'Reset your Kivel password',
                 text: `${username ? `Account: ${username}\n\n` : ''}Your ${purpose === 'verify' ? 'email verification' : 'password reset'} code is:\n\n${code}\n\nEnter this code at ${this.origin}/account/. It expires in 15 minutes and works once.\n\n${purpose === 'reset' ? 'Resetting your password signs out all sessions and revokes your API keys.\n\n' : ''}If you did not request this, ignore this email.`,
             }),
         });
@@ -166,7 +164,7 @@ export class RecoveryService {
     register(app: FastifyInstance, access: Access) {
         const checkOrigin = (request: FastifyRequest) => {
             if (request.headers.origin !== this.origin)
-                throw new HttpError(403, 'Open this form on socket.help to continue.');
+                throw new HttpError(403, 'Open this form on Kivel to continue.');
         };
         const attempts = async (request: FastifyRequest) => {
             checkOrigin(request);

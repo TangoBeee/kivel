@@ -62,7 +62,7 @@
     "Agent-accessible webhooks",
     "Disposable agent testing resources",
     "MCP server inspection",
-    "Remote MCP endpoint for controlling socket.help resources"
+    "Remote MCP endpoint for controlling Kivel resources"
   ],
   "files": [
     "Browser-based temporary uploads",
@@ -98,7 +98,7 @@
     "Temporary email testing for applications"
   ],
   "domains": [
-    "Temporary subdomains such as `example.socket.help`",
+    "Temporary subdomains such as `example.kivel.io`",
     "Configurable subdomain expiration",
     "Temporary redirects",
     "Temporary static website hosting",

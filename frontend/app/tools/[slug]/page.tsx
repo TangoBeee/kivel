@@ -26,7 +26,7 @@ export async function generateMetadata({
     const title = available ? `${tool.name}: free online tool` : `${tool.name} · Coming soon`;
     const description = available
         ? (toolExample(tool.id)?.useCase ?? tool.description)
-        : `${tool.description} Planned for socket.help; not available yet.`;
+        : `${tool.description} Planned for Kivel; not available yet.`;
     return {
         ...pageMetadata(title, description, toolPageHref(tool)),
         robots: { index: available, follow: true },

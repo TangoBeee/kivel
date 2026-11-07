@@ -18,7 +18,7 @@ export interface ForwardRequest {
 }
 
 const methods: Method[] = ['GET', 'HEAD', 'OPTIONS', 'POST', 'PUT', 'PATCH', 'DELETE'];
-// Hop-by-hop, proxy and credential headers belong to the trip to socket.help, not to the sender.
+// Hop-by-hop, proxy and credential headers belong to the trip to Kivel, not to the sender.
 const dropped =
     /^(host|content-length|connection|keep-alive|transfer-encoding|upgrade|te|trailer|accept-encoding|cookie|authorization|proxy-.*|x-forwarded-.*|x-real-ip|cf-.*|cdn-loop|true-client-ip|x-access-token|x-resource-token|user-agent)$/i;
 

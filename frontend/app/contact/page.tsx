@@ -4,13 +4,13 @@ import { pageMetadata } from '../../lib/seo';
 import { supportEmail, supportHref } from '../../lib/support';
 export const metadata = pageMetadata(
     'Contact & support',
-    'Contact socket.help support for tool problems, account recovery, billing questions, privacy requests and abuse reports. Find what to include and what to keep private.',
+    'Contact Kivel support for tool problems, account recovery, billing questions, privacy requests and abuse reports. Find what to include and what to keep private.',
     '/contact/',
 );
 export default function Contact() {
     return (
         <ReadingLayout
-            title="A direct line to socket.help."
+            title="A direct line to Kivel."
             description="Questions, something broken, or feedback from the beta? Email us and include enough context to reproduce the problem."
             path="/contact/"
             sections={[
@@ -23,10 +23,10 @@ export default function Contact() {
             <section id="email">
                 <h2>Email support</h2>
                 <p>
-                    For help with socket.help, contact <a href={supportHref}>{supportEmail}</a>.
-                    This is the support and contact address for the service. Support is handled by
-                    email; we do not promise a round-the-clock response or a guaranteed response
-                    time during the open beta.
+                    For help with Kivel, contact <a href={supportHref}>{supportEmail}</a>. This is
+                    the support and contact address for the service. Support is handled by email; we
+                    do not promise a round-the-clock response or a guaranteed response time during
+                    the open beta.
                 </p>
                 <p>
                     You can use the free tools without buying a subscription. Read{' '}

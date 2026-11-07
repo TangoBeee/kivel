@@ -144,8 +144,8 @@ export function OAuthWorkbench({ toolId }: { toolId: string }) {
                             </Select.Content>
                         </Select.Root>
                         <span className="field-help">
-                            Generic test claims only. Every choice uses the same socket.help test
-                            page, without real brand logos or identity accounts.
+                            Generic test claims only. Every choice uses the same Kivel test page,
+                            without real brand logos or identity accounts.
                         </span>
                     </label>
                     <label className="field-label">
@@ -319,7 +319,7 @@ export function OAuthWorkbench({ toolId }: { toolId: string }) {
                             <p className="field-help">
                                 Supports authorization code with S256 PKCE, client credentials and
                                 rotating refresh tokens. The hosted approval page always identifies
-                                itself as a socket.help test provider.
+                                itself as a Kivel test provider.
                             </p>
                             <a className="text-link" href="/docs/mock-oauth/">
                                 Read the OAuth testing guide

@@ -186,8 +186,8 @@ test('public destinations require a same-origin Continue step for unsupported re
             }
             assert.equal(response.statusCode, 200, response.body);
             assert.equal(response.headers.location, undefined);
-            assert.match(response.body, /<h1>socket.help test provider<\/h1>/);
-            assert.match(response.body, /You are leaving socket.help for/);
+            assert.match(response.body, /<h1>Kivel test provider<\/h1>/);
+            assert.match(response.body, /You are leaving Kivel for/);
             assert.ok(response.body.includes(new URL(destination).origin));
             assert.match(response.body, />Continue<\/button>/);
             assert.match(String(response.headers['x-robots-tag']), /noindex/);

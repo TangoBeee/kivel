@@ -13,7 +13,7 @@ export const oauthDoc: DocPage = {
             title: 'Create a test issuer',
             paragraphs: [
                 'Use an approved workspace key to create a provider. You get an issuer, discovery URL, client_id and client_secret. Save the secret when it is returned, since inspection does not show it again. Each provider has its own RS256 signing key and JWKS endpoint. Private keys are encrypted at rest with a key derived from AUTH_SECRET and bound to the resource ID. Keep AUTH_SECRET with your backups; restoring a different key requires recreating affected providers. Its public endpoints simulate an identity service; configuration and request history stay private to your workspace.',
-                'Use synthetic users and claims. This provider does not authenticate real people, connect to Google or GitHub, or prove ownership of an email address. The hosted page says socket.help test provider and never asks for a password. Never configure a production app to trust these test tokens.',
+                'Use synthetic users and claims. This provider does not authenticate real people, connect to Google or GitHub, or prove ownership of an email address. The hosted page says Kivel test provider and never asks for a password. Never configure a production app to trust these test tokens.',
             ],
             code: {
                 title: 'Create with the TypeScript SDK',
@@ -53,7 +53,7 @@ socket-help oauth calls <id>
 socket-help oauth update <id> < provider.json
 socket-help oauth delete <id>
 
-curl https://socket.help/api/oauth-providers \\
+curl https://kivel.io/api/oauth-providers \\
   -H "Authorization: Bearer $SOCKET_HELP_API_KEY" \\
   -H 'Content-Type: application/json' --data-binary @provider.json`,
             },

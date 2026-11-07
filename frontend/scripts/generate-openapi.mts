@@ -2,7 +2,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { openApi } from '../../backend/src/openapi.ts';
 
-const origin = process.env.SITE_URL ?? 'https://socket.help';
+const origin = process.env.SITE_URL ?? 'https://kivel.io';
 mkdirSync(new URL('../lib/generated/', import.meta.url), { recursive: true });
 writeFileSync(
     new URL('../lib/generated/openapi.json', import.meta.url),

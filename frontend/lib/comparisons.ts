@@ -28,11 +28,11 @@ export const comparisons: Comparison[] = [
         name: 'Webhook.site',
         focus: 'Webhook testing',
         description:
-            'socket.help gives private webhook inboxes with custom responses, forwarding, email inboxes and MCP for agents; Webhook.site adds workflows, schedules and custom domains.',
+            'Kivel gives private webhook inboxes with custom responses, forwarding, email inboxes and MCP for agents; Webhook.site adds workflows, schedules and custom domains.',
         summary:
-            'Both give a callback a temporary destination with a custom response. socket.help inboxes are private by default, forward to your server on Pro, and sit next to email inboxes, mocks, files, utilities and MCP for agents. Webhook.site adds a larger automation platform with workflows and schedules.',
+            'Both give a callback a temporary destination with a custom response. Kivel inboxes are private by default, forward to your server on Pro, and sit next to email inboxes, mocks, files, utilities and MCP for agents. Webhook.site adds a larger automation platform with workflows and schedules.',
         socketFit:
-            'Choose socket.help when a disposable inbox is one part of a development workflow: capture a callback, format its JSON, test a mock response, or let an MCP agent inspect the result.',
+            'Choose Kivel when a disposable inbox is one part of a development workflow: capture a callback, format its JSON, test a mock response, or let an MCP agent inspect the result.',
         otherFit:
             'Choose Webhook.site when you need custom actions, workflows, schedules or custom domains. Its documentation covers automation well beyond request inspection.',
         rows: [
@@ -63,7 +63,7 @@ export const comparisons: Comparison[] = [
             },
         ],
         limitations:
-            'socket.help does not run workflows, custom actions or schedules, and forwarding to a public URL is a Pro feature that skips binary bodies. Its one-hour anonymous lifetime (up to seven days with a free account) covers a test session and most delayed callbacks.',
+            'Kivel does not run workflows, custom actions or schedules, and forwarding to a public URL is a Pro feature that skips binary bodies. Its one-hour anonymous lifetime (up to seven days with a free account) covers a test session and most delayed callbacks.',
         sources: [
             {
                 title: 'Webhook.site FAQ: features, privacy, and retention',
@@ -100,14 +100,14 @@ export const comparisons: Comparison[] = [
             },
             {
                 question: 'What is a private alternative to Webhook.site for testing webhooks?',
-                answer: 'socket.help creates inboxes that are private by default. Senders need an access token and reading history needs a separate inspection credential, so knowing the URL alone is not enough.',
+                answer: 'Kivel creates inboxes that are private by default. Senders need an access token and reading history needs a separate inspection credential, so knowing the URL alone is not enough.',
             },
             {
-                question: 'How long does a socket.help webhook inbox last?',
+                question: 'How long does a Kivel webhook inbox last?',
                 answer: 'Anonymous inboxes start with a one-hour lifetime and hold up to 100 requests or 1 MiB. Free accounts can keep resources for up to seven days, with up to 1,000 requests or 10 MiB per inbox.',
             },
             {
-                question: 'Can socket.help forward webhooks to my server?',
+                question: 'Can Kivel forward webhooks to my server?',
                 answer: 'Yes. On Pro and Team, an inbox can forward every captured request to a public URL, with retries after server errors and a delivery log. Any captured request can also be replayed to a URL from the inbox page.',
             },
         ],
@@ -117,11 +117,11 @@ export const comparisons: Comparison[] = [
         name: 'Mockoon',
         focus: 'API mocking',
         description:
-            'socket.help hosts small, expiring mock APIs from the browser; Mockoon is a desktop and CLI mocking tool with templating, proxying, recording, and CRUD.',
+            'Kivel hosts small, expiring mock APIs from the browser; Mockoon is a desktop and CLI mocking tool with templating, proxying, recording, and CRUD.',
         summary:
-            'socket.help creates a small hosted mock API that expires. Mockoon is a dedicated, open source mocking environment that runs as a desktop application or headless through its CLI and Docker image.',
+            'Kivel creates a small hosted mock API that expires. Mockoon is a dedicated, open source mocking environment that runs as a desktop application or headless through its CLI and Docker image.',
         socketFit:
-            'Choose socket.help for a small disposable endpoint with predictable bodies, status codes, and delays that other people or CI can reach without installing anything, especially when you also need webhook inspection or file sharing.',
+            'Choose Kivel for a small disposable endpoint with predictable bodies, status codes, and delays that other people or CI can reach without installing anything, especially when you also need webhook inspection or file sharing.',
         otherFit:
             'Choose Mockoon for richer mock design and reusable environments, including Faker.js templating, response rules, CRUD routes, recording, proxying, and running mocks locally or through its CLI.',
         rows: [
@@ -142,7 +142,7 @@ export const comparisons: Comparison[] = [
             },
             {
                 topic: 'Where it runs',
-                socket: 'Hosted on the socket.help installation with a public URL and private access by default.',
+                socket: 'Hosted on the Kivel installation with a public URL and private access by default.',
                 other: 'Locally in the desktop app, or self-hosted with the CLI and Docker. Cloud deployments are a Pro feature.',
             },
             {
@@ -152,7 +152,7 @@ export const comparisons: Comparison[] = [
             },
         ],
         limitations:
-            'socket.help fake data covers about twenty common fields rather than the full Faker.js library, proxy and record is a Pro feature limited to 20 recorded routes. WebSocket mocks support echo and scripted replies. OpenAPI import accepts JSON only, with local references and up to 20 routes.',
+            'Kivel fake data covers about twenty common fields rather than the full Faker.js library, proxy and record is a Pro feature limited to 20 recorded routes. WebSocket mocks support echo and scripted replies. OpenAPI import accepts JSON only, with local references and up to 20 routes.',
         sources: [
             {
                 title: 'Mockoon documentation and application scope',
@@ -200,10 +200,10 @@ export const comparisons: Comparison[] = [
             },
             {
                 question: 'What is an online alternative to Mockoon?',
-                answer: 'socket.help creates a hosted mock API in the browser with a public HTTPS URL, private by default. It suits small, static, short-lived mocks rather than full mock environments.',
+                answer: 'Kivel creates a hosted mock API in the browser with a public HTTPS URL, private by default. It suits small, static, short-lived mocks rather than full mock environments.',
             },
             {
-                question: 'Can socket.help import an OpenAPI file?',
+                question: 'Can Kivel import an OpenAPI file?',
                 answer: 'Yes, its OpenAPI to mock tool converts an OpenAPI 3.x JSON document into a static mock configuration of up to 20 routes. YAML input, remote references, and stateful behavior are not supported.',
             },
         ],
@@ -213,11 +213,11 @@ export const comparisons: Comparison[] = [
         name: 'CyberChef',
         focus: 'Data utilities',
         description:
-            'socket.help offers single-purpose browser utilities also callable by API, CLI, and MCP; CyberChef chains hundreds of operations into reusable recipes.',
+            'Kivel offers single-purpose browser utilities also callable by API, CLI, and MCP; CyberChef chains hundreds of operations into reusable recipes.',
         summary:
-            'Both offer browser data operations. socket.help favors one task per page, with the same utilities available through its API, CLI, SDK, SSH, and MCP. CyberChef combines hundreds of operations into repeatable recipes.',
+            'Both offer browser data operations. Kivel favors one task per page, with the same utilities available through its API, CLI, SDK, SSH, and MCP. CyberChef combines hundreds of operations into repeatable recipes.',
         socketFit:
-            'Choose socket.help when you want a focused formatter, encoder, generator, or checksum tool, or want to call supported utilities through HTTP, CLI, SDK, SSH, or MCP.',
+            'Choose Kivel when you want a focused formatter, encoder, generator, or checksum tool, or want to call supported utilities through HTTP, CLI, SDK, SSH, or MCP.',
         otherFit:
             'Choose CyberChef for multi-step decoding or analysis, exploring unfamiliar encodings, and building recipes from a much larger set of operations.',
         rows: [
@@ -228,7 +228,7 @@ export const comparisons: Comparison[] = [
             },
             {
                 topic: 'Processing location',
-                socket: 'Browser utilities run locally. Hosted interfaces send input to the socket.help server.',
+                socket: 'Browser utilities run locally. Hosted interfaces send input to the Kivel server.',
                 other: 'Runs entirely in the browser; three operations call external services.',
             },
             {
@@ -243,7 +243,7 @@ export const comparisons: Comparison[] = [
             },
         ],
         limitations:
-            'socket.help does not offer recipe chaining, automatic encoding detection, binary reverse engineering, or CyberChef’s breadth of operations. Its JWT inspector decodes claims; it does not verify a signature.',
+            'Kivel does not offer recipe chaining, automatic encoding detection, binary reverse engineering, or CyberChef’s breadth of operations. Its JWT inspector decodes claims; it does not verify a signature.',
         sources: [
             {
                 title: 'CyberChef: operations, recipes, local processing, and download',
@@ -281,11 +281,11 @@ export const comparisons: Comparison[] = [
             },
             {
                 question: 'What is a simpler alternative to CyberChef for Base64 or JSON?',
-                answer: 'socket.help has single-purpose pages for Base64, JSON, URL encoding, hashes, and UUIDs that run in your browser. They are easier for one task but cannot be chained into recipes.',
+                answer: 'Kivel has single-purpose pages for Base64, JSON, URL encoding, hashes, and UUIDs that run in your browser. They are easier for one task but cannot be chained into recipes.',
             },
             {
-                question: 'Does socket.help verify JWT signatures?',
-                answer: 'No. The socket.help JWT inspector decodes the header and claims for reading; it does not verify a signature.',
+                question: 'Does Kivel verify JWT signatures?',
+                answer: 'No. The Kivel JWT inspector decodes the header and claims for reading; it does not verify a signature.',
             },
         ],
     },
@@ -294,11 +294,11 @@ export const comparisons: Comparison[] = [
         name: 'Beeceptor',
         focus: 'API mocking',
         description:
-            'socket.help mock APIs are private by default, log every call, generate fake data and proxy real APIs on Pro for $2; Beeceptor adds tunnels, gRPC and SOAP.',
+            'Kivel mock APIs are private by default, log every call, generate fake data and proxy real APIs on Pro for $2; Beeceptor adds tunnels, gRPC and SOAP.',
         summary:
-            'Both give you a hosted endpoint you can inspect and mock without writing a server. socket.help endpoints are private by default and expire on their own. Beeceptor endpoints are public by default and cover more protocols and behaviors.',
+            'Both give you a hosted endpoint you can inspect and mock without writing a server. Kivel endpoints are private by default and expire on their own. Beeceptor endpoints are public by default and cover more protocols and behaviors.',
         socketFit:
-            'Choose socket.help when you want mocks private by default, a live log of every call, fake data, random failures and proxy-and-record on Pro at $2 a month, all usable by an AI agent over MCP.',
+            'Choose Kivel when you want mocks private by default, a live log of every call, fake data, random failures and proxy-and-record on Pro at $2 a month, all usable by an AI agent over MCP.',
         otherFit:
             'Choose Beeceptor when a mock needs to expose a local service, use advanced CRUD filters, or speak gRPC or SOAP from a contract.',
         rows: [
@@ -329,7 +329,7 @@ export const comparisons: Comparison[] = [
             },
         ],
         limitations:
-            'socket.help supports one bounded CRUD collection per mock resource. Proxy and record needs Pro and saves up to 20 routes. It has no local tunnel, gRPC, or SOAP mocks. Its mocks are capped at 20 routes, 50 KiB per response body, and two-second delays, and they expire, so they are not a long-term shared sandbox.',
+            'Kivel supports one bounded CRUD collection per mock resource. Proxy and record needs Pro and saves up to 20 routes. It has no local tunnel, gRPC, or SOAP mocks. Its mocks are capped at 20 routes, 50 KiB per response body, and two-second delays, and they expire, so they are not a long-term shared sandbox.',
         sources: [
             { title: 'Beeceptor documentation', url: 'https://beeceptor.com/docs/' },
             {
@@ -377,14 +377,14 @@ export const comparisons: Comparison[] = [
             },
             {
                 question: 'What is a private alternative to Beeceptor for mock APIs?',
-                answer: 'socket.help creates mock APIs that are private by default. Callers need an access token, and management uses a separate credential.',
+                answer: 'Kivel creates mock APIs that are private by default. Callers need an access token, and management uses a separate credential.',
             },
             {
                 question: 'Can Beeceptor mock gRPC or SOAP?',
-                answer: 'Yes. Beeceptor documents gRPC mock servers built from .proto files and SOAP mocks generated from WSDL. socket.help does not support either.',
+                answer: 'Yes. Beeceptor documents gRPC mock servers built from .proto files and SOAP mocks generated from WSDL. Kivel does not support either.',
             },
             {
-                question: 'Can socket.help mock an API from an OpenAPI spec?',
+                question: 'Can Kivel mock an API from an OpenAPI spec?',
                 answer: 'Yes, for OpenAPI 3.x JSON documents. The result is a static mock of up to 20 routes built from examples and basic schemas.',
             },
         ],
@@ -394,11 +394,11 @@ export const comparisons: Comparison[] = [
         name: 'Postman mock servers',
         focus: 'API mocking',
         description:
-            'socket.help makes standalone, expiring mock APIs in the browser; Postman mock servers run in Postman Cloud from collection examples in your workspace.',
+            'Kivel makes standalone, expiring mock APIs in the browser; Postman mock servers run in Postman Cloud from collection examples in your workspace.',
         summary:
-            'socket.help creates a standalone mock that expires, with no collection or workspace needed. Postman mock servers live in Postman Cloud and return saved examples from a collection, matched to each request.',
+            'Kivel creates a standalone mock that expires, with no collection or workspace needed. Postman mock servers live in Postman Cloud and return saved examples from a collection, matched to each request.',
         socketFit:
-            'Choose socket.help for a quick endpoint you configure route by route, share with a token, and let expire, without setting up a collection.',
+            'Choose Kivel for a quick endpoint you configure route by route, share with a token, and let expire, without setting up a collection.',
         otherFit:
             'Choose Postman mock servers when your API is already described in a Postman collection and the team designs and tests it in a shared workspace.',
         rows: [
@@ -419,7 +419,7 @@ export const comparisons: Comparison[] = [
             },
             {
                 topic: 'Hosting and lifetime',
-                socket: 'Hosted on socket.help; starts at one hour, up to seven days on a free account.',
+                socket: 'Hosted on Kivel; starts at one hour, up to seven days on a free account.',
                 other: 'Deployed to Postman Cloud and always available; mocks can also run locally.',
             },
             {
@@ -429,7 +429,7 @@ export const comparisons: Comparison[] = [
             },
         ],
         limitations:
-            'socket.help mocks are not tied to an API design workflow, collections, or team workspaces in the way Postman’s are. They do not run custom JavaScript, are capped at 20 routes, and expire, so they do not replace a long-lived mock shared across a team.',
+            'Kivel mocks are not tied to an API design workflow, collections, or team workspaces in the way Postman’s are. They do not run custom JavaScript, are capped at 20 routes, and expire, so they do not replace a long-lived mock shared across a team.',
         sources: [
             {
                 title: 'Postman: mock APIs overview',
@@ -476,10 +476,10 @@ export const comparisons: Comparison[] = [
             },
             {
                 question: 'What is a quick alternative to Postman mock servers?',
-                answer: 'socket.help creates a mock REST API in the browser from routes you type or an OpenAPI 3.x JSON file. It needs no collection or account and expires after one hour by default.',
+                answer: 'Kivel creates a mock REST API in the browser from routes you type or an OpenAPI 3.x JSON file. It needs no collection or account and expires after one hour by default.',
             },
             {
-                question: 'Can I add a delay to a socket.help mock?',
+                question: 'Can I add a delay to a Kivel mock?',
                 answer: 'Yes, each route can wait up to two seconds before responding. That is enough to test loading states and short client timeouts.',
             },
         ],
@@ -489,11 +489,11 @@ export const comparisons: Comparison[] = [
         name: 'Hookdeck Inspect',
         focus: 'Webhook testing',
         description:
-            'socket.help webhook inboxes are private, answer with custom responses and forward to your server on Pro; Hookdeck Inspect keeps requests 3 days and forwards to localhost.',
+            'Kivel webhook inboxes are private, answer with custom responses and forward to your server on Pro; Hookdeck Inspect keeps requests 3 days and forwards to localhost.',
         summary:
-            'Both give you a test webhook URL without an account. socket.help keeps the receiver and history private by default with a short lifetime. Hookdeck Inspect keeps requests for three days and adds retries, sample webhooks, and forwarding to localhost.',
+            'Both give you a test webhook URL without an account. Kivel keeps the receiver and history private by default with a short lifetime. Hookdeck Inspect keeps requests for three days and adds retries, sample webhooks, and forwarding to localhost.',
         socketFit:
-            'Choose socket.help when you want the receiver private, a custom response, replay to a public URL, forwarding to your server on Pro, and mocks, email inboxes, utilities and MCP in the same place.',
+            'Choose Kivel when you want the receiver private, a custom response, replay to a public URL, forwarding to your server on Pro, and mocks, email inboxes, utilities and MCP in the same place.',
         otherFit:
             'Choose Hookdeck Inspect when you want to forward webhooks to a handler on localhost or trigger sample events from common providers.',
         rows: [
@@ -524,7 +524,7 @@ export const comparisons: Comparison[] = [
             },
         ],
         limitations:
-            'socket.help cannot yet forward captured webhooks to localhost or send sample provider events, and binary bodies are not forwarded or replayed. Its one-hour anonymous lifetime is much shorter than Hookdeck Inspect’s three-day request retention; a free account keeps inboxes for seven days.',
+            'Kivel cannot yet forward captured webhooks to localhost or send sample provider events, and binary bodies are not forwarded or replayed. Its one-hour anonymous lifetime is much shorter than Hookdeck Inspect’s three-day request retention; a free account keeps inboxes for seven days.',
         sources: [
             {
                 title: 'Hookdeck Inspect documentation',
@@ -565,7 +565,7 @@ export const comparisons: Comparison[] = [
                 answer: 'Without an account, captured requests are kept for three days and Source URLs last with your browser session, which is 90 days.',
             },
             {
-                question: 'Can socket.help forward webhooks to my local server?',
+                question: 'Can Kivel forward webhooks to my local server?',
                 answer: 'Not to localhost yet. You can replay any captured request to a public URL, and on Pro an inbox forwards every request to your server with retries. For a handler on localhost, use a tunnel or the Hookdeck CLI for now.',
             },
         ],
@@ -575,11 +575,11 @@ export const comparisons: Comparison[] = [
         name: 'MCP Inspector',
         focus: 'MCP testing',
         description:
-            'socket.help hosts mock MCP servers and checks public ones from the browser; MCP Inspector is the local reference client for calling and debugging any server.',
+            'Kivel hosts mock MCP servers and checks public ones from the browser; MCP Inspector is the local reference client for calling and debugging any server.',
         summary:
-            'They solve opposite sides of MCP testing. socket.help gives you hosted mock MCP servers plus a browser check of a public server’s tools. MCP Inspector is the official local client for connecting to, calling, and debugging a server.',
+            'They solve opposite sides of MCP testing. Kivel gives you hosted mock MCP servers plus a browser check of a public server’s tools. MCP Inspector is the official local client for connecting to, calling, and debugging a server.',
         socketFit:
-            'Choose socket.help when your MCP client or agent needs a predictable server to call, or when you want a quick look at a public server’s tools without installing anything.',
+            'Choose Kivel when your MCP client or agent needs a predictable server to call, or when you want a quick look at a public server’s tools without installing anything.',
         otherFit:
             'Choose MCP Inspector when you are building an MCP server and need to call tools, read resources, render prompts, and watch the JSON-RPC traffic, including for local stdio servers.',
         rows: [
@@ -610,7 +610,7 @@ export const comparisons: Comparison[] = [
             },
         ],
         limitations:
-            'The socket.help MCP server inspector does not invoke tools, read resource contents, sign in with OAuth, or connect to local stdio servers, and it supports protocol versions up to 2025-11-25. Mock MCP servers return static responses for up to 10 tools.',
+            'The Kivel MCP server inspector does not invoke tools, read resource contents, sign in with OAuth, or connect to local stdio servers, and it supports protocol versions up to 2025-11-25. Mock MCP servers return static responses for up to 10 tools.',
         sources: [
             {
                 title: 'MCP Inspector overview',
@@ -653,11 +653,11 @@ export const comparisons: Comparison[] = [
             },
             {
                 question: 'Can I test an MCP server online without installing anything?',
-                answer: 'Yes, for public Streamable HTTP servers. socket.help’s MCP server inspector lists a server’s tools, resources, or prompts and schemas in the browser, but it does not call tools.',
+                answer: 'Yes, for public Streamable HTTP servers. Kivel’s MCP server inspector lists a server’s tools, resources, or prompts and schemas in the browser, but it does not call tools.',
             },
             {
                 question: 'How can I test an MCP client without a real server?',
-                answer: 'Create a socket.help mock MCP server with up to 10 tools and static responses, then connect your client to its Streamable HTTP endpoint. The tool failure simulator returns controlled errors and delays.',
+                answer: 'Create a Kivel mock MCP server with up to 10 tools and static responses, then connect your client to its Streamable HTTP endpoint. The tool failure simulator returns controlled errors and delays.',
             },
             {
                 question: 'Is the MCP Inspector open source?',
@@ -670,11 +670,11 @@ export const comparisons: Comparison[] = [
         name: 'iLovePDF',
         focus: 'PDF tools',
         description:
-            'socket.help covers core PDF tasks (merge, split, reorder, render, extract text) via browser and API; iLovePDF adds OCR, Office conversion, signing, and more.',
+            'Kivel covers core PDF tasks (merge, split, reorder, render, extract text) via browser and API; iLovePDF adds OCR, Office conversion, signing, and more.',
         summary:
-            'Both handle everyday PDF tasks online. socket.help covers the core page operations and makes them callable from its API, CLI, and MCP. iLovePDF offers a much wider set of tools, including OCR, Office conversion, editing, and signing, plus desktop and mobile apps.',
+            'Both handle everyday PDF tasks online. Kivel covers the core page operations and makes them callable from its API, CLI, and MCP. iLovePDF offers a much wider set of tools, including OCR, Office conversion, editing, and signing, plus desktop and mobile apps.',
         socketFit:
-            'Choose socket.help to merge, split, reorder, or render a PDF without an account, or to run the same operation from a script or agent.',
+            'Choose Kivel to merge, split, reorder, or render a PDF without an account, or to run the same operation from a script or agent.',
         otherFit:
             'Choose iLovePDF when you need to convert to or from Word, Excel, or PowerPoint, run OCR, sign, protect, or edit a PDF, or work offline in a desktop app.',
         rows: [
@@ -700,7 +700,7 @@ export const comparisons: Comparison[] = [
             },
         ],
         limitations:
-            'socket.help does not run OCR, convert PDFs to or from Office formats, sign, protect, unlock, or edit PDF content. Its compressor optimizes document structure and does not downsample images, so it may not make a file smaller.',
+            'Kivel does not run OCR, convert PDFs to or from Office formats, sign, protect, unlock, or edit PDF content. Its compressor optimizes document structure and does not downsample images, so it may not make a file smaller.',
         sources: [
             { title: 'iLovePDF tools', url: 'https://www.ilovepdf.com/' },
             { title: 'iLovePDF FAQ', url: 'https://www.ilovepdf.com/help/faq' },
@@ -732,16 +732,16 @@ export const comparisons: Comparison[] = [
                 answer: 'iLovePDF’s FAQ says it keeps files for a maximum of two hours so you can download them, then removes them. You can also delete a file yourself after processing.',
             },
             {
-                question: 'Does socket.help store my PDFs?',
-                answer: 'No. socket.help processes PDF tools on its server and does not retain uploads or results after returning the file.',
+                question: 'Does Kivel store my PDFs?',
+                answer: 'No. Kivel processes PDF tools on its server and does not retain uploads or results after returning the file.',
             },
             {
-                question: 'Can socket.help compress a PDF?',
+                question: 'Can Kivel compress a PDF?',
                 answer: 'It can optimize a PDF’s structure and returns the original if the result is larger. It does not downsample images, so heavy image PDFs may not shrink much.',
             },
             {
                 question: 'What is an alternative to iLovePDF for merging PDFs?',
-                answer: 'socket.help merges up to 20 PDFs, 200 pages and 10 MiB combined, from the web page or through its API and CLI. It does not need an account.',
+                answer: 'Kivel merges up to 20 PDFs, 200 pages and 10 MiB combined, from the web page or through its API and CLI. It does not need an account.',
             },
         ],
     },

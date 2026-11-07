@@ -200,7 +200,7 @@ export function registerStatusPages(
         return reply
             .type('text/html')
             .send(
-                `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${name} · Status</title><link rel="stylesheet" href="/status/style.css"></head><body><main><header><h1>${name}</h1><p>${description}</p></header><p class="summary">${summary}</p>${services.join('')}<footer>Published by a socket.help workspace. <a href="/">socket.help</a> · Refresh to see new checks.</footer></main></body></html>`,
+                `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${name} · Status</title><link rel="stylesheet" href="/status/style.css"></head><body><main><header><h1>${name}</h1><p>${description}</p></header><p class="summary">${summary}</p>${services.join('')}<footer>Published by a Kivel workspace. <a href="/">Kivel</a> · Refresh to see new checks.</footer></main></body></html>`,
             );
     });
 }

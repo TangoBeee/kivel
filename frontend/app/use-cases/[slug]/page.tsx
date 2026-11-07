@@ -34,7 +34,7 @@ export default async function UseCasePage({ params }: { params: Promise<{ slug: 
                     headline: page.title,
                     description: page.description,
                     mainEntityOfPage: `${siteOrigin}/use-cases/${slug}/`,
-                    author: { '@type': 'Organization', name: 'socket.help', url: siteOrigin },
+                    author: { '@type': 'Organization', name: 'Kivel', url: siteOrigin },
                 }}
             />
             <p>

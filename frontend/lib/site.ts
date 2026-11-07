@@ -1,4 +1,4 @@
-const configured = process.env.SITE_URL ?? 'https://socket.help';
+const configured = process.env.SITE_URL ?? 'https://kivel.io';
 const value = new URL(configured);
 if (
     !['https:', 'http:'].includes(value.protocol) ||

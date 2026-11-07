@@ -146,7 +146,7 @@ export function validateEmailContent(
     };
 }
 export type EmailContent = ReturnType<typeof validateEmailContent>;
-const footer = 'Sent by an AI agent through socket.help.';
+const footer = 'Sent by an AI agent through Kivel.';
 const messageId = (value: unknown): value is string =>
     typeof value === 'string' && /^<[^<>\s\x00-\x1f\x7f]{1,900}>$/.test(value);
 
@@ -290,7 +290,7 @@ export function registerEmailSending({
                 if (reputation.suspended)
                     throw new HttpError(
                         403,
-                        `Workspace sending is suspended: ${reputation.suspended}. Contact support@socket.help.`,
+                        `Workspace sending is suspended: ${reputation.suspended}. Contact support@kivel.io.`,
                     );
                 for (const address of recipients)
                     if (await session.blocked(address))
@@ -499,13 +499,13 @@ export function registerEmailSending({
                     return reply
                         .type('text/html')
                         .send(
-                            '<!doctype html><html lang="en"><meta name="viewport" content="width=device-width"><title>Unsubscribed · socket.help</title><main><h1>You are unsubscribed.</h1><p>This workspace cannot send you more agent email.</p></main></html>',
+                            '<!doctype html><html lang="en"><meta name="viewport" content="width=device-width"><title>Unsubscribed · Kivel</title><main><h1>You are unsubscribed.</h1><p>This workspace cannot send you more agent email.</p></main></html>',
                         );
                 }
                 return reply
                     .type('text/html')
                     .send(
-                        '<!doctype html><html lang="en"><meta name="viewport" content="width=device-width"><title>Unsubscribe · socket.help</title><main><h1>Stop email from this workspace?</h1><form method="post"><button>Unsubscribe</button></form></main></html>',
+                        '<!doctype html><html lang="en"><meta name="viewport" content="width=device-width"><title>Unsubscribe · Kivel</title><main><h1>Stop email from this workspace?</h1><form method="post"><button>Unsubscribe</button></form></main></html>',
                     );
             },
         });

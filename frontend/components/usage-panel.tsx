@@ -121,7 +121,7 @@ export function UsagePanel({
                 <p>
                     {free
                         ? 'Pro is $2 a month: 10 email inboxes, 500 emails a month, 25 agents, 100 resources, and everything kept while you are subscribed.'
-                        : 'Thanks for supporting socket.help. Manage billing in Settings › Plan.'}
+                        : 'Thanks for supporting Kivel. Manage billing in Settings › Plan.'}
                 </p>
                 <Button
                     size="2"

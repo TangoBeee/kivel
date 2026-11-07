@@ -82,7 +82,7 @@ for (const track of musicTracks) {
                     '-metadata',
                     `title=${track.title}`,
                     '-metadata',
-                    'artist=socket.help',
+                    'artist=Kivel',
                     '-metadata',
                     'copyright=CC0 1.0 Universal',
                     '-metadata',
@@ -107,7 +107,7 @@ for (const track of musicTracks) {
 }
 await writeFile(
     join(root, 'LICENSE.txt'),
-    'socket.help original music library\n\nThe built-in compositions and synthesized recordings listed below are dedicated to the public domain under CC0 1.0 Universal. To the extent copyright or related rights apply, socket.help waives those rights under the CC0 terms. Attribution is optional. No third-party recordings, vocals or artist likenesses are included.\n\n' +
+    'Kivel original music library\n\nThe built-in compositions and synthesized recordings listed below are dedicated to the public domain under CC0 1.0 Universal. To the extent copyright or related rights apply, Kivel waives those rights under the CC0 terms. Attribution is optional. No third-party recordings, vocals or artist likenesses are included.\n\n' +
         musicTracks.map((t) => t.title + ' (' + t.id + ')').join('\n') +
-        '\n\nLicense: https://creativecommons.org/publicdomain/zero/1.0/\nLegal code: https://creativecommons.org/publicdomain/zero/1.0/legalcode\n\nThis dedication covers the named built-in compositions and recordings, not arbitrary uploaded media or imported third-party melodies. Source recipes and the reproducible renderer are included with the socket.help application.\n',
+        '\n\nLicense: https://creativecommons.org/publicdomain/zero/1.0/\nLegal code: https://creativecommons.org/publicdomain/zero/1.0/legalcode\n\nThis dedication covers the named built-in compositions and recordings, not arbitrary uploaded media or imported third-party melodies. Source recipes and the reproducible renderer are included with the Kivel application.\n',
 );

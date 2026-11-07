@@ -13,8 +13,8 @@ try {
 if ((!low && !previous?.low) || (low === previous?.low && Date.now() - previous.at < 86400000))
     process.exit(low ? 1 : 0);
 const message = low
-    ? `socket.help disk space is low: ${(available / 1024 ** 3).toFixed(1)} GiB free (${Math.round((available / total) * 100)}%).`
-    : 'socket.help disk space recovered.';
+    ? `Kivel disk space is low: ${(available / 1024 ** 3).toFixed(1)} GiB free (${Math.round((available / total) * 100)}%).`
+    : 'Kivel disk space recovered.';
 console.log(message);
 if (process.env.OPS_ALERT_WEBHOOK) {
     const url = new URL(process.env.OPS_ALERT_WEBHOOK);

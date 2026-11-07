@@ -60,7 +60,7 @@ export const articles: Article[] = [
                 ],
                 code: {
                     title: 'Create a public test receiver',
-                    value: `curl -X POST 'https://socket.help/api/inboxes?visibility=public'`,
+                    value: `curl -X POST 'https://kivel.io/api/inboxes?visibility=public'`,
                 },
             },
             {
@@ -71,7 +71,7 @@ export const articles: Article[] = [
                 ],
                 code: {
                     title: 'Send a sample callback',
-                    value: `curl -X POST https://socket.help/hooks/INBOX_ID \\
+                    value: `curl -X POST https://kivel.io/hooks/INBOX_ID \\
   -H 'Content-Type: application/json' \\
   -d '{"event":"order.created","id":"test-order-001"}'`,
                 },
@@ -86,7 +86,7 @@ export const articles: Article[] = [
                 ],
                 code: {
                     title: 'Read captured requests',
-                    value: `curl https://socket.help/api/inboxes/INBOX_ID/requests \\
+                    value: `curl https://kivel.io/api/inboxes/INBOX_ID/requests \\
   -H "Authorization: Bearer $INBOX_INSPECTION_TOKEN"`,
                 },
             },
@@ -119,7 +119,7 @@ export const articles: Article[] = [
                 title: 'Choose who should be able to download',
                 paragraphs: [
                     'A public file share works for anyone who knows its link. It is convenient for disposable test fixtures or a file you are comfortable making accessible to link holders. Forwarding the link forwards access.',
-                    'A private share needs the link and a separate access token, or current access to the owning workspace. Private is the default in socket.help. It is useful when the link itself might be forwarded or pasted into a place with a wider audience.',
+                    'A private share needs the link and a separate access token, or current access to the owning workspace. Private is the default in Kivel. It is useful when the link itself might be forwarded or pasted into a place with a wider audience.',
                 ],
             },
             {
@@ -131,7 +131,7 @@ export const articles: Article[] = [
                 ],
                 code: {
                     title: 'Download a private file',
-                    value: `curl --fail https://socket.help/files/FILE_ID \\
+                    value: `curl --fail https://kivel.io/files/FILE_ID \\
   -H "X-Access-Token: $FILE_ACCESS_TOKEN" \\
   --output received-file.txt`,
                 },
@@ -210,7 +210,7 @@ export const articles: Article[] = [
                 id: 'delay',
                 title: 'Make loading and timeout behavior visible',
                 paragraphs: [
-                    'Add a delay to one route and verify that the loading state appears, repeated submissions are prevented where needed, and focus remains usable. socket.help supports configured delays up to two seconds.',
+                    'Add a delay to one route and verify that the loading state appears, repeated submissions are prevented where needed, and focus remains usable. Kivel supports configured delays up to two seconds.',
                     'A delay is a response-time simulation, not a complete network failure simulator. For a timeout test, your client timeout must be shorter than the configured delay. Test connection loss with a tool designed to control the network.',
                 ],
             },

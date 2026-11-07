@@ -15,7 +15,7 @@ export const integrations: {
         description:
             'Call the API from any language, shell, or CI job. No client library required.',
         availability: 'Available',
-        code: `curl https://socket.help/api/tools/json/run \\
+        code: `curl https://kivel.io/api/tools/json/run \\
   -H "Authorization: Bearer $SOCKET_HELP_API_KEY" \\
   -H 'Content-Type: application/json' \\
   -d '{"input":"{\\"hello\\":true}","options":{"action":"format"}}'`,

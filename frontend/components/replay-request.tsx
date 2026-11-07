@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { api, ApiError } from '../lib/api';
 import type { CapturedRequest } from '../lib/api';
 
-// Routing, proxy and credential headers describe the trip to socket.help, not the original event.
+// Routing, proxy and credential headers describe the trip to Kivel, not the original event.
 const skipped =
     /^(host|connection|content-length|transfer-encoding|upgrade|te|trailer|expect|cookie|accept-encoding|forwarded|x-real-ip|cdn-loop|true-client-ip|x-access-token|x-resource-token)$|^(x-forwarded-|proxy-|cf-)/i;
 

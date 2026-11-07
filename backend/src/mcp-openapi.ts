@@ -241,7 +241,7 @@ export function mcpOpenApi(origin: string) {
                                 properties: { name: { type: 'string' } },
                                 required: ['name'],
                             },
-                            response: 'Hello from socket.help.',
+                            response: 'Hello from Kivel.',
                             isError: false,
                         },
                     ],

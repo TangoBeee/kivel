@@ -11,12 +11,12 @@ import { pageMetadata } from '../../lib/seo';
 export const metadata = {
     ...pageMetadata(
         'Blog: practical guides for testing & sharing',
-        'Practical socket.help guides to webhooks, mock APIs, MCP servers, JSON, file sharing, payment fixtures, and media tools, with working examples you can run.',
+        'Practical Kivel guides to webhooks, mock APIs, MCP servers, JSON, file sharing, payment fixtures, and media tools, with working examples you can run.',
         '/blog/',
     ),
     alternates: {
         canonical: '/blog/',
-        types: { 'application/rss+xml': [{ url: '/blog/rss.xml', title: 'socket.help guides' }] },
+        types: { 'application/rss+xml': [{ url: '/blog/rss.xml', title: 'Kivel guides' }] },
     },
 };
 
@@ -41,7 +41,7 @@ export default function Blog() {
                 value={{
                     '@context': 'https://schema.org',
                     '@type': 'Blog',
-                    name: 'socket.help guides',
+                    name: 'Kivel guides',
                     url: absolute('/blog/'),
                     blogPost: sorted.map((article) => ({
                         '@type': 'BlogPosting',
@@ -90,7 +90,7 @@ export default function Blog() {
             <div className="content-end">
                 <div>
                     <h2>Choosing between tools?</h2>
-                    <p>See where socket.help fits alongside established alternatives.</p>
+                    <p>See where Kivel fits alongside established alternatives.</p>
                 </div>
                 <Link className="button button-secondary" href="/compare/">
                     Explore comparisons →

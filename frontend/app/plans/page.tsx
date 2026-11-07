@@ -103,7 +103,7 @@ const extras: Record<PlanId, string[]> = {
 };
 const faqs = [
     {
-        question: 'Is socket.help free?',
+        question: 'Is Kivel free?',
         answer: paidPlansEnabled
             ? 'Browser tools and the Free workspace are free within published allowances. Pro and Team are optional monthly subscriptions.'
             : 'Yes. The open beta is free. Browser tools work without an account, and a free account adds a workspace with published resource allowances. Paid plans are a preview and are not required to use the beta.',
@@ -138,7 +138,7 @@ export default function Plans() {
                 value={{
                     '@context': 'https://schema.org',
                     '@type': 'Product',
-                    name: 'socket.help',
+                    name: 'Kivel',
                     description: 'An online toolbox for developers, everyday users, and AI agents.',
                     url: absolute('/plans/'),
                     offers: [

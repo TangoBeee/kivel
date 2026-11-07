@@ -33,7 +33,7 @@ export function McpConnect() {
                     used.
                 </p>
                 <ApiExample
-                    code={`curl -X POST ${url || 'https://socket.help/mcp'} \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json, text/event-stream' \\\n  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"my-client","version":"1.0"}}}'`}
+                    code={`curl -X POST ${url || 'https://kivel.io/mcp'} \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json, text/event-stream' \\\n  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"my-client","version":"1.0"}}}'`}
                 />
                 <p className="tool-notice">
                     Call tools/list to discover the available tools. Agents can create, inspect, and

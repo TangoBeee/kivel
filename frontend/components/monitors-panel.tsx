@@ -474,8 +474,7 @@ export function MonitorsPanel({
                 <Dialog.Content maxWidth="640px">
                     <Dialog.Title>{history?.name} · Check history</Dialog.Title>
                     <Dialog.Description>
-                        Latest 50 probes, measured from socket.help. These are individual check
-                        results.
+                        Latest 50 probes, measured from Kivel. These are individual check results.
                     </Dialog.Description>
                     {history?.kind === 'dns' && (
                         <>

@@ -4,7 +4,7 @@ import { pageMetadata } from '../../lib/seo';
 import { supportEmail, supportHref } from '../../lib/support';
 export const metadata = pageMetadata(
     'Free open beta: what to expect',
-    'Try socket.help during the free open beta. Learn about available tools, account and API limits, temporary data, planned features, feedback and support.',
+    'Try Kivel during the free open beta. Learn about available tools, account and API limits, temporary data, planned features, feedback and support.',
     '/beta/',
 );
 export default function Beta() {
@@ -23,10 +23,10 @@ export default function Beta() {
             <section id="access">
                 <h2>Use the tools that are available today</h2>
                 <p>
-                    socket.help is an online toolbox for HTTP debugging, mock APIs, file sharing,
-                    data utilities, media processing and agent integrations. Available tools have
-                    working interfaces and documented limits. Features labelled Coming soon are a
-                    roadmap, not part of the current service.
+                    Kivel is an online toolbox for HTTP debugging, mock APIs, file sharing, data
+                    utilities, media processing and agent integrations. Available tools have working
+                    interfaces and documented limits. Features labelled Coming soon are a roadmap,
+                    not part of the current service.
                 </p>
                 <p>
                     Many browser tools need no account. A Free account provides a workspace, API

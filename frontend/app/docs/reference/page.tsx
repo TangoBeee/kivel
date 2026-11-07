@@ -6,7 +6,7 @@ import { absolute } from '../../../components/content-blocks';
 import { breadcrumbs, pageMetadata } from '../../../lib/seo';
 export const metadata = pageMetadata(
     'HTTP API reference',
-    'socket.help HTTP API reference: every endpoint for utilities, webhook inboxes, mock APIs, files, MCP, accounts, sharing, and lifecycle, with schemas and examples.',
+    'Kivel HTTP API reference: every endpoint for utilities, webhook inboxes, mock APIs, files, MCP, accounts, sharing, and lifecycle, with schemas and examples.',
     '/docs/reference/',
 );
 export default function Reference() {
@@ -22,12 +22,12 @@ export default function Reference() {
                 value={{
                     '@context': 'https://schema.org',
                     '@type': 'WebAPI',
-                    name: 'socket.help API',
+                    name: 'Kivel API',
                     description:
                         'HTTP API for browser utilities, webhook inboxes, mock REST APIs, temporary file sharing, mock MCP servers, and workspace management.',
                     documentation: absolute('/docs/'),
                     url: absolute('/docs/reference/'),
-                    provider: { '@type': 'Organization', name: 'socket.help', url: absolute('/') },
+                    provider: { '@type': 'Organization', name: 'Kivel', url: absolute('/') },
                     termsOfService: absolute('/terms/'),
                     potentialAction: {
                         '@type': 'ReadAction',

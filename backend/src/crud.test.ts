@@ -417,7 +417,7 @@ test('CRUD scenario exports validate and never carry credentials', async () => {
     const { crudScenario } = await import('@socket-help/tools/mock-crud');
     const { validateScenario } = await import('@socket-help/tools/api-scenarios');
     const draft = validateScenario(
-        crudScenario('f6145e69-817a-463d-a882-fce4655ae6e1', '/tasks', 'https://socket.help', true),
+        crudScenario('f6145e69-817a-463d-a882-fce4655ae6e1', '/tasks', 'https://kivel.io', true),
     );
     assert.equal(draft.requests.length, 5);
     assert.deepEqual(draft.secretNames, ['accessToken']);

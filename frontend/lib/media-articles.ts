@@ -7,7 +7,7 @@ export const mediaArticles: Article[] = [
         icon: 'music',
         title: 'Make a custom instrumental loop with melody, bass and drums',
         description:
-            'Build an editable arrangement, balance its instruments, understand the export format and reproduce the result through the socket.help API.',
+            'Build an editable arrangement, balance its instruments, understand the export format and reproduce the result through the Kivel API.',
         sections: [
             {
                 id: 'arrangement',
@@ -94,7 +94,7 @@ export const mediaArticles: Article[] = [
                 title: 'Know the source of a free track',
                 paragraphs: [
                     'Free to listen does not necessarily mean free to put in a video or redistribute in an application. A streaming service can give a listener access to recordings without granting the rights needed for a game soundtrack, product demo or downloadable template. A label such as royalty-free also needs its actual license terms beside it.',
-                    'The socket.help library takes a narrow, transparent approach. Its six built-in tracks are original procedural compositions rendered with synthesized instruments. They do not contain third-party music recordings or sampled vocals. Each track lists its title, style, mood, tempo and source, and the library links to its CC0 terms.',
+                    'The Kivel library takes a narrow, transparent approach. Its six built-in tracks are original procedural compositions rendered with synthesized instruments. They do not contain third-party music recordings or sampled vocals. Each track lists its title, style, mood, tempo and source, and the library links to its CC0 terms.',
                 ],
             },
             {
@@ -102,7 +102,7 @@ export const mediaArticles: Article[] = [
                 title: 'What CC0 covers here',
                 paragraphs: [
                     'CC0 is a public-domain dedication: the person applying it waives copyright and related rights to the extent permitted by law. The Creative Commons deed describes permission to copy, modify, distribute and perform the work, including for commercial purposes, without asking permission. Attribution is not a condition of using these built-in recordings.',
-                    'The dedication applies to the built-in compositions and recordings identified in the library. It does not turn every file uploaded to socket.help into public-domain material. It also does not grant patent, trademark, privacy or publicity rights, and Creative Commons does not verify the ownership of works carrying a CC0 label. Keep the source and license details when redistributing an asset.',
+                    'The dedication applies to the built-in compositions and recordings identified in the library. It does not turn every file uploaded to Kivel into public-domain material. It also does not grant patent, trademark, privacy or publicity rights, and Creative Commons does not verify the ownership of works carrying a CC0 label. Keep the source and license details when redistributing an asset.',
                 ],
             },
             {
@@ -128,7 +128,7 @@ export const mediaArticles: Article[] = [
                 ],
                 code: {
                     title: 'Inspect the catalog and request a byte range',
-                    value: 'curl https://socket.help/api/music\n\ncurl -H "Range: bytes=0-65535" \\\n  https://socket.help/api/music/paper-lanterns/audio.wav \\\n  -o first-chunk.wav\n\n# A byte range is a partial file; download the full URL for an editable WAV.',
+                    value: 'curl https://kivel.io/api/music\n\ncurl -H "Range: bytes=0-65535" \\\n  https://kivel.io/api/music/paper-lanterns/audio.wav \\\n  -o first-chunk.wav\n\n# A byte range is a partial file; download the full URL for an editable WAV.',
                 },
             },
             {

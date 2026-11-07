@@ -6,7 +6,7 @@ import { pageMetadata } from '../../lib/seo';
 
 export const metadata = pageMetadata(
     'Alternatives to Webhook.site, Mailtrap, AgentMail and more',
-    'Looking for a Webhook.site, Mailtrap, Mailinator, AgentMail, RequestBin or Beeceptor alternative? See how socket.help compares, with sourced differences and free tools to try.',
+    'Looking for a Webhook.site, Mailtrap, Mailinator, AgentMail, RequestBin or Beeceptor alternative? See how Kivel compares, with sourced differences and free tools to try.',
     '/compare/',
 );
 
@@ -17,11 +17,11 @@ const faqs = [
     },
     {
         question: 'Do the comparisons include pricing?',
-        answer: 'No. Prices change often and depend on plans, so each page links to the official source instead. socket.help allowances are listed on the plans page.',
+        answer: 'No. Prices change often and depend on plans, so each page links to the official source instead. Kivel allowances are listed on the plans page.',
     },
     {
-        question: 'Does socket.help always win?',
-        answer: 'No. Every comparison says when the other tool is the better choice and where socket.help stops, for example features it does not offer yet.',
+        question: 'Does Kivel always win?',
+        answer: 'No. Every comparison says when the other tool is the better choice and where Kivel stops, for example features it does not offer yet.',
     },
 ];
 
@@ -36,11 +36,11 @@ export default function Compare() {
                 value={{
                     '@context': 'https://schema.org',
                     '@type': 'ItemList',
-                    name: 'socket.help comparisons',
+                    name: 'Kivel comparisons',
                     itemListElement: comparisons.map((item, index) => ({
                         '@type': 'ListItem',
                         position: index + 1,
-                        name: `socket.help vs ${item.name}`,
+                        name: `Kivel vs ${item.name}`,
                         url: absolute(`/compare/${item.slug}/`),
                     })),
                 }}
@@ -49,14 +49,14 @@ export default function Compare() {
             <PageIntro
                 meta={`Last reviewed ${formatDate(latest)}`}
                 title="Pick the right tool for the job."
-                description="Honest, sourced comparisons with tools you may already use. Each one says when socket.help fits, and when another option suits you better."
+                description="Honest, sourced comparisons with tools you may already use. Each one says when Kivel fits, and when another option suits you better."
             />
             <div className="compare-grid">
                 {comparisons.map((item) => (
                     <Link key={item.slug} href={`/compare/${item.slug}/`} className="compare-card">
                         <span className="content-label">{item.focus}</span>
                         <h2>
-                            socket.help <span>vs</span> {item.name}
+                            Kivel <span>vs</span> {item.name}
                         </h2>
                         <p>{item.summary}</p>
                         <span className="compare-card-meta">
@@ -74,12 +74,12 @@ export default function Compare() {
                 </p>
                 <div className="content-table-wrap">
                     <table className="content-table">
-                        <caption>When to choose socket.help or the alternative</caption>
+                        <caption>When to choose Kivel or the alternative</caption>
                         <thead>
                             <tr>
                                 <th scope="col">Alternative</th>
                                 <th scope="col">Area</th>
-                                <th scope="col">Choose socket.help when</th>
+                                <th scope="col">Choose Kivel when</th>
                                 <th scope="col">Choose the alternative when</th>
                             </tr>
                         </thead>
@@ -102,7 +102,7 @@ export default function Compare() {
             <div className="content-end">
                 <div>
                     <h2>See what is available today.</h2>
-                    <p>Every comparison links to the socket.help tools it covers.</p>
+                    <p>Every comparison links to the Kivel tools it covers.</p>
                 </div>
                 <Link href="/catalog/" className="button button-primary">
                     Explore the tools →

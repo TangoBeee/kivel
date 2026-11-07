@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 const value = process.argv[2];
-if (!value) throw Error('Usage: node scripts/production-check.mjs https://socket.help');
+if (!value) throw Error('Usage: node scripts/production-check.mjs https://kivel.io');
 const origin = new URL(value);
 if (
     origin.protocol !== 'https:' ||
@@ -42,7 +42,7 @@ assert.equal(
 );
 for (const path of ['/contact/', '/refunds/', '/terms/', '/privacy/', '/beta/']) {
     const html = await (await request(path)).text();
-    assert.ok(html.includes('support@socket.help'), `${path}: support contact`);
+    assert.ok(html.includes('support@kivel.io'), `${path}: support contact`);
 }
 const plans = await (await request('/plans/')).text();
 assert.ok(plans.includes('$2') && plans.includes('$6'), '/plans/: prices');

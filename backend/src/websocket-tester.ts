@@ -70,8 +70,7 @@ export function captureWebSocket(
         followRedirects: false,
         handshakeTimeout: 4000,
         headers: {
-            'User-Agent':
-                'socket.help network tools (+https://socket.help/contact/; support@socket.help)',
+            'User-Agent': 'Kivel network tools (+https://kivel.io/contact/; support@kivel.io)',
             ...(options.secret ? { 'X-Access-Token': options.secret } : {}),
         },
     };

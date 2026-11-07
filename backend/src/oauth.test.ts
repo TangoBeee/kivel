@@ -304,7 +304,7 @@ test('OAuth enforces exact redirects, S256 PKCE, consent and headless opt in wit
     f.params.delete('prompt');
     const page = await app.inject(`${f.path}/authorize?${f.params}`);
     assert.equal(page.statusCode, 200, page.body);
-    assert.match(page.body, /<h1>socket.help test provider<\/h1>/);
+    assert.match(page.body, /<h1>Kivel test provider<\/h1>/);
     assert.match(String(page.headers['x-robots-tag']), /noindex/);
     assert.match(String(page.headers['content-security-policy']), /frame-ancestors 'none'/);
     assert.ok(!page.body.includes('password"'));

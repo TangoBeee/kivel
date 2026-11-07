@@ -395,7 +395,7 @@ export function toolGuide(tool: CatalogTool): Guide {
         };
     if (tool.id === 'agents-socket-help-mcp')
         return {
-            intro: 'Use socket.help from an MCP-compatible agent to run utility tools and create, inspect, renew, and delete temporary webhook inboxes, mock APIs, and file shares.',
+            intro: 'Use Kivel from an MCP-compatible agent to run utility tools and create, inspect, renew, and delete temporary webhook inboxes, mock APIs, and file shares.',
             steps: [
                 'Copy the MCP endpoint into a Streamable HTTP client.',
                 'Initialize the connection and discover tools with tools/list.',

@@ -287,7 +287,7 @@ function validate(input: Record<string, unknown>, minInterval: number, origin: s
             throw new HttpError(400, 'DNS monitors need a public domain name.');
         }
         if (target === new URL(origin).hostname)
-            throw new HttpError(400, 'Monitor your own domain, not socket.help.');
+            throw new HttpError(400, 'Monitor your own domain, not Kivel.');
     } else if (kind !== 'heartbeat') {
         try {
             const raw = String(input.target ?? '');
@@ -298,7 +298,7 @@ function validate(input: Record<string, unknown>, minInterval: number, origin: s
             throw new HttpError(400, 'target must be a public http(s) URL or hostname.');
         }
         if (new URL(target).hostname === new URL(origin).hostname)
-            throw new HttpError(400, 'Monitor your own sites, not socket.help.');
+            throw new HttpError(400, 'Monitor your own sites, not Kivel.');
     }
     let alertWebhook: string | undefined;
     if (input.alertWebhook !== undefined && input.alertWebhook !== '') {

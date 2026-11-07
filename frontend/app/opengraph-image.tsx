@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { ImageResponse } from 'next/og';
 import { LogoMark } from '../components/logo';
 
-export const alt = 'socket.help: the internet toolkit for your coding agent';
+export const alt = 'Kivel: the internet toolkit for your coding agent';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 export const dynamic = 'force-static';
@@ -31,7 +31,7 @@ export default async function Image() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                 <LogoMark size={52} color="#141414" />
                 <span style={{ fontSize: 40, fontWeight: 600, letterSpacing: '-0.03em' }}>
-                    socket.help
+                    Kivel
                 </span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 36 }}>

@@ -32,7 +32,7 @@ export default function UseCasesPage() {
                 }}
             />
             <PageIntro
-                title="What your coding agent can do with socket.help"
+                title="What your coding agent can do with Kivel"
                 description="Give it an inbox, a callback URL, a test service and a way to ask you. Start with a real workflow, then use the same capabilities through MCP, HTTP, SDK or CLI."
             />
             <div className="reading-body">

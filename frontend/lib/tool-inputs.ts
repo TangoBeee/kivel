@@ -4,7 +4,7 @@ export const toolInputs: Record<
 > = {
     'developer-yaml-formatter': {
         label: 'YAML source',
-        sample: 'name: socket.help\nready: true',
+        sample: 'name: Kivel\nready: true',
         hint: 'Paste YAML to validate and format it.',
     },
     'developer-jwt-inspector': {
@@ -20,12 +20,12 @@ export const toolInputs: Record<
     },
     'developer-hmac-generator': {
         label: 'Message to sign',
-        sample: 'Hello from socket.help',
+        sample: 'Hello from Kivel',
         hint: 'The message and secret are processed in your browser.',
     },
     'everyday-case-converter': {
         label: 'Text to convert',
-        sample: 'Hello from socket help',
+        sample: 'Hello from Kivel',
         hint: 'Choose the capitalization style below.',
     },
     'everyday-text-cleaner': {
@@ -45,7 +45,7 @@ export const toolInputs: Record<
     },
     'everyday-data-format-converter': {
         label: 'Source data',
-        sample: 'name: socket.help\nready: true',
+        sample: 'name: Kivel\nready: true',
         hint: 'Choose the conversion direction before running.',
     },
     'everyday-unit-converter': {

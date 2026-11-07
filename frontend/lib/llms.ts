@@ -14,10 +14,10 @@ const url = (path: string) => `${siteOrigin}${path}`;
 const clean = (text: string) => text.replace(/\s+/g, ' ').trim();
 const available = catalog.filter((tool) => tool.status === 'available');
 
-const SUMMARY = `socket.help gives coding agents ${available.length} tools across ${categories.length} categories: HTTP and webhooks, email, mock APIs and OAuth, files, monitors, memory, authenticators, scheduled jobs and status pages, test data and media, developer utilities, DNS and network. Use search_tools for the complete catalog, describe_tool for inputs and run_tool for utilities. Resources have dedicated MCP tools and lifecycle routes. Connect over MCP, HTTP, @socket-help/sdk@beta, @socket-help/cli@beta or an operator-enabled SSH gateway. Browser utilities run locally for free. Workspace email, memory, authenticators, monitors and human questions require an account; use start_login/finish_login for human approval. Use authenticators only for accounts the human authorized. Keep credentials private. Check /api/capabilities and /plans/ for availability, retention and allowances. ${paidPlansEnabled ? 'Paid checkout is enabled.' : 'Paid checkout is disabled during this installation’s free beta.'} Pro is $${pricing.pro.monthly}/month and Team $${pricing.team.monthly}/month when enabled. Setup: ${url('/connect/')}.`;
+const SUMMARY = `Kivel gives coding agents ${available.length} tools across ${categories.length} categories: HTTP and webhooks, email, mock APIs and OAuth, files, monitors, memory, authenticators, scheduled jobs and status pages, test data and media, developer utilities, DNS and network. Use search_tools for the complete catalog, describe_tool for inputs and run_tool for utilities. Resources have dedicated MCP tools and lifecycle routes. Connect over MCP, HTTP, @socket-help/sdk@beta, @socket-help/cli@beta or an operator-enabled SSH gateway. Browser utilities run locally for free. Workspace email, memory, authenticators, monitors and human questions require an account; use start_login/finish_login for human approval. Use authenticators only for accounts the human authorized. Keep credentials private. Check /api/capabilities and /plans/ for availability, retention and allowances. ${paidPlansEnabled ? 'Paid checkout is enabled.' : 'Paid checkout is disabled during this installation’s free beta.'} Pro is $${pricing.pro.monthly}/month and Team $${pricing.team.monthly}/month when enabled. Setup: ${url('/connect/')}.`;
 
 export function llmsIndex() {
-    const lines = [`# socket.help`, '', `> ${SUMMARY}`, ''];
+    const lines = [`# Kivel`, '', `> ${SUMMARY}`, ''];
     lines.push('## Documentation', '');
     for (const group of docGroups)
         for (const page of docPages.filter((item) => item.group === group))
@@ -53,7 +53,7 @@ export function llmsIndex() {
     lines.push('', '## Comparisons', '');
     for (const item of comparisons)
         lines.push(
-            `- [socket.help vs ${item.name}](${url(`/compare/${item.slug}/`)}): ${clean(item.summary)}`,
+            `- [Kivel vs ${item.name}](${url(`/compare/${item.slug}/`)}): ${clean(item.summary)}`,
         );
     lines.push(
         '',
@@ -127,19 +127,19 @@ function articleMarkdown(article: Article) {
 
 function comparisonMarkdown(item: Comparison) {
     return [
-        `## socket.help vs ${item.name}`,
+        `## Kivel vs ${item.name}`,
         '',
         `Source: ${url(`/compare/${item.slug}/`)} (reviewed ${item.reviewedAt})`,
         '',
         clean(item.summary),
         '',
-        `Choose socket.help: ${clean(item.socketFit)}`,
+        `Choose Kivel: ${clean(item.socketFit)}`,
         '',
         `Choose ${item.name}: ${clean(item.otherFit)}`,
         '',
         ...item.rows.map(
             (row) =>
-                `- ${row.topic}: socket.help: ${clean(row.socket)} ${item.name}: ${clean(row.other)}`,
+                `- ${row.topic}: Kivel: ${clean(row.socket)} ${item.name}: ${clean(row.other)}`,
         ),
         '',
         `Limitations: ${clean(item.limitations)}`,
@@ -150,7 +150,7 @@ function comparisonMarkdown(item: Comparison) {
 
 export function llmsFull() {
     return [
-        '# socket.help',
+        '# Kivel',
         '',
         `> ${SUMMARY}`,
         '',
@@ -195,7 +195,7 @@ export function blogFeed() {
     return `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>socket.help guides</title>
+    <title>Kivel guides</title>
     <link>${url('/blog/')}</link>
     <description>Practical guides for testing webhooks, mocking APIs, sharing files, and everyday developer tasks.</description>
     <language>en</language>

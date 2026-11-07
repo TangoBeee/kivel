@@ -25,7 +25,7 @@ import type { CrudState, CrudReply } from '@socket-help/tools/mock-crud';
 import { parseJsonSafely } from '@socket-help/tools/engine';
 export { validateMock, mockPayload } from '@socket-help/tools/mock-config';
 
-/** Proxy mocks are a paid feature and may only point at public APIs other than socket.help. */
+/** Proxy mocks are a paid feature and may only point at public APIs other than Kivel. */
 export function checkMockProxy(config: MockConfig, actor: Actor, origin: string) {
     if (!config.proxy) return;
     entitlement(actor.identity, 'mockProxy', origin);
@@ -36,7 +36,7 @@ export function checkMockProxy(config: MockConfig, actor: Actor, origin: string)
         throw new HttpError(400, 'The proxy target must be a public http(s) URL.');
     }
     if (target.hostname === new URL(origin).hostname)
-        throw new HttpError(400, 'Proxy to your own API, not socket.help.');
+        throw new HttpError(400, 'Proxy to your own API, not Kivel.');
 }
 
 const proxiedTypes =
@@ -687,7 +687,7 @@ export function registerResources(
                         return reply
                             .header('X-Mock-Simulated-Failure', 'true')
                             .code(route.failureStatus ?? 503)
-                            .send({ error: 'Simulated failure from socket.help mock.' });
+                            .send({ error: 'Simulated failure from Kivel mock.' });
                     }
                     if (route.requestsPerMinute !== undefined) {
                         const retry = await limits.consume(

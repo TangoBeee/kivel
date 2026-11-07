@@ -6,7 +6,7 @@ import { integrations } from '../../lib/integrations';
 import { pageMetadata } from '../../lib/seo';
 export const metadata = pageMetadata(
     'API, SDK, CLI, SSH & MCP integrations',
-    'Use socket.help from HTTP and cURL, TypeScript, a command line, SSH, or an MCP agent. Practical examples, setup requirements, authentication, and package availability.',
+    'Use Kivel from HTTP and cURL, TypeScript, a command line, SSH, or an MCP agent. Practical examples, setup requirements, authentication, and package availability.',
     '/integrations/',
 );
 export default function Integrations() {

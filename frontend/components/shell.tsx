@@ -133,7 +133,7 @@ export function Header() {
     return (
         <>
             <header className={`island ${open ? 'is-open' : ''}`}>
-                <Link href="/" className="island-brand" aria-label="socket.help home">
+                <Link href="/" className="island-brand" aria-label="Kivel home">
                     <LiveLogo size={28} />
                     <span>
                         socket<span className="island-dot">.</span>help
@@ -252,7 +252,7 @@ export function Footer() {
         <footer className="site-footer">
             <div className="footer-inner">
                 <div className="footer-about">
-                    <Link href="/" className="footer-brand" aria-label="socket.help home">
+                    <Link href="/" className="footer-brand" aria-label="Kivel home">
                         <LiveLogo size={28} />
                         <span>
                             socket<span className="island-dot">.</span>help
@@ -273,7 +273,7 @@ export function Footer() {
                 ))}
             </div>
             <div className="footer-bottom">
-                <span>© {new Date().getFullYear()} socket.help</span>
+                <span>© {new Date().getFullYear()} Kivel</span>
                 <span>Made for agents and the people who run them.</span>
             </div>
         </footer>

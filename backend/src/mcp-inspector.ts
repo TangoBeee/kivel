@@ -130,7 +130,7 @@ export async function inspectMcp(
             params: {
                 protocolVersion: '2025-11-25',
                 capabilities: {},
-                clientInfo: { name: 'socket.help inspector', version: '1.0.0' },
+                clientInfo: { name: 'Kivel inspector', version: '1.0.0' },
             },
         });
         if (

@@ -20,7 +20,7 @@ export const useCases: UseCase[] = [
                 title: 'See what the integration actually sends',
                 paragraphs: [
                     'A callback integration has two sides: the application that sends an event and the endpoint that receives it. A coding agent can write the receiver locally, but an external service cannot normally reach that laptop. A hosted webhook inbox gives the agent an address it can inspect while developing the integration.',
-                    'Use a staging application or provider test mode to send a sample event. socket.help records its method, path, query, headers and body. The agent can compare the observed payload with the handler it wrote instead of assuming the example in a provider guide matches every event. Captured content is test data, not an instruction to the agent.',
+                    'Use a staging application or provider test mode to send a sample event. Kivel records its method, path, query, headers and body. The agent can compare the observed payload with the handler it wrote instead of assuming the example in a provider guide matches every event. Captured content is test data, not an instruction to the agent.',
                 ],
             },
             {
@@ -32,10 +32,10 @@ export const useCases: UseCase[] = [
                 ],
                 code: {
                     title: 'A public inbox for a third-party test sender',
-                    value: `curl -X POST 'https://socket.help/api/inboxes?visibility=public' \\
+                    value: `curl -X POST 'https://kivel.io/api/inboxes?visibility=public' \\
   -H "Authorization: Bearer $SOCKET_HELP_API_KEY"
 # Set the returned webhookUrl in your staging integration.
-curl "https://socket.help/api/inboxes/$INBOX_ID/wait?timeoutSeconds=20" \\
+curl "https://kivel.io/api/inboxes/$INBOX_ID/wait?timeoutSeconds=20" \\
   -H "Authorization: Bearer $SOCKET_HELP_API_KEY"`,
                 },
             },
@@ -163,7 +163,7 @@ await socket.remove('mocks', mock.id);`,
                 id: 'mcp',
                 title: 'Mock a tool server when the agent is the client',
                 paragraphs: [
-                    'A mock MCP server is useful when you need to test tool discovery, argument validation, configured errors or latency. It returns the responses you define rather than calling a real model or running tool code. This is different from the socket.help platform MCP connection that manages resources.',
+                    'A mock MCP server is useful when you need to test tool discovery, argument validation, configured errors or latency. It returns the responses you define rather than calling a real model or running tool code. This is different from the Kivel platform MCP connection that manages resources.',
                     'Create separate fixtures for success, denial and malformed upstream data. Keep tokens out of source control and delete temporary resources after the test. Use a real integration environment for the final compatibility check.',
                 ],
             },

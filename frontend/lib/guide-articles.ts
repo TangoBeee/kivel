@@ -22,7 +22,7 @@ export const guideArticles: Article[] = [
                 title: 'Why it matters where the formatting happens',
                 paragraphs: [
                     'JSON that needs formatting is rarely harmless sample data. It is usually an API response copied from a log, a webhook payload, or a configuration file, and it can contain customer records, internal hostnames, or access tokens. Many online formatters send what you paste to a server to process it. That is one more copy of the data in a place you do not control.',
-                    'The socket.help JSON formatter runs in your browser. Parsing, indenting, and minifying happen on your device, and the document is not sent to socket.help when you use the page. You can paste a response, read it, and close the tab without creating a stored copy anywhere else.',
+                    'The Kivel JSON formatter runs in your browser. Parsing, indenting, and minifying happen on your device, and the document is not sent to Kivel when you use the page. You can paste a response, read it, and close the tab without creating a stored copy anywhere else.',
                 ],
             },
             {
@@ -60,7 +60,7 @@ export const guideArticles: Article[] = [
                 title: 'Large numbers and duplicate keys are kept as written',
                 paragraphs: [
                     'A formatter built on JSON.parse followed by JSON.stringify quietly rewrites data. JavaScript numbers are IEEE 754 doubles, so an ID such as 9007199254740993 becomes 9007199254740992, and 19.990 becomes 19.99. If an object has the same key twice, only the last value survives. RFC 8259 notes that integers beyond 2^53 minus 1 are not reliably interoperable and that names should be unique, but real payloads break both rules.',
-                    'The socket.help formatter validates with the parser and then re-indents the original text instead of re-serializing it. Number literals keep their exact digits and duplicate keys stay visible. That makes it suitable for inspecting a payload before your own code parses it, because you see what was actually sent rather than what a parser decided to keep.',
+                    'The Kivel formatter validates with the parser and then re-indents the original text instead of re-serializing it. Number literals keep their exact digits and duplicate keys stay visible. That makes it suitable for inspecting a payload before your own code parses it, because you see what was actually sent rather than what a parser decided to keep.',
                     'If you find a large integer ID in a payload, that is a hint for your own code too. Many APIs send such IDs as strings for exactly this reason. If yours sends them as numbers, read them with a parser that supports big integers, or ask the provider whether a string form is available.',
                 ],
                 code: {
@@ -85,7 +85,7 @@ Output:
                 ],
                 code: {
                     title: 'Minify over HTTP, format with the CLI',
-                    value: `curl https://socket.help/api/tools/json/run \\
+                    value: `curl https://kivel.io/api/tools/json/run \\
   -H 'Content-Type: application/json' \\
   -d '{"input":"{ \\"ready\\": true, \\"count\\": 2 }","options":{"action":"minify"}}'
 
@@ -158,7 +158,7 @@ socket-help run json < response.json`,
                 title: 'Decode where the token does not leave your device',
                 paragraphs: [
                     'A JWT is often a working credential. If it has not expired, whoever holds it can usually call the API it was issued for. Pasting a production token into a website that sends it to a server hands that credential to someone else. The same applies to screenshots, bug reports, and chat messages: a token visible in any of them can be copied and used until it expires.',
-                    'The socket.help JWT inspector decodes in your browser. The token stays on your device and is not uploaded. Even so, prefer test tokens from a development identity provider, and treat a real token you have pasted anywhere as something to let expire or revoke.',
+                    'The Kivel JWT inspector decodes in your browser. The token stays on your device and is not uploaded. Even so, prefer test tokens from a development identity provider, and treat a real token you have pasted anywhere as something to let expire or revoke.',
                 ],
                 steps: [
                     'Open the JWT inspector and paste a token with three dot-separated parts.',
@@ -197,7 +197,7 @@ socket-help run json < response.json`,
                 title: 'What a decoder cannot tell you',
                 paragraphs: [
                     'A decoder cannot tell you whether the token is genuine. Anyone can write a header and claims, encode them, and append any signature. The decoded output looks exactly the same as the output of a real token. Only checking the signature with the issuer’s key shows that the issuer created it and nobody changed it afterwards.',
-                    'A decoder also does not check expiry, issuer, audience, or whether the token has been revoked. The socket.help inspector marks every result as verified: false to make this explicit. It even accepts a token with an empty signature, the form RFC 7519 calls an Unsecured JWT, because that is still something you might need to read while debugging. Your application must never accept one.',
+                    'A decoder also does not check expiry, issuer, audience, or whether the token has been revoked. The Kivel inspector marks every result as verified: false to make this explicit. It even accepts a token with an empty signature, the form RFC 7519 calls an Unsecured JWT, because that is still something you might need to read while debugging. Your application must never accept one.',
                 ],
             },
             {
@@ -229,7 +229,7 @@ const { payload } = await jwtVerify(token, keys, {
                 ],
                 code: {
                     title: 'Inspect a test token over HTTP',
-                    value: `curl https://socket.help/api/tools/developer-jwt-inspector/run \\
+                    value: `curl https://kivel.io/api/tools/developer-jwt-inspector/run \\
   -H 'Content-Type: application/json' \\
   -d '{"input":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyX3Rlc3RfMSIsImlzcyI6Imh0dHBzOi8vYXV0aC5leGFtcGxlLnRlc3QiLCJhdWQiOiJvcmRlcnMtYXBpIiwiaWF0IjoxNzkwMDAwMDAwLCJleHAiOjE3OTAwMDM2MDB9.c2lnbmF0dXJl"}'`,
                 },
@@ -238,7 +238,7 @@ const { payload } = await jwtVerify(token, keys, {
         faqs: [
             {
                 question: 'Is it safe to paste a JWT into an online decoder?',
-                answer: 'Only if the decoder runs locally. A live token is a credential. The socket.help inspector decodes in your browser, but test tokens are still the safer habit.',
+                answer: 'Only if the decoder runs locally. A live token is a credential. The Kivel inspector decodes in your browser, but test tokens are still the safer habit.',
             },
             {
                 question: 'Does decoding a JWT verify it?',
@@ -305,7 +305,7 @@ const { payload } = await jwtVerify(token, keys, {
                 ],
                 code: {
                     title: 'Create a private mock MCP server',
-                    value: `curl -X POST 'https://socket.help/api/mcp-servers?visibility=private' \\
+                    value: `curl -X POST 'https://kivel.io/api/mcp-servers?visibility=private' \\
   -H 'Content-Type: application/json' \\
   -d '{
     "name": "Order agent test",
@@ -345,7 +345,7 @@ const { payload } = await jwtVerify(token, keys, {
                 ],
                 code: {
                     title: 'Call a tool directly',
-                    value: `curl -X POST https://socket.help/mcp/mock/SERVER_ID \\
+                    value: `curl -X POST https://kivel.io/mcp/mock/SERVER_ID \\
   -H 'Content-Type: application/json' \\
   -H 'Accept: application/json, text/event-stream' \\
   -H "X-Access-Token: $MCP_ACCESS_TOKEN" \\
@@ -369,7 +369,7 @@ const { payload } = await jwtVerify(token, keys, {
                 ],
                 code: {
                     title: 'Read the configuration and usage count',
-                    value: `curl https://socket.help/api/mcp-servers/SERVER_ID \\
+                    value: `curl https://kivel.io/api/mcp-servers/SERVER_ID \\
   -H "Authorization: Bearer $MCP_MANAGEMENT_TOKEN"`,
                 },
             },
@@ -435,7 +435,7 @@ const { payload } = await jwtVerify(token, keys, {
                 ],
                 code: {
                     title: 'Create a private one-time share for ten minutes',
-                    value: `curl --fail -X POST 'https://socket.help/api/files?visibility=private&maxDownloads=1&ttlSeconds=600' \\
+                    value: `curl --fail -X POST 'https://kivel.io/api/files?visibility=private&maxDownloads=1&ttlSeconds=600' \\
   -H 'Content-Type: application/octet-stream' \\
   -H 'X-File-Name: logs.tar.gz' \\
   --data-binary @logs.tar.gz`,
@@ -468,7 +468,7 @@ socket-help download FILE_ID > logs.tar.gz`,
                 ],
                 code: {
                     title: 'Download with curl',
-                    value: `curl --fail https://socket.help/files/FILE_ID \\
+                    value: `curl --fail https://kivel.io/files/FILE_ID \\
   -H "X-Access-Token: $FILE_ACCESS_TOKEN" \\
   --output logs.tar.gz`,
                 },
@@ -482,7 +482,7 @@ socket-help download FILE_ID > logs.tar.gz`,
                 ],
                 code: {
                     title: 'Check the share first',
-                    value: `curl https://socket.help/files/FILE_ID/info \\
+                    value: `curl https://kivel.io/files/FILE_ID/info \\
   -H "X-Access-Token: $FILE_ACCESS_TOKEN"`,
                 },
             },
@@ -495,7 +495,7 @@ socket-help download FILE_ID > logs.tar.gz`,
                 ],
                 code: {
                     title: 'Delete the share',
-                    value: `curl -X DELETE https://socket.help/api/files/FILE_ID \\
+                    value: `curl -X DELETE https://kivel.io/api/files/FILE_ID \\
   -H "Authorization: Bearer $FILE_MANAGEMENT_TOKEN"`,
                 },
             },
@@ -552,7 +552,7 @@ socket-help download FILE_ID > logs.tar.gz`,
                 title: 'Retry code is rarely exercised before production',
                 paragraphs: [
                     'Most HTTP clients have retry logic that has never run. Real APIs rarely rate-limit or fail on demand in development, so the code that reads Retry-After, waits, and tries again is first tested by an outage. Bugs there tend to make an outage worse: clients that retry instantly, retry forever, or retry requests that were never safe to repeat.',
-                    'A test endpoint that fails the same way every time makes this code testable. socket.help mock endpoints can return a chosen status, delay a reply by up to two seconds, and enforce a per-route quota that answers with 429 and a Retry-After header once it is used up.',
+                    'A test endpoint that fails the same way every time makes this code testable. Kivel mock endpoints can return a chosen status, delay a reply by up to two seconds, and enforce a per-route quota that answers with 429 and a Retry-After header once it is used up.',
                 ],
             },
             {
@@ -578,7 +578,7 @@ socket-help download FILE_ID > logs.tar.gz`,
                 ],
                 code: {
                     title: 'Create a retry test API',
-                    value: `curl -X POST 'https://socket.help/api/mocks?visibility=public' \\
+                    value: `curl -X POST 'https://kivel.io/api/mocks?visibility=public' \\
   -H 'Content-Type: application/json' \\
   -d '{
     "name": "Retry tests",
@@ -601,7 +601,7 @@ socket-help download FILE_ID > logs.tar.gz`,
                 code: {
                     title: 'Watch the quota run out',
                     value: `for i in 1 2 3; do
-  curl -s -o /dev/null -D - https://socket.help/mock/MOCK_ID/limited \\
+  curl -s -o /dev/null -D - https://kivel.io/mock/MOCK_ID/limited \\
     | grep -i -E '^HTTP/|^retry-after'
 done`,
                 },
@@ -615,7 +615,7 @@ done`,
                 ],
                 code: {
                     title: 'A one-second timeout against a two-second route',
-                    value: `const response = await fetch('https://socket.help/mock/MOCK_ID/slow', {
+                    value: `const response = await fetch('https://kivel.io/mock/MOCK_ID/slow', {
   signal: AbortSignal.timeout(1000),
 });
 // Expect a TimeoutError to be thrown before a response arrives.`,

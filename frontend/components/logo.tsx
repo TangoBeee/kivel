@@ -1,4 +1,4 @@
-// The socket.help mark: an outline wall socket in the text colour. The filled tile version
+// The Kivel mark: an outline wall socket in the text colour. The filled tile version
 // (white socket on ink) is the favicon in app/icon.svg; keep the two in sync.
 export function LogoMark({ size = 28, color = 'currentColor' }: { size?: number; color?: string }) {
     return (

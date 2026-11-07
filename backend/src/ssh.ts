@@ -75,7 +75,7 @@ export function createSshServer(
         activeCommands = 0;
     const clients = new Set<import('ssh2').Connection>();
     const peers = new Map<string, number>();
-    const server = new Server({ hostKeys: [hostKey], ident: 'socket.help' }, (connection, info) => {
+    const server = new Server({ hostKeys: [hostKey], ident: 'Kivel' }, (connection, info) => {
         connection.on('error', () => {});
         const peer = info.ip;
         if (connections >= 64 || (peers.get(peer) ?? 0) >= 4) {

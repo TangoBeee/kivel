@@ -149,7 +149,7 @@ console.log(
 const llms = await readFile('out/llms.txt', 'utf8');
 const llmsFull = await readFile('out/llms-full.txt', 'utf8');
 const feed = await readFile('out/blog/rss.xml', 'utf8');
-assert.ok(llms.startsWith('# socket.help'), 'llms.txt: title');
+assert.ok(llms.startsWith('# Kivel'), 'llms.txt: title');
 for (const page of docPages)
     assert.ok(llms.includes(`/docs/${page.slug}/`), `llms.txt: ${page.slug}`);
 for (const article of articles) {
@@ -157,7 +157,7 @@ for (const article of articles) {
     assert.ok(feed.includes(`/blog/${article.slug}/`), `rss: ${article.slug}`);
 }
 for (const item of comparisons)
-    assert.ok(llmsFull.includes(`socket.help vs ${item.name}`), `llms-full: ${item.slug}`);
+    assert.ok(llmsFull.includes(`Kivel vs ${item.name}`), `llms-full: ${item.slug}`);
 console.log(`Verified llms.txt, llms-full.txt, and the RSS feed (${articles.length} guides).`);
 
 const plansHtml = await readFile('out/plans/index.html', 'utf8');
@@ -171,7 +171,7 @@ if (!paidPlansEnabled) {
 }
 for (const path of ['contact', 'refunds', 'terms', 'privacy', 'beta']) {
     const html = await readFile(`out/${path}/index.html`, 'utf8');
-    assert.ok(html.includes('mailto:support@socket.help'), `${path}: public support route`);
+    assert.ok(html.includes('mailto:support@kivel.io'), `${path}: public support route`);
 }
 console.log('Verified beta checkout messaging and public contact/refund policies.');
 

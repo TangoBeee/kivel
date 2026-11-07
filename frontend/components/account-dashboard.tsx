@@ -453,7 +453,7 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                         ? 'Reset your password with a code sent to your recovery email.'
                                         : mode === 'register'
                                           ? 'Free for 3 agents. No card needed.'
-                                          : 'Welcome back to socket.help.'}
+                                          : 'Welcome back to Kivel.'}
                                 </p>
                             </header>
                             {messages}
@@ -791,7 +791,7 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                     <div className="settings-empty">
                                         <KeyIcon size={20} />
                                         <p>
-                                            No keys yet. Create one to use socket.help from your own
+                                            No keys yet. Create one to use Kivel from your own
                                             scripts or the CLI.
                                         </p>
                                     </div>
@@ -1211,7 +1211,7 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                                 : checkout === 'active'
                                                   ? `Your workspace now has the ${planName} limits below. Dodo Payments will email your receipt, and you can change or cancel anytime from Manage billing.`
                                                   : checkout === 'delayed'
-                                                    ? 'We haven’t received a successful payment yet. If you were charged, your plan switches automatically within a few minutes. If not, the payment didn’t complete and you can try again. Questions? Email support@socket.help.'
+                                                    ? 'We haven’t received a successful payment yet. If you were charged, your plan switches automatically within a few minutes. If not, the payment didn’t complete and you can try again. Questions? Email support@kivel.io.'
                                                     : checkout === 'failed'
                                                       ? 'You weren’t charged and your plan hasn’t changed. Try again, or use a different card.'
                                                       : 'No payment was taken and your plan has not changed.'}

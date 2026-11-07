@@ -149,8 +149,8 @@ export function InboxForwardSettings({
                 <div className="upsell">
                     <p>
                         Relay every webhook to your own server as it arrives, with retries and a
-                        delivery log. Other webhook tools charge more for this; on socket.help it’s
-                        part of Pro.
+                        delivery log. Other webhook tools charge more for this; on Kivel it’s part
+                        of Pro.
                     </p>
                     <Link className="button button-primary button-small" href="/plans/">
                         Get Pro for $2 a month

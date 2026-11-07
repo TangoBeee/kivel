@@ -411,7 +411,7 @@ export const platformTools = [
     {
         name: 'start_login',
         description:
-            'Connect this agent to its human’s socket.help workspace (no API key needed). Returns a link and code for the human to approve in their browser, and a deviceCode for finish_login. Never ask the human to paste an API key into the chat.',
+            'Connect this agent to its human’s Kivel workspace (no API key needed). Returns a link and code for the human to approve in their browser, and a deviceCode for finish_login. Never ask the human to paste an API key into the chat.',
         inputSchema: schema(
             {
                 name: stringProperty(
@@ -1379,7 +1379,7 @@ export function registerMcp({
             (!Number.isSafeInteger(value.revision) || Number(value.revision) < 0)
         )
             throw new RpcError(-32602, 'Revision must be a nonnegative safe integer.');
-        const headers: Record<string, string> = { 'user-agent': 'socket.help call_mock_api' };
+        const headers: Record<string, string> = { 'user-agent': 'Kivel call_mock_api' };
         for (const key of ['authorization', 'cookie', 'origin'])
             if (typeof request.headers[key] === 'string') headers[key] = request.headers[key];
         if (typeof value.accessToken === 'string') headers['x-access-token'] = value.accessToken;
@@ -1974,7 +1974,7 @@ export function registerMcp({
                             ? params.protocolVersion
                             : versions[0],
                         capabilities: { tools: { listChanged: false } },
-                        serverInfo: { name: config?.name ?? 'socket.help', version: API_VERSION },
+                        serverInfo: { name: config?.name ?? 'Kivel', version: API_VERSION },
                         instructions: config
                             ? 'A temporary mock MCP server. Tools return configured static responses.'
                             : `${catalog.length} catalog tools across ${categories.length} categories: HTTP and webhooks, email, mocks and OAuth, files, monitors, memory, authenticators, jobs and status pages, test data and media, developer utilities, DNS and network. Use search_tools for the complete catalog, describe_tool for inputs and run_tool for utilities; use dedicated tools for resources. Utilities stay behind discovery, not in tools/list. Workspace-only features require an account. Keep credentials private, use cursor-based waits and use authenticators only for accounts the human authorized. Check capabilities and plan limits. A 402 needs the human to upgrade, not repeated retries.`,

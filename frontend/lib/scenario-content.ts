@@ -20,7 +20,7 @@ export const scenarioDetails: ToolDetail[] = [
     {
         title: 'Know what a run does',
         paragraphs: [
-            'Pressing Run sends real requests from the socket.help server. All requests stay on the configured public origin, private and reserved addresses are blocked, redirects are returned without following them, and cookies are not replayed. Use test endpoints you control or are authorized to test. Cancellation stops pending work but cannot undo a request that has already reached the destination.',
+            'Pressing Run sends real requests from the Kivel server. All requests stay on the configured public origin, private and reserved addresses are blocked, redirects are returned without following them, and cookies are not replayed. Use test endpoints you control or are authorized to test. Cancellation stops pending work but cannot undo a request that has already reached the destination.',
             'Each request has a three-second deadline and a 64 KiB response limit. A complete scenario has a twenty-second deadline and fits in 32 KiB. A completed report uses one hosted run, including failed assertions or request errors. Invalid configurations do not consume a run. The JSON scenario works through the HTTP API, SDK, CLI, SSH and platform MCP endpoint. This version does not run scripts, import Postman collections, schedule background tests or persist reports on the server.',
         ],
     },
@@ -112,7 +112,7 @@ export const scenarioArticle: Article = {
     faqs: [
         {
             question: 'Can I import a Postman collection?',
-            answer: 'Not in this version. The import accepts the socket.help version 1 scenario format and never runs scripts.',
+            answer: 'Not in this version. The import accepts the Kivel version 1 scenario format and never runs scripts.',
         },
         {
             question: 'Does a saved scenario include my secret values?',
@@ -206,7 +206,7 @@ export const scenarioDoc: DocPage = {
             ],
             code: {
                 title: 'HTTP execution without secret inputs',
-                value: "jq -Rs '{input: .}' api-scenario.json | \\\n  curl https://socket.help/api/tools/mock-apis-api-test-scenarios/run \\\n    -H 'Content-Type: application/json' --data-binary @-\n\n# CLI\nsocket-help run mock-apis-api-test-scenarios < api-scenario.json",
+                value: "jq -Rs '{input: .}' api-scenario.json | \\\n  curl https://kivel.io/api/tools/mock-apis-api-test-scenarios/run \\\n    -H 'Content-Type: application/json' --data-binary @-\n\n# CLI\nsocket-help run mock-apis-api-test-scenarios < api-scenario.json",
             },
         },
         {

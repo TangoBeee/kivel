@@ -25,7 +25,7 @@ async function sign(secret, payload) {
         .join('');
 }
 
-// Receives mail for the catch-all address, keeps only what agents need and hands it to socket.help.
+// Receives mail for the catch-all address, keeps only what agents need and hands it to Kivel.
 export function createEmailWorker(parse) {
     return {
         async email(message, env) {
@@ -78,8 +78,7 @@ export function createEmailWorker(parse) {
             else if (response.status === 413)
                 message.setReject('Message or attachment storage limit exceeded.');
             // Anything else unexpected makes Cloudflare report a temporary failure to the sender.
-            else if (!response.ok)
-                throw new Error(`socket.help ingest returned ${response.status}.`);
+            else if (!response.ok) throw new Error(`Kivel ingest returned ${response.status}.`);
         },
     };
 }

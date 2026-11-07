@@ -359,7 +359,7 @@ test('MCP mock calls record their client name and music returns small download l
             headers: { authorization: `Bearer ${mock.managementToken}` },
         })
     ).json();
-    assert.equal(calls.calls[0].userAgent, 'socket.help call_mock_api');
+    assert.equal(calls.calls[0].userAgent, 'Kivel call_mock_api');
     for (const format of ['wav', 'mp3']) {
         const response = await call(app, 'run_tool', {
             toolId: 'test-media-music-library',

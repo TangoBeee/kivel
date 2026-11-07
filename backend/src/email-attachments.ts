@@ -98,6 +98,7 @@ export function registerEmailAttachments(
     reconcile: (owner: string) => Promise<void>,
 ) {
     const ticketKey = Buffer.from(
+        // The salt is the old name on purpose: changing it would make stored attachment owners unreadable.
         hkdfSync('sha256', secret, 'socket.help', 'email-attachment-owner-v2', 32),
     );
     interface Route {

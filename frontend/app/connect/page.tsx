@@ -11,7 +11,7 @@ import { siteOrigin } from '../../lib/site';
 
 export const metadata = pageMetadata(
     'Connect your AI agent',
-    `Connect socket.help to your MCP client. Discover ${toolCount} tools for HTTP, email, mocks, OAuth, files, monitors, memory, authenticators, jobs, test data, media, utilities and DNS.`,
+    `Connect Kivel to your MCP client. Discover ${toolCount} tools for HTTP, email, mocks, OAuth, files, monitors, memory, authenticators, jobs, test data, media, utilities and DNS.`,
     '/connect/',
 );
 
@@ -22,7 +22,7 @@ const clients: { id: string; name: string; where: string; code: string; note?: s
         id: 'claude-code',
         name: 'Claude Code',
         where: 'Run in your terminal',
-        code: `claude mcp add --transport http socket-help ${endpoint} \\
+        code: `claude mcp add --transport http kivel ${endpoint} \\
   --header "Authorization: Bearer $SOCKET_HELP_API_KEY"`,
         note: 'Leave out the --header line to try it without an account; anonymous limits apply.',
     },
@@ -32,7 +32,7 @@ const clients: { id: string; name: string; where: string; code: string; note?: s
         where: '~/.cursor/mcp.json',
         code: `{
   "mcpServers": {
-    "socket-help": {
+    "kivel": {
       "url": "${endpoint}",
       "headers": { "Authorization": "Bearer sh_your_api_key" }
     }
@@ -43,7 +43,7 @@ const clients: { id: string; name: string; where: string; code: string; note?: s
         id: 'codex',
         name: 'Codex',
         where: '~/.codex/config.toml',
-        code: `[mcp_servers.socket-help]
+        code: `[mcp_servers.kivel]
 url = "${endpoint}"
 bearer_token_env_var = "SOCKET_HELP_API_KEY"`,
     },
@@ -53,17 +53,17 @@ bearer_token_env_var = "SOCKET_HELP_API_KEY"`,
         where: '.vscode/mcp.json',
         code: `{
   "servers": {
-    "socket-help": {
+    "kivel": {
       "type": "http",
       "url": "${endpoint}",
-      "headers": { "Authorization": "Bearer \${input:socket-help-key}" }
+      "headers": { "Authorization": "Bearer \${input:kivel-key}" }
     }
   },
   "inputs": [
     {
-      "id": "socket-help-key",
+      "id": "kivel-key",
       "type": "promptString",
-      "description": "socket.help API key",
+      "description": "Kivel API key",
       "password": true
     }
   ]
@@ -73,7 +73,7 @@ bearer_token_env_var = "SOCKET_HELP_API_KEY"`,
         id: 'chatgpt',
         name: 'ChatGPT',
         where: 'Settings › Apps & Connectors › Developer mode',
-        code: `Name:            socket.help
+        code: `Name:            Kivel
 MCP server URL:  ${endpoint}
 Authentication:  None (anonymous limits)`,
         note: 'Custom connectors need developer mode. Without a key, resources last one hour.',
@@ -114,9 +114,9 @@ const tools: { name: string; does: string }[] = [
 ];
 
 const prompts = [
-    'Create a socket.help webhook inbox, wait for the first request, and explain what it contains.',
-    'Create a socket.help email inbox, sign up at my staging site with it, and finish verification.',
-    'Before you deploy, use socket.help ask_human to get my approval and wait for my answer.',
+    'Create a Kivel webhook inbox, wait for the first request, and explain what it contains.',
+    'Create a Kivel email inbox, sign up at my staging site with it, and finish verification.',
+    'Before you deploy, use Kivel ask_human to get my approval and wait for my answer.',
     'Mock GET /users/:id with three realistic users, then call it to check the response.',
     'Look up the DNS records and SSL certificate for example.com and summarize any problems.',
     'Find tools for generating test data, processing media and validating developer fixtures.',
@@ -129,11 +129,11 @@ export default function Connect() {
                 value={{
                     '@context': 'https://schema.org',
                     '@type': 'HowTo',
-                    name: 'Connect an AI agent to socket.help',
+                    name: 'Connect an AI agent to Kivel',
                     step: [
                         { '@type': 'HowToStep', name: 'Paste the setup prompt into your agent' },
                         { '@type': 'HowToStep', name: 'Approve the agent in your browser' },
-                        { '@type': 'HowToStep', name: 'Ask your agent to use socket.help' },
+                        { '@type': 'HowToStep', name: 'Ask your agent to use Kivel' },
                     ],
                 }}
             />
@@ -210,7 +210,7 @@ export default function Connect() {
                 </p>
                 <div className="content-table-wrap">
                     <table className="content-table">
-                        <caption>socket.help MCP tools</caption>
+                        <caption>Kivel MCP tools</caption>
                         <thead>
                             <tr>
                                 <th scope="col">Tool</th>

@@ -70,7 +70,7 @@ try {
     assert.match(message, /d=socketspace.xyz/i);
     assert.match(message, /s=socket/i);
     assert.match(message, /Synthetic relay fixture/);
-    assert.throws(() => docker('exec', client, 'node', '-e', sender('account@socket.help')));
+    assert.throws(() => docker('exec', client, 'node', '-e', sender('account@kivel.io')));
     assert.throws(() =>
         docker(
             'run',

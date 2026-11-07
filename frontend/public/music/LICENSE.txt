@@ -1,6 +1,6 @@
-socket.help original music library
+Kivel original music library
 
-The built-in compositions and synthesized recordings listed below are dedicated to the public domain under CC0 1.0 Universal. To the extent copyright or related rights apply, socket.help waives those rights under the CC0 terms. Attribution is optional. No third-party recordings, vocals or artist likenesses are included.
+The built-in compositions and synthesized recordings listed below are dedicated to the public domain under CC0 1.0 Universal. To the extent copyright or related rights apply, Kivel waives those rights under the CC0 terms. Attribution is optional. No third-party recordings, vocals or artist likenesses are included.
 
 Paper Lanterns (paper-lanterns)
 Night Train (night-train)
@@ -12,4 +12,4 @@ Open Window (open-window)
 License: https://creativecommons.org/publicdomain/zero/1.0/
 Legal code: https://creativecommons.org/publicdomain/zero/1.0/legalcode
 
-This dedication covers the named built-in compositions and recordings, not arbitrary uploaded media or imported third-party melodies. Source recipes and the reproducible renderer are included with the socket.help application.
+This dedication covers the named built-in compositions and recordings, not arbitrary uploaded media or imported third-party melodies. Source recipes and the reproducible renderer are included with the Kivel application.

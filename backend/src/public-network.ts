@@ -121,8 +121,7 @@ export async function publicRequest(
                 Accept: '*/*',
                 ...options.headers,
                 // Fixed so every outbound request is attributable and abuse can be reported.
-                'User-Agent':
-                    'socket.help network tools (+https://socket.help/contact/; support@socket.help)',
+                'User-Agent': 'Kivel network tools (+https://kivel.io/contact/; support@kivel.io)',
             },
             ...(secure && !isIP(host) ? { servername: host } : {}),
         };

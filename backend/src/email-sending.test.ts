@@ -122,7 +122,7 @@ test('outbound email fixes the sender, adds unsubscribe/footer, stores the threa
     const response = await f.send(key);
     assert.equal(response.statusCode, 202, response.body);
     assert.equal(f.sent[0]!.body.from, f.inbox.address);
-    assert.match(String(f.sent[0]!.body.text), /Sent by an AI agent through socket.help/);
+    assert.match(String(f.sent[0]!.body.text), /Sent by an AI agent through Kivel/);
     assert.match(
         String((f.sent[0]!.body.headers as Record<string, string>)['List-Unsubscribe']),
         /\/email\/unsubscribe\//,

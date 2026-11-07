@@ -82,8 +82,8 @@ export default async function BlogArticle({ params }: { params: Promise<{ slug: 
                     articleSection: article.category,
                     wordCount: words(article),
                     image: `${siteOrigin}${coverFor(slug)}`,
-                    author: { '@type': 'Organization', name: 'socket.help', url: siteOrigin },
-                    publisher: { '@type': 'Organization', name: 'socket.help', url: siteOrigin },
+                    author: { '@type': 'Organization', name: 'Kivel', url: siteOrigin },
+                    publisher: { '@type': 'Organization', name: 'Kivel', url: siteOrigin },
                     mainEntityOfPage: `${siteOrigin}/blog/${slug}/`,
                 }}
             />

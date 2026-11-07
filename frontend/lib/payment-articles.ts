@@ -34,11 +34,11 @@ export const paymentArticles: Article[] = [
                 title: 'Use the right fixture in automated tests',
                 paragraphs: [
                     'Select Payment sandbox numbers when exercising a payment processor. Choose Stripe, Adyen, Braintree or PayPal and use only that provider’s documented test values. Stripe fixtures also include their PaymentMethod identifier for API test code. Generated numbers do not promise sandbox acceptance.',
-                    'You can also generate the same structured output through the socket.help API. Hosted generation uses the normal tool allowance. The response output is JSON text; parse it once before reading the cards array.',
+                    'You can also generate the same structured output through the Kivel API. Hosted generation uses the normal tool allowance. The response output is JSON text; parse it once before reading the cards array.',
                 ],
                 code: {
                     title: 'Generate two credit-card fixtures',
-                    value: `curl https://socket.help/api/tools/developer-credit-card-generator/run \\
+                    value: `curl https://kivel.io/api/tools/developer-credit-card-generator/run \\
   -H 'Content-Type: application/json' \\
   -d '{"options":{"brand":"visa","count":"2"}}'`,
                 },
@@ -107,7 +107,7 @@ export const paymentArticles: Article[] = [
                 ],
                 code: {
                     title: 'Generate a Mastercard debit fixture',
-                    value: `curl https://socket.help/api/tools/developer-debit-card-generator/run \\
+                    value: `curl https://kivel.io/api/tools/developer-debit-card-generator/run \\
   -H 'Content-Type: application/json' \\
   -d '{"options":{"brand":"mastercard","count":"1"}}'`,
                 },
@@ -124,7 +124,7 @@ export const paymentArticles: Article[] = [
                 id: 'interfaces',
                 title: 'Use the same data from a script',
                 paragraphs: [
-                    'The generator is available through the shared socket.help execution endpoint. SDK, CLI, SSH, and MCP clients use the same tool ID and string options. Browser generation is local; hosted calls count toward the normal daily allowance.',
+                    'The generator is available through the shared Kivel execution endpoint. SDK, CLI, SSH, and MCP clients use the same tool ID and string options. Browser generation is local; hosted calls count toward the normal daily allowance.',
                     'Store these records as clearly named test fixtures. Generated records and documented sandbox values contain no customer banking details and must never be used for live payments.',
                 ],
             },
@@ -243,11 +243,11 @@ export const paymentArticles: Article[] = [
                 title: 'How the calculation works',
                 paragraphs: [
                     'Starting at the rightmost digit, keep the first digit unchanged and double every second digit while moving left. When a doubled digit is greater than nine, subtract nine. Add the resulting values together.',
-                    'The number passes when the total is divisible by ten. The socket.help checker accepts 13 to 19 digits, allowing spaces and hyphens for readability, and returns the checksum result without echoing the full number.',
+                    'The number passes when the total is divisible by ten. The Kivel checker accepts 13 to 19 digits, allowing spaces and hyphens for readability, and returns the checksum result without echoing the full number.',
                 ],
                 code: {
                     title: 'Check a published sandbox number',
-                    value: `curl https://socket.help/api/tools/developer-card-number-validator/run \\
+                    value: `curl https://kivel.io/api/tools/developer-card-number-validator/run \\
   -H 'Content-Type: application/json' \\
   -d '{"input":"4242 4242 4242 4242"}'`,
                 },

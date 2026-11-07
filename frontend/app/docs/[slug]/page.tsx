@@ -52,8 +52,8 @@ export default async function DocPage({ params }: { params: Promise<{ slug: stri
                     description: page.description,
                     dateModified: page.updatedAt,
                     mainEntityOfPage: absolute(path),
-                    author: { '@type': 'Organization', name: 'socket.help', url: absolute('/') },
-                    publisher: { '@type': 'Organization', name: 'socket.help', url: absolute('/') },
+                    author: { '@type': 'Organization', name: 'Kivel', url: absolute('/') },
+                    publisher: { '@type': 'Organization', name: 'Kivel', url: absolute('/') },
                     proficiencyLevel: page.group === 'Get started' ? 'Beginner' : 'Expert',
                 }}
             />

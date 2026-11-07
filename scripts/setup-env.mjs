@@ -4,7 +4,7 @@ const contents = `APP_PORT=8080
 PUBLIC_BASE_URL=http://localhost:8080
 POSTGRES_PASSWORD=${randomBytes(32).toString('hex')}
 APP_DATABASE_PASSWORD=${randomBytes(32).toString('hex')}
-DOMAIN=socket.help
+DOMAIN=kivel.io
 PROXY_NETWORK_PREFIX=10.203.0
 LOG_LEVEL=info
 AUTH_SECRET=${randomBytes(32).toString('hex')}

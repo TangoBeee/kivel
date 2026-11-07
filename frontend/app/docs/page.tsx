@@ -9,18 +9,18 @@ import { pageMetadata, breadcrumbs } from '../../lib/seo';
 
 export const metadata = pageMetadata(
     'Developer docs & API quickstart',
-    'Use the complete socket.help toolkit over MCP, HTTP, SDK, CLI or SSH: network checks, email, mocks, files, memory, authenticators, jobs, test data and media.',
+    'Use the complete Kivel toolkit over MCP, HTTP, SDK, CLI or SSH: network checks, email, mocks, files, memory, authenticators, jobs, test data and media.',
     '/docs/',
 );
-const quickstart = `curl https://socket.help/api/tools/json/run \\
+const quickstart = `curl https://kivel.io/api/tools/json/run \\
   -H 'Content-Type: application/json' \\
   -d '{"input":"{\\"hello\\":true}","options":{"action":"format"}}'`;
 
-const mcpSetup = `claude mcp add --transport http socket-help https://socket.help/mcp`;
+const mcpSetup = `claude mcp add --transport http kivel https://kivel.io/mcp`;
 
 const faqs = [
     {
-        question: 'Do I need an account to use the socket.help API?',
+        question: 'Do I need an account to use the Kivel API?',
         answer: 'No. Browser utilities and anonymous temporary resources work without an account. An account adds a workspace, longer retention within plan limits, and scoped API keys.',
     },
     {
@@ -28,8 +28,8 @@ const faqs = [
         answer: 'The full OpenAPI document is served at `/api/openapi.json`, and the interactive reference is at /docs/reference/.',
     },
     {
-        question: 'Can AI agents use socket.help?',
-        answer: 'Yes. Agents can call the HTTP API like any script, or connect to the socket.help MCP endpoint to discover and run tools and manage resources.',
+        question: 'Can AI agents use Kivel?',
+        answer: 'Yes. Agents can call the HTTP API like any script, or connect to the Kivel MCP endpoint to discover and run tools and manage resources.',
     },
     {
         question: 'Is there a CLI or SDK?',

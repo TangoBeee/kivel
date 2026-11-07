@@ -11,10 +11,10 @@ import { setupPrompt } from '../lib/setup-prompt';
 import { siteOrigin } from '../lib/site';
 import './home.css';
 
-// Brand first, so a search for "socket help" matches the page title and Google learns the name.
+// Brand first, so a search for "kivel" matches the page title and Google learns the name.
 const toolTotal = catalog.filter((tool) => tool.status === 'available').length;
-const title = `socket.help: email, webhooks and ${toolTotal} tools for AI agents`;
-const description = `socket.help (Socket Help) gives AI coding agents email inboxes, webhook URLs, mock APIs, OAuth, monitors, memory, 2FA codes and ${toolTotal} tools over one MCP connection. Free to start.`;
+const title = `Kivel: email, webhooks and ${toolTotal} tools for AI agents`;
+const description = `Kivel (formerly socket.help) gives AI coding agents email inboxes, webhook URLs, mock APIs, OAuth, monitors, memory, 2FA codes and ${toolTotal} tools over one MCP connection. Free to start.`;
 
 export const metadata: Metadata = {
     metadataBase: new URL(siteOrigin),
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     openGraph: {
         type: 'website',
         url: '/',
-        siteName: 'socket.help',
+        siteName: 'Kivel',
         title,
         description,
         images: [shareImage],
@@ -91,8 +91,8 @@ const jsonLd = [
         '@context': 'https://schema.org',
         '@type': 'WebSite',
         '@id': `${siteOrigin}/#website`,
-        name: 'socket.help',
-        alternateName: ['Socket Help', 'sockethelp', 'socket help'],
+        name: 'Kivel',
+        alternateName: ['Kivel.io', 'socket.help'],
         url: `${siteOrigin}/`,
         publisher: { '@id': `${siteOrigin}/#organization` },
     },
@@ -100,11 +100,11 @@ const jsonLd = [
         '@context': 'https://schema.org',
         '@type': 'Organization',
         '@id': `${siteOrigin}/#organization`,
-        name: 'socket.help',
-        alternateName: ['Socket Help', 'sockethelp'],
+        name: 'Kivel',
+        alternateName: ['Kivel.io', 'socket.help'],
         url: `${siteOrigin}/`,
         logo: `${siteOrigin}/icon.svg`,
-        email: 'support@socket.help',
+        email: 'support@kivel.io',
         sameAs: [
             'https://www.npmjs.com/package/@socket-help/sdk',
             'https://www.npmjs.com/package/@socket-help/cli',
@@ -113,7 +113,7 @@ const jsonLd = [
     {
         '@context': 'https://schema.org',
         '@type': 'SoftwareApplication',
-        name: 'socket.help',
+        name: 'Kivel',
         url: `${siteOrigin}/`,
         applicationCategory: 'DeveloperApplication',
         description,
@@ -146,7 +146,7 @@ export default function Home() {
                     <div className="home-hero-side">
                         <p>
                             Your agent can&apos;t catch an incoming webhook or read a signup email
-                            on its own. socket.help gives it both, and asks you before risky steps.
+                            on its own. Kivel gives it both, and asks you before risky steps.
                         </p>
                         <div className="home-actions">
                             <CopyPrompt prompt={setupPrompt} />

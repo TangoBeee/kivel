@@ -853,9 +853,9 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                         <div className="connection-content">
                             <p>Wait for the next message and read its code:</p>
                             <div className="code-row">
-                                <code>{`curl -H 'Authorization: Bearer YOUR_WORKSPACE_API_KEY' \\\n  '${typeof location === 'undefined' ? 'https://socket.help' : location.origin}/api/email-inboxes/${inbox.id}/wait'`}</code>
+                                <code>{`curl -H 'Authorization: Bearer YOUR_WORKSPACE_API_KEY' \\\n  '${typeof location === 'undefined' ? 'https://kivel.io' : location.origin}/api/email-inboxes/${inbox.id}/wait'`}</code>
                                 <CopyButton
-                                    text={`curl -H 'Authorization: Bearer YOUR_WORKSPACE_API_KEY' '${typeof location === 'undefined' ? 'https://socket.help' : location.origin}/api/email-inboxes/${inbox.id}/wait'`}
+                                    text={`curl -H 'Authorization: Bearer YOUR_WORKSPACE_API_KEY' '${typeof location === 'undefined' ? 'https://kivel.io' : location.origin}/api/email-inboxes/${inbox.id}/wait'`}
                                     label="Copy command"
                                     compact
                                 />

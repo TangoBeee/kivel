@@ -6,11 +6,11 @@ export const toolboxComparisons: Comparison[] = [
         name: 'IT Tools',
         focus: 'Developer utilities',
         description:
-            'Compare IT Tools and socket.help for everyday developer utilities, self-hosting and temporary test resources, with official sources and practical limits.',
+            'Compare IT Tools and Kivel for everyday developer utilities, self-hosting and temporary test resources, with official sources and practical limits.',
         summary:
-            'IT Tools is a focused collection of developer utilities. socket.help combines utilities with temporary webhook inboxes, mock APIs, file shares and MCP access. Choose by the job you need to finish.',
+            'IT Tools is a focused collection of developer utilities. Kivel combines utilities with temporary webhook inboxes, mock APIs, file shares and MCP access. Choose by the job you need to finish.',
         socketFit:
-            'Choose socket.help when formatting or generating data is part of an integration test. You can inspect a callback, create a temporary mock, generate fixtures and use the shared API, CLI or MCP interface without assembling several services. Available tools are distinguished from the roadmap.',
+            'Choose Kivel when formatting or generating data is part of an integration test. You can inspect a callback, create a temporary mock, generate fixtures and use the shared API, CLI or MCP interface without assembling several services. Available tools are distinguished from the roadmap.',
         otherFit:
             'Choose IT Tools when you want a dedicated developer toolbox and its established open-source application. Its repository documents local development and Docker deployment, so it is a practical option when a focused, self-hostable utility collection is the whole job.',
         rows: [
@@ -36,7 +36,7 @@ export const toolboxComparisons: Comparison[] = [
             },
         ],
         limitations:
-            'socket.help is still being built. Some catalog entries are Coming soon; hosted operations have file, execution and daily usage limits. It is not a promise of every IT Tools utility or identical behavior. Browser-local tools keep their processing local, while hosted operations send their input to the socket.help server. Check the individual tool page before choosing a workflow.',
+            'Kivel is still being built. Some catalog entries are Coming soon; hosted operations have file, execution and daily usage limits. It is not a promise of every IT Tools utility or identical behavior. Browser-local tools keep their processing local, while hosted operations send their input to the Kivel server. Check the individual tool page before choosing a workflow.',
         sources: [
             {
                 title: 'IT Tools official repository and deployment instructions',
@@ -63,15 +63,15 @@ export const toolboxComparisons: Comparison[] = [
         },
         faqs: [
             {
-                question: 'Does socket.help replace every IT Tools utility?',
-                answer: 'No. The catalogs and behavior differ. Search for your task and check that the socket.help entry is available; Coming soon entries do not run.',
+                question: 'Does Kivel replace every IT Tools utility?',
+                answer: 'No. The catalogs and behavior differ. Search for your task and check that the Kivel entry is available; Coming soon entries do not run.',
             },
             {
                 question: 'Do I need an account to save tools?',
                 answer: 'No. Saved tools store only their IDs in your current browser. They do not sync across devices or retain your inputs.',
             },
             {
-                question: 'Are all socket.help tools processed locally?',
+                question: 'Are all Kivel tools processed locally?',
                 answer: 'No. The page identifies local and hosted processing. Network lookups, shared resources and hosted conversions require a server; local formatters and generators can process in your browser.',
             },
         ],
@@ -81,11 +81,11 @@ export const toolboxComparisons: Comparison[] = [
         name: 'Hoppscotch',
         focus: 'API workflows',
         description:
-            'Compare Hoppscotch and socket.help for API workflows: reusable collections, import/export, temporary receivers, mocks, client interfaces and current limits.',
+            'Compare Hoppscotch and Kivel for API workflows: reusable collections, import/export, temporary receivers, mocks, client interfaces and current limits.',
         summary:
-            'Hoppscotch organizes reusable API requests into collections. socket.help supplies disposable resources and utility operations for integration testing. They can work together: send a request from Hoppscotch to a socket.help mock or receiver.',
+            'Hoppscotch organizes reusable API requests into collections. Kivel supplies disposable resources and utility operations for integration testing. They can work together: send a request from Hoppscotch to a Kivel mock or receiver.',
         socketFit:
-            'Choose socket.help when you need a destination for a callback, a temporary mock response, a test file or an operation an agent can discover. Resources expose explicit lifetimes and public/private access. The same hosted operations are reachable through ordinary HTTP, the SDK, CLI and MCP.',
+            'Choose Kivel when you need a destination for a callback, a temporary mock response, a test file or an operation an agent can discover. Resources expose explicit lifetimes and public/private access. The same hosted operations are reachable through ordinary HTTP, the SDK, CLI and MCP.',
         otherFit:
             'Choose Hoppscotch when the main job is maintaining and reusing an API request collection. Its documentation covers nested collections, sharing, and import/export with Hoppscotch, OpenAPI and Postman formats. That is a different job from creating a temporary receiving endpoint.',
         rows: [
@@ -107,7 +107,7 @@ export const toolboxComparisons: Comparison[] = [
             {
                 topic: 'Receiving callbacks',
                 socket: 'A webhook inbox captures method, path, headers, query and body, with searchable history.',
-                other: 'Use your API client to send requests to a receiver such as a socket.help inbox.',
+                other: 'Use your API client to send requests to a receiver such as a Kivel inbox.',
             },
             {
                 topic: 'Using them together',
@@ -116,7 +116,7 @@ export const toolboxComparisons: Comparison[] = [
             },
         ],
         limitations:
-            'socket.help has a bounded scenario runner for up to six sequential requests on one origin, with variables, checks and non-secret JSON captures. It does not import Postman collections, run scripts or provide a full collaborative collection platform. Its scenario JSON and mock configuration exports are separate formats. Hosted runs and temporary resources use plan allowances, so a temporary mock is not a permanent production API.',
+            'Kivel has a bounded scenario runner for up to six sequential requests on one origin, with variables, checks and non-secret JSON captures. It does not import Postman collections, run scripts or provide a full collaborative collection platform. Its scenario JSON and mock configuration exports are separate formats. Hosted runs and temporary resources use plan allowances, so a temporary mock is not a permanent production API.',
         sources: [
             {
                 title: 'Hoppscotch collection runner',
@@ -148,11 +148,11 @@ export const toolboxComparisons: Comparison[] = [
         },
         faqs: [
             {
-                question: 'Can I use Hoppscotch with socket.help?',
-                answer: 'Yes. Create an available mock or inbox in socket.help, then use its endpoint in Hoppscotch. Private endpoints require the separate sender access header; do not put access tokens in the URL.',
+                question: 'Can I use Hoppscotch with Kivel?',
+                answer: 'Yes. Create an available mock or inbox in Kivel, then use its endpoint in Hoppscotch. Private endpoints require the separate sender access header; do not put access tokens in the URL.',
             },
             {
-                question: 'Can socket.help import a Postman collection?',
+                question: 'Can Kivel import a Postman collection?',
                 answer: 'Not currently. Supported mock JSON configuration import is a different format. Hoppscotch documents collection import/export for Postman and OpenAPI.',
             },
             {

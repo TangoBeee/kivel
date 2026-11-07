@@ -6,7 +6,7 @@ services:
       context: .
       args:
         BILLING_ENABLED: ${BILLING_ENABLED:-false}
-        SITE_URL: ${SITE_URL:-https://socket.help}
+        SITE_URL: ${SITE_URL:-https://kivel.io}
     image: ${APP_IMAGE:-socket-help:local}
     init: true
     restart: unless-stopped

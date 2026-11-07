@@ -83,7 +83,7 @@ try {
         });
         children.push(child);
     }
-    console.log('socket.help: http://localhost:3001');
+    console.log('Kivel: http://localhost:3001');
 } catch (error) {
     console.error(error instanceof Error ? error.message : 'Development startup failed.');
     await close(1);

@@ -1,4 +1,4 @@
-# socket.help
+# Kivel
 
 The internet toolkit for AI coding agents: HTTP and webhooks, email, mock APIs
 and OAuth, files, monitors, memory, authenticators, scheduled jobs and status
@@ -34,7 +34,7 @@ after processing; no media history is retained.
 
 ## Production
 
-socket.help runs on one VPS behind Cloudflare. Every push to `main` that passes CI runs the
+Kivel runs on one VPS behind Cloudflare. Every push to `main` that passes CI runs the
 Deploy workflow: it builds the app, database and proxy images, pushes them to the private
 Docker Hub repository `tangobee/socket`, then runs [deploy/server-deploy.sh](deploy/server-deploy.sh)
 on the server over SSH. That script backs up the database, pulls the release, waits for it to
@@ -45,7 +45,7 @@ commit. It needs the `DOCKERHUB_TOKEN`, `DEPLOY_SSH_KEY` and `DEPLOY_KNOWN_HOSTS
 
 `BILLING_ENABLED=false` is the default for self-hosting; Pro/Team checkout stays closed even if
 Dodo credentials are present. Public production startup requires recovery email configuration.
-Support is support@socket.help.
+Support is support@kivel.io.
 
 ## Docker
 

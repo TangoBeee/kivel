@@ -4,7 +4,7 @@ import { ReadingLayout } from '../../components/content-layout';
 import { pageMetadata } from '../../lib/seo';
 export const metadata = pageMetadata(
     'Terms of use',
-    'Read the socket.help terms for tool and API use, acceptable behavior, your content, temporary resource expiry, service availability, and liability.',
+    'Read the Kivel terms for tool and API use, acceptable behavior, your content, temporary resource expiry, service availability, and liability.',
     '/terms/',
 );
 const sections = [
@@ -22,7 +22,7 @@ export default function Terms() {
         <ReadingLayout
             meta={`Updated ${policyUpdated}`}
             title="Terms of use, in plain words."
-            description="These terms cover the tools, hosted interfaces, and temporary resources. By using socket.help, you agree to them."
+            description="These terms cover the tools, hosted interfaces, and temporary resources. By using Kivel, you agree to them."
             path="/terms/"
             sections={sections}
         >
@@ -36,10 +36,10 @@ export default function Terms() {
             <section id="using">
                 <h2>Using the tools</h2>
                 <p>
-                    You may use socket.help and its HTTP API from a browser, a script, a CI job, or
-                    an AI agent, within the <Link href="/plans/">published allowances</Link>.
-                    Available tools have an anonymous allowance. Creating an account gives access to
-                    a workspace and its plan limits.
+                    You may use Kivel and its HTTP API from a browser, a script, a CI job, or an AI
+                    agent, within the <Link href="/plans/">published allowances</Link>. Available
+                    tools have an anonymous allowance. Creating an account gives access to a
+                    workspace and its plan limits.
                 </p>
                 <p>
                     Keep your credentials secure. Use only resources and workspaces you are
@@ -50,7 +50,7 @@ export default function Terms() {
             <section id="acceptable-use">
                 <h2>What you must not do</h2>
                 <p>
-                    Do not use socket.help to break the law, collect data from people without their
+                    Do not use Kivel to break the law, collect data from people without their
                     agreement, distribute malware, send spam, or host phishing pages. Do not bypass
                     rate limits, overload the service, or access data that is not yours.
                 </p>
@@ -99,7 +99,7 @@ export default function Terms() {
             <section id="contact">
                 <h2>Contact and support</h2>
                 <p>
-                    socket.help provides this service. For account help, billing, privacy requests,
+                    Kivel provides this service. For account help, billing, privacy requests,
                     security reports or abuse reports, email{' '}
                     <a href={supportHref}>{supportEmail}</a>. The{' '}
                     <Link href="/contact/">contact page</Link> explains what to include and how to
@@ -110,9 +110,9 @@ export default function Terms() {
                 <h2>Service availability and expiry</h2>
                 <p>
                     Tools are provided as they are, without warranties of any kind. Resources can
-                    expire, limits can change, and the service can be unavailable. Do not use
-                    socket.help as the only copy of important data or as a dependency requiring
-                    guaranteed uptime.
+                    expire, limits can change, and the service can be unavailable. Do not use Kivel
+                    as the only copy of important data or as a dependency requiring guaranteed
+                    uptime.
                 </p>
                 <p>
                     Pro and Team checkout is disabled until recurring prices and billing are
@@ -124,7 +124,7 @@ export default function Terms() {
             <section id="liability">
                 <h2>Liability</h2>
                 <p>
-                    To the extent the law allows, socket.help and its operators are not liable for
+                    To the extent the law allows, Kivel and its operators are not liable for
                     indirect or consequential losses, lost data, or lost profits arising from using
                     the service or being unable to use it.
                 </p>
@@ -133,7 +133,7 @@ export default function Terms() {
                 <h2>Changes to these terms</h2>
                 <p>
                     We may update these terms as the service changes. The date at the top identifies
-                    this version. Continuing to use socket.help after a change means you accept the
+                    this version. Continuing to use Kivel after a change means you accept the
                     updated terms.
                 </p>
             </section>

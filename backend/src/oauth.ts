@@ -555,14 +555,14 @@ export function registerOAuth(
                         );
                         const notice = local
                             ? `<p>Return to <strong>${escape(auth.redirect_uri!)}</strong></p>`
-                            : `<p class="leaving">You are leaving socket.help for <strong>${escape(target.origin)}</strong></p><p>Continue only if you recognize and trust this destination.</p>`;
+                            : `<p class="leaving">You are leaving Kivel for <strong>${escape(target.origin)}</strong></p><p>Continue only if you recognize and trust this destination.</p>`;
                         const choices = result
                             ? `<p>The test provider will return <code>${escape(result.error ?? 'a result')}</code> to that destination.</p>`
                             : `<p>No real account or password is needed. Choose a synthetic user for ${escape(config.name)}.</p>${config.users.map((u, i) => `<label><input type="radio" name="user" value="${escape(u.sub)}" ${u.sub === auth.login_hint || u.email === auth.login_hint || (!auth.login_hint && i === 0) ? 'checked' : ''}> ${escape(u.name)}<small>${escape(u.email)}</small></label>`).join('')}`;
                         return reply
                             .type('text/html; charset=utf-8')
                             .send(
-                                `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>socket.help test provider</title><style>body{font:16px/1.5 system-ui;color:#202720;background:#f8f9f6;margin:0;padding:24px}main{max-width:520px;margin:8vh auto;background:white;border:1px solid #e7e7e3;border-radius:16px;padding:32px}h1{font-size:30px;line-height:1.15}p{color:#5d615e;overflow-wrap:anywhere}.leaving{color:#202720}label{display:block;overflow-wrap:anywhere;padding:12px;border-bottom:1px solid #eee}button{font:inherit;padding:12px 22px;margin:24px 8px 0 0;border:1px solid #ccd4cc;border-radius:8px;background:white}button[value=approve],button[value=continue]{background:#286747;color:white}small{display:block;color:#5d615e}a{color:#286747;display:block;margin-top:24px}</style><main><h1>socket.help test provider</h1>${notice}<form method="post" action="${escape(base)}/authorize"><input type="hidden" name="consent" value="${escape(consent)}">${choices}<button name="decision" value="${!local || result ? 'continue' : 'approve'}">${!local || result ? 'Continue' : 'Approve test sign in'}</button>${result ? '' : '<button name="decision" value="deny">Deny</button>'}</form><a href="${escape(origin)}/">Stay on socket.help</a><p>Never enter real credentials on this page.</p></main></html>`,
+                                `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Kivel test provider</title><style>body{font:16px/1.5 system-ui;color:#202720;background:#f8f9f6;margin:0;padding:24px}main{max-width:520px;margin:8vh auto;background:white;border:1px solid #e7e7e3;border-radius:16px;padding:32px}h1{font-size:30px;line-height:1.15}p{color:#5d615e;overflow-wrap:anywhere}.leaving{color:#202720}label{display:block;overflow-wrap:anywhere;padding:12px;border-bottom:1px solid #eee}button{font:inherit;padding:12px 22px;margin:24px 8px 0 0;border:1px solid #ccd4cc;border-radius:8px;background:white}button[value=approve],button[value=continue]{background:#286747;color:white}small{display:block;color:#5d615e}a{color:#286747;display:block;margin-top:24px}</style><main><h1>Kivel test provider</h1>${notice}<form method="post" action="${escape(base)}/authorize"><input type="hidden" name="consent" value="${escape(consent)}">${choices}<button name="decision" value="${!local || result ? 'continue' : 'approve'}">${!local || result ? 'Continue' : 'Approve test sign in'}</button>${result ? '' : '<button name="decision" value="deny">Deny</button>'}</form><a href="${escape(origin)}/">Stay on Kivel</a><p>Never enter real credentials on this page.</p></main></html>`,
                             );
                     };
                     const redirect = (values: Record<string, string>) => {
@@ -723,7 +723,7 @@ export function registerOAuth(
                     (!publicRequest && !equal(hash(secret), initial.secretHash))
                 )
                     return fail(
-                        reply.header('WWW-Authenticate', 'Basic realm="socket.help test provider"'),
+                        reply.header('WWW-Authenticate', 'Basic realm="Kivel test provider"'),
                         'invalid_client',
                         'Client authentication failed.',
                         401,

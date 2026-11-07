@@ -50,7 +50,7 @@ export function openApi(origin: string) {
     const spec = {
         openapi: '3.1.0',
         info: {
-            title: 'socket.help API',
+            title: 'Kivel API',
             version: API_VERSION,
             description: [
                 'Run utilities and create temporary webhook inboxes, mock APIs, files, and MCP servers.',

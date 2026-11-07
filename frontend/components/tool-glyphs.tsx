@@ -44,7 +44,7 @@ const glyphs: [PhosphorIcon, string[]][] = [
     [P.Warning, ['Tool failure simulator']],
     [P.TestTube, ['Agent integration tests']],
     [P.Planet, ['Agent test environments']],
-    [P.Plug, ['socket.help MCP']],
+    [P.Plug, ['Kivel MCP']],
     [P.SquaresFour, ['Socket Spaces']],
     [P.ArrowsLeftRight, ['Temporary file transfer']],
     [P.Ticket, ['One-time download links']],

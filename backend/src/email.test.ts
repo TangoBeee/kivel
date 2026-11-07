@@ -484,7 +484,7 @@ test('email lifecycle upgrades, downgrades, pauses lapsed plans and retires afte
     assert.ok(addresses.find(newer.address)!.retiredAt);
     assert.equal(resources.read(newer.resourceId!, 'email', '', identity.account.id), undefined);
     assert.throws(
-        () => entitlement(identity, 'customEmailAddress', 'https://socket.help'),
+        () => entitlement(identity, 'customEmailAddress', 'https://kivel.io'),
         /requires Pro/,
     );
 });

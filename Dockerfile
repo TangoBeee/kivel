@@ -1,6 +1,6 @@
 FROM node:22-alpine AS build
 WORKDIR /app
-ARG SITE_URL=https://socket.help
+ARG SITE_URL=https://kivel.io
 ARG BILLING_ENABLED=false
 ENV NEXT_TELEMETRY_DISABLED=1 SITE_URL=$SITE_URL BILLING_ENABLED=$BILLING_ENABLED
 RUN corepack enable && corepack prepare pnpm@10.30.3 --activate

@@ -426,7 +426,7 @@ export class NetworkRunner {
                     body: response.body.toString('utf8'),
                     truncated: response.truncated,
                     timings: response.timings,
-                    perspective: 'Measured from socket.help’s server. Redirects were not followed.',
+                    perspective: 'Measured from Kivel’s server. Redirects were not followed.',
                 };
             }
             case 'network-sse-tester': {
@@ -650,7 +650,7 @@ export class NetworkRunner {
                     dnsMs: Math.round(dnsMs * 100) / 100,
                     timings: response.timings,
                     hops: response.hops,
-                    perspective: 'This socket.help server',
+                    perspective: 'This Kivel server',
                 };
             }
         }

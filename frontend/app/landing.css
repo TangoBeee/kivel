@@ -991,11 +991,16 @@ html.lenis.lenis-stopped {
   cursor: grab;
   touch-action: pan-y;
   user-select: none;
+  will-change: transform;
 }
 .kv-slider-track:active {
   cursor: grabbing;
 }
-.kv-slider-track > * {
+.kv-slider-set {
+  display: flex;
+  gap: 30px;
+}
+.kv-slide-slot {
   flex: 0 0 270px;
 }
 .kv-slide {
@@ -1022,12 +1027,10 @@ html.lenis.lenis-stopped {
   opacity: 0;
   transition: opacity 800ms var(--kv-ease);
 }
-.kv-slide:hover,
-.kv-slide.is-active {
+.kv-slide:hover {
   border-color: #ffffff38;
 }
-.kv-slide:hover .kv-slide-glow,
-.kv-slide.is-active .kv-slide-glow {
+.kv-slide:hover .kv-slide-glow {
   opacity: 1;
 }
 .kv-slide-icon {
@@ -1054,8 +1057,7 @@ html.lenis.lenis-stopped {
   color: var(--kv-quiet);
   transition: color 800ms var(--kv-ease);
 }
-.kv-slide:hover .kv-slide-text,
-.kv-slide.is-active .kv-slide-text {
+.kv-slide:hover .kv-slide-text {
   color: #e6e6e6;
 }
 .kv-slide-count {
@@ -1083,7 +1085,7 @@ html.lenis.lenis-stopped {
     background-color 300ms,
     opacity 300ms;
 }
-.kv-slider-arrows button:hover:not(:disabled) {
+.kv-slider-arrows button:hover {
   background: #1d1d1d;
 }
 .kv-slider-arrows button:disabled {
@@ -1523,7 +1525,7 @@ html.lenis.lenis-stopped {
   .kv-hero-statement {
     padding: 220px 0 220px;
   }
-  .kv-slider-track > * {
+  .kv-slide-slot {
     flex-basis: 240px;
   }
   .kv-buttons .kv-button {

@@ -59,15 +59,16 @@ const DRIFT = 22; // px per second while nobody is touching the row
 
 export function ToolSlider({ items }: { items: SliderItem[] }) {
     const mask = useRef<HTMLDivElement>(null);
-    const firstSet = useRef<HTMLDivElement>(null);
+    const firstSet = useRef<HTMLDivElement>(null); // the middle, real copy
     const still = useReducedMotion();
     const inView = useInView(mask, { margin: '200px 0px' });
-    // `offset` grows without limit as people drag; the track shows it wrapped into one set's width,
-    // with a second copy of the cards right behind, so the row never runs out in either direction.
+    // `offset` grows without limit as people drag. The track holds three copies of the cards and
+    // shows `offset` wrapped so the middle copy is in view: copies on both sides keep the margins
+    // left and right of the column filled, so the row never shows an empty strip.
     const offset = useMotionValue(0);
     const [setWidth, setSetWidth] = useState(0);
     const x = useTransform(offset, (value) =>
-        setWidth ? -(((-value % setWidth) + setWidth) % setWidth) : 0,
+        setWidth ? -setWidth - (((-value % setWidth) + setWidth) % setWidth) : 0,
     );
     const [step, setStep] = useState(300);
     const held = useRef(false);
@@ -135,7 +136,7 @@ export function ToolSlider({ items }: { items: SliderItem[] }) {
     const cards = (copy: number) =>
         items.map((item) => {
             const Icon = icons[item.id] ?? Code;
-            const hidden = copy > 0;
+            const hidden = copy !== 1;
             return (
                 <motion.div
                     key={`${copy}-${item.id}`}
@@ -154,7 +155,7 @@ export function ToolSlider({ items }: { items: SliderItem[] }) {
                         href={item.href}
                         className="kv-slide"
                         draggable={false}
-                        // The second copy is only there to close the loop; keep it out of the
+                        // The outer copies are only there to close the loop; keep them out of the
                         // keyboard order and away from screen readers.
                         tabIndex={hidden ? -1 : undefined}
                         aria-hidden={hidden || undefined}
@@ -224,10 +225,11 @@ export function ToolSlider({ items }: { items: SliderItem[] }) {
                             if (moved.current) event.preventDefault();
                         }}
                     >
+                        <div className="kv-slider-set">{cards(0)}</div>
                         <div ref={firstSet} className="kv-slider-set">
-                            {cards(0)}
+                            {cards(1)}
                         </div>
-                        <div className="kv-slider-set">{cards(1)}</div>
+                        <div className="kv-slider-set">{cards(2)}</div>
                     </motion.div>
                 </motion.div>
                 <div className="kv-slider-arrows">

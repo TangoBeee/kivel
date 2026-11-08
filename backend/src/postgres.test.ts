@@ -24,7 +24,10 @@ import { passwordHash, PostgresIdentityRepository } from './identity.js';
 import ssh2 from 'ssh2';
 import type { Client as SshClient } from 'ssh2';
 const { Client, utils } = ssh2;
-import { createSshServer } from './ssh.js';
+import { createSshServer, loadHostKey } from './ssh.js';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { BillingRepository } from './billing.js';
 import { liftEmailSuspension } from './email-admin.js';
 import type { CapturedRequest } from './inboxes.js';
@@ -678,7 +681,9 @@ test('SSH verifies host identity, executes the shared engine, rejects shell comm
         recoveryStore: new PostgresRecoveryRepository(pool),
         rateLimiter: new PostgresRateLimiter(pool),
     });
-    const hostKey = Buffer.from(utils.generateKeyPairSync('ed25519').private),
+    const directory = await mkdtemp(join(tmpdir(), 'kivel-ssh-db-'));
+    t.after(() => rm(directory, { recursive: true, force: true }));
+    const hostKey = await loadHostKey(join(directory, 'host_key')),
         parsed = utils.parseKey(hostKey);
     assert.ok(!(parsed instanceof Error));
     const hash = createHash('sha256').update(parsed.getPublicSSH()).digest('hex');

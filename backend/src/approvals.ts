@@ -32,6 +32,12 @@ export interface Approval {
     emailDraft?: { id: string };
     editedEmail?: EmailContent;
     credential?: { id: string; version: string; requesterId: string };
+    walletPayment?: {
+        walletId: string;
+        transactionId: string;
+        version: string;
+        requesterId: string;
+    };
     consumedAt?: string;
     answer?: string;
     note?: string;

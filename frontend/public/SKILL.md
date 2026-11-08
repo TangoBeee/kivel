@@ -111,3 +111,29 @@ Use `create_oauth_provider` with an approved workspace key to test sign in with 
 To run the whole flow through MCP, use `call_mock_api` with the owned provider id and protocol paths. Token form fields go in body; authorize responses include location, and userinfo accepts the bearer token as accessToken. Discovery is `{issuer}/.well-known/openid-configuration`; JWKS, authorize, token, userinfo and revoke URLs come from it. Only authorization code with S256 PKCE is supported for sign in. Codes last 60 seconds and are single use. Use `openid email profile offline_access` for profile, ID and rotating refresh tokens. Access and ID tokens last 5 minutes; refresh tokens last 1 hour. Client credentials returns access tokens only. Enable headless mode, then send `prompt=none` and a configured email or sub as `login_hint` to approve without a browser for loopback callbacks only (localhost, 127.0.0.1, [::1]). Public hosts require the hosted destination notice and an explicit Continue POST with Origin set to the issuer origin, including for error redirects. Validate state and ID token issuer, audience, signature, expiration and nonce in your client.
 
 Scenarios: none, access_denied, invalid_grant, expired_code, wrong_redirect_uri, invalid_pkce_verifier, expired_tokens, slow_token_endpoint (1.5 seconds), rotated_signing_key (at most once per provider per minute, with earlier public keys kept until their tokens expire). Redirect checks always remain enforced. Requests are logged with secret fields redacted before responses are sent. Reusing an old refresh token revokes its family. Public PKCE grants support refresh and revocation without a client secret; confidential grants still need it. RSA private keys are encrypted at rest using AUTH_SECRET and bound to their resource IDs. Free 1 provider, Pro 10, Team 50; mock retention and workspace storage apply. See https://kivel.io/docs/mock-oauth/ for complete examples. SDK: createOAuthProvider, oauthProvider, oauthProviders, updateOAuthProvider, deleteOAuthProvider. CLI: oauth create|update|inspect|list|calls|renew|delete.
+
+## Test agent payments
+
+Test mode only. No real funds, settlement, blockchain transactions or private keys.
+Create a test wallet with `create_test_wallet`, then a paywall with
+`create_test_paywall` or hosted checkout with `create_test_checkout`. Request the
+paywall URL for HTTP 402 x402 v1 instructions. Call `wallet_pay` with the target URL
+and a unique `idempotencyKey`. Above the threshold, show `answerUrl` and wait for
+human approval; repeat the identical payment with the same key to resume safely.
+Only an owner/admin browser session can approve or change spending controls.
+Agent keys must omit controls on wallet creation and update.
+
+`authorizeOnly: true` returns `paymentHeader` for X-PAYMENT, valid up to five minutes
+and bound to the exact URL. Wallet tokens debit once and reject replay. Permissive
+paywalls check fixture structure only and do not settle or verify signatures.
+Read `wallet_balance` and `list_wallet_transactions`. Use `resource_request` kinds
+`test-wallets`, `test-paywalls`, `test-checkouts` to configure, list and delete;
+actions `top-up`, `pay`, `transactions`, `complete`, `confirm` use the matching HTTP
+routes and `config` body. Inspect public calls with `inspect_mock_api`.
+
+Hosted checkouts have outcome buttons only. Never submit real payment details.
+`complete_test_checkout` accepts fake card fixtures; only outcome and last four
+digits are retained. For extra verification, repeat with `id` and the returned
+`confirmationToken`. Save webhookSecret once on creation and verify
+X-Kivel-Signature: HMAC-SHA256 of timestamp + dot + exact raw JSON, with stale-time
+and event-ID replay checks. Guide: https://kivel.io/docs/test-an-agent-that-pays/

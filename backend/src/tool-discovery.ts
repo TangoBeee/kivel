@@ -41,6 +41,26 @@ export function catalogGuide(id: string, capabilities: ServerCapabilities) {
             http: 'POST /api/mocks',
             next: 'Set routes to [] and provide websocket. Connect to endpointUrl, then inspect_mock_api. Use run_tool with network-websocket-tester to capture a public endpoint.',
         };
+    if (['agents-test-wallet', 'agents-test-x402-paywall', 'agents-test-checkout'].includes(id)) {
+        const kind =
+            id === 'agents-test-wallet'
+                ? 'test-wallets'
+                : id === 'agents-test-x402-paywall'
+                  ? 'test-paywalls'
+                  : 'test-checkouts';
+        return {
+            ...base,
+            mcpTool:
+                kind === 'test-wallets'
+                    ? 'create_test_wallet'
+                    : kind === 'test-paywalls'
+                      ? 'create_test_paywall'
+                      : 'create_test_checkout',
+            resourceRequest: { kind, action: 'create' },
+            http: `POST /api/${kind}`,
+            next: 'Test mode only. No real money or settlement. Use wallet_pay with the same idempotencyKey after owner/admin approval. Only a human browser session may change wallet limits. Inspect public endpoint requests with inspect_mock_api; manage with resource_request.',
+        };
+    }
     if (id === 'agents-password-vault')
         return {
             ...base,

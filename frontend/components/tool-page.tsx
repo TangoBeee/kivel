@@ -18,6 +18,7 @@ export type ToolPanel = Extract<
     | 'files'
     | 'monitors'
     | 'memory'
+    | 'payments'
     | 'vault'
     | 'authenticators'
     | 'automation'
@@ -29,6 +30,7 @@ export const toolPanels: ToolPanel[] = [
     'files',
     'monitors',
     'memory',
+    'payments',
     'vault',
     'authenticators',
     'automation',
@@ -38,7 +40,11 @@ export const isToolPanel = (panel: DashboardPanel): panel is ToolPanel =>
 
 export const panelResources = (panel: ToolPanel, resources: Resource[]) => {
     const kinds = (panelInfo(panel).kinds ?? []) as string[];
-    return resources.filter((resource) => kinds.includes(resource.kind));
+    return resources.filter((resource) =>
+        panel === 'payments'
+            ? resource.toolId?.startsWith('agents-test-')
+            : kinds.includes(resource.kind) && !resource.toolId?.startsWith('agents-test-'),
+    );
 };
 
 type Reading = { label: string; used: number; limit?: number; show: string; note?: string };
@@ -91,47 +97,49 @@ export function readings(
               ]
             : panel === 'webhooks'
               ? [pool, storage]
-              : panel === 'mocks'
-                ? [pool]
-                : panel === 'files'
-                  ? [storage, pool]
-                  : panel === 'automation'
-                    ? [pool]
-                    : panel === 'monitors'
-                      ? [
-                            usage.monitors && {
-                                label: 'Monitors',
-                                used: usage.monitors.used,
-                                limit: usage.monitors.limit,
-                                show: `${usage.monitors.used} / ${usage.monitors.limit}`,
-                            },
-                        ]
-                      : panel === 'memory'
+              : panel === 'payments'
+                ? [pool, storage]
+                : panel === 'mocks'
+                  ? [pool]
+                  : panel === 'files'
+                    ? [storage, pool]
+                    : panel === 'automation'
+                      ? [pool]
+                      : panel === 'monitors'
                         ? [
-                              usage.memory && {
-                                  label: 'Memory used',
-                                  used: usage.memory.used,
-                                  limit: usage.memory.limit,
-                                  show: `${formatBytes(usage.memory.used)} / ${formatBytes(usage.memory.limit)}`,
+                              usage.monitors && {
+                                  label: 'Monitors',
+                                  used: usage.monitors.used,
+                                  limit: usage.monitors.limit,
+                                  show: `${usage.monitors.used} / ${usage.monitors.limit}`,
                               },
                           ]
-                        : panel === 'vault'
+                        : panel === 'memory'
                           ? [
-                                usage.vault && {
-                                    label: 'Vault entries',
-                                    used: usage.vault.used,
-                                    limit: usage.vault.limit,
-                                    show: `${usage.vault.used} / ${usage.vault.limit}`,
+                                usage.memory && {
+                                    label: 'Memory used',
+                                    used: usage.memory.used,
+                                    limit: usage.memory.limit,
+                                    show: `${formatBytes(usage.memory.used)} / ${formatBytes(usage.memory.limit)}`,
                                 },
                             ]
-                          : [
-                                usage.authenticators && {
-                                    label: 'Authenticators',
-                                    used: usage.authenticators.used,
-                                    limit: usage.authenticators.limit,
-                                    show: `${usage.authenticators.used} / ${usage.authenticators.limit}`,
-                                },
-                            ];
+                          : panel === 'vault'
+                            ? [
+                                  usage.vault && {
+                                      label: 'Vault entries',
+                                      used: usage.vault.used,
+                                      limit: usage.vault.limit,
+                                      show: `${usage.vault.used} / ${usage.vault.limit}`,
+                                  },
+                              ]
+                            : [
+                                  usage.authenticators && {
+                                      label: 'Authenticators',
+                                      used: usage.authenticators.used,
+                                      limit: usage.authenticators.limit,
+                                      show: `${usage.authenticators.used} / ${usage.authenticators.limit}`,
+                                  },
+                              ];
     return list.filter((item): item is Reading => !!item);
 }
 

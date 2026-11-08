@@ -58,6 +58,119 @@ const deletes = {
 };
 export const platformTools = [
     {
+        name: 'create_test_wallet',
+        description:
+            'Create a workspace wallet with fake USD test units. Test mode only: no real funds, blockchain or private keys. Agent keys receive plan defaults for limits and approval thresholds; only a human owner/admin can change them. Counts toward resource limits.',
+        inputSchema: schema(
+            {
+                name: { type: 'string' },
+                balance: { type: 'number' },
+                ttlSeconds: { type: 'integer' },
+                persistent: { type: 'boolean' },
+            },
+            ['name'],
+        ),
+        annotations: creates,
+    },
+    {
+        name: 'wallet_balance',
+        description:
+            'Read test wallet balance, payment limits and approval threshold. Test mode, no real funds.',
+        inputSchema: schema({ id: { type: 'string' } }),
+        annotations: readonly,
+    },
+    {
+        name: 'wallet_pay',
+        description:
+            'Pay a Kivel test paywall or checkout, or record a payment to any payee string. Test mode only. Reuse idempotencyKey to resume safely. Above the threshold, shares a human approval URL and waits up to timeoutSeconds. Only an owner/admin browser session can approve. authorizeOnly returns X-PAYMENT for a paywall instead of fetching content. USD test units only.',
+        inputSchema: schema(
+            {
+                id: { type: 'string' },
+                payee: { type: 'string' },
+                amount: { type: 'number' },
+                memo: { type: 'string' },
+                idempotencyKey: { type: 'string' },
+                authorizeOnly: { type: 'boolean' },
+                timeoutSeconds: { type: 'integer', minimum: 1, maximum: 30 },
+            },
+            ['id', 'payee', 'idempotencyKey'],
+        ),
+        annotations: creates,
+    },
+    {
+        name: 'list_wallet_transactions',
+        description:
+            'Read payments, top-ups, refusals and human approval events from a test wallet ledger, newest first. Test mode only.',
+        inputSchema: schema(
+            {
+                id: { type: 'string' },
+                cursor: { type: 'string' },
+                limit: { type: 'integer', minimum: 1, maximum: 100 },
+            },
+            ['id'],
+        ),
+        annotations: readonly,
+    },
+    {
+        name: 'create_test_paywall',
+        description:
+            'Create a public mock x402 v1 paywall. Test mode only: no settlement. Wallet mode accepts Kivel test wallet tokens; permissive mode validates structure only. Inspect requests with inspect_mock_api. Configure or delete through resource_request kind test-paywalls.',
+        inputSchema: schema(
+            {
+                name: { type: 'string' },
+                amount: { type: 'number' },
+                description: { type: 'string' },
+                modes: { type: 'array', items: { type: 'string', enum: ['wallet', 'permissive'] } },
+                response: { type: 'object' },
+                ttlSeconds: { type: 'integer' },
+            },
+            ['name', 'amount'],
+        ),
+        annotations: creates,
+    },
+    {
+        name: 'create_test_checkout',
+        description:
+            'Create a public hosted checkout with test outcome buttons and no card inputs. Test mode, no real payment. A signed webhook secret is returned once. Complete with fake cards or wallet_pay; inspect via existing mock tools.',
+        inputSchema: schema(
+            {
+                name: { type: 'string' },
+                item: { type: 'string' },
+                description: { type: 'string' },
+                amount: { type: 'number' },
+                currency: { type: 'string' },
+                webhookUrl: { type: 'string' },
+                successUrl: { type: 'string' },
+                cancelUrl: { type: 'string' },
+                ttlSeconds: { type: 'integer' },
+            },
+            ['name', 'item', 'amount'],
+        ),
+        annotations: creates,
+    },
+    {
+        name: 'complete_test_checkout',
+        description:
+            'Complete a test checkout with a fake generated card fixture. Never send real cards. Only the outcome and last four digits are retained. For an extra verification step, repeat with confirmationToken. Use wallet_pay for a test wallet.',
+        inputSchema: schema(
+            {
+                id: { type: 'string' },
+                idempotencyKey: { type: 'string' },
+                card: {
+                    type: 'object',
+                    properties: {
+                        number: { type: 'string' },
+                        expiry: { type: 'string' },
+                        cvc: { type: 'string' },
+                    },
+                },
+                confirmationToken: { type: 'string' },
+            },
+            ['id'],
+        ),
+        annotations: creates,
+    },
+    {
         name: 'save_credential',
         description:
             'Save an encrypted password and optional notes for an account your human asked you to create or operate. Omit password to generate and store one, returned once. Optional authenticatorId and inboxId must belong to this workspace. Later reveals require human approval by default.',
@@ -810,7 +923,7 @@ export const platformTools = [
     {
         name: 'resource_request',
         description:
-            'Manage webhook, email, mock API, file, authenticator, vault and mock MCP resources through HTTP lifecycle routes. Authenticators support create, inspect, list, update (name) and delete only; use them only for accounts your human asked you to create or operate. Use calls for mock history; response or forward with config to configure a webhook (config.reset=true restores defaults); deliveries reads forwarding history. Email supports create, inspect, delete and renew; mail reading stays private.',
+            'Manage webhook, email, mock API, file, authenticator, vault, test payment and mock MCP resources through HTTP lifecycle routes. Authenticators support create, inspect, list, update (name) and delete only; use them only for accounts your human asked you to create or operate. Use calls for mock history; response or forward with config to configure a webhook (config.reset=true restores defaults); deliveries reads forwarding history. Email supports create, inspect, delete and renew; mail reading stays private.',
         inputSchema: schema(
             {
                 kind: {
@@ -827,6 +940,9 @@ export const platformTools = [
                         'smtp-inboxes',
                         'authenticators',
                         'credentials',
+                        'test-wallets',
+                        'test-paywalls',
+                        'test-checkouts',
                     ],
                 },
                 action: {
@@ -845,6 +961,11 @@ export const platformTools = [
                         'forward',
                         'deliveries',
                         'clear',
+                        'top-up',
+                        'transactions',
+                        'pay',
+                        'complete',
+                        'confirm',
                     ],
                 },
                 id: stringProperty('Resource UUID for existing resources.'),
@@ -1075,7 +1196,15 @@ export function registerMcp({
         return { ...guide, ...(nativeTool ? { inputSchema: nativeTool.inputSchema } : {}) };
     }
     function nativeAvailability(name: string) {
-        return (['save_credential', 'reveal_credential'].includes(name) && !capabilities.vault) ||
+        return ([
+            'create_test_wallet',
+            'wallet_pay',
+            'create_test_paywall',
+            'create_test_checkout',
+            'complete_test_checkout',
+        ].includes(name) &&
+            !capabilities.testPayments) ||
+            (['save_credential', 'reveal_credential'].includes(name) && !capabilities.vault) ||
             (['add_authenticator', 'get_totp_code'].includes(name) &&
                 !capabilities.authenticators) ||
             (name === 'create_oauth_provider' && !capabilities.oauthProviders) ||
@@ -1142,6 +1271,64 @@ export function registerMcp({
     app.addHook('onRequestAbort', async (request) => {
         uploads.delete(request);
     });
+    async function paymentRequest(
+        name: string,
+        value: Record<string, unknown>,
+        request: FastifyRequest,
+    ) {
+        const actor = await access.workspace(
+            request,
+            ['wallet_balance', 'list_wallet_transactions'].includes(name)
+                ? 'resources:read'
+                : 'resources:write',
+        );
+        const headers: Record<string, string> = {};
+        for (const key of ['authorization', 'cookie', 'origin'])
+            if (typeof request.headers[key] === 'string') headers[key] = request.headers[key];
+        const { id, timeoutSeconds, ...input } = value;
+        const timeout = Number(timeoutSeconds ?? 25);
+        if (!Number.isInteger(timeout) || timeout < 1 || timeout > 30)
+            throw new RpcError(-32602, 'Choose a timeout from 1 to 30 seconds.');
+        const path =
+            name === 'create_test_wallet'
+                ? '/api/test-wallets'
+                : name === 'create_test_paywall'
+                  ? '/api/test-paywalls'
+                  : name === 'create_test_checkout'
+                    ? '/api/test-checkouts'
+                    : name === 'complete_test_checkout'
+                      ? `/api/test-checkouts/${encodeURIComponent(String(id))}/${input.confirmationToken ? 'confirm' : 'complete'}`
+                      : `/api/test-wallets/${encodeURIComponent(String(id))}${name === 'wallet_pay' ? '/pay' : name === 'list_wallet_transactions' ? '/transactions' : ''}`;
+        const read = ['wallet_balance', 'list_wallet_transactions'].includes(name);
+        const call = () =>
+            app.inject({
+                method: read ? 'GET' : 'POST',
+                url:
+                    read && name === 'list_wallet_transactions'
+                        ? `${path}?${new URLSearchParams(Object.entries(input).map(([key, value]) => [key, String(value)]))}`
+                        : path,
+                headers,
+                remoteAddress: request.ip,
+                ...(!read ? { payload: input } : {}),
+            });
+        const response = await call();
+        if (
+            name !== 'wallet_pay' ||
+            response.statusCode !== 202 ||
+            !actor.identity.keyScopes.includes('resources:read')
+        )
+            return httpResult(response);
+        uploads.delete(request);
+        const pending = response.json();
+        const waited = await app.inject({
+            method: 'GET',
+            url: `/api/approvals/${pending.approvalId}/wait?timeoutSeconds=${timeout}`,
+            headers,
+            remoteAddress: request.ip,
+        });
+        if (waited.statusCode >= 400) return httpResult(waited);
+        return httpResult(waited.json().status === 'pending' ? response : await call());
+    }
     async function credentialRequest(
         name: string,
         value: Record<string, unknown>,
@@ -1348,11 +1535,13 @@ export function registerMcp({
                           uses: item.uses,
                           ...(kind === 'mock'
                               ? {
-                                    endpointUrl: item.payload.oauth
-                                        ? `${origin}/oauth/${id}`
-                                        : item.payload.websocket
-                                          ? webSocketMockUrl(origin, id)
-                                          : `${origin}/mock/${id}`,
+                                    endpointUrl: item.payload.payment
+                                        ? `${origin}/${({ wallet: 'api/test-wallets', paywall: 'pay', checkout: 'checkout' } as Record<string, string>)[(item.payload.payment as { kind: string }).kind]}/${id}`
+                                        : item.payload.oauth
+                                          ? `${origin}/oauth/${id}`
+                                          : item.payload.websocket
+                                            ? webSocketMockUrl(origin, id)
+                                            : `${origin}/mock/${id}`,
                                     ...(item.payload.oauth
                                         ? {
                                               issuer: `${origin}/oauth/${id}`,
@@ -1842,6 +2031,56 @@ export function registerMcp({
     async function resourceRequest(value: Record<string, unknown>, request: FastifyRequest) {
         const kind = String(value.kind ?? ''),
             action = String(value.action ?? '');
+        if (['test-wallets', 'test-paywalls', 'test-checkouts'].includes(kind)) {
+            if (
+                ![
+                    'create',
+                    'inspect',
+                    'list',
+                    'update',
+                    'delete',
+                    'renew',
+                    'calls',
+                    'top-up',
+                    'transactions',
+                    'complete',
+                    'confirm',
+                    'pay',
+                ].includes(action)
+            )
+                throw new RpcError(-32602, 'Unsupported test payment action.');
+            if (['top-up', 'transactions', 'pay'].includes(action) && kind !== 'test-wallets')
+                throw new RpcError(-32602, 'This action requires a test wallet.');
+            if (['complete', 'confirm'].includes(action) && kind !== 'test-checkouts')
+                throw new RpcError(-32602, 'This action requires a test checkout.');
+            if (
+                !['create', 'list'].includes(action) &&
+                (typeof value.id !== 'string' || !isUuid(value.id))
+            )
+                throw new RpcError(-32602, 'Provide a resource UUID.');
+            const headers: Record<string, string> = {};
+            for (const key of ['authorization', 'cookie', 'origin'])
+                if (typeof request.headers[key] === 'string') headers[key] = request.headers[key];
+            const method =
+                action === 'delete'
+                    ? 'DELETE'
+                    : action === 'update'
+                      ? 'PATCH'
+                      : ['inspect', 'list', 'calls', 'transactions'].includes(action)
+                        ? 'GET'
+                        : 'POST';
+            const base = ['renew', 'calls'].includes(action) ? 'mocks' : kind;
+            const path = `/api/${base}${['create', 'list'].includes(action) ? '' : `/${value.id}`}${['create', 'list', 'inspect', 'update', 'delete'].includes(action) ? '' : `/${action}`}`;
+            const response = await app.inject({
+                method,
+                url: path,
+                headers,
+                remoteAddress: request.ip,
+                ...(['POST', 'PATCH'].includes(method) ? { payload: value.config ?? {} } : {}),
+            });
+            return httpResult(response);
+        }
+
         if (
             ![
                 'create',
@@ -2078,7 +2317,7 @@ export function registerMcp({
                         serverInfo: { name: config?.name ?? 'Kivel', version: API_VERSION },
                         instructions: config
                             ? 'A temporary mock MCP server. Tools return configured static responses.'
-                            : `${catalog.length} catalog tools across ${categories.length} categories: HTTP and webhooks, email, mocks and OAuth, files, monitors, memory, authenticators and vault credentials, jobs and status pages, test data and media, developer utilities, DNS and network. Use search_tools for the complete catalog, describe_tool for inputs and run_tool for utilities; use dedicated tools for resources. Utilities stay behind discovery, not in tools/list. Workspace-only features require an account. Keep credentials private, use cursor-based waits and use authenticators only for accounts the human authorized. Check capabilities and plan limits. A 402 needs the human to upgrade, not repeated retries.`,
+                            : `${catalog.length} catalog tools across ${categories.length} categories: HTTP and webhooks, email, mocks and OAuth, files, monitors, memory, authenticators and vault credentials, test wallets and x402 paywalls and checkouts, jobs and status pages, test data and media, developer utilities, DNS and network. Use search_tools for the complete catalog, describe_tool for inputs and run_tool for utilities; use dedicated tools for resources. Utilities stay behind discovery, not in tools/list. Workspace-only features require an account. Keep credentials private, use cursor-based waits and use authenticators only for accounts the human authorized. Check capabilities and plan limits. A 402 needs the human to upgrade, not repeated retries.`,
                     };
                     break;
                 }
@@ -2134,84 +2373,106 @@ export function registerMcp({
                                 throw new RpcError(-32602, `Invalid argument type: ${key}`);
                         }
                         response = [
-                            'save_credential',
-                            'list_credentials',
-                            'reveal_credential',
-                            'generate_password',
+                            'create_test_wallet',
+                            'wallet_balance',
+                            'wallet_pay',
+                            'list_wallet_transactions',
+                            'create_test_paywall',
+                            'create_test_checkout',
+                            'complete_test_checkout',
                         ].includes(params.name)
-                            ? await credentialRequest(params.name, values, request)
+                            ? await paymentRequest(params.name, values, request)
                             : [
-                                    'add_authenticator',
-                                    'get_totp_code',
-                                    'list_authenticators',
-                                    'delete_authenticator',
+                                    'save_credential',
+                                    'list_credentials',
+                                    'reveal_credential',
+                                    'generate_password',
                                 ].includes(params.name)
-                              ? await authenticatorRequest(params.name, values, request)
+                              ? await credentialRequest(params.name, values, request)
                               : [
-                                      'create_phone_number',
-                                      'list_phone_numbers',
-                                      'release_phone_number',
-                                      'list_sms',
-                                      'wait_for_sms',
+                                      'add_authenticator',
+                                      'get_totp_code',
+                                      'list_authenticators',
+                                      'delete_authenticator',
                                   ].includes(params.name)
-                                ? await phoneRequest(params.name, values, request)
-                                : params.name === 'wait_for_event'
-                                  ? await eventRequest(values, request)
-                                  : params.name === 'call_mock_api'
-                                    ? await callMock(values, request)
-                                    : params.name === 'workspace_status'
-                                      ? await workspaceStatus(values, request)
-                                      : params.name === 'resource_request'
-                                        ? await resourceRequest(values, request)
-                                        : ['start_login', 'start_trial', 'finish_login'].includes(
-                                                params.name,
-                                            )
-                                          ? await loginRequest(params.name, values, request)
-                                          : ['ask_human', 'wait_for_approval'].includes(params.name)
-                                            ? await approvalRequest(params.name, values, request)
-                                            : [
-                                                    'create_monitor',
-                                                    'accept_dns_changes',
-                                                    'list_monitors',
-                                                    'ping_monitor',
-                                                    'inspect_monitor',
-                                                    'pause_monitor',
-                                                    'delete_monitor',
-                                                ].includes(params.name)
-                                              ? await monitorRequest(params.name, values, request)
-                                              : params.name.startsWith('memory_')
-                                                ? await memoryRequest(params.name, values, request)
-                                                : [
-                                                        'get_email_attachment',
-                                                        'create_email_inbox',
-                                                        'wait_for_email',
-                                                        'list_emails',
-                                                        'send_email',
-                                                        'list_email_threads',
-                                                        'get_email_thread',
-                                                        'email_draft',
-                                                        'email_inbox_rules',
-                                                    ].includes(params.name)
-                                                  ? await emailRequest(params.name, values, request)
-                                                  : params.name === 'describe_tool'
-                                                    ? result(describe(String(values.toolId)))
-                                                    : params.name === 'search_tools'
-                                                      ? result({
-                                                            tools: discover(
-                                                                typeof values.query === 'string'
-                                                                    ? values.query
-                                                                    : '',
-                                                            ),
-                                                        })
-                                                      : params.name === 'list_tools'
-                                                        ? result({ tools: discover('', Infinity) })
-                                                        : params.name === 'run_tool'
-                                                          ? await runUtility(values, request)
-                                                          : await callPlatform(
-                                                                params.name,
-                                                                values,
-                                                                request,
-                                                            );
+                                ? await authenticatorRequest(params.name, values, request)
+                                : [
+                                        'create_phone_number',
+                                        'list_phone_numbers',
+                                        'release_phone_number',
+                                        'list_sms',
+                                        'wait_for_sms',
+                                    ].includes(params.name)
+                                  ? await phoneRequest(params.name, values, request)
+                                  : params.name === 'wait_for_event'
+                                    ? await eventRequest(values, request)
+                                    : params.name === 'call_mock_api'
+                                      ? await callMock(values, request)
+                                      : params.name === 'workspace_status'
+                                        ? await workspaceStatus(values, request)
+                                        : params.name === 'resource_request'
+                                          ? await resourceRequest(values, request)
+                                          : ['start_login', 'start_trial', 'finish_login'].includes(
+                                                  params.name,
+                                              )
+                                            ? await loginRequest(params.name, values, request)
+                                            : ['ask_human', 'wait_for_approval'].includes(
+                                                    params.name,
+                                                )
+                                              ? await approvalRequest(params.name, values, request)
+                                              : [
+                                                      'create_monitor',
+                                                      'accept_dns_changes',
+                                                      'list_monitors',
+                                                      'ping_monitor',
+                                                      'inspect_monitor',
+                                                      'pause_monitor',
+                                                      'delete_monitor',
+                                                  ].includes(params.name)
+                                                ? await monitorRequest(params.name, values, request)
+                                                : params.name.startsWith('memory_')
+                                                  ? await memoryRequest(
+                                                        params.name,
+                                                        values,
+                                                        request,
+                                                    )
+                                                  : [
+                                                          'get_email_attachment',
+                                                          'create_email_inbox',
+                                                          'wait_for_email',
+                                                          'list_emails',
+                                                          'send_email',
+                                                          'list_email_threads',
+                                                          'get_email_thread',
+                                                          'email_draft',
+                                                          'email_inbox_rules',
+                                                      ].includes(params.name)
+                                                    ? await emailRequest(
+                                                          params.name,
+                                                          values,
+                                                          request,
+                                                      )
+                                                    : params.name === 'describe_tool'
+                                                      ? result(describe(String(values.toolId)))
+                                                      : params.name === 'search_tools'
+                                                        ? result({
+                                                              tools: discover(
+                                                                  typeof values.query === 'string'
+                                                                      ? values.query
+                                                                      : '',
+                                                              ),
+                                                          })
+                                                        : params.name === 'list_tools'
+                                                          ? result({
+                                                                tools: discover('', Infinity),
+                                                            })
+                                                          : params.name === 'run_tool'
+                                                            ? await runUtility(values, request)
+                                                            : await callPlatform(
+                                                                  params.name,
+                                                                  values,
+                                                                  request,
+                                                              );
                     }
                     break;
                 }

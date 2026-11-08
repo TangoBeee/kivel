@@ -19,6 +19,13 @@ kivel email clear <id>
 kivel email forward <id> [--token <token>] < forwarding.json
 kivel email send <id> --idempotency-key <unique-key> < message.json
 kivel event wait [--timeout-seconds <1-30>] < sources.json
+kivel test-wallet create|list|inspect|update|delete [id]
+kivel test-wallet balance|transactions <id>
+kivel test-wallet pay|top-up <id> < test-payment.json
+kivel test-paywall create|list|inspect|update|delete [id]
+kivel test-checkout create|list|inspect|update|delete [id]
+kivel test-checkout complete|confirm <id> < test-checkout.json
+Test payments use fake units only. Create/update read JSON from stdin. Agent keys cannot set wallet limits; only a human owner/admin can. Resume approval with the same payment idempotencyKey.
 kivel credential save < credential.json
 kivel credential list
 kivel credential inspect|delete <id>

@@ -24,7 +24,10 @@ import { passwordHash, PostgresIdentityRepository } from './identity.js';
 import ssh2 from 'ssh2';
 import type { Client as SshClient } from 'ssh2';
 const { Client, utils } = ssh2;
-import { createSshServer } from './ssh.js';
+import { createSshServer, loadHostKey } from './ssh.js';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { BillingRepository } from './billing.js';
 import { liftEmailSuspension } from './email-admin.js';
 import type { CapturedRequest } from './inboxes.js';
@@ -678,7 +681,9 @@ test('SSH verifies host identity, executes the shared engine, rejects shell comm
         recoveryStore: new PostgresRecoveryRepository(pool),
         rateLimiter: new PostgresRateLimiter(pool),
     });
-    const hostKey = Buffer.from(utils.generateKeyPairSync('ed25519').private),
+    const directory = await mkdtemp(join(tmpdir(), 'kivel-ssh-db-'));
+    t.after(() => rm(directory, { recursive: true, force: true }));
+    const hostKey = await loadHostKey(join(directory, 'host_key')),
         parsed = utils.parseKey(hostKey);
     assert.ok(!(parsed instanceof Error));
     const hash = createHash('sha256').update(parsed.getPublicSSH()).digest('hex');
@@ -3201,4 +3206,158 @@ test('vault encryption, limits, human settings and single-use reveals persist ac
         204,
     );
     assert.equal(await credentials.get(ownerId, id), undefined);
+});
+
+test('test wallet approvals, atomic debits, token replay and checkout expiry work across replicas', async (t) => {
+    const identities = new PostgresIdentityRepository(pool);
+    const user = (await identities.register('payments-db-owner', 'test'))!;
+    const owner = user.personalAccountId,
+        token = randomBytes(32).toString('base64url');
+    await identities.createSession(user.id, owner, token);
+    const identity = (await identities.authenticateSession(token))!;
+    const key = await identities.createKey(
+        identity,
+        'DB payment agent',
+        ['resources:read', 'resources:write', 'account:read'],
+        new Date(Date.now() + 86400000).toISOString(),
+    );
+    const headers = { authorization: `Bearer ${key.key}` },
+        human = { origin: 'http://localhost:3000', cookie: `kivel_session=${token}` };
+    const options = {
+        identityStore: identities,
+        resourceStore: new PostgresResourceStore(pool),
+        approvalStore: new PostgresApprovals(pool),
+        mockCalls: new PostgresMockCalls(pool),
+        activity: new PostgresActivity(pool),
+        recoveryStore: new PostgresRecoveryRepository(pool),
+        authSecret: 'database-test-payments-encryption-secret',
+    };
+    const a = buildApp(options),
+        b = buildApp({ ...options, resourceStore: new PostgresResourceStore(pool) });
+    t.after(async () => {
+        await a.close();
+        await b.close();
+    });
+    const wallet = await a.inject({
+        method: 'POST',
+        url: '/api/test-wallets',
+        headers: human,
+        payload: {
+            name: 'DB wallet',
+            balance: 20,
+            perPaymentLimit: 10,
+            dailyLimit: 20,
+            approvalThreshold: 1,
+        },
+    });
+    assert.equal(wallet.statusCode, 201, wallet.body);
+    const id = wallet.json().id,
+        payment = { payee: 'DB test vendor', amount: 5, idempotencyKey: 'db-payment' };
+    const pending = await a.inject({
+        method: 'POST',
+        url: `/api/test-wallets/${id}/pay`,
+        headers,
+        payload: payment,
+    });
+    assert.equal(pending.statusCode, 202, pending.body);
+    assert.equal(
+        (
+            await b.inject({
+                method: 'POST',
+                url: `/api/approvals/${pending.json().approvalId}/answer`,
+                headers: human,
+                payload: { answer: 'Approve' },
+            })
+        ).statusCode,
+        200,
+    );
+    const paid = await Promise.all(
+        Array.from({ length: 8 }, (_, i) =>
+            (i % 2 ? a : b).inject({
+                method: 'POST',
+                url: `/api/test-wallets/${id}/pay`,
+                headers,
+                payload: payment,
+            }),
+        ),
+    );
+    assert.ok(
+        paid.every((response) => response.statusCode === 200),
+        paid.map((response) => response.body).join('\n'),
+    );
+    assert.equal((await b.inject({ url: `/api/test-wallets/${id}`, headers })).json().balance, 15);
+    const paywall = (
+        await a.inject({
+            method: 'POST',
+            url: '/api/test-paywalls',
+            headers,
+            payload: { name: 'DB content', amount: 1 },
+        })
+    ).json();
+    const authorized = await a.inject({
+        method: 'POST',
+        url: `/api/test-wallets/${id}/pay`,
+        headers,
+        payload: { payee: paywall.endpointUrl, idempotencyKey: 'db-token', authorizeOnly: true },
+    });
+    assert.equal(authorized.statusCode, 200, authorized.body);
+    const redeemed = await Promise.all(
+        [a, b].map((app) =>
+            app.inject({
+                url: `/pay/${paywall.id}`,
+                headers: { 'x-payment': authorized.json().paymentHeader },
+            }),
+        ),
+    );
+    assert.deepEqual(redeemed.map((response) => response.statusCode).sort(), [200, 409]);
+    assert.equal((await b.inject({ url: `/api/test-wallets/${id}`, headers })).json().balance, 14);
+    const checkout = (
+        await a.inject({
+            method: 'POST',
+            url: '/api/test-checkouts',
+            headers,
+            payload: { name: 'DB checkout', item: 'Test item', amount: 1 },
+        })
+    ).json();
+    const attempt = await b.inject({
+        method: 'POST',
+        url: `/api/test-checkouts/${checkout.id}/complete`,
+        headers,
+        payload: { idempotencyKey: 'db-checkout', card: { number: '4242424242424242' } },
+    });
+    assert.equal(attempt.statusCode, 200, attempt.body);
+    const stored = (
+        await pool.query('SELECT payload FROM temporary_resources WHERE id=$1', [checkout.id])
+    ).rows[0].payload;
+    assert.equal(JSON.stringify(stored).includes('4242424242424242'), false);
+    assert.equal(JSON.stringify(stored).includes(checkout.webhookSecret), false);
+    assert.equal(
+        (await a.inject({ url: `/api/mocks/${checkout.id}/calls`, headers })).json().calls.length,
+        1,
+    );
+    await pool.query(
+        "UPDATE temporary_resources SET expires_at=clock_timestamp() - interval '1 second' WHERE id=$1",
+        [checkout.id],
+    );
+    await options.resourceStore.deleteExpired();
+    assert.equal((await b.inject({ url: `/checkout/${checkout.id}` })).statusCode, 404);
+    assert.equal(
+        Number(
+            (
+                await pool.query('SELECT count(*) FROM mock_calls WHERE resource_id=$1', [
+                    checkout.id,
+                ])
+            ).rows[0].count,
+        ),
+        0,
+    );
+    const resources = await b.inject({ url: '/api/account/resources', headers });
+    assert.ok(
+        resources
+            .json()
+            .resources.some(
+                (resource: { id: string; toolId: string }) =>
+                    resource.id === id && resource.toolId === 'agents-test-wallet',
+            ),
+    );
 });

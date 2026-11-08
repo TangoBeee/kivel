@@ -277,3 +277,119 @@ export interface CredentialInput {
 export type CredentialReveal =
     | { status: 'awaitingApproval'; approvalId: string; answerUrl: string }
     | { status: 'revealed'; id: string; password: string; notes: string };
+
+export type TestPaymentKind = 'wallet' | 'paywall' | 'checkout';
+export type CheckoutOutcome =
+    'succeeded' | 'declined' | 'insufficient_funds' | 'requires_verification' | 'expired';
+export interface TestTransaction {
+    id: string;
+    at: string;
+    kind: 'payment' | 'topup';
+    amount: number;
+    payee: string;
+    memo: string;
+    status: 'awaitingApproval' | 'authorized' | 'succeeded' | 'refused' | 'expired';
+    reason?: string;
+    approvalId?: string;
+    events: { at: string; status: string; reason?: string }[];
+}
+export interface TestPaymentResource {
+    id: string;
+    kind: TestPaymentKind;
+    testMode: true;
+    name: string;
+    expiresAt: string;
+    endpointUrl?: string;
+    balance?: number;
+    availableBalance?: number;
+    reservedBalance?: number;
+    perPaymentLimit?: number;
+    dailyLimit?: number;
+    approvalThreshold?: number;
+    amount?: number;
+    currency?: string;
+    item?: string;
+    description?: string;
+    modes?: ('wallet' | 'permissive')[];
+    response?: { status: number; body: unknown };
+    successUrl?: string;
+    cancelUrl?: string;
+    webhookUrl?: string;
+    attempts?: {
+        id: string;
+        at: string;
+        outcome: CheckoutOutcome;
+        last4?: string;
+        verified?: boolean;
+    }[];
+    deliveries?: {
+        requestId: string;
+        at: string;
+        attempts: number;
+        status?: number;
+        error?: string;
+    }[];
+}
+
+export interface TestWalletInput {
+    name: string;
+    balance?: number;
+    availableBalance?: number;
+    reservedBalance?: number;
+    ttlSeconds?: number;
+    persistent?: boolean;
+    /** Only an owner/admin browser session can set spending controls. Agent keys omit them. */
+    perPaymentLimit?: number;
+    dailyLimit?: number;
+    approvalThreshold?: number;
+}
+export interface TestPaywallInput {
+    name: string;
+    amount: number;
+    description?: string;
+    modes?: ('wallet' | 'permissive')[];
+    response?: { status: number; body: unknown };
+    ttlSeconds?: number;
+    persistent?: boolean;
+}
+export interface TestCheckoutInput {
+    name: string;
+    item: string;
+    description?: string;
+    amount: number;
+    currency?: 'USD' | 'EUR' | 'GBP' | 'CAD' | 'AUD';
+    successUrl?: string;
+    cancelUrl?: string;
+    webhookUrl?: string;
+    ttlSeconds?: number;
+    persistent?: boolean;
+}
+export interface TestPaymentInput {
+    payee: string;
+    amount?: number;
+    memo?: string;
+    idempotencyKey: string;
+    authorizeOnly?: boolean;
+}
+export interface TestPaymentResult {
+    testMode: true;
+    status: 'awaitingApproval' | 'authorized' | 'succeeded';
+    transaction?: TestTransaction;
+    transactionId?: string;
+    approvalId?: string;
+    answerUrl?: string;
+    paymentHeader?: string;
+    headerName?: 'X-PAYMENT';
+    expiresAt?: string;
+    content?: unknown;
+    checkout?: TestCheckoutAttempt;
+}
+export interface TestCheckoutAttempt {
+    testMode: true;
+    id: string;
+    at: string;
+    outcome: CheckoutOutcome;
+    last4?: string;
+    verified?: boolean;
+    confirmationToken?: string;
+}

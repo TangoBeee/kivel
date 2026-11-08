@@ -53,7 +53,15 @@ export async function loadHostKey(path: string) {
     } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
     }
-    const key = utils.generateKeyPairSync('ed25519').private;
+    let key: string | undefined;
+    for (let attempt = 0; attempt < 8; attempt++) {
+        const candidate = utils.generateKeyPairSync('ed25519').private;
+        if (!(utils.parseKey(candidate) instanceof Error)) {
+            key = candidate;
+            break;
+        }
+    }
+    if (!key) throw new Error('Could not generate a valid SSH host key.');
     try {
         await writeFile(path, key, { flag: 'wx', mode: 0o600 });
     } catch (error) {

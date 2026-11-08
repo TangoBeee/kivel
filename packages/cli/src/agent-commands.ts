@@ -3,6 +3,8 @@ import type { Kivel, MonitorInput, ApprovalInput } from '@kivel.io/sdk';
 export function needsInput(args: string[]) {
     return (
         ['run', 'upload'].includes(args[0] ?? '') ||
+        (['test-wallet', 'test-paywall', 'test-checkout'].includes(args[0] ?? '') &&
+            ['create', 'update', 'pay', 'top-up', 'complete', 'confirm'].includes(args[1] ?? '')) ||
         (args[0] === 'api' && !['GET', 'HEAD', 'OPTIONS', 'DELETE'].includes(args[1] ?? '')) ||
         (args[0] === 'agent' && args[1] === 'token') ||
         (args[0] === 'memory' && args[1] === 'set') ||
@@ -162,6 +164,39 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
             exact(0);
             return client.agents();
         }
+    }
+    if (['test-wallet', 'test-paywall', 'test-checkout'].includes(group ?? '')) {
+        const kind =
+            group === 'test-wallet'
+                ? 'wallets'
+                : group === 'test-paywall'
+                  ? 'paywalls'
+                  : 'checkouts';
+        if (action === 'create') {
+            exact(0);
+            const input = json();
+            return kind === 'wallets'
+                ? client.createTestWallet(input)
+                : kind === 'paywalls'
+                  ? client.createTestPaywall(input)
+                  : client.createTestCheckout(input);
+        }
+        if (action === 'list') {
+            exact(0);
+            return client.testPayments(kind);
+        }
+        if (action === 'inspect' || action === 'balance') return client.testPayment(kind, id());
+        if (action === 'update') return client.updateTestPayment(kind, id(), json());
+        if (action === 'delete') return client.deleteTestPayment(kind, id());
+        if (group === 'test-wallet' && action === 'pay') return client.walletPay(id(), json());
+        if (group === 'test-wallet' && action === 'top-up')
+            return client.topUpTestWallet(id(), json().amount);
+        if (group === 'test-wallet' && action === 'transactions')
+            return client.listWalletTransactions(id());
+        if (group === 'test-checkout' && action === 'complete')
+            return client.completeTestCheckout(id(), json());
+        if (group === 'test-checkout' && action === 'confirm')
+            return client.confirmTestCheckout(id(), json().confirmationToken);
     }
     if (group === 'credential') {
         if (action === 'save') {

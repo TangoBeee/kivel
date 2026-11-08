@@ -1,3 +1,4 @@
+import { registerTestPayments } from './test-payments.js';
 import { MemoryCredentials, registerCredentials } from './credentials.js';
 import type { CredentialRepository } from './credentials.js';
 import { registerEmailDrafts } from './email-drafts.js';
@@ -379,7 +380,7 @@ export function buildApp({
         reply.header('X-Request-Id', request.id);
         reply.header('Referrer-Policy', 'no-referrer');
         if (
-            /^\/(api|hooks|mock|oauth|ws|mcp|files|billing)(\/|$)/.test(
+            /^\/(api|hooks|mock|oauth|pay|checkout|ws|mcp|files|billing)(\/|$)/.test(
                 new URL(request.url, baseUrl).pathname,
             )
         )
@@ -449,6 +450,7 @@ export function buildApp({
         smtpCapture: Boolean(smtpCaptureConfig),
         authenticators: Boolean(authSecret),
         vault: Boolean(authSecret),
+        testPayments: Boolean(authSecret),
         oauthProviders: Boolean(authSecret),
         phones: Boolean(phoneProvider && phoneEnabled),
         phoneAddonSales: Boolean(billingConfig?.phoneAddonEnabled),
@@ -846,6 +848,19 @@ export function buildApp({
         rateLimiter,
         authSecret,
     );
+    registerTestPayments({
+        app,
+        access,
+        resources: resourceStore,
+        approvals: approvalStore,
+        review,
+        activity,
+        limits: rateLimiter,
+        calls: mockCalls,
+        secret: authSecret,
+        forwardSend,
+        forwardDelays,
+    });
     const deliverEmail = registerEmailSending({
         app,
         access,

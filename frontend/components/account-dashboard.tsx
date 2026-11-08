@@ -1,4 +1,5 @@
 'use client';
+import { PaymentsPanel } from './test-payments-workbench';
 import { VaultPanel } from './vault-workbench';
 import { AuthenticatorsPanel } from './authenticator-workbench';
 import { PasswordField } from './password-field';
@@ -388,6 +389,7 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
             text: formatSize(workspaceUsage.memory.used),
             full: workspaceUsage.memory.used >= workspaceUsage.memory.limit,
         },
+        payments: { text: String(count('payments')) },
         vault: ratio(workspaceUsage.vault?.used, workspaceUsage.vault?.limit),
         authenticators: ratio(
             workspaceUsage.authenticators?.used,
@@ -693,6 +695,8 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                             list={
                                 panel === 'monitors' ? (
                                     <MonitorsPanel verifiedEmail={!!recoveryEmail?.verifiedAt} />
+                                ) : panel === 'payments' ? (
+                                    <PaymentsPanel onChange={() => void reload()} />
                                 ) : panel === 'vault' ? (
                                     <VaultPanel onChange={() => void reload()} />
                                 ) : panel === 'authenticators' ? (

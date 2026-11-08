@@ -36,7 +36,8 @@
     "./llm-mock": "./dist/llm-mock.js",
     "./webhooks": "./dist/webhooks.js",
     "./oauth": "./dist/oauth.js",
-    "./network-parsers": "./dist/network-parsers.js"
+    "./network-parsers": "./dist/network-parsers.js",
+    "./test-payments": "./dist/test-payments.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

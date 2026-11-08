@@ -1,5 +1,11 @@
 # @kivel.io/sdk
 
+## 0.7.0
+
+### Minor Changes
+
+- 7cbd3fc: Add workspace credential storage, password generation and approved reveals.
+
 ## 0.6.1
 
 ### Patch Changes

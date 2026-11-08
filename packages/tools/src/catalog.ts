@@ -177,6 +177,18 @@ const planned: Record<Category['id'], [string, string][]> = {
     ],
     agents: [
         [
+            'Test wallet',
+            'Give agents fake USD test balance, spending limits and human approval for test payments.',
+        ],
+        [
+            'Test x402 paywall',
+            'Test HTTP 402 payment flows with wallet tokens or permissive fixtures. No real settlement.',
+        ],
+        [
+            'Test checkout',
+            'Exercise checkout outcomes and signed webhooks. Test mode, no real payment.',
+        ],
+        [
             'Password vault',
             'Store encrypted credentials for accounts your human asked you to create or operate, with approval for password reveals.',
         ],
@@ -412,6 +424,9 @@ export const backendToolIds = [
         'email-email-webhook-forwarding',
         'email-mock-smtp',
         'agents-password-vault',
+        'agents-test-wallet',
+        'agents-test-x402-paywall',
+        'agents-test-checkout',
         'agents-agent-authenticator',
         'test-media-music-library',
         ...Object.keys(networkOperations),
@@ -476,6 +491,9 @@ export const catalog: CatalogTool[] = [
                 ...([
                     'email-mock-smtp',
                     'agents-password-vault',
+                    'agents-test-wallet',
+                    'agents-test-x402-paywall',
+                    'agents-test-checkout',
                     'agents-agent-authenticator',
                     'email-temporary-email-inbox',
                     'email-email-webhook-forwarding',
@@ -523,10 +541,13 @@ export interface ServerCapabilities {
     phones: boolean;
     authenticators?: boolean;
     vault?: boolean;
+    testPayments?: boolean;
     oauthProviders?: boolean;
 }
 export function toolCapability(id: string): keyof ServerCapabilities | undefined {
     if (id === 'mock-apis-mock-oauth-provider') return 'oauthProviders';
+    if (['agents-test-wallet', 'agents-test-x402-paywall', 'agents-test-checkout'].includes(id))
+        return 'testPayments';
     if (id === 'agents-password-vault') return 'vault';
     if (id === 'agents-agent-authenticator') return 'authenticators';
     if (id === 'email-mock-smtp') return 'smtpCapture';

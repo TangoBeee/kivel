@@ -187,8 +187,15 @@ const mcp = await request('/mcp', {
 });
 assert.equal(mcp.status, 200);
 const platformTools = (await mcp.json()).result.tools;
-assert.equal(platformTools.length, 59);
+assert.equal(platformTools.length, 66);
 for (const name of [
+    'create_test_wallet',
+    'wallet_pay',
+    'wallet_balance',
+    'list_wallet_transactions',
+    'create_test_paywall',
+    'create_test_checkout',
+    'complete_test_checkout',
     'save_credential',
     'list_credentials',
     'reveal_credential',
@@ -200,7 +207,7 @@ for (const name of [
 ])
     assert.ok(
         platformTools.some((tool) => tool.name === name),
-        `Missing email MCP tool: ${name}`,
+        `Missing MCP tool: ${name}`,
     );
 assert.ok(platformTools.some((tool) => tool.name === 'describe_tool'));
 assert.equal(new Set(platformTools.map((tool) => tool.name)).size, platformTools.length);

@@ -319,6 +319,101 @@ export class Kivel {
             );
         return new Uint8Array(await response.arrayBuffer());
     }
+    createTestWallet(input: import('./types.js').TestWalletInput) {
+        return this.request<import('./types.js').TestPaymentResource>(
+            'POST',
+            '/api/test-wallets',
+            input,
+        );
+    }
+    createTestPaywall(input: import('./types.js').TestPaywallInput) {
+        return this.request<import('./types.js').TestPaymentResource>(
+            'POST',
+            '/api/test-paywalls',
+            input,
+        );
+    }
+    createTestCheckout(input: import('./types.js').TestCheckoutInput) {
+        return this.request<import('./types.js').TestPaymentResource & { webhookSecret: string }>(
+            'POST',
+            '/api/test-checkouts',
+            input,
+        );
+    }
+    testPayments(kind: 'wallets' | 'paywalls' | 'checkouts') {
+        return this.request<{
+            testMode: true;
+            resources: import('./types.js').TestPaymentResource[];
+        }>('GET', `/api/test-${kind}`);
+    }
+    testPayment(kind: 'wallets' | 'paywalls' | 'checkouts', id: string) {
+        return this.request<import('./types.js').TestPaymentResource>(
+            'GET',
+            `/api/test-${kind}/${encodeURIComponent(id)}`,
+        );
+    }
+    updateTestPayment(
+        kind: 'wallets' | 'paywalls' | 'checkouts',
+        id: string,
+        input: Partial<
+            | import('./types.js').TestWalletInput
+            | import('./types.js').TestPaywallInput
+            | import('./types.js').TestCheckoutInput
+        >,
+    ) {
+        return this.request<import('./types.js').TestPaymentResource>(
+            'PATCH',
+            `/api/test-${kind}/${encodeURIComponent(id)}`,
+            input,
+        );
+    }
+    deleteTestPayment(kind: 'wallets' | 'paywalls' | 'checkouts', id: string) {
+        return this.request<void>('DELETE', `/api/test-${kind}/${encodeURIComponent(id)}`);
+    }
+    walletBalance(id: string) {
+        return this.testPayment('wallets', id);
+    }
+    topUpTestWallet(id: string, amount: number) {
+        return this.request<{
+            testMode: true;
+            balance: number;
+            transaction: import('./types.js').TestTransaction;
+        }>('POST', `/api/test-wallets/${encodeURIComponent(id)}/top-up`, { amount });
+    }
+    walletPay(id: string, input: import('./types.js').TestPaymentInput) {
+        return this.request<import('./types.js').TestPaymentResult>(
+            'POST',
+            `/api/test-wallets/${encodeURIComponent(id)}/pay`,
+            input,
+        );
+    }
+    listWalletTransactions(id: string, options: { cursor?: string; limit?: number } = {}) {
+        const query = new URLSearchParams();
+        if (options.cursor) query.set('cursor', options.cursor);
+        if (options.limit !== undefined) query.set('limit', String(options.limit));
+        return this.request<{
+            testMode: true;
+            transactions: import('./types.js').TestTransaction[];
+            nextCursor?: string;
+        }>('GET', `/api/test-wallets/${encodeURIComponent(id)}/transactions?${query}`);
+    }
+    completeTestCheckout(
+        id: string,
+        input: { idempotencyKey: string; card: { number: string; expiry?: string; cvc?: string } },
+    ) {
+        return this.request<import('./types.js').TestCheckoutAttempt>(
+            'POST',
+            `/api/test-checkouts/${encodeURIComponent(id)}/complete`,
+            input,
+        );
+    }
+    confirmTestCheckout(id: string, confirmationToken: string) {
+        return this.request<import('./types.js').TestCheckoutAttempt>(
+            'POST',
+            `/api/test-checkouts/${encodeURIComponent(id)}/confirm`,
+            { confirmationToken },
+        );
+    }
     saveCredential(input: import('./types.js').CredentialInput) {
         return this.request<{ credential: import('./types.js').Credential; password?: string }>(
             'POST',

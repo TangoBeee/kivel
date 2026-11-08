@@ -11,6 +11,33 @@ interface Guide {
     limits: string;
 }
 const guides: Record<string, Guide> = {
+    'agents-test-wallet': {
+        intro: 'Give agents fake USD balance and spending controls. Test mode only, with no real funds, blockchain transactions or private keys.',
+        steps: [
+            'Create a test wallet and a paywall or checkout.',
+            'Call wallet_pay with a payee and idempotencyKey. Above the threshold, share the approval link with a human owner or admin.',
+            'Resume with the same key, then inspect the ledger. Add free test balance when needed.',
+        ],
+        limits: 'Counts toward normal resource and storage limits. Only owner/admin browser sessions can set limits and approval thresholds, including on creation. Keys receive plan defaults. Payments are limited to 60 per workspace per minute. Top-ups are free and rate-limited by plan. Balance and amounts are capped at 1,000,000 test units. Daily limits use UTC. Approvals belong to one caller and payment. Authorized paywall tokens reserve balance for up to five minutes and cannot be replayed.',
+    },
+    'agents-test-x402-paywall': {
+        intro: 'Test HTTP 402 payment handling against a public x402 v1 endpoint. Test mode only: no settlement or blockchain calls.',
+        steps: [
+            'Set a test price, payment modes and JSON response.',
+            'Request the URL to receive payment requirements. Use wallet_pay or retry with its returned X-PAYMENT header.',
+            'Inspect calls and refusal reasons. Use permissive mode only for testing x402 payload structure.',
+        ],
+        limits: 'Uses normal mock resource retention, storage and resource allowances. Wallet tokens are HMAC-protected, URL-bound and single-use. Permissive mode validates v1 exact/base-sepolia structure only, without signature verification or replay protection for fixtures. Success returns X-PAYMENT-RESPONSE. Responses are up to 16 KiB. Configuration and history require workspace access.',
+    },
+    'agents-test-checkout': {
+        intro: 'Test checkout outcomes, extra verification and signed webhook events without collecting real card details. Test mode, no real payment.',
+        steps: [
+            'Create an item, amount and optional public webhook URL. Save the webhook secret returned once.',
+            'Use the hosted outcome buttons, complete_test_checkout with a fake fixture, or wallet_pay with a USD checkout.',
+            'Verify the timestamped HMAC signature and inspect test attempts and delivery retries.',
+        ],
+        limits: 'Hosted pages are noindex and have no card fields. Item and description are plain text, up to 80 characters. API/MCP cards are never stored or logged; only outcome and last four digits remain. Generated Luhn-valid fixtures succeed by default; documented sandbox fixtures trigger failures. Requires-verification returns a confirmation token valid up to five minutes. Delivery retries server errors and 429 up to three times. Resource expiry or deletion removes state and logs.',
+    },
     'agents-password-vault': {
         intro: 'Keep the account credentials your agent needs with your workspace. Passwords and notes are encrypted. Your human approves each reveal by default.',
         steps: [
@@ -736,6 +763,12 @@ const examples: Record<string, { useCase: string; example: string }> = {
 };
 
 export function toolExample(id: string) {
+    if (['agents-test-wallet', 'agents-test-x402-paywall', 'agents-test-checkout'].includes(id))
+        return {
+            useCase: 'Test an agent payment and human approval with fake money.',
+            example:
+                'create_test_wallet({name: "Research agent", balance: 100}) → create_test_paywall({name: "Article", amount: 1}) → wallet_pay({id: wallet.id, payee: paywall.endpointUrl, idempotencyKey: "article-1"}) → inspect the ledger',
+        };
     if (id === 'agents-password-vault')
         return {
             useCase:

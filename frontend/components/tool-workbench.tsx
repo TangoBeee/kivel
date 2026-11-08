@@ -1,3 +1,4 @@
+import { PaymentsWorkbench } from './test-payments-workbench';
 import { VaultWorkbench } from './vault-workbench';
 import Link from 'next/link';
 import { AuthenticatorWorkbench } from './authenticator-workbench';
@@ -37,7 +38,11 @@ import {
 /** The working part of a tool: the same screen on its public page and inside the dashboard. */
 export function ToolWorkbench({ toolId }: { toolId: string }) {
     const tool = catalog.find((entry) => entry.id === toolId)!;
-    return tool.id === 'agents-password-vault' ? (
+    return ['agents-test-wallet', 'agents-test-x402-paywall', 'agents-test-checkout'].includes(
+        tool.id,
+    ) ? (
+        <PaymentsWorkbench toolId={tool.id} />
+    ) : tool.id === 'agents-password-vault' ? (
         <VaultWorkbench toolId={tool.id} />
     ) : tool.id === 'agents-agent-authenticator' ? (
         <AuthenticatorWorkbench toolId={tool.id} />

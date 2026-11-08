@@ -47,6 +47,7 @@ interface ToolboxContext {
         phones: boolean;
         authenticators?: boolean;
         vault?: boolean;
+        testPayments?: boolean;
         oauthProviders?: boolean;
     } | null;
 }

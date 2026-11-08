@@ -1,6 +1,12 @@
-import { authenticatorLimits, oauthLimits, credentialLimits } from './billing-plans.js';
+import {
+    authenticatorLimits,
+    oauthLimits,
+    credentialLimits,
+    testPaymentLimits,
+} from './billing-plans.js';
 export const plans = {
     anonymous: {
+        testPayments: testPaymentLimits.anonymous,
         oauthProviders: oauthLimits.anonymous,
         name: 'Without an account',
         maxResources: 5,
@@ -23,6 +29,7 @@ export const plans = {
         emailRecipients: 0,
     },
     free: {
+        testPayments: testPaymentLimits.free,
         oauthProviders: oauthLimits.free,
         name: 'Free account',
         maxResources: 20,
@@ -45,6 +52,7 @@ export const plans = {
         emailRecipients: 3,
     },
     pro: {
+        testPayments: testPaymentLimits.pro,
         oauthProviders: oauthLimits.pro,
         name: 'Pro',
         maxResources: 100,
@@ -67,6 +75,7 @@ export const plans = {
         emailRecipients: 10,
     },
     team: {
+        testPayments: testPaymentLimits.team,
         oauthProviders: oauthLimits.team,
         name: 'Team',
         maxResources: 500,

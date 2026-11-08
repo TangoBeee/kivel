@@ -11,6 +11,8 @@ export default function robots(): MetadataRoute.Robots {
                 '/hooks/',
                 '/mock/',
                 '/oauth/',
+                '/pay/',
+                '/checkout/',
                 '/ws/',
                 '/mcp',
                 '/files/',

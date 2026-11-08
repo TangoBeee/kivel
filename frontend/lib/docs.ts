@@ -1,3 +1,4 @@
+import { paymentTestingDoc } from './payment-testing-content';
 import { catalog, categories } from './catalog';
 import { websocketDoc } from './websocket-content';
 import { oauthDoc } from './oauth-content';
@@ -36,6 +37,7 @@ export const docGroups = ['Get started', 'Resources', 'Interfaces', 'Reference']
 const updatedAt = '2026-10-27';
 
 export const docPages: DocPage[] = [
+    paymentTestingDoc,
     oauthDoc,
     websocketDoc,
     agentDoc,

@@ -194,3 +194,18 @@ revision guards, limits and the distinction between seed and live exports.
 HTTP echo endpoints use the same mock lifecycle with `{name, routes: [], echo: true}`.
 Call `/mock/:id` with an optional relative path to inspect redacted request metadata
 and a parsed JSON/text body. Requests are not retained. See `/docs/http-echo/`.
+
+## Test agent payments
+
+Test mode wallets, x402 v1 paywalls and hosted checkouts use fake units only. There
+are no real funds, blockchain transactions or private keys. Wallet limits and
+approval thresholds require an owner/admin browser session; agent keys cannot
+change them. Above the threshold, agents share the approval URL and resume with
+the same idempotency key after a human answers. Hosted checkouts collect no card
+details. Checkout webhooks are signed and retried using the existing forwarder.
+
+Use `create_test_wallet`, `wallet_pay` and `list_wallet_transactions` over MCP,
+the SDK test payment methods or `kivel test-wallet`, `test-paywall` and
+`test-checkout`. All three use existing resource/storage quotas and mock retention.
+Keep `AUTH_SECRET` stable for encrypted webhook secrets and payment tokens.
+Guide: [Test an agent that pays](https://kivel.io/docs/test-an-agent-that-pays/).

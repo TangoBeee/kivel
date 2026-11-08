@@ -140,6 +140,8 @@ export function registerResources(
             request.params.id,
             { managementToken: token(request), ...(ownerId ? { ownerId } : {}) },
             (previous) => {
+                if (previous.payment)
+                    throw new HttpError(400, 'Use the test payments API to update this resource.');
                 if (previous.oauth)
                     throw new HttpError(400, 'Use /api/oauth-providers to update this provider.');
                 if (Boolean(previous.websocket) !== Boolean(config.websocket))
@@ -171,6 +173,11 @@ export function registerResources(
                 ...(actor.identity ? { ownerId: actor.identity.account.id } : {}),
             },
             (payload) => {
+                if (payload.payment)
+                    throw new HttpError(
+                        400,
+                        'Test payment resources cannot be reset as mock APIs.',
+                    );
                 const config = payload as unknown as MockConfig;
                 if (!config.crud)
                     return {
@@ -225,11 +232,13 @@ export function registerResources(
                           ),
                       }
                     : {
-                          endpointUrl: resource.payload.oauth
-                              ? `${origin}/oauth/${resource.id}`
-                              : resource.payload.websocket
-                                ? webSocketMockUrl(origin, resource.id)
-                                : `${origin}/mock/${resource.id}`,
+                          endpointUrl: resource.payload.payment
+                              ? `${origin}/${({ wallet: 'api/test-wallets', paywall: 'pay', checkout: 'checkout' } as Record<string, string>)[(resource.payload.payment as { kind: string }).kind]}/${resource.id}`
+                              : resource.payload.oauth
+                                ? `${origin}/oauth/${resource.id}`
+                                : resource.payload.websocket
+                                  ? webSocketMockUrl(origin, resource.id)
+                                  : `${origin}/mock/${resource.id}`,
                           ...(resource.payload.oauth
                               ? {
                                     issuer: `${origin}/oauth/${resource.id}`,
@@ -474,6 +483,10 @@ export function registerResources(
                     const metadata = await store.peek(request.params.id, 'mock', caller);
                     if (!metadata) return reply.code(404).send(missing);
                     const path = `/${request.params['*'] ?? ''}`;
+                    if (metadata.payload.payment)
+                        return reply
+                            .code(404)
+                            .send({ error: 'Use the test payment resource URL.' });
                     if (metadata.payload.oauth)
                         return reply.code(404).send({ error: 'Use this provider’s issuer URL.' });
                     if (metadata.payload.websocket)
@@ -518,6 +531,11 @@ export function registerResources(
                             request.params.id,
                             caller,
                             (payload) => {
+                                if (payload.payment)
+                                    throw new HttpError(
+                                        400,
+                                        'Test payment resources cannot be reset as mock APIs.',
+                                    );
                                 const config = payload as unknown as MockConfig;
                                 if (!config.crud || !crudPath(config.crud, path))
                                     return {

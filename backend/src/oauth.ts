@@ -51,7 +51,7 @@ const escape = (v: string) =>
         (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!,
     );
 export function publicMockPayload(payload: Record<string, unknown>) {
-    const { oauthState: _, ...visible } = payload;
+    const { oauthState: _, paymentState: _payment, ...visible } = payload;
     return visible;
 }
 async function keys() {

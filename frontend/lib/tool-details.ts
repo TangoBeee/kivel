@@ -1,3 +1,4 @@
+import { paymentTestingDetails } from './payment-testing-content';
 import { echoDetails } from './echo-content';
 import { crudDetails } from './crud-content';
 import { scenarioDetails } from './scenario-content';
@@ -145,6 +146,8 @@ const developerDetails: Record<string, ToolDetail[]> = {
     ],
 };
 export function toolDetails(id: string): ToolDetail[] {
+    if (['agents-test-wallet', 'agents-test-x402-paywall', 'agents-test-checkout'].includes(id))
+        return paymentTestingDetails;
     if (developerDetails[id]) return developerDetails[id];
     if (id === 'network-http-echo') return echoDetails;
     if (id === 'mock-apis-stateful-crud-api') return crudDetails;

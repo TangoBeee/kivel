@@ -1,3 +1,4 @@
+import { paymentOpenApi } from './payment-openapi.js';
 import { credentialOpenApi } from './credential-openapi.js';
 import { authenticatorOpenApi, attachmentOpenApi } from './authenticator-openapi.js';
 import { oauthOpenApi } from './oauth-openapi.js';
@@ -815,6 +816,7 @@ export function openApi(origin: string) {
         readinessOpenApi(),
         authenticatorOpenApi(),
         credentialOpenApi(),
+        paymentOpenApi(),
         attachmentOpenApi(),
     );
     for (const [path, methods] of Object.entries(spec.paths)) {

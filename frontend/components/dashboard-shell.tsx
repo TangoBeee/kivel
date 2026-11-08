@@ -133,6 +133,16 @@ export const dashboardPanels = [
         category: 'databases',
     },
     {
+        id: 'payments',
+        group: 'tools',
+        label: 'Payments (test)',
+        kinds: ['mock'],
+        description: 'Test wallets, x402 paywalls and checkouts with fake money.',
+        icon: CreditCard,
+        category: 'agents',
+        create: ['agents-test-wallet', 'agents-test-x402-paywall', 'agents-test-checkout'],
+    },
+    {
         id: 'vault',
         group: 'tools',
         label: 'Vault',

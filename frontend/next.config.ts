@@ -13,6 +13,8 @@ export default function config(phase: string): NextConfig {
                           '/api/:path*',
                           '/hooks/:path*',
                           '/mock/:path*',
+                          '/pay/:path*',
+                          '/checkout/:path*',
                           '/mcp/:path*',
                           '/files/:path*',
                           '/health',

@@ -27,7 +27,7 @@ export class Forwarder {
     private inflight = 0;
 
     constructor(
-        private readonly inboxes: InboxRepository,
+        private readonly inboxes: Pick<InboxRepository, 'recordDelivery'>,
         private readonly send: ForwardSend = (url, signal, options) =>
             publicRequest(url, signal, { ...options, body: false }),
         private readonly delays = [0, 2000, 10000],

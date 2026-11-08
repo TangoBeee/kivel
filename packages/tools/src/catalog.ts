@@ -49,13 +49,13 @@ export const categories: Category[] = [
     {
         id: 'email',
         name: 'Email & inboxes',
-        description: 'Owned agent addresses and private email testing.',
+        description: 'Real email addresses your agents own, to send and receive.',
         icon: 'mail',
     },
     {
         id: 'domains',
         name: 'Callback URLs',
-        description: 'Callback addresses for your test integrations.',
+        description: 'Callback addresses for your integrations.',
         icon: 'globe',
     },
     {

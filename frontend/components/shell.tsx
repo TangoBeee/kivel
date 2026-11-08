@@ -132,12 +132,12 @@ export function Header() {
 
     return (
         <>
-            <header className={`island ${open ? 'is-open' : ''}`}>
+            <header
+                className={`island ${open ? 'is-open' : ''} ${pathname === '' ? 'is-landing' : ''}`}
+            >
                 <Link href="/" className="island-brand" aria-label="Kivel home">
                     <LiveLogo size={28} />
-                    <span>
-                        Kivel
-                    </span>
+                    <span>Kivel</span>
                 </Link>
                 <nav className="island-nav" aria-label="Main navigation">
                     {links.map((link) => (
@@ -218,12 +218,11 @@ const footerColumns = [
     {
         title: 'Product',
         links: [
-            { href: '/connect/', label: 'Connect an agent' },
-            { href: '/use-cases/', label: 'Agent use cases' },
+            { href: '/connect/', label: 'Setup' },
+            { href: '/plans/', label: 'Pricing' },
             { href: '/catalog/', label: 'Free tools' },
             { href: '/integrations/', label: 'Integrations' },
-            { href: '/plans/', label: 'Plans' },
-            { href: '/account/', label: 'Workspace' },
+            { href: '/use-cases/', label: 'Use cases' },
         ],
     },
     {
@@ -232,34 +231,35 @@ const footerColumns = [
             { href: '/docs/', label: 'Documentation' },
             { href: '/docs/reference/', label: 'API reference' },
             { href: '/compare/', label: 'Compare tools' },
-        ],
-    },
-    {
-        title: 'Resources',
-        links: [
-            { href: '/blog/', label: 'Blog' },
-            { href: '/privacy/', label: 'Privacy & limits' },
-            { href: '/terms/', label: 'Terms' },
-            { href: '/refunds/', label: 'Refunds & cancellation' },
-            { href: '/contact/', label: 'Contact & support' },
             { href: '/beta/', label: 'Open beta' },
         ],
     },
+    {
+        title: 'Company',
+        links: [
+            { href: '/blog/', label: 'Blog' },
+            { href: '/contact/', label: 'Contact & support' },
+            { href: '/account/', label: 'Workspace' },
+        ],
+    },
+];
+const legalLinks = [
+    { href: '/privacy/', label: 'Privacy' },
+    { href: '/terms/', label: 'Terms' },
+    { href: '/refunds/', label: 'Refunds' },
 ];
 
 export function Footer() {
+    const landing = usePathname().replace(/\/$/, '') === '';
     return (
-        <footer className="site-footer">
+        <footer className={`site-footer ${landing ? 'is-landing' : ''}`}>
             <div className="footer-inner">
                 <div className="footer-about">
                     <Link href="/" className="footer-brand" aria-label="Kivel home">
                         <LiveLogo size={28} />
-                        <span>
-                            Kivel
-                        </span>
+                        <span>Kivel</span>
                     </Link>
                     <p>The internet toolkit for AI agents, and free tools for everyone else.</p>
-                    <a href={supportHref}>{supportEmail}</a>
                 </div>
                 {footerColumns.map((column) => (
                     <nav key={column.title} className="footer-column" aria-label={column.title}>
@@ -274,7 +274,14 @@ export function Footer() {
             </div>
             <div className="footer-bottom">
                 <span>© {new Date().getFullYear()} Kivel</span>
-                <span>Made for agents and the people who run them.</span>
+                <nav className="footer-legal" aria-label="Legal">
+                    {legalLinks.map((link) => (
+                        <Link key={link.href} href={link.href}>
+                            {link.label}
+                        </Link>
+                    ))}
+                    <a href={supportHref}>{supportEmail}</a>
+                </nav>
             </div>
         </footer>
     );

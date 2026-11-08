@@ -7,6 +7,7 @@ export function needsInput(args: string[]) {
         (args[0] === 'agent' && args[1] === 'token') ||
         (args[0] === 'memory' && args[1] === 'set') ||
         (args[0] === 'authenticator' && args[1] === 'add') ||
+        (args[0] === 'credential' && ['save', 'update'].includes(args[1] ?? '')) ||
         (args[0] === 'approval' && args[1] === 'ask') ||
         (args[0] === 'monitor' && args[1] === 'create') ||
         (args[0] === 'email' && ['draft-create', 'draft-submit'].includes(args[1] ?? '')) ||
@@ -55,6 +56,8 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
         allowed.add('--cursor');
         allowed.add('--limit');
     }
+    if (group === 'credential' && action === 'reveal') allowed.add('--approval-id');
+    if (group === 'password' && action === 'generate') allowed.add('--length');
     if (group === 'agent' && ['login', 'trial'].includes(action ?? '')) allowed.add('--client');
     if (group === 'agent' && action === 'trial') allowed.add('--human-email');
     if (group === 'memory' && action === 'set') allowed.add('--ttl-seconds');
@@ -106,6 +109,8 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
     const idempotencyKey = take('--idempotency-key');
     const emailSettings = { activeDays: number('--active-days'), localPart: take('--local-part') };
     const threadPage = { cursor: take('--cursor'), limit: number('--limit') };
+    const approvalId = take('--approval-id');
+    const passwordLength = number('--length');
     if (flags.size) throw new Error(`Unknown option: ${flags.keys().next().value}`);
     const exact = (count: number) => {
         if (positional.length !== count)
@@ -157,6 +162,24 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
             exact(0);
             return client.agents();
         }
+    }
+    if (group === 'credential') {
+        if (action === 'save') {
+            exact(0);
+            return client.saveCredential(json());
+        }
+        if (action === 'list') {
+            exact(0);
+            return client.credentials();
+        }
+        if (action === 'inspect') return client.credential(id());
+        if (action === 'update') return client.updateCredential(id(), json());
+        if (action === 'delete') return client.deleteCredential(id());
+        if (action === 'reveal') return client.revealCredential(id(), approvalId);
+    }
+    if (group === 'password' && action === 'generate') {
+        exact(0);
+        return client.generatePassword(passwordLength);
     }
     if (group === 'authenticator') {
         if (action === 'add') {

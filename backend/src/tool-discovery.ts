@@ -41,6 +41,23 @@ export function catalogGuide(id: string, capabilities: ServerCapabilities) {
             http: 'POST /api/mocks',
             next: 'Set routes to [] and provide websocket. Connect to endpointUrl, then inspect_mock_api. Use run_tool with network-websocket-tester to capture a public endpoint.',
         };
+    if (id === 'agents-password-vault')
+        return {
+            ...base,
+            mcpTool: 'save_credential',
+            inputExample: {
+                name: 'Example service',
+                url: 'example.com',
+                username: 'agent@example.com',
+            },
+            endpoints: [
+                'POST /api/credentials',
+                'GET /api/credentials',
+                'POST /api/credentials/{id}/reveal',
+            ],
+            instructions:
+                'Use only for accounts your human asked you to create or operate. Omit password to generate and save one. Later reveals require one human approval by default. Only a signed-in owner or admin may enable agentMayRead.',
+        };
     if (id === 'agents-agent-authenticator')
         return {
             ...base,

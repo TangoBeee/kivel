@@ -133,6 +133,15 @@ export const dashboardPanels = [
         category: 'databases',
     },
     {
+        id: 'vault',
+        group: 'tools',
+        label: 'Vault',
+        create: ['agents-password-vault'],
+        description: 'Account credentials, with a human approval before agents reveal passwords.',
+        icon: Key,
+        category: 'agents',
+    },
+    {
         id: 'authenticators',
         group: 'tools',
         label: 'Authenticators',
@@ -407,9 +416,7 @@ export function DashboardShell({
                 <div className="dashboard-sidebar-top">
                     <Link href="/" className="dashboard-brand">
                         <LiveLogo size={26} />
-                        <span>
-                            Kivel
-                        </span>
+                        <span>Kivel</span>
                     </Link>
                     <IconButton
                         className="dashboard-close"

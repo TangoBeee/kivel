@@ -251,3 +251,29 @@ export interface OAuthProvider {
 export interface CreatedOAuthProvider extends OAuthProvider {
     client_secret: string;
 }
+
+export interface Credential {
+    id: string;
+    name: string;
+    url: string;
+    username: string;
+    agentMayRead: boolean;
+    authenticatorId?: string;
+    inboxId?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+export interface CredentialInput {
+    name: string;
+    url: string;
+    username: string;
+    password?: string;
+    passwordLength?: number;
+    notes?: string;
+    agentMayRead?: boolean;
+    authenticatorId?: string | null;
+    inboxId?: string | null;
+}
+export type CredentialReveal =
+    | { status: 'awaitingApproval'; approvalId: string; answerUrl: string }
+    | { status: 'revealed'; id: string; password: string; notes: string };

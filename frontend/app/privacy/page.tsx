@@ -14,6 +14,7 @@ const sections = [
     { id: 'authenticators', title: 'Authenticator secrets' },
     { id: 'access', title: 'Sharing & credentials' },
     { id: 'browser', title: 'Browser storage' },
+    { id: 'vault', title: 'Workspace vault' },
     { id: 'accounts', title: 'Accounts & email' },
     { id: 'operations', title: 'Logs & backups' },
     { id: 'contact', title: 'Privacy requests' },
@@ -145,6 +146,18 @@ export default function Privacy() {
                     workspace activity, without storing the generated code. As with other deleted
                     data, encrypted records may remain in backups until the backup retention period
                     ends.
+                </p>
+            </section>
+            <section id="vault">
+                <h2>Workspace vault</h2>
+                <p>
+                    Vault entries store the site, username and optional inbox and authenticator
+                    links with the workspace. Passwords and notes are encrypted with a key derived
+                    from the server secret and stay until the entry or workspace is deleted. Lists
+                    show metadata. Reveals require write access and human approval by default. Only
+                    an owner or admin can allow an agent to read an entry without asking. Each
+                    reveal records the caller and entry in workspace activity, without its password
+                    or notes. Encrypted records may remain in retained backups.
                 </p>
             </section>
             <section id="accounts">

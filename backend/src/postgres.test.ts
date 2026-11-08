@@ -3068,3 +3068,137 @@ test('email threads, human inbox controls and approved drafts work across replic
     assert.equal((await inspect(renewedDraft.id)).json().status, 'completed');
     assert.equal(await usage(), 4);
 });
+
+test('vault encryption, limits, human settings and single-use reveals persist across replicas', async (t) => {
+    const { PostgresCredentials } = await import('./credentials.js');
+    const identities = new PostgresIdentityRepository(pool);
+    const user = (await identities.register('vault-db-owner', 'test'))!;
+    const ownerId = user.personalAccountId;
+    const token = randomBytes(32).toString('base64url');
+    await identities.createSession(user.id, ownerId, token);
+    const identity = (await identities.authenticateSession(token))!;
+    const until = new Date(Date.now() + 86400000).toISOString();
+    const key = await identities.createKey(
+        identity,
+        'Vault DB agent',
+        ['resources:read', 'resources:write', 'account:read'],
+        until,
+    );
+    const agent = { authorization: `Bearer ${key.key}` };
+    const human = { origin: 'http://localhost:3000', cookie: `kivel_session=${token}` };
+    const credentials = new PostgresCredentials(pool);
+    const options = {
+        identityStore: identities,
+        recoveryStore: new PostgresRecoveryRepository(pool),
+        resourceStore: new PostgresResourceStore(pool),
+        authenticatorStore: new (await import('./authenticators.js')).PostgresAuthenticators(pool),
+        credentialStore: credentials,
+        approvalStore: new PostgresApprovals(pool),
+        activity: new PostgresActivity(pool),
+        authSecret: 'database-vault-encryption-secret-at-least-32-bytes',
+    };
+    const app = buildApp(options),
+        replica = buildApp(options);
+    t.after(async () => {
+        await app.close();
+        await replica.close();
+    });
+    const content = {
+        name: 'DB service',
+        url: 'https://example.com',
+        username: 'db-user',
+        password: 'database-password-kept-private',
+        notes: 'database-private-notes',
+    };
+    const created = await Promise.all(
+        Array.from({ length: 12 }, () =>
+            app.inject({
+                method: 'POST',
+                url: '/api/credentials',
+                headers: agent,
+                payload: content,
+            }),
+        ),
+    );
+    assert.equal(created.filter((response) => response.statusCode === 201).length, 10);
+    assert.equal(created.filter((response) => response.statusCode === 429).length, 2);
+    const id = created.find((response) => response.statusCode === 201)!.json().credential.id;
+    const persisted = await pool.query(
+        "SELECT value FROM kv_entries WHERE account_id=$1 AND namespace='$credentials'",
+        [ownerId],
+    );
+    assert.equal(JSON.stringify(persisted.rows).includes(content.password), false);
+    assert.equal(JSON.stringify(persisted.rows).includes(content.notes), false);
+    const list = await replica.inject({ url: '/api/credentials', headers: agent });
+    assert.equal(list.json().credentials.length, 10);
+    assert.equal(list.body.includes('encrypted'), false);
+    assert.equal(list.body.includes(content.password), false);
+    const reveal = (approvalId?: string) =>
+        replica.inject({
+            method: 'POST',
+            url: `/api/credentials/${id}/reveal`,
+            headers: agent,
+            payload: approvalId ? { approvalId } : {},
+        });
+    const pending = await reveal();
+    assert.equal(pending.statusCode, 202, pending.body);
+    const approvalId = pending.json().approvalId;
+    const answer = await app.inject({
+        method: 'POST',
+        url: `/api/approvals/${approvalId}/answer`,
+        headers: human,
+        payload: { answer: 'Approve' },
+    });
+    assert.equal(answer.statusCode, 200, answer.body);
+    const attempts = await Promise.all([reveal(approvalId), reveal(approvalId)]);
+    assert.deepEqual(attempts.map((response) => response.statusCode).sort(), [200, 409]);
+    assert.equal(
+        attempts.find((response) => response.statusCode === 200)!.json().password,
+        content.password,
+    );
+    const entries = await new PostgresActivity(pool).list(ownerId);
+    assert.equal(entries.filter((entry) => entry.tool === 'reveal_credential').length, 1);
+    assert.equal(JSON.stringify(entries).includes(content.password), false);
+    assert.equal(
+        (
+            await app.inject({
+                method: 'PATCH',
+                url: `/api/credentials/${id}`,
+                headers: agent,
+                payload: { agentMayRead: true },
+            })
+        ).statusCode,
+        403,
+    );
+    const before = (await credentials.get(ownerId, id))!;
+    const enabled = await app.inject({
+        method: 'PATCH',
+        url: `/api/credentials/${id}`,
+        headers: human,
+        payload: { agentMayRead: true },
+    });
+    assert.equal(enabled.statusCode, 200, enabled.body);
+    assert.equal(
+        await credentials.update(ownerId, { ...before, name: 'Stale overwrite' }, before.version),
+        false,
+    );
+    assert.equal((await reveal()).statusCode, 200);
+    const outsider = (await identities.register('vault-db-other', 'test'))!;
+    const otherToken = randomBytes(32).toString('base64url');
+    await identities.createSession(outsider.id, outsider.personalAccountId, otherToken);
+    assert.equal(
+        (
+            await replica.inject({
+                url: `/api/credentials/${id}`,
+                headers: { cookie: `kivel_session=${otherToken}` },
+            })
+        ).statusCode,
+        404,
+    );
+    assert.equal(
+        (await app.inject({ method: 'DELETE', url: `/api/credentials/${id}`, headers: agent }))
+            .statusCode,
+        204,
+    );
+    assert.equal(await credentials.get(ownerId, id), undefined);
+});

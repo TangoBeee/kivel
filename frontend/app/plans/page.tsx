@@ -43,6 +43,10 @@ const rows: { name: string; value: (id: PlanId) => string }[] = [
     },
     { name: 'Maximum retention', value: (id) => retention(plans[id].maxRetentionSeconds) },
     {
+        name: 'Vault entries',
+        value: (id) => (plans[id].credentials ? number(plans[id].credentials) : 'Not included'),
+    },
+    {
         name: 'TOTP authenticators',
         value: (id) =>
             plans[id].authenticators ? number(plans[id].authenticators) : 'Not included',

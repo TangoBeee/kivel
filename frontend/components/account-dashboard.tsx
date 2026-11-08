@@ -1,4 +1,5 @@
 'use client';
+import { VaultPanel } from './vault-workbench';
 import { AuthenticatorsPanel } from './authenticator-workbench';
 import { PasswordField } from './password-field';
 import { AppSelect, SelectOption } from './app-select';
@@ -370,7 +371,7 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
     // Agents get their keys when approved; those are managed on the Agents page.
     const ownKeys = keys.filter((key) => !key.name.startsWith('Agent: '));
     const agentKeys = keys.length - ownKeys.length;
-    const workspaceUsage = useWorkspaceUsage(resources.length);
+    const workspaceUsage = useWorkspaceUsage(resources);
     const count = (item: ToolPanel) => panelResources(item, resources).length;
     const ratio = (used?: number, limit?: number) =>
         used !== undefined && limit ? { text: `${used}/${limit}`, full: used >= limit } : undefined;
@@ -387,6 +388,7 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
             text: formatSize(workspaceUsage.memory.used),
             full: workspaceUsage.memory.used >= workspaceUsage.memory.limit,
         },
+        vault: ratio(workspaceUsage.vault?.used, workspaceUsage.vault?.limit),
         authenticators: ratio(
             workspaceUsage.authenticators?.used,
             workspaceUsage.authenticators?.limit,
@@ -691,6 +693,8 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                             list={
                                 panel === 'monitors' ? (
                                     <MonitorsPanel verifiedEmail={!!recoveryEmail?.verifiedAt} />
+                                ) : panel === 'vault' ? (
+                                    <VaultPanel onChange={() => void reload()} />
                                 ) : panel === 'authenticators' ? (
                                     <AuthenticatorsPanel />
                                 ) : panel === 'memory' ? (

@@ -82,3 +82,16 @@ kivel oauth delete <id>
 Use `oauth list` to list workspace providers. Configure your OAuth client with the
 returned discovery URL and S256 PKCE. See the [OAuth guide](https://kivel.io/docs/mock-oauth/)
 for headless approval, refresh tokens and failure scenarios. This service is for tests only.
+
+## Workspace vault
+
+Pipe `{ "name": "Example", "url": "example.com", "username": "agent@example.com" }`
+to `kivel credential save` to generate and save a password. Include `password`
+to store an existing value. List with `kivel credential list`, or inspect
+metadata with `kivel credential inspect <id>`.
+
+`kivel credential reveal <id>` returns an approval link by default. After the
+human approves, repeat with `--approval-id <id>`. An approval permits one reveal.
+Use `kivel password generate --length 24` to generate without storing.
+Write keys are required for saves and reveals. Agent access settings stay with
+the signed-in workspace owner or admin.

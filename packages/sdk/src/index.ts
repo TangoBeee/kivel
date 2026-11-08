@@ -319,6 +319,45 @@ export class Kivel {
             );
         return new Uint8Array(await response.arrayBuffer());
     }
+    saveCredential(input: import('./types.js').CredentialInput) {
+        return this.request<{ credential: import('./types.js').Credential; password?: string }>(
+            'POST',
+            '/api/credentials',
+            input,
+        );
+    }
+    credentials() {
+        return this.request<{ credentials: import('./types.js').Credential[]; limit: number }>(
+            'GET',
+            '/api/credentials',
+        );
+    }
+    credential(id: string) {
+        return this.request<import('./types.js').Credential>(
+            'GET',
+            `/api/credentials/${encodeURIComponent(id)}`,
+        );
+    }
+    updateCredential(id: string, input: Partial<import('./types.js').CredentialInput>) {
+        return this.request<import('./types.js').Credential>(
+            'PATCH',
+            `/api/credentials/${encodeURIComponent(id)}`,
+            input,
+        );
+    }
+    deleteCredential(id: string) {
+        return this.request<void>('DELETE', `/api/credentials/${encodeURIComponent(id)}`);
+    }
+    revealCredential(id: string, approvalId?: string) {
+        return this.request<import('./types.js').CredentialReveal>(
+            'POST',
+            `/api/credentials/${encodeURIComponent(id)}/reveal`,
+            approvalId ? { approvalId } : {},
+        );
+    }
+    generatePassword(length = 24) {
+        return this.request<{ password: string }>('POST', '/api/passwords/generate', { length });
+    }
     createEmailInbox(settings: import('./types.js').EmailInboxSettings = {}) {
         return this.request<EmailInbox>('POST', '/api/email-inboxes', settings);
     }

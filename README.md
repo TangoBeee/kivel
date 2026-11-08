@@ -1,7 +1,7 @@
 # Kivel
 
 The internet toolkit for AI coding agents: HTTP and webhooks, email, mock APIs
-and OAuth, files, monitors, memory, authenticators, scheduled jobs and status
+and OAuth, files, monitors, memory, authenticators, a password vault, scheduled jobs and status
 pages, test data and media, developer utilities, DNS and network checks.
 One MCP connection, with HTTP, a TypeScript SDK, CLI and optional SSH gateway.
 Use `search_tools` to discover the complete catalog, `describe_tool` for inputs

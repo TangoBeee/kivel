@@ -1479,6 +1479,10 @@ curl https://kivel.io/api/tools/everyday-file-checksums/run \\
                             'Start a 72-hour anonymous-limit trial; --human-email optionally notifies the human',
                         ],
                         [
+                            'kivel credential save / list / inspect / reveal',
+                            'Save from JSON stdin, read metadata, then reveal with an approved --approval-id',
+                        ],
+                        [
                             'kivel email create / messages <id> / wait <id>',
                             'Owned mail; email list reopens addresses and email forward reads a webhook URL from stdin; waits accept --after and --timeout-seconds',
                         ],
@@ -1654,6 +1658,10 @@ console.log(result.output, result.usage.used);`,
                         [
                             'startTrial(name, humanEmail?, client?)',
                             '72-hour trial with anonymous limits and a human claim link',
+                        ],
+                        [
+                            'saveCredential(input) / credentials() / revealCredential(id, approvalId?)',
+                            'Save credentials, read metadata and reveal once after human approval',
                         ],
                         [
                             'createEmailInbox(settings?) / emailInbox(id, token?) / emails(id, token?)',
@@ -1932,6 +1940,10 @@ ssh -T -n -p 2222 kivel@your-host kivel inbox create --visibility public`,
                         [
                             'start_login / finish_login / start_trial',
                             'Connect through human approval, or start a capped trial',
+                        ],
+                        [
+                            'save_credential / list_credentials / reveal_credential / generate_password',
+                            'Encrypted account credentials with one human approval per reveal by default',
                         ],
                         [
                             'create_email_inbox / list_emails / wait_for_email',

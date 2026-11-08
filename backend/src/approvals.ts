@@ -31,6 +31,8 @@ export interface Approval {
     status: 'pending' | 'answered' | 'expired';
     emailDraft?: { id: string };
     editedEmail?: EmailContent;
+    credential?: { id: string; version: string; requesterId: string };
+    consumedAt?: string;
     answer?: string;
     note?: string;
     answeredBy?: string;
@@ -46,6 +48,7 @@ export interface ApprovalRepository {
     list(accountId: string, pendingOnly: boolean): MaybePromise<Approval[]>;
     countSince(accountId: string, since: string): MaybePromise<number>;
     pruneDraftEdits(resources: ResourceRepository): MaybePromise<void>;
+    consume(accountId: string, id: string): MaybePromise<boolean>;
     /** Records an answer only while the request is still pending and unexpired. */
     answer(
         accountId: string,
@@ -83,6 +86,20 @@ export class MemoryApprovals implements ApprovalRepository {
         return [...this.items.values()].filter(
             (item) => item.accountId === accountId && item.createdAt > since,
         ).length;
+    }
+    consume(accountId: string, id: string) {
+        const approval = this.items.get(id);
+        if (
+            !approval ||
+            approval.accountId !== accountId ||
+            approval.status !== 'answered' ||
+            approval.answer !== 'Approve' ||
+            approval.consumedAt ||
+            Date.parse(approval.expiresAt) <= Date.now()
+        )
+            return false;
+        approval.consumedAt = new Date().toISOString();
+        return true;
     }
     async pruneDraftEdits(resources: ResourceRepository) {
         for (const approval of this.items.values()) {
@@ -152,6 +169,19 @@ export class PostgresApprovals implements ApprovalRepository {
             [accountId, since],
         );
         return Number(result.rows[0]!.count);
+    }
+    async consume(accountId: string, id: string) {
+        if (!isUuid(id)) return false;
+        return (
+            (
+                await this.pool.query(
+                    `UPDATE approvals SET approval=approval || jsonb_build_object('consumedAt',clock_timestamp())
+             WHERE account_id=$1 AND id=$2 AND status='answered' AND approval->>'answer'='Approve'
+             AND NOT approval ? 'consumedAt' AND expires_at > clock_timestamp()`,
+                    [accountId, id],
+                )
+            ).rowCount === 1
+        );
     }
     async pruneDraftEdits() {
         await this.pool.query(

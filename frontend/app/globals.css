@@ -284,3 +284,11 @@
 .oauth-workspace .field-label > button {
   justify-self: start;
 }
+
+.vault-panel, .vault-detail { display: grid; gap: 20px; min-width: 0; }
+.vault-row { display: grid; gap: 4px; width: 100%; min-width: 0; text-align: left; padding-block: 12px; }
+.vault-row span, .vault-row small { color: var(--muted); overflow-wrap: anywhere; }
+.vault-fields { display: grid; gap: 16px; }
+.vault-fields dt { font-size: .8125rem; color: var(--muted); margin-bottom: 6px; }
+.vault-fields dd, .vault-policy { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; min-width: 0; }
+.vault-fields dd span, .vault-fields code { overflow-wrap: anywhere; word-break: break-word; }

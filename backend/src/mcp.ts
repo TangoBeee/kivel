@@ -58,6 +58,53 @@ const deletes = {
 };
 export const platformTools = [
     {
+        name: 'save_credential',
+        description:
+            'Save an encrypted password and optional notes for an account your human asked you to create or operate. Omit password to generate and store one, returned once. Optional authenticatorId and inboxId must belong to this workspace. Later reveals require human approval by default.',
+        inputSchema: schema(
+            {
+                name: { type: 'string' },
+                url: { type: 'string' },
+                username: { type: 'string' },
+                password: { type: 'string' },
+                passwordLength: { type: 'integer', minimum: 12, maximum: 128 },
+                notes: { type: 'string' },
+                authenticatorId: { type: 'string' },
+                inboxId: { type: 'string' },
+            },
+            ['name', 'url', 'username'],
+        ),
+        annotations: creates,
+    },
+    {
+        name: 'list_credentials',
+        description:
+            'List workspace vault metadata without passwords or notes. Use only for accounts your human asked you to create or operate.',
+        inputSchema: schema({}, []),
+        annotations: readonly,
+    },
+    {
+        name: 'reveal_credential',
+        description:
+            'Request one password reveal for an account your human asked you to operate. Requires resources:write. By default creates a human approval and waits up to 25 seconds. Show answerUrl to the human. If still pending, resume with approvalId. Only owners or admins can approve in their browser. Approval permits one reveal of this entry version by this caller. Passwords never belong in logs or public messages.',
+        inputSchema: schema(
+            {
+                id: { type: 'string' },
+                approvalId: { type: 'string' },
+                timeoutSeconds: { type: 'integer', minimum: 1, maximum: 30 },
+            },
+            ['id'],
+        ),
+        annotations: creates,
+    },
+    {
+        name: 'generate_password',
+        description:
+            'Generate a strong password of 12 to 128 characters, default 24. Use save_credential with password omitted to generate and store it in one call.',
+        inputSchema: schema({ length: { type: 'integer', minimum: 12, maximum: 128 } }, []),
+        annotations: { ...readonly, idempotentHint: false },
+    },
+    {
         name: 'add_authenticator',
         description:
             'Store a TOTP authenticator for an account your human asked you to create or operate. Requires an approved workspace key. Provide name and one of uri (otpauth://totp), secret (Base32), or imageBase64 (PNG/JPEG QR, at most 1 MiB and one million pixels). Secrets are encrypted and never returned. Free allows 2, Pro 25, Team 100.',
@@ -763,7 +810,7 @@ export const platformTools = [
     {
         name: 'resource_request',
         description:
-            'Manage webhook, email, mock API, file, authenticator and mock MCP resources through HTTP lifecycle routes. Authenticators support create, inspect, list, update (name) and delete only; use them only for accounts your human asked you to create or operate. Use calls for mock history; response or forward with config to configure a webhook (config.reset=true restores defaults); deliveries reads forwarding history. Email supports create, inspect, delete and renew; mail reading stays private.',
+            'Manage webhook, email, mock API, file, authenticator, vault and mock MCP resources through HTTP lifecycle routes. Authenticators support create, inspect, list, update (name) and delete only; use them only for accounts your human asked you to create or operate. Use calls for mock history; response or forward with config to configure a webhook (config.reset=true restores defaults); deliveries reads forwarding history. Email supports create, inspect, delete and renew; mail reading stays private.',
         inputSchema: schema(
             {
                 kind: {
@@ -779,6 +826,7 @@ export const platformTools = [
                         'scheduled-jobs',
                         'smtp-inboxes',
                         'authenticators',
+                        'credentials',
                     ],
                 },
                 action: {
@@ -1027,8 +1075,9 @@ export function registerMcp({
         return { ...guide, ...(nativeTool ? { inputSchema: nativeTool.inputSchema } : {}) };
     }
     function nativeAvailability(name: string) {
-        return (['add_authenticator', 'get_totp_code'].includes(name) &&
-            !capabilities.authenticators) ||
+        return (['save_credential', 'reveal_credential'].includes(name) && !capabilities.vault) ||
+            (['add_authenticator', 'get_totp_code'].includes(name) &&
+                !capabilities.authenticators) ||
             (name === 'create_oauth_provider' && !capabilities.oauthProviders) ||
             (['create_phone_number'].includes(name) && !capabilities.phones) ||
             (name === 'create_email_inbox' && !capabilities.emailReceiving)
@@ -1093,6 +1142,51 @@ export function registerMcp({
     app.addHook('onRequestAbort', async (request) => {
         uploads.delete(request);
     });
+    async function credentialRequest(
+        name: string,
+        value: Record<string, unknown>,
+        request: FastifyRequest,
+    ) {
+        const actor = await access.workspace(
+            request,
+            name === 'list_credentials' ? 'resources:read' : 'resources:write',
+        );
+        const headers: Record<string, string> = {};
+        for (const key of ['authorization', 'cookie', 'origin'])
+            if (typeof request.headers[key] === 'string') headers[key] = request.headers[key];
+        const reveal = name === 'reveal_credential';
+        const timeout = Number(value.timeoutSeconds ?? 25);
+        if (reveal && (!Number.isInteger(timeout) || timeout < 1 || timeout > 30))
+            throw new RpcError(-32602, 'Choose a timeout from 1 to 30 seconds.');
+        const path = reveal
+            ? `/api/credentials/${encodeURIComponent(String(value.id))}/reveal`
+            : name === 'generate_password'
+              ? '/api/passwords/generate'
+              : '/api/credentials';
+        const call = (payload: object) =>
+            app.inject({ method: 'POST', url: path, headers, payload, remoteAddress: request.ip });
+        const response =
+            name === 'list_credentials'
+                ? await app.inject({ method: 'GET', url: path, headers, remoteAddress: request.ip })
+                : await call(reveal ? { approvalId: value.approvalId } : value);
+        if (
+            !reveal ||
+            response.statusCode !== 202 ||
+            !actor.identity.keyScopes.includes('resources:read')
+        )
+            return httpResult(response);
+        uploads.delete(request);
+        const pending = response.json();
+        const waited = await app.inject({
+            method: 'GET',
+            url: `/api/approvals/${pending.approvalId}/wait?timeoutSeconds=${timeout}`,
+            headers,
+            remoteAddress: request.ip,
+        });
+        if (waited.statusCode >= 400) return httpResult(waited);
+        if (waited.json().status === 'pending') return httpResult(response);
+        return httpResult(await call({ approvalId: pending.approvalId }));
+    }
     async function authenticatorRequest(
         name: string,
         value: Record<string, unknown>,
@@ -1776,6 +1870,7 @@ export function registerMcp({
                     'scheduled-jobs',
                     'smtp-inboxes',
                     'authenticators',
+                    'credentials',
                 ].includes(kind))
         )
             throw new RpcError(-32602, 'Choose a resource kind and action.');
@@ -1786,19 +1881,25 @@ export function registerMcp({
             (['response', 'deliveries'].includes(action) && kind !== 'inboxes') ||
             (action === 'forward' && !['inboxes', 'email-inboxes'].includes(kind)) ||
             (action === 'update' &&
-                !['mocks', 'status-pages', 'authenticators', 'oauth-providers'].includes(kind)) ||
+                ![
+                    'mocks',
+                    'status-pages',
+                    'authenticators',
+                    'credentials',
+                    'oauth-providers',
+                ].includes(kind)) ||
             (['sharing', 'renew', 'update'].includes(action) && kind === 'scheduled-jobs') ||
             (action === 'clear' && kind !== 'email-inboxes') ||
             (action === 'sharing' && kind === 'email-inboxes')
         )
             throw new RpcError(-32602, 'This resource does not support that action.');
         if (
-            kind === 'authenticators' &&
+            ['authenticators', 'credentials'].includes(kind) &&
             !['create', 'inspect', 'list', 'update', 'delete'].includes(action)
         )
             throw new RpcError(
                 -32602,
-                'Authenticators support create, inspect, list, update and delete.',
+                'Authenticators and credentials support create, inspect, list, update and delete.',
             );
         if (kind === 'smtp-inboxes' && !['create', 'inspect'].includes(action))
             throw new RpcError(
@@ -1834,7 +1935,7 @@ export function registerMcp({
                     : '';
         const path =
             action === 'list'
-                ? ['authenticators', 'oauth-providers'].includes(kind)
+                ? ['authenticators', 'credentials', 'oauth-providers'].includes(kind)
                     ? `/api/${kind}`
                     : '/api/account/resources'
                 : `/api/${kind === 'oauth-providers' && ['calls', 'renew', 'sharing'].includes(action) ? 'mocks' : kind}${action === 'create' ? '' : `/${value.id}`}${suffix}${query.size ? `?${query}` : ''}`;
@@ -1851,7 +1952,7 @@ export function registerMcp({
             action === 'delete' || action === 'clear' || resetSetting
                 ? 'DELETE'
                 : ['update', 'response', 'forward'].includes(action)
-                  ? kind === 'authenticators'
+                  ? ['authenticators', 'credentials'].includes(kind)
                       ? 'PATCH'
                       : 'PUT'
                   : ['create', 'renew', 'sharing', 'reset'].includes(action)
@@ -1934,7 +2035,7 @@ export function registerMcp({
         let calledTool: string | undefined;
         // Workspace activity: which tool an agent called and whether it worked, never its data.
         const log = (ok: boolean) => {
-            if (!calledTool || calledTool === 'get_totp_code') return;
+            if (!calledTool || ['get_totp_code', 'reveal_credential'].includes(calledTool)) return;
             const tool = calledTool;
             void access
                 .actor(request)
@@ -1977,7 +2078,7 @@ export function registerMcp({
                         serverInfo: { name: config?.name ?? 'Kivel', version: API_VERSION },
                         instructions: config
                             ? 'A temporary mock MCP server. Tools return configured static responses.'
-                            : `${catalog.length} catalog tools across ${categories.length} categories: HTTP and webhooks, email, mocks and OAuth, files, monitors, memory, authenticators, jobs and status pages, test data and media, developer utilities, DNS and network. Use search_tools for the complete catalog, describe_tool for inputs and run_tool for utilities; use dedicated tools for resources. Utilities stay behind discovery, not in tools/list. Workspace-only features require an account. Keep credentials private, use cursor-based waits and use authenticators only for accounts the human authorized. Check capabilities and plan limits. A 402 needs the human to upgrade, not repeated retries.`,
+                            : `${catalog.length} catalog tools across ${categories.length} categories: HTTP and webhooks, email, mocks and OAuth, files, monitors, memory, authenticators and vault credentials, jobs and status pages, test data and media, developer utilities, DNS and network. Use search_tools for the complete catalog, describe_tool for inputs and run_tool for utilities; use dedicated tools for resources. Utilities stay behind discovery, not in tools/list. Workspace-only features require an account. Keep credentials private, use cursor-based waits and use authenticators only for accounts the human authorized. Check capabilities and plan limits. A 402 needs the human to upgrade, not repeated retries.`,
                     };
                     break;
                 }
@@ -2033,77 +2134,84 @@ export function registerMcp({
                                 throw new RpcError(-32602, `Invalid argument type: ${key}`);
                         }
                         response = [
-                            'add_authenticator',
-                            'get_totp_code',
-                            'list_authenticators',
-                            'delete_authenticator',
+                            'save_credential',
+                            'list_credentials',
+                            'reveal_credential',
+                            'generate_password',
                         ].includes(params.name)
-                            ? await authenticatorRequest(params.name, values, request)
+                            ? await credentialRequest(params.name, values, request)
                             : [
-                                    'create_phone_number',
-                                    'list_phone_numbers',
-                                    'release_phone_number',
-                                    'list_sms',
-                                    'wait_for_sms',
+                                    'add_authenticator',
+                                    'get_totp_code',
+                                    'list_authenticators',
+                                    'delete_authenticator',
                                 ].includes(params.name)
-                              ? await phoneRequest(params.name, values, request)
-                              : params.name === 'wait_for_event'
-                                ? await eventRequest(values, request)
-                                : params.name === 'call_mock_api'
-                                  ? await callMock(values, request)
-                                  : params.name === 'workspace_status'
-                                    ? await workspaceStatus(values, request)
-                                    : params.name === 'resource_request'
-                                      ? await resourceRequest(values, request)
-                                      : ['start_login', 'start_trial', 'finish_login'].includes(
-                                              params.name,
-                                          )
-                                        ? await loginRequest(params.name, values, request)
-                                        : ['ask_human', 'wait_for_approval'].includes(params.name)
-                                          ? await approvalRequest(params.name, values, request)
-                                          : [
-                                                  'create_monitor',
-                                                  'accept_dns_changes',
-                                                  'list_monitors',
-                                                  'ping_monitor',
-                                                  'inspect_monitor',
-                                                  'pause_monitor',
-                                                  'delete_monitor',
-                                              ].includes(params.name)
-                                            ? await monitorRequest(params.name, values, request)
-                                            : params.name.startsWith('memory_')
-                                              ? await memoryRequest(params.name, values, request)
-                                              : [
-                                                      'get_email_attachment',
-                                                      'create_email_inbox',
-                                                      'wait_for_email',
-                                                      'list_emails',
-                                                      'send_email',
-                                                      'list_email_threads',
-                                                      'get_email_thread',
-                                                      'email_draft',
-                                                      'email_inbox_rules',
-                                                  ].includes(params.name)
-                                                ? await emailRequest(params.name, values, request)
-                                                : params.name === 'describe_tool'
-                                                  ? result(describe(String(values.toolId)))
-                                                  : params.name === 'search_tools'
-                                                    ? result({
-                                                          tools: discover(
-                                                              typeof values.query === 'string'
-                                                                  ? values.query
-                                                                  : '',
-                                                          ),
-                                                      })
-                                                    : params.name === 'list_tools'
-                                                      ? result({ tools: discover('', Infinity) })
-                                                      : params.name === 'run_tool'
-                                                        ? await runUtility(values, request)
-                                                        : await callPlatform(
-                                                              params.name,
-                                                              values,
-                                                              request,
-                                                          );
+                              ? await authenticatorRequest(params.name, values, request)
+                              : [
+                                      'create_phone_number',
+                                      'list_phone_numbers',
+                                      'release_phone_number',
+                                      'list_sms',
+                                      'wait_for_sms',
+                                  ].includes(params.name)
+                                ? await phoneRequest(params.name, values, request)
+                                : params.name === 'wait_for_event'
+                                  ? await eventRequest(values, request)
+                                  : params.name === 'call_mock_api'
+                                    ? await callMock(values, request)
+                                    : params.name === 'workspace_status'
+                                      ? await workspaceStatus(values, request)
+                                      : params.name === 'resource_request'
+                                        ? await resourceRequest(values, request)
+                                        : ['start_login', 'start_trial', 'finish_login'].includes(
+                                                params.name,
+                                            )
+                                          ? await loginRequest(params.name, values, request)
+                                          : ['ask_human', 'wait_for_approval'].includes(params.name)
+                                            ? await approvalRequest(params.name, values, request)
+                                            : [
+                                                    'create_monitor',
+                                                    'accept_dns_changes',
+                                                    'list_monitors',
+                                                    'ping_monitor',
+                                                    'inspect_monitor',
+                                                    'pause_monitor',
+                                                    'delete_monitor',
+                                                ].includes(params.name)
+                                              ? await monitorRequest(params.name, values, request)
+                                              : params.name.startsWith('memory_')
+                                                ? await memoryRequest(params.name, values, request)
+                                                : [
+                                                        'get_email_attachment',
+                                                        'create_email_inbox',
+                                                        'wait_for_email',
+                                                        'list_emails',
+                                                        'send_email',
+                                                        'list_email_threads',
+                                                        'get_email_thread',
+                                                        'email_draft',
+                                                        'email_inbox_rules',
+                                                    ].includes(params.name)
+                                                  ? await emailRequest(params.name, values, request)
+                                                  : params.name === 'describe_tool'
+                                                    ? result(describe(String(values.toolId)))
+                                                    : params.name === 'search_tools'
+                                                      ? result({
+                                                            tools: discover(
+                                                                typeof values.query === 'string'
+                                                                    ? values.query
+                                                                    : '',
+                                                            ),
+                                                        })
+                                                      : params.name === 'list_tools'
+                                                        ? result({ tools: discover('', Infinity) })
+                                                        : params.name === 'run_tool'
+                                                          ? await runUtility(values, request)
+                                                          : await callPlatform(
+                                                                params.name,
+                                                                values,
+                                                                request,
+                                                            );
                     }
                     break;
                 }

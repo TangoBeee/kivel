@@ -996,12 +996,11 @@ html.lenis.lenis-stopped {
 .kv-slider-track:active {
   cursor: grabbing;
 }
-.kv-slider-set {
-  display: flex;
-  gap: 30px;
-}
 .kv-slide-slot {
-  flex: 0 0 270px;
+  /* An explicit width, not only a flex basis: Firefox sizes a max-content flex row from each
+     item's own content width, which made the track far wider than its cards. */
+  flex: 0 0 auto;
+  width: 270px;
 }
 .kv-slide {
   position: relative;
@@ -1085,7 +1084,7 @@ html.lenis.lenis-stopped {
     background-color 300ms,
     opacity 300ms;
 }
-.kv-slider-arrows button:hover {
+.kv-slider-arrows button:hover:not(:disabled) {
   background: #1d1d1d;
 }
 .kv-slider-arrows button:disabled {
@@ -1526,7 +1525,7 @@ html.lenis.lenis-stopped {
     padding: 220px 0 220px;
   }
   .kv-slide-slot {
-    flex-basis: 240px;
+    width: 240px;
   }
   .kv-buttons .kv-button {
     flex: 1;

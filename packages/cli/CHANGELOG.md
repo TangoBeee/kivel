@@ -1,5 +1,16 @@
 # @kivel.io/cli
 
+## 0.7.0
+
+### Minor Changes
+
+- 7cbd3fc: Add workspace credential storage, password generation and approved reveals.
+
+### Patch Changes
+
+- Updated dependencies [7cbd3fc]
+    - @kivel.io/sdk@0.7.0
+
 ## 0.6.1
 
 ### Patch Changes

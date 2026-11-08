@@ -68,14 +68,25 @@ export function ToolSlider({ items }: { items: SliderItem[] }) {
     useEffect(() => {
         const measure = () => {
             if (!track.current || !mask.current) return;
-            const limit = Math.min(0, mask.current.offsetWidth - track.current.scrollWidth);
+            // Cards run past the content column to the screen edge, so the track stops when the
+            // last card meets that edge (less an 18px gutter), never leaving an empty strip.
+            const visible =
+                document.documentElement.clientWidth -
+                mask.current.getBoundingClientRect().left -
+                18;
+            const limit = Math.min(0, visible - track.current.scrollWidth);
             setMin(limit);
             if (x.get() < limit) x.set(limit);
         };
         measure();
         const observer = new ResizeObserver(measure);
         if (mask.current) observer.observe(mask.current);
-        return () => observer.disconnect();
+        // On wide screens the column keeps its width while the window changes, so watch both.
+        addEventListener('resize', measure);
+        return () => {
+            observer.disconnect();
+            removeEventListener('resize', measure);
+        };
     }, [items.length, x]);
 
     // The card nearest the left edge is the active one.
@@ -135,12 +146,12 @@ export function ToolSlider({ items }: { items: SliderItem[] }) {
                         style={{ x }}
                         drag="x"
                         dragConstraints={{ left: min, right: 0 }}
-                        dragElastic={0.12}
+                        dragElastic={0.04}
                         dragTransition={{
                             power: 0.25,
                             timeConstant: 260,
-                            bounceStiffness: 260,
-                            bounceDamping: 30,
+                            bounceStiffness: 400,
+                            bounceDamping: 40,
                         }}
                         onDragStart={() => (dragged.current = true)}
                         onDragEnd={() => setTimeout(() => (dragged.current = false), 0)}

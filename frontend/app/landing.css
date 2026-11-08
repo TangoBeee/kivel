@@ -723,7 +723,6 @@ html.lenis.lenis-stopped {
   position: absolute;
   top: 110px;
   left: 30px;
-  transform-style: preserve-3d;
   transform: rotateX(30deg) rotateY(-28deg) rotateZ(24deg);
   transform-origin: 0 0;
 }
@@ -731,7 +730,6 @@ html.lenis.lenis-stopped {
   position: absolute;
   top: 0;
   left: 0;
-  transform-style: preserve-3d;
 }
 .kv-stack-card {
   display: flex;
@@ -740,7 +738,7 @@ html.lenis.lenis-stopped {
   padding: 22px 20px 10px;
   border: 1px solid #ffffff38;
   border-radius: 10px;
-  background: linear-gradient(160deg, #1d1d20f2, #0e0e10f2);
+  background: linear-gradient(160deg, #1d1d20, #0e0e10);
   box-shadow: 0 30px 60px #00000099;
   cursor: default;
   transition:
@@ -799,10 +797,12 @@ html.lenis.lenis-stopped {
   filter: blur(3px);
   opacity: 0.6;
 }
-/* Hover: the card slides out of the stack, sharpens and shows its details; the others step back */
+/* Hover: the card slides up within the tilted plane (never toward the viewer, so the stacking
+   order stays back to front), sharpens and shows its details. Cards are opaque, so a back card
+   only reveals the part that slides out above the card in front of it. */
 .kv-stack-slot:hover .kv-stack-card {
   border-color: #ffffff66;
-  transform: translate3d(34px, -34px, 60px);
+  transform: translate(8px, -64px);
 }
 .kv-stack-slot:hover .kv-stack-line {
   filter: none;
@@ -813,9 +813,7 @@ html.lenis.lenis-stopped {
   margin-top: 4px;
   opacity: 1;
 }
-.kv-stack:has(.kv-stack-slot:hover) .kv-stack-slot:not(:hover) .kv-stack-card {
-  opacity: 0.35;
-}
+
 .kv-cubes {
   min-height: 520px;
   display: flex;

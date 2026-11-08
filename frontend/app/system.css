@@ -296,8 +296,22 @@ and depth on every page */
 .footer-column a:hover {
   color: var(--accent);
 }
+.footer-legal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+}
+.footer-legal a {
+  color: var(--muted);
+  transition: color 300ms var(--ease);
+}
+.footer-legal a:hover {
+  color: var(--ink);
+}
 .footer-bottom {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
   max-width: 1180px;

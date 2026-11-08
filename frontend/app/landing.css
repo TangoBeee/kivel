@@ -732,20 +732,34 @@ html.lenis.lenis-stopped {
   left: 0;
 }
 .kv-stack-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   width: 400px;
   padding: 22px 20px 10px;
-  border: 1px solid #ffffff38;
-  border-radius: 10px;
-  background: linear-gradient(160deg, #1d1d20, #0e0e10);
+  overflow: hidden;
+  border: 2px solid var(--kv-stroke);
+  border-radius: 12px;
+  background: linear-gradient(160deg, #161618, #0b0b0c);
   box-shadow: 0 30px 60px #00000099;
   cursor: default;
   transition:
-    transform 700ms var(--kv-ease),
-    opacity 500ms var(--kv-ease),
-    border-color 500ms var(--kv-ease),
-    background-color 500ms var(--kv-ease);
+    transform 500ms var(--kv-ease),
+    border-color 800ms var(--kv-ease);
+}
+/* The blue version of the card, faded in on hover like the reference's grey to blue swap */
+.kv-stack-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(120% 90% at 0% 100%, #dfe8ff 0%, #5d8dff 18%, transparent 46%),
+    linear-gradient(200deg, #050b1f 0%, #0d3a9e 45%, #1352d1 75%, #105ac9 100%);
+  opacity: 0;
+  transition: opacity 800ms var(--kv-ease);
+}
+.kv-stack-card > * {
+  position: relative;
 }
 .kv-stack-card small {
   margin-bottom: 10px;
@@ -759,6 +773,7 @@ html.lenis.lenis-stopped {
   display: flex;
   flex-direction: column;
   padding: 10px 0;
+  border-top: 1px solid #ffffff12;
 }
 .kv-stack-line {
   display: flex;
@@ -767,8 +782,12 @@ html.lenis.lenis-stopped {
   font-size: 17px;
   color: #fff;
   transition:
-    filter 500ms var(--kv-ease),
-    opacity 500ms var(--kv-ease);
+    filter 600ms var(--kv-ease),
+    opacity 600ms var(--kv-ease);
+}
+.kv-stack-line svg {
+  color: #ffffff59;
+  transition: color 800ms var(--kv-ease);
 }
 .kv-stack-card b {
   font-weight: 600;
@@ -778,42 +797,30 @@ html.lenis.lenis-stopped {
   font-size: 13px;
   color: #ffffffbf;
 }
-.kv-stack-row em {
-  display: block;
-  max-height: 0;
-  overflow: hidden;
-  padding-left: 28px;
-  font-size: 13px;
-  font-style: normal;
-  color: #9aa6ff;
-  opacity: 0;
-  transition:
-    max-height 600ms var(--kv-ease),
-    opacity 500ms var(--kv-ease),
-    margin 600ms var(--kv-ease);
-}
-/* Back cards stay blurred until someone points at them */
+/* Back cards stay soft until pointed at */
 .kv-stack-slot:not(:last-child) .kv-stack-line {
   filter: blur(3px);
   opacity: 0.6;
 }
-/* Hover: the card slides up within the tilted plane (never toward the viewer, so the stacking
-   order stays back to front), sharpens and shows its details. Cards are opaque, so a back card
-   only reveals the part that slides out above the card in front of it. */
+/* Hover: slide 50px up inside the tilted plane (800ms out expo) and swap to the blue card.
+   Moving within the plane keeps the stacking order, so a back card only rises above the next one. */
 .kv-stack-slot:hover .kv-stack-card {
-  border-color: #ffffff66;
-  transform: translate(8px, -64px);
+  border-color: #ffffff40;
+  transform: translateY(-50px);
+  transition:
+    transform 800ms var(--kv-ease),
+    border-color 800ms var(--kv-ease);
+}
+.kv-stack-slot:hover .kv-stack-card::before {
+  opacity: 1;
 }
 .kv-stack-slot:hover .kv-stack-line {
   filter: none;
   opacity: 1;
 }
-.kv-stack-slot:hover em {
-  max-height: 20px;
-  margin-top: 4px;
-  opacity: 1;
+.kv-stack-slot:hover .kv-stack-line svg {
+  color: #fff;
 }
-
 .kv-cubes {
   min-height: 520px;
   display: flex;

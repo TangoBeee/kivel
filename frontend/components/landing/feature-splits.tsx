@@ -9,25 +9,25 @@ const stack = [
     {
         label: 'Magic links',
         rows: [
-            ['Notion', 'Sign in to Notion', '4:31 AM', 'Link expires in 15 minutes'],
-            ['Vercel', 'Log in link', '4:30 AM', 'One click sign in for your team'],
-            ['Figma', 'Your login link', '4:28 AM', 'Opened by agent claude-laptop'],
+            ['Notion', 'Sign in to Notion', '4:31 AM'],
+            ['Vercel', 'Log in link', '4:30 AM'],
+            ['Figma', 'Your login link', '4:28 AM'],
         ],
     },
     {
         label: 'Signup codes',
         rows: [
-            ['Slack', 'Code 771 204', '4:31 AM', 'Copied to the agent at 4:31:08'],
-            ['Supabase', 'Code 090 431', '4:29 AM', 'Valid for 10 minutes'],
-            ['Resend', 'Code 318 557', '4:27 AM', 'Used to verify the domain'],
+            ['Slack', 'Code 771 204', '4:31 AM'],
+            ['Supabase', 'Code 090 431', '4:29 AM'],
+            ['Resend', 'Code 318 557', '4:27 AM'],
         ],
     },
     {
         label: 'Latest email',
         rows: [
-            ['GitHub', 'Code 482 913', '4:31 AM', 'noreply@github.com · code extracted'],
-            ['Linear', 'Sign-in link', '4:29 AM', 'Link extracted and opened'],
-            ['Stripe', 'Verify your email', '4:26 AM', 'Waiting for the agent'],
+            ['GitHub', 'Code 482 913', '4:31 AM'],
+            ['Linear', 'Sign-in link', '4:29 AM'],
+            ['Stripe', 'Verify your email', '4:26 AM'],
         ],
     },
 ];
@@ -52,17 +52,16 @@ function InboxStack() {
                         className="kv-stack-slot"
                         style={still ? undefined : offsets[index]}
                     >
-                        {/* The slot follows the scroll; the card inside lifts out of the stack on hover. */}
+                        {/* The slot follows the scroll and takes the hover; the card inside slides up and turns blue. */}
                         <div className="kv-stack-card">
                             <small>{card.label}</small>
-                            {card.rows.map(([from, subject, time, detail]) => (
+                            {card.rows.map(([from, subject, time]) => (
                                 <span key={from} className="kv-stack-row">
                                     <span className="kv-stack-line">
-                                        <CheckCircle size={18} />
+                                        <CheckCircle size={18} weight="bold" />
                                         <b>{from}</b> {subject}
                                         <time>{time}</time>
                                     </span>
-                                    <em>{detail}</em>
                                 </span>
                             ))}
                         </div>

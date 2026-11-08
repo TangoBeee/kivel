@@ -26,7 +26,7 @@ import {
     Timer,
     type IconProps,
 } from '@phosphor-icons/react';
-import { Reveal } from './reveal';
+import { Reveal, outExpo } from './reveal';
 
 const icons: Record<string, ComponentType<IconProps>> = {
     network: Globe,
@@ -139,7 +139,17 @@ export function ToolSlider({ items }: { items: SliderItem[] }) {
                 </h2>
             </Reveal>
             <div className="kv-container">
-                <div ref={mask} className="kv-slider-mask">
+                {/* The cards fade in together when the row comes into view. The trigger sits on this
+                    fixed container: revealing cards one by one left off-screen ones invisible while
+                    dragging, and the wide, moving track itself never counts as in view. */}
+                <motion.div
+                    ref={mask}
+                    className="kv-slider-mask"
+                    initial={still ? false : 'hidden'}
+                    whileInView="shown"
+                    viewport={{ once: true, amount: 0.2 }}
+                    variants={{ shown: { transition: { staggerChildren: 0.08 } } }}
+                >
                     <motion.div
                         ref={track}
                         className="kv-slider-track"
@@ -163,7 +173,18 @@ export function ToolSlider({ items }: { items: SliderItem[] }) {
                         {items.map((item, position) => {
                             const Icon = icons[item.id] ?? Code;
                             return (
-                                <Reveal key={item.id} delay={Math.min(position, 4) * 0.08}>
+                                <motion.div
+                                    key={item.id}
+                                    variants={{
+                                        hidden: { opacity: 0, y: 60, filter: 'blur(15px)' },
+                                        shown: {
+                                            opacity: 1,
+                                            y: 0,
+                                            filter: 'blur(0px)',
+                                            transition: { duration: 1.4, ease: outExpo },
+                                        },
+                                    }}
+                                >
                                     <Link
                                         href={item.href}
                                         draggable={false}
@@ -185,11 +206,11 @@ export function ToolSlider({ items }: { items: SliderItem[] }) {
                                         <span className="kv-slide-text">{item.description}</span>
                                         <span className="kv-slide-count">{item.count} tools</span>
                                     </Link>
-                                </Reveal>
+                                </motion.div>
                             );
                         })}
                     </motion.div>
-                </div>
+                </motion.div>
                 <div className="kv-slider-arrows">
                     <button
                         type="button"

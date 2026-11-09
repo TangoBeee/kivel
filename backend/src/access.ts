@@ -7,7 +7,7 @@ import type { Scope, Identity, IdentityRepository } from './identity.js';
 import { effectivePlan } from './identity.js';
 import type { AllocationContext } from './allocations.js';
 import type { RateLimitRepository } from './rate-limit.js';
-import { HttpError } from './errors.js';
+import { HttpError, RateLimitError } from './errors.js';
 export { HttpError } from './errors.js';
 import { entitlement } from './entitlements.js';
 export interface Actor {
@@ -173,8 +173,8 @@ export class Access {
             creation ? plan.creationsPerMinute : plan.requestsPerMinute,
         );
         if (retry)
-            throw new HttpError(
-                429,
+            throw new RateLimitError(
+                creation ? 'resources.creations' : 'api.requests',
                 creation
                     ? 'Resource creation rate limit exceeded.'
                     : 'Request rate limit exceeded.',

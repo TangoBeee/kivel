@@ -1,3 +1,4 @@
+import { LimitError } from './errors.js';
 import type { publicRequest } from './public-network.js';
 import { readMusicTrack } from './music-assets.js';
 import { artifact } from '@kivel.io/tools/artifacts';
@@ -347,10 +348,12 @@ export class ToolService {
             plan.runsPerDay,
         );
         if (!usage.allowed)
-            throw new HttpError(
-                429,
+            throw new LimitError(
+                'tools.runs',
+                usage.used,
+                actor.plan,
+                1,
                 'Daily hosted tool allowance reached. It resets at 00:00 UTC.',
-                Math.ceil((86400000 - (Date.now() % 86400000)) / 1000),
             );
         const controller = new AbortController(),
             abort = () => controller.abort();

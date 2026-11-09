@@ -155,28 +155,31 @@ export function registerWorkspaceUsage(
                     : memoryCounts(access, stores, owner, now, since)),
         ]);
         const items: UsageItem[] = [];
-        function add(key: UsageKey, used: number, max: number, resetsAt?: string) {
-            const { label, unit } = describeLimit(key);
-            items.push({ key, label, unit, used, max, ...(resetsAt ? { resetsAt } : {}) });
+        function add(key: UsageKey, used: number, resetsAt?: string) {
+            const { label, unit, max } = describeLimit(key);
+            items.push({
+                key,
+                label,
+                unit,
+                used,
+                max: max(actor.plan),
+                ...(resetsAt ? { resetsAt } : {}),
+            });
         }
-        add('tools.runs', runsToday, limits.runsPerDay, end);
+        add('tools.runs', runsToday, end);
         if (counts) {
-            add('resources.active', counts['resources.active'], limits.maxResources);
-            add('resources.storage', counts['resources.storage'], limits.storageBytes);
-            add('agents.connected', counts['agents.connected'], limits.agents);
-            add('monitors.active', counts['monitors.active'], limits.monitors.count);
-            add('memory.bytes', counts['memory.bytes'], limits.memoryBytes);
-            add('authenticators.entries', counts['authenticators.entries'], limits.authenticators);
-            add('vault.entries', counts['vault.entries'], limits.credentials);
-            add('email.inboxes', counts['email.inboxes'], limits.emailInboxes);
-            add('email.sent_today', counts['email.sent_today'], limits.emailsPerDay, end);
-            add('email.sent_month', counts['email.sent_month'], limits.emailsPerMonth, nextMonth);
-            add(
-                'approvals.questions',
-                counts['approvals.questions'],
-                limits.approvalQuestionsPerDay,
-            );
-            add('mocks.oauth', counts['mocks.oauth'], limits.oauthProviders);
+            add('resources.active', counts['resources.active']);
+            add('resources.storage', counts['resources.storage']);
+            add('agents.connected', counts['agents.connected']);
+            add('monitors.active', counts['monitors.active']);
+            add('memory.bytes', counts['memory.bytes']);
+            add('authenticators.entries', counts['authenticators.entries']);
+            add('vault.entries', counts['vault.entries']);
+            add('email.inboxes', counts['email.inboxes']);
+            add('email.sent_today', counts['email.sent_today'], end);
+            add('email.sent_month', counts['email.sent_month'], nextMonth);
+            add('approvals.questions', counts['approvals.questions']);
+            add('mocks.oauth', counts['mocks.oauth']);
         }
         return {
             plan: actor.plan,

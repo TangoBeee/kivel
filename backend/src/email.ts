@@ -560,7 +560,7 @@ export function registerEmail({
                     createdAt: new Date().toISOString(),
                     expiresAt,
                 },
-                plans[plan].emailInboxes,
+                plan,
             );
             try {
                 const allocation = await access.allocation(request, { visibility: 'private' });

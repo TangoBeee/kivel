@@ -1390,7 +1390,7 @@ test('monitors are claimed once when due, found by ping hash and keep 50 events'
         nextRunAt: new Date(Date.now() - 1000).toISOString(),
     };
     const id = crypto.randomUUID();
-    await store.create({ ...base, id }, 'ping-hash');
+    await store.create({ ...base, id }, 'free', 'ping-hash');
     const [first, second] = await Promise.all([store.claimDue(10), store.claimDue(10)]);
     assert.equal(first.length + second.length, 1);
     assert.equal((await store.claimDue(10)).length, 0);
@@ -2351,7 +2351,7 @@ test('authenticators encrypt durable secrets, enforce concurrent plan caps and r
         2,
         added.map((response) => response.body).join('\n'),
     );
-    assert.equal(added.filter((response) => response.statusCode === 429).length, 4);
+    assert.equal(added.filter((response) => response.statusCode === 402).length, 4);
     const id = added.find((response) => response.statusCode === 201)!.json().id;
     const stored = await pool.query(
         "SELECT value::text AS value FROM kv_entries WHERE account_id=$1 AND namespace='$authenticators'",
@@ -2647,7 +2647,7 @@ test('OAuth providers share durable grants, signing keys and atomic plan limits 
             app.inject({ method: 'POST', url: '/api/oauth-providers', headers, payload: config }),
         ),
     );
-    assert.deepEqual(created.map((r) => r.statusCode).sort(), [201, 429]);
+    assert.deepEqual(created.map((r) => r.statusCode).sort(), [201, 402]);
     const provider = created.find((r) => r.statusCode === 201)!.json(),
         path = `/oauth/${provider.id}`;
     const jwks = await a.inject(`${path}/jwks`);
@@ -3135,7 +3135,7 @@ test('vault encryption, limits, human settings and single-use reveals persist ac
         ),
     );
     assert.equal(created.filter((response) => response.statusCode === 201).length, 10);
-    assert.equal(created.filter((response) => response.statusCode === 429).length, 2);
+    assert.equal(created.filter((response) => response.statusCode === 402).length, 2);
     const id = created.find((response) => response.statusCode === 201)!.json().credential.id;
     const persisted = await pool.query(
         "SELECT value FROM kv_entries WHERE account_id=$1 AND namespace='$credentials'",
@@ -3453,5 +3453,53 @@ test('workspace usage reads durable counters and keeps totals behind account rea
             scoped.items.map((item: { key: string }) => item.key),
             ['tools.runs'],
         );
+    }
+});
+
+test('concurrent monitor creation across replicas stops at the plan allowance', async (t) => {
+    const identities = new PostgresIdentityRepository(pool);
+    const options = {
+        identityStore: identities,
+        recoveryStore: new PostgresRecoveryRepository(pool),
+        monitorStore: new PostgresMonitors(pool),
+    };
+    const apps = [buildApp(options), buildApp(options)];
+    t.after(async () => {
+        await Promise.all(apps.map((app) => app.close()));
+    });
+    const origin = 'http://localhost:3000';
+    const registered = await apps[0]!.inject({
+        method: 'POST',
+        url: '/api/auth/register',
+        headers: { origin },
+        payload: {
+            username: 'monitor-quota-owner',
+            email: 'monitor-quota@example.test',
+            password: 'correct-horse-battery-staple',
+        },
+    });
+    assert.equal(registered.statusCode, 201, registered.body);
+    const headers = { origin, cookie: String(registered.headers['set-cookie']).split(';')[0]! };
+    const post = (index: number) =>
+        apps[index % 2]!.inject({
+            method: 'POST',
+            url: '/api/monitors',
+            headers,
+            payload: { kind: 'heartbeat', name: `Monitor ${index}`, intervalSeconds: 300 },
+        });
+    const results = await Promise.all(Array.from({ length: 25 }, (_, index) => post(index)));
+    assert.equal(results.filter((response) => response.statusCode === 201).length, 20);
+    for (const response of results.filter((response) => response.statusCode !== 201)) {
+        assert.equal(response.statusCode, 402, response.body);
+        assert.equal(response.headers['retry-after'], undefined);
+        assert.deepEqual((({ requestId, message, ...details }) => details)(response.json()), {
+            error: 'limit_reached',
+            limit: 'monitors.active',
+            used: 20,
+            max: 20,
+            plan: 'free',
+            requiredPlan: 'pro',
+            upgradeUrl: 'http://localhost:3000/pricing/',
+        });
     }
 });

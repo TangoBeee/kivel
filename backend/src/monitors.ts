@@ -1,3 +1,6 @@
+import { checkLimit } from './errors.js';
+import { transaction } from './database.js';
+import type { PlanId } from '@kivel.io/tools/plans';
 import { plans } from '@kivel.io/tools/plans';
 import { requireWorkspace } from './access.js';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
@@ -53,7 +56,7 @@ const hash = (token: string) => createHash('sha256').update(token).digest('hex')
 
 type MaybePromise<T> = T | Promise<T>;
 export interface MonitorRepository {
-    create(monitor: Monitor, pingHash?: string): MaybePromise<void>;
+    create(monitor: Monitor, plan: PlanId, pingHash?: string): MaybePromise<void>;
     count(accountId: string): MaybePromise<number>;
     list(accountId: string): MaybePromise<Monitor[]>;
     get(accountId: string, id: string): MaybePromise<Monitor | undefined>;
@@ -71,7 +74,8 @@ export class MemoryMonitors implements MonitorRepository {
     private readonly monitors = new Map<string, Monitor>();
     private readonly pings = new Map<string, string>();
     private readonly log = new Map<string, MonitorEvent[]>();
-    create(monitor: Monitor, pingHash?: string) {
+    create(monitor: Monitor, plan: PlanId, pingHash?: string) {
+        checkLimit(plan, 'monitors.active', this.count(monitor.accountId));
         this.monitors.set(monitor.id, { ...monitor });
         if (pingHash) this.pings.set(pingHash, monitor.id);
     }
@@ -126,18 +130,28 @@ export class MemoryMonitors implements MonitorRepository {
 
 export class PostgresMonitors implements MonitorRepository {
     constructor(private readonly pool: Pool) {}
-    async create(monitor: Monitor, pingHash?: string) {
-        await this.pool.query(
-            'INSERT INTO monitors (id, account_id, monitor, ping_hash, next_run_at, paused) VALUES ($1, $2, $3::jsonb, $4, $5, $6)',
-            [
-                monitor.id,
+    async create(monitor: Monitor, plan: PlanId, pingHash?: string) {
+        await transaction(this.pool, async (client) => {
+            await client.query('SELECT id FROM accounts WHERE id = $1 FOR UPDATE', [
                 monitor.accountId,
-                JSON.stringify(monitor),
-                pingHash ?? null,
-                monitor.nextRunAt,
-                monitor.paused,
-            ],
-        );
+            ]);
+            const count = await client.query<{ count: string }>(
+                'SELECT count(*) FROM monitors WHERE account_id = $1',
+                [monitor.accountId],
+            );
+            checkLimit(plan, 'monitors.active', Number(count.rows[0]!.count));
+            await client.query(
+                'INSERT INTO monitors (id, account_id, monitor, ping_hash, next_run_at, paused) VALUES ($1, $2, $3::jsonb, $4, $5, $6)',
+                [
+                    monitor.id,
+                    monitor.accountId,
+                    JSON.stringify(monitor),
+                    pingHash ?? null,
+                    monitor.nextRunAt,
+                    monitor.paused,
+                ],
+            );
+        });
     }
     async count(accountId: string) {
         const result = await this.pool.query<{ count: string }>(
@@ -533,11 +547,6 @@ export function registerMonitors({
     app.post('/api/monitors', async (request, reply) => {
         const { accountId, plan } = await owner(request, true);
         const allowed = plans[plan].monitors;
-        if ((await monitors.count(accountId)) >= allowed.count)
-            throw new HttpError(
-                403,
-                `Your plan includes ${allowed.count} monitors. Delete one or upgrade for more.`,
-            );
         const settings = validate(
             (request.body ?? {}) as Record<string, unknown>,
             allowed.minInterval,
@@ -561,7 +570,7 @@ export function registerMonitors({
                         : 0),
             ).toISOString(),
         };
-        await monitors.create(monitor, token ? hash(token) : undefined);
+        await monitors.create(monitor, plan, token ? hash(token) : undefined);
         return reply.code(201).send({
             ...view(monitor),
             ...(token ? { pingUrl: `${origin}/ping/${token}` } : {}),

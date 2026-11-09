@@ -18,7 +18,7 @@ export function openApi(origin: string) {
     });
     const unavailable = { '404': json(reference('Error'), 'Inbox unavailable or token invalid') };
     const limited = {
-        '429': json(reference('Error'), 'Rate or history limit reached'),
+        '429': json(reference('Error'), 'Request rate or history limit reached'),
         '503': json(reference('Error'), 'Service capacity reached'),
     };
     const secured = [{ inspectionToken: [] }, { accountKey: [] }, { sessionCookie: [] }];
@@ -459,7 +459,8 @@ export function openApi(origin: string) {
                         '201': { description: 'Created; heartbeats include pingUrl once' },
                         '400': { description: 'Invalid settings' },
                         '401': { description: 'Needs an account' },
-                        '403': { description: 'Monitor limit reached' },
+                        '403': { description: 'Write permission required' },
+                        '402': json(reference('LimitError'), 'Monitor allowance reached'),
                         ...limited,
                     },
                 },
@@ -802,10 +803,31 @@ export function openApi(origin: string) {
                         timestamp: { type: 'string', format: 'date-time' },
                     },
                 },
+                LimitError: {
+                    type: 'object',
+                    required: ['error', 'message', 'limit', 'used', 'max', 'plan'],
+                    properties: {
+                        error: { const: 'limit_reached' },
+                        message: { type: 'string' },
+                        limit: { type: 'string' },
+                        used: { type: 'integer' },
+                        max: { type: 'integer' },
+                        plan: { enum: ['anonymous', 'free', 'pro', 'team'] },
+                        requiredPlan: { enum: ['free', 'pro', 'team'] },
+                        upgradeUrl: { type: 'string', format: 'uri' },
+                        requestId: { type: 'string' },
+                    },
+                },
                 Error: {
                     type: 'object',
                     required: ['error'],
-                    properties: { error: { type: 'string' }, requestId: { type: 'string' } },
+                    properties: {
+                        error: { type: 'string' },
+                        message: { type: 'string' },
+                        limit: { type: 'string' },
+                        retryAfter: { type: 'integer', minimum: 1 },
+                        requestId: { type: 'string' },
+                    },
                 },
             },
         },
@@ -826,7 +848,19 @@ export function openApi(origin: string) {
                 security?: object[];
                 parameters?: object[];
                 description?: string;
+                responses?: Record<string, object>;
             };
+            if (
+                method === 'post' &&
+                operation.responses &&
+                /^\/api\/(authenticators|credentials|email-inboxes|oauth-providers|tools\/\{[^}]+\}\/run)$/.test(
+                    path,
+                )
+            )
+                operation.responses['402'] = json(
+                    reference('LimitError'),
+                    'Plan allowance reached',
+                );
             if (
                 /^\/api\/(inboxes|mocks|files|mcp-servers|email-inboxes|status-pages|memory|monitors)(\/|$)/.test(
                     path,

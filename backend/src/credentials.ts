@@ -1,3 +1,5 @@
+import { checkLimit } from './errors.js';
+import type { PlanId } from '@kivel.io/tools/plans';
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { Pool } from 'pg';
@@ -31,7 +33,7 @@ export interface StoredCredential extends Credential {
 export interface CredentialRepository {
     list(owner: string): Promise<Credential[]>;
     get(owner: string, id: string): Promise<StoredCredential | undefined>;
-    save(owner: string, entry: StoredCredential, limit: number): Promise<boolean>;
+    save(owner: string, entry: StoredCredential, plan: PlanId): Promise<void>;
     update(owner: string, entry: StoredCredential, previousVersion: string): Promise<boolean>;
     delete(owner: string, id: string): Promise<boolean>;
 }
@@ -46,12 +48,11 @@ export class MemoryCredentials implements CredentialRepository {
         const entry = this.entries.get(owner)?.get(id);
         return entry && structuredClone(entry);
     }
-    async save(owner: string, entry: StoredCredential, limit: number) {
+    async save(owner: string, entry: StoredCredential, plan: PlanId) {
         const entries = this.entries.get(owner) ?? new Map();
-        if (entries.size >= limit) return false;
+        checkLimit(plan, 'vault.entries', entries.size);
         entries.set(entry.id, structuredClone(entry));
         this.entries.set(owner, entries);
-        return true;
     }
     async update(owner: string, entry: StoredCredential, previousVersion: string) {
         const entries = this.entries.get(owner);
@@ -82,7 +83,7 @@ export class PostgresCredentials implements CredentialRepository {
             )
         ).rows[0]?.value as StoredCredential | undefined;
     }
-    async save(owner: string, entry: StoredCredential, limit: number) {
+    async save(owner: string, entry: StoredCredential, plan: PlanId) {
         return transaction(this.pool, async (client) => {
             await client.query('SELECT id FROM accounts WHERE id=$1 FOR UPDATE', [owner]);
             const count = Number(
@@ -93,13 +94,12 @@ export class PostgresCredentials implements CredentialRepository {
                     )
                 ).rows[0].count,
             );
-            if (count >= limit) return false;
+            checkLimit(plan, 'vault.entries', count);
             const value = JSON.stringify(entry);
             await client.query(
                 'INSERT INTO kv_entries(account_id,namespace,key,value,bytes) VALUES($1,$2,$3,$4,$5)',
                 [owner, namespace, entry.id, value, Buffer.byteLength(value)],
             );
-            return true;
         });
     }
     async update(owner: string, entry: StoredCredential, previousVersion: string) {
@@ -318,11 +318,7 @@ export function registerCredentials(
             version: randomUUID(),
             encrypted: encryption.encrypt(JSON.stringify({ password, notes }), `${owner}:${id}`),
         };
-        if (!(await store.save(owner, stored, plans[actor.plan].credentials)))
-            throw new HttpError(
-                429,
-                `Your plan allows ${plans[actor.plan].credentials} vault entries.`,
-            );
+        await store.save(owner, stored, actor.plan);
         return reply
             .header('Cache-Control', 'no-store')
             .code(201)

@@ -161,23 +161,84 @@ export const resourceDefinitions = {
 } as const;
 
 const usageDescriptions = {
-    'tools.runs': { label: 'Hosted tool runs', group: 'Tools', unit: 'count' },
-    'resources.active': { label: 'Active resources', group: 'Resources', unit: 'count' },
-    'resources.storage': { label: 'Resource storage', group: 'Resources', unit: 'bytes' },
-    'agents.connected': { label: 'Connected agents', group: 'Workspace', unit: 'count' },
-    'monitors.active': { label: 'Monitors', group: 'Resources', unit: 'count' },
-    'memory.bytes': { label: 'Memory', group: 'Workspace', unit: 'bytes' },
-    'authenticators.entries': { label: 'Authenticators', group: 'Workspace', unit: 'count' },
-    'vault.entries': { label: 'Vault entries', group: 'Workspace', unit: 'count' },
-    'email.inboxes': { label: 'Active email inboxes', group: 'Email', unit: 'count' },
-    'email.sent_today': { label: 'Email recipients today', group: 'Email', unit: 'count' },
-    'email.sent_month': { label: 'Email recipients this month', group: 'Email', unit: 'count' },
+    'tools.runs': {
+        max: (plan: PlanId) => plans[plan].runsPerDay,
+        label: 'Hosted tool runs',
+        group: 'Tools',
+        unit: 'count',
+    },
+    'resources.active': {
+        max: (plan: PlanId) => plans[plan].maxResources,
+        label: 'Active resources',
+        group: 'Resources',
+        unit: 'count',
+    },
+    'resources.storage': {
+        max: (plan: PlanId) => plans[plan].storageBytes,
+        label: 'Resource storage',
+        group: 'Resources',
+        unit: 'bytes',
+    },
+    'agents.connected': {
+        max: (plan: PlanId) => plans[plan].agents,
+        label: 'Connected agents',
+        group: 'Workspace',
+        unit: 'count',
+    },
+    'monitors.active': {
+        max: (plan: PlanId) => plans[plan].monitors.count,
+        label: 'Monitors',
+        group: 'Resources',
+        unit: 'count',
+    },
+    'memory.bytes': {
+        max: (plan: PlanId) => plans[plan].memoryBytes,
+        label: 'Memory',
+        group: 'Workspace',
+        unit: 'bytes',
+    },
+    'authenticators.entries': {
+        max: (plan: PlanId) => plans[plan].authenticators,
+        label: 'Authenticators',
+        group: 'Workspace',
+        unit: 'count',
+    },
+    'vault.entries': {
+        max: (plan: PlanId) => plans[plan].credentials,
+        label: 'Vault entries',
+        group: 'Workspace',
+        unit: 'count',
+    },
+    'email.inboxes': {
+        max: (plan: PlanId) => plans[plan].emailInboxes,
+        label: 'Active email inboxes',
+        group: 'Email',
+        unit: 'count',
+    },
+    'email.sent_today': {
+        max: (plan: PlanId) => plans[plan].emailsPerDay,
+        label: 'Email recipients today',
+        group: 'Email',
+        unit: 'count',
+    },
+    'email.sent_month': {
+        max: (plan: PlanId) => plans[plan].emailsPerMonth,
+        label: 'Email recipients this month',
+        group: 'Email',
+        unit: 'count',
+    },
     'approvals.questions': {
+        max: (plan: PlanId) => plans[plan].approvalQuestionsPerDay,
         label: 'Approval requests in the last 24 hours',
         group: 'Workspace',
         unit: 'count',
     },
-    'mocks.oauth': { label: 'OAuth providers', group: 'Resources', unit: 'count' },
+    'mocks.oauth': {
+        max: (plan: PlanId) => plans[plan].oauthProviders,
+        label: 'OAuth providers',
+        group: 'Resources',
+        unit: 'count',
+    },
 } as const;
 export type UsageKey = keyof typeof usageDescriptions;
 export function describeLimit(key: UsageKey) {

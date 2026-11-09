@@ -210,7 +210,7 @@ test('authenticator limits are shared plan definitions and enforced atomically',
             limit,
             responses.map((r) => r.body).join('\n'),
         );
-        assert.equal(responses.filter((r) => r.statusCode === 429).length, 1);
+        assert.equal(responses.filter((r) => r.statusCode === 402).length, 1);
         assert.equal((await f.store.list(f.owner)).length, limit);
     }
 });

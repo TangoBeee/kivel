@@ -1,3 +1,5 @@
+import type { PlanId } from '@kivel.io/tools/plans';
+import { checkLimit } from './errors.js';
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import { transaction } from './database.js';
@@ -18,17 +20,12 @@ type MaybePromise<T> = T | Promise<T>;
 export interface EmailAddressRepository {
     claim(
         address: Omit<EmailAddress, 'id' | 'resourceId' | 'pausedAt' | 'retiredAt'>,
-        limit: number,
+        plan: PlanId,
     ): MaybePromise<EmailAddress>;
     save(address: EmailAddress): MaybePromise<void>;
     list(ownerId?: string): MaybePromise<EmailAddress[]>;
     find(address: string): MaybePromise<EmailAddress | undefined>;
 }
-const full = () =>
-    new HttpError(
-        409,
-        'This workspace has reached its email inbox limit. Delete an inbox or upgrade your plan.',
-    );
 const taken = () =>
     new HttpError(
         409,
@@ -37,18 +34,12 @@ const taken = () =>
 
 export class MemoryEmailAddresses implements EmailAddressRepository {
     private rows = new Map<string, EmailAddress>();
-    claim(
-        input: Omit<EmailAddress, 'id' | 'resourceId' | 'pausedAt' | 'retiredAt'>,
-        limit: number,
-    ) {
+    claim(input: Omit<EmailAddress, 'id' | 'resourceId' | 'pausedAt' | 'retiredAt'>, plan: PlanId) {
         if (this.rows.has(input.address)) throw taken();
-        if (
-            this.list(input.ownerId).filter(
-                (row) =>
-                    !row.pausedAt && (!row.expiresAt || Date.parse(row.expiresAt) > Date.now()),
-            ).length >= limit
-        )
-            throw full();
+        const count = this.list(input.ownerId).filter(
+            (row) => !row.pausedAt && (!row.expiresAt || Date.parse(row.expiresAt) > Date.now()),
+        ).length;
+        checkLimit(plan, 'email.inboxes', count);
         const row: EmailAddress = {
             ...input,
             id: randomUUID(),
@@ -78,7 +69,7 @@ export class PostgresEmailAddresses implements EmailAddressRepository {
     constructor(private pool: Pool) {}
     async claim(
         input: Omit<EmailAddress, 'id' | 'resourceId' | 'pausedAt' | 'retiredAt'>,
-        limit: number,
+        plan: PlanId,
     ) {
         return transaction(this.pool, async (client) => {
             await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 14))', [
@@ -88,7 +79,7 @@ export class PostgresEmailAddresses implements EmailAddressRepository {
                 'SELECT count(*)::integer AS count FROM email_addresses WHERE owner_id = $1 AND retired_at IS NULL AND paused_at IS NULL AND (expires_at IS NULL OR expires_at > clock_timestamp())',
                 [input.ownerId],
             );
-            if (count.rows[0].count >= limit) throw full();
+            checkLimit(plan, 'email.inboxes', count.rows[0].count);
             const row: EmailAddress = {
                 ...input,
                 id: randomUUID(),

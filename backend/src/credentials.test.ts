@@ -355,7 +355,7 @@ test('generated passwords, plan limits and linked resources work through the API
     );
     for (let index = 1; index < plans.free.credentials; index++)
         assert.equal((await f.save()).statusCode, 201);
-    assert.equal((await f.save()).statusCode, 429);
+    assert.equal((await f.save()).statusCode, 402);
     assert.equal((await client.credentials()).credentials.length, 10);
     assert.equal((await f.save({ ...input, authenticatorId: randomUUID() })).statusCode, 404);
     assert.equal((await f.save({ ...input, inboxId: randomUUID() })).statusCode, 404);
@@ -391,14 +391,12 @@ test('generated passwords, plan limits and linked resources work through the API
         const store = new MemoryCredentials();
         const base = { ...first.credential, version: randomUUID(), encrypted: 'ciphertext' };
         for (let index = 0; index < plans[plan].credentials; index++)
-            assert.equal(
-                await store.save('owner', { ...base, id: String(index) }, plans[plan].credentials),
-                true,
-            );
-        assert.equal(
-            await store.save('owner', { ...base, id: 'excess' }, plans[plan].credentials),
-            false,
-        );
+            await store.save('owner', { ...base, id: String(index) }, plan);
+        await assert.rejects(store.save('owner', { ...base, id: 'excess' }, plan), {
+            statusCode: 402,
+            limit: 'vault.entries',
+        });
+        assert.equal((await store.list('owner')).length, plans[plan].credentials);
     }
 });
 

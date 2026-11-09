@@ -56,7 +56,8 @@ export async function api(
     if (!response.ok && response.status !== 304) {
         let message = 'Something went wrong. Please try again.';
         try {
-            message = (await response.json()).error ?? message;
+            const body = await response.json();
+            message = body.message ?? body.error ?? message;
         } catch {}
         const retry = response.headers.get('retry-after') ?? '0';
         const seconds = Number(retry);

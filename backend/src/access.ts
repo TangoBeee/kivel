@@ -195,7 +195,7 @@ export class Access {
         )
             throw new HttpError(400, 'visibility must be public or private.');
         const visibility = input.visibility === 'public' ? 'public' : 'private';
-        const downloadCap = actor.plan === 'anonymous' ? 100 : 1000;
+        const downloadCap = plan.fileDownloads;
         const maxDownloads =
             input.maxDownloads === undefined ? downloadCap : Number(input.maxDownloads);
         if (!Number.isInteger(maxDownloads) || maxDownloads < 1 || maxDownloads > downloadCap)
@@ -226,8 +226,8 @@ export class Access {
             ...(actor.identity ? { ownerId: actor.identity.account.id } : {}),
             ...(persistent || input.ttlSeconds !== undefined ? { expiresAt } : {}),
             persistent,
-            requestLimit: actor.plan === 'anonymous' ? 100 : 1000,
-            byteLimit: actor.plan === 'anonymous' ? 1048576 : 10 * 1048576,
+            requestLimit: plan.captureRequests,
+            byteLimit: plan.captureBytes,
             maxUses: maxDownloads,
         };
     }

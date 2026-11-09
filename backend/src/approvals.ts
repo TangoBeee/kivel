@@ -1,4 +1,3 @@
-import { emailDraftBytes } from '@kivel.io/tools/billing-plans';
 import { plans } from '@kivel.io/tools/plans';
 import { validateEmailContent } from './email-sending.js';
 import type { EmailContent } from './email-sending.js';
@@ -17,8 +16,6 @@ import type { ResourceRepository } from './resources.js';
 import { isUuid } from './security.js';
 import type { Waiters } from './waiting.js';
 import { waitSeconds } from './waiting.js';
-
-export const approvalLimits = { anonymous: 0, free: 20, pro: 200, team: 1000 } as const;
 
 export interface Approval {
     id: string;
@@ -310,10 +307,13 @@ export function registerApprovals({
             throw new HttpError(400, 'timeoutMinutes must be between 1 and 1440.');
         const plan = effectivePlan(identity.account);
         const since = new Date(Date.now() - 86400000).toISOString();
-        if ((await approvals.countSince(identity.account.id, since)) >= approvalLimits[plan])
+        if (
+            (await approvals.countSince(identity.account.id, since)) >=
+            plans[plan].approvalQuestionsPerDay
+        )
             throw new HttpError(
                 429,
-                `Your plan allows ${approvalLimits[plan]} questions a day. Ask your human to upgrade at ${access.origin}/plans/.`,
+                `Your plan allows ${plans[plan].approvalQuestionsPerDay} questions a day. Ask your human to upgrade at ${access.origin}/plans/.`,
             );
         const agent = identity.keyId
             ? (await agents.agents(identity.account.id)).find(
@@ -420,7 +420,7 @@ export function registerApprovals({
                 : validateEmailContent(
                       body.editedEmail,
                       plans[plan].emailRecipients,
-                      emailDraftBytes[plan],
+                      plans[plan].emailDraftBytes,
                   );
         if (
             !(await approvals.answer(identity.account.id, approval.id, {

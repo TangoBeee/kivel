@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
-import { oauthLimits } from '@kivel.io/tools/billing-plans';
+import { plans } from '@kivel.io/tools/plans';
 import { QuotaError } from './allocations.js';
 import { transaction } from './database.js';
 import { sharingCredentials, publicAccessAllowed, tokenHash } from './sharing.js';
@@ -143,7 +143,7 @@ export class ResourceStore implements ResourceRepository {
             const count = [...this.resources.values()].filter(
                 (r) => r.ownerId === allocation.ownerId && r.payload.oauth,
             ).length;
-            if (count >= oauthLimits[allocation.plan]) throw new QuotaError('resources');
+            if (count >= plans[allocation.plan].oauthProviders) throw new QuotaError('resources');
         }
         const storedBytes = size(payload, data);
         if (
@@ -454,7 +454,7 @@ export class PostgresResourceStore implements ResourceRepository {
                     "SELECT count(*) FROM temporary_resources WHERE owner_id = $1 AND payload::jsonb ? 'oauth'",
                     [allocation.ownerId],
                 );
-                if (Number(count.rows[0].count) >= oauthLimits[allocation.plan])
+                if (Number(count.rows[0].count) >= plans[allocation.plan].oauthProviders)
                     throw new QuotaError('resources');
             }
             const storedBytes = size(payload, data);

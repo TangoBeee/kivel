@@ -40,7 +40,7 @@ export interface OAuthConfig {
     headless: boolean;
     scenario: OAuthScenario;
 }
-export { oauthLimits } from './billing-plans.js';
+export { oauthLimits } from './plans.js';
 const object = (v: unknown): v is Record<string, unknown> =>
     !!v && typeof v === 'object' && !Array.isArray(v);
 export function validateOAuth(value: unknown): OAuthConfig {

@@ -1,3 +1,4 @@
+import { plans } from '@kivel.io/tools/plans';
 import { requireWorkspace } from './access.js';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
@@ -47,13 +48,6 @@ export interface MonitorEvent {
     status: MonitorStatus;
     message: string;
 }
-
-export const monitorLimits = {
-    anonymous: { count: 0, minInterval: 300 },
-    free: { count: 20, minInterval: 300 },
-    pro: { count: 100, minInterval: 60 },
-    team: { count: 500, minInterval: 60 },
-} as const;
 
 const hash = (token: string) => createHash('sha256').update(token).digest('hex');
 
@@ -538,7 +532,7 @@ export function registerMonitors({
 
     app.post('/api/monitors', async (request, reply) => {
         const { accountId, plan } = await owner(request, true);
-        const allowed = monitorLimits[plan];
+        const allowed = plans[plan].monitors;
         if ((await monitors.count(accountId)) >= allowed.count)
             throw new HttpError(
                 403,
@@ -597,8 +591,8 @@ export function registerMonitors({
         const { accountId, plan } = await owner(request, false);
         return {
             monitors: (await monitors.list(accountId)).map(view),
-            limit: monitorLimits[plan].count,
-            minIntervalSeconds: monitorLimits[plan].minInterval,
+            limit: plans[plan].monitors.count,
+            minIntervalSeconds: plans[plan].monitors.minInterval,
         };
     });
     app.get<{ Params: { id: string } }>('/api/monitors/:id', async (request) => {

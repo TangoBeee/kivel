@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readdirSync, readFileSync } from 'node:fs';
 import { readConfig } from './config.js';
 
 const production = {
@@ -117,4 +118,16 @@ test('agent relay, public SMTP capture and phone activation fail closed until se
     assert.throws(() => readConfig({ PHONE_ENABLED: 'true' }), /Phone activation/);
     assert.throws(() => readConfig({ TELNYX_API_KEY: 'test' }), /all three/);
     assert.equal(readConfig({}).phoneEnabled, false);
+});
+
+test('backend routes use shared plan definitions for numeric allowances', () => {
+    const source = new URL('./', import.meta.url);
+    for (const file of readdirSync(source, { recursive: true, encoding: 'utf8' })) {
+        if (!file.endsWith('.ts') || file.endsWith('.test.ts')) continue;
+        assert.doesNotMatch(
+            readFileSync(new URL(file, source), 'utf8'),
+            /\b(?:free|pro|team)\s*:\s*(?:\d|\{\s*\w+\s*:\s*\d)/,
+            `${file} must read plan allowances from @kivel.io/tools/plans`,
+        );
+    }
 });

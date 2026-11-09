@@ -7,7 +7,6 @@ import {
     pageEmailThreads,
 } from './email-threading.js';
 import type { EmailRules } from './email-threading.js';
-import { inboxRuleLimits } from '@kivel.io/tools/billing-plans';
 import {
     parseAttachments,
     INBOX_ATTACHMENT_BYTES,
@@ -643,7 +642,7 @@ export function registerEmail({
         const { inbox, actor } = await owned(request, request.params.id);
         if (inbox.payload.smtpCapture)
             throw new HttpError(400, 'Address rules apply to email inboxes.');
-        const rules = emailRules(request.body, inboxRuleLimits[actor.plan]);
+        const rules = emailRules(request.body, plans[actor.plan].inboxRules);
         const result = await resources.update(
             inbox.id,
             'email',

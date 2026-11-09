@@ -719,7 +719,7 @@ export function ResourceWorkbench({
                     {(kind === 'mock' || kind === 'mcp') && (
                         <Button
                             size="2"
-                            color="green"
+                            color="indigo"
                             disabled={busy}
                             onClick={() => void submit()}
                         >

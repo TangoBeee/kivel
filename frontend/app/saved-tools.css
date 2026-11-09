@@ -24,7 +24,7 @@
 .save-tool-button:hover,
 .save-tool-button[aria-pressed='true'] {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .save-tool-button.is-compact {
   width: 40px;

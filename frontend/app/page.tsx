@@ -1,6 +1,5 @@
 import { shareImage } from '../lib/seo';
 import type { Metadata } from 'next';
-import { Inter, Manrope } from 'next/font/google';
 import { CookieJar } from '../components/home/cookie-jar';
 import { CopyPrompt } from '../components/home/copy-prompt';
 import { DashboardMock } from '../components/landing/dashboard-mock';
@@ -16,10 +15,6 @@ import { setupPrompt } from '../lib/setup-prompt';
 import { siteOrigin } from '../lib/site';
 import './home.css';
 import './landing.css';
-
-// The landing page has its own pair of typefaces: Manrope for headlines, Inter for text.
-const display = Manrope({ subsets: ['latin'], weight: ['400', '500', '600'], display: 'swap' });
-const text = Inter({ subsets: ['latin'], weight: ['400', '500', '600'], display: 'swap' });
 
 // Brand first, so a search for "kivel" matches the page title and Google learns the name.
 const toolTotal = catalog.filter((tool) => tool.status === 'available').length;
@@ -92,8 +87,6 @@ const sliderItems = categories
 export default function Home() {
     return (
         <div className="kv-landing">
-            {/* Fonts as variables on the root, so the shared header and footer pick them up here too. */}
-            <style>{`:root{--kv-display:${display.style.fontFamily};--kv-text:${text.style.fontFamily}}`}</style>
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{

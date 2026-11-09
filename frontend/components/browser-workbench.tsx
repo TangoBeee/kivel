@@ -160,7 +160,7 @@ export function BrowserWorkbench({ toolId }: { toolId: string }) {
                         <Button
                             size="3"
                             variant="solid"
-                            color="green"
+                            color="indigo"
                             disabled={busy}
                             onClick={() => void run('encode')}
                         >

@@ -1,48 +1,6 @@
-:root {
-  color-scheme: light;
-  /* Editorial light: white page, near-black ink, the brand green kept for small accents */
-  /* Surfaces */
-  --bg: #ffffff;
-  --surface: #ffffff;
-  --subtle: #f5f5f4;
-  /* Text: muted stays above 4.5:1 on every surface */
-  --ink: #141414;
-  --muted: #5b5b5b;
-  --line: #e8e8e8;
-  --line-strong: #d4d4d4;
-  /* Brand */
-  --accent: #141414;
-  --accent-hover: #444444;
-  --accent-soft: #f5f5f4;
-  --accent-line: #d4d4d4;
-  --accent-ink: #ffffff;
-  --brand: #111312;
-  --danger: #ad3f3b;
-  --danger-bg: #fff2ef;
-  --warning: #9a5a0c;
-  --warning-bg: #fff7e8;
-  /* Shape: 8 small parts, 10 controls, 12 rows, 16 cards, 24 panels, full for pills */
-  --radius-sm: 8px;
-  --radius-control: 10px;
-  --radius-row: 12px;
-  --radius-card: 16px;
-  --radius-panel: 24px;
-  /* Depth: shadows tinted to the ink */
-  --shadow-sm: 0 1px 2px rgb(17 19 18 / 0.05);
-  --shadow-md: 0 1px 2px rgb(17 19 18 / 0.04), 0 8px 24px rgb(17 19 18 / 0.08);
-  --ease: cubic-bezier(0.32, 0.72, 0, 1);
-  --mono: var(--font-geist-mono), ui-monospace, monospace;
-}
-body {
-  --display: var(--font-sans), -apple-system, sans-serif;
-}
-::selection {
-  background: #e5e5e5;
-  color: var(--ink);
-}
 html {
-  accent-color: var(--accent);
-  caret-color: var(--accent);
+  accent-color: var(--accent-text);
+  caret-color: var(--accent-text);
 }
 * {
   box-sizing: border-box;
@@ -56,7 +14,7 @@ body {
   background: var(--bg);
   color: var(--ink);
   font-family:
-    var(--font-sans),
+    var(--font-text),
     -apple-system,
     BlinkMacSystemFont,
     sans-serif;
@@ -103,6 +61,11 @@ summary:focus-visible {
 ::selection {
   background: var(--accent-line);
   color: var(--ink);
+}
+h1,
+h2,
+h3 {
+  font-family: var(--display);
 }
 h1,
 h2,
@@ -205,7 +168,7 @@ textarea::placeholder {
   color: var(--muted);
 }
 .search-field:focus-within {
-  border-color: var(--accent);
+  border-color: var(--accent-text);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 .search-field input {
@@ -222,7 +185,7 @@ textarea::placeholder {
   align-items: center;
   gap: 7px;
   font-size: 0.875rem;
-  color: var(--accent);
+  color: var(--accent-text);
   white-space: nowrap;
 }
 .button {
@@ -246,12 +209,12 @@ textarea::placeholder {
 .button-primary {
   background: var(--accent);
   color: var(--bg);
-  border-color: var(--accent);
+  border-color: var(--accent-text);
 }
 .button-primary:hover {
   background: var(--accent);
   filter: brightness(1.1);
-  border-color: var(--accent);
+  border-color: var(--accent-text);
 }
 .button-small {
   padding: 7px 11px;
@@ -282,7 +245,7 @@ textarea::placeholder {
   margin-bottom: 29px;
 }
 .breadcrumb a:hover {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .work-title {
   display: flex;
@@ -316,7 +279,7 @@ textarea::placeholder {
 .badge-green {
   background: var(--accent-soft);
   border-color: var(--accent-line);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .alert {
   padding: 12px 15px;
@@ -356,7 +319,7 @@ textarea::placeholder {
   border: 1px solid var(--accent-line);
   border-radius: 16px;
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
   margin-bottom: 23px;
 }
 .endpoint-empty h2 {
@@ -388,7 +351,7 @@ textarea::placeholder {
   margin-bottom: 18px;
 }
 .endpoint-label {
-  color: var(--accent);
+  color: var(--accent-text);
   font-size: 0.75rem;
   letter-spacing: 1px;
   white-space: nowrap;
@@ -508,11 +471,11 @@ textarea::placeholder {
   font-family: var(--mono);
   font-size: 0.75rem;
   font-weight: 650;
-  color: var(--accent);
+  color: var(--accent-text);
   letter-spacing: 0.3px;
 }
 .method-post {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .method-delete {
   color: var(--danger);
@@ -574,7 +537,7 @@ textarea::placeholder {
 }
 .detail-tabs button.active {
   color: var(--ink);
-  border-bottom-color: var(--accent);
+  border-bottom-color: var(--accent-text);
 }
 .detail-body {
   padding: 20px;
@@ -636,7 +599,7 @@ textarea::placeholder {
 }
 .keep-longer a {
   font-weight: 600;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .data-table {
   width: 100%;
@@ -683,7 +646,7 @@ textarea::placeholder {
   align-items: center;
 }
 .compact-toggle input {
-  accent-color: var(--accent);
+  accent-color: var(--accent-text);
 }
 .connection-details {
   margin-top: 19px;
@@ -799,7 +762,7 @@ textarea::placeholder {
 }
 .utility-nav button.active {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .utility-panel {
   min-width: 0;
@@ -837,7 +800,7 @@ textarea::placeholder {
   outline-offset: -3px !important;
 }
 .editor-panel textarea[readonly] {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .utility-actions {
   display: flex;

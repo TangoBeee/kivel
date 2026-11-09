@@ -11,7 +11,7 @@ export default function ScalarReference() {
             servers: [{ url: window.location.origin, description: 'This instance' }],
             theme: 'default',
             layout: 'modern',
-            darkMode: false,
+            darkMode: true,
             hideDarkModeToggle: true,
             withDefaultFonts: false,
             hideClientButton: true,
@@ -21,7 +21,7 @@ export default function ScalarReference() {
             proxyUrl: '',
             searchHotKey: 'j',
             customCss:
-                '.scalar-app { --scalar-font: var(--font-sans), sans-serif; --scalar-font-code: var(--font-geist-mono), monospace; --scalar-color-accent: #141414; --scalar-custom-header-height: 96px; }',
+                '.scalar-app { --scalar-font: var(--font-sans), sans-serif; --scalar-font-code: var(--font-geist-mono), monospace; --scalar-color-accent: var(--info); --scalar-background-1: var(--bg); --scalar-background-2: var(--surface-1); --scalar-background-3: var(--surface-2); --scalar-color-1: var(--text); --scalar-color-2: var(--text-2); --scalar-color-3: var(--text-3); --scalar-custom-header-height: 96px; }',
         }),
         [],
     );

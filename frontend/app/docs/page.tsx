@@ -71,10 +71,7 @@ export default function Docs() {
                             Format JSON without an account. The response contains the tool ID and a
                             text result. Invalid input returns a structured error with a request ID.
                         </p>
-                        <Link
-                            className="text-link"
-                            href={docPages[0] ? `/docs/${docPages[0].slug}/` : '/docs/reference/'}
-                        >
+                        <Link className="text-link" href="/docs/quickstart/">
                             Read the quickstart →
                         </Link>
                     </div>

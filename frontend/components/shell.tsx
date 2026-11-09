@@ -42,10 +42,6 @@ const menuLinks = [
 // Signed out: sign in and create account. Signed in: a way back to the dashboard.
 function HeaderAccount() {
     const viewer = useViewer();
-    // Tells the first-load reveal (app/layout.tsx) that the header knows who is signed in.
-    useEffect(() => {
-        if (viewer.status !== 'loading') dispatchEvent(new Event('kivel:viewer'));
-    }, [viewer.status]);
     if (viewer.status === 'loading')
         return <span className="island-account is-loading" aria-hidden="true" />;
     if (viewer.status === 'user')

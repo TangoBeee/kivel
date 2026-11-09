@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import '@radix-ui/themes/styles.css';
+@import './tokens.css';
 @import './base.css';
 @import './discovery.css';
 @import './header.css';
@@ -343,7 +344,7 @@
   font-size: 14px;
 }
 .payment-banner span {
-  color: #5d615e;
+  color: var(--text-3);
 }
 .payment-form {
   max-width: 640px;
@@ -363,7 +364,7 @@
 .payment-controls {
   display: grid;
   gap: 16px;
-  border: 1px solid #e7e7e3;
+  border: 1px solid var(--line);
   border-radius: 12px;
   padding: 20px;
   min-width: 0;
@@ -401,11 +402,11 @@
   gap: 24px;
   margin: 0;
   padding: 24px 0;
-  border-block: 1px solid #e7e7e3;
+  border-block: 1px solid var(--line);
 }
 .payment-facts dt {
   font-size: 13px;
-  color: #5d615e;
+  color: var(--text-3);
 }
 .payment-facts dd {
   margin: 8px 0 0;
@@ -428,7 +429,7 @@
 }
 .payment-resource-row span,
 .payment-resource-row small {
-  color: #5d615e;
+  color: var(--text-3);
 }
 .payment-resource-row strong {
   overflow-wrap: anywhere;
@@ -471,10 +472,10 @@
 }
 .payment-ledger-row small,
 .payment-ledger-row span {
-  color: #5d615e;
+  color: var(--text-3);
 }
 .payment-result {
-  border: 1px solid #e7e7e3;
+  border: 1px solid var(--line);
   border-radius: 12px;
   padding: 20px;
   min-width: 0;
@@ -487,7 +488,7 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   padding: 20px;
-  background: #f4f4f1;
+  background: var(--surface-2);
   border-radius: 12px;
   font-size: 13px;
   max-height: 360px;

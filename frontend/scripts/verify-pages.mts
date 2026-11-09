@@ -21,6 +21,32 @@ assert.equal(
     'Search and preview dialogs must share the application context',
 );
 
+const layoutSource = await readFile('app/layout.tsx', 'utf8');
+assert.ok(!layoutSource.includes('is-loading'), 'First paint must not wait for account checks');
+assert.ok(!layoutSource.includes('Hanken_Grotesk'), 'Fonts use the shared dark design');
+assert.match(providerSource, /appearance="dark"/, 'Dialogs use the site appearance');
+assert.ok(!providerSource.includes('accentColor="green"'), 'No green Radix accent');
+const tokens = await readFile('app/tokens.css', 'utf8');
+const token = (name: string) => {
+    const hex = new RegExp(`--${name}: #([0-9a-f]{3}|[0-9a-f]{6});`).exec(tokens)?.[1];
+    assert.ok(hex, `${name}: colour token`);
+    return hex.length === 3 ? [...hex].map((digit) => digit.repeat(2)).join('') : hex;
+};
+const luminance = (hex: string) => {
+    const rgb = hex
+        .match(/../g)!
+        .map((part) => parseInt(part, 16) / 255)
+        .map((value) => (value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4));
+    return rgb[0]! * 0.2126 + rgb[1]! * 0.7152 + rgb[2]! * 0.0722;
+};
+const contrast = (a: string, b: string) => {
+    const values = [luminance(token(a)), luminance(token(b))].sort((x, y) => y - x);
+    return (values[0]! + 0.05) / (values[1]! + 0.05);
+};
+assert.ok(contrast('text-3', 'surface-1') >= 4.5, 'Secondary text meets AA contrast');
+assert.ok(contrast('accent-text', 'surface-1') >= 4.5, 'Links meet AA contrast');
+assert.ok(contrast('accent-ink', 'accent') >= 4.5, 'Primary actions meet AA contrast');
+
 const escape = (value: string) =>
     value
         .replaceAll('&', '&amp;')
@@ -116,6 +142,8 @@ for (const path of contentPaths) {
         html.includes(`<link rel="canonical" href="${siteOrigin}${path}"`),
         `${path}: canonical`,
     );
+    assert.ok(html.includes('data-theme="dark"'), `${path}: dark first paint`);
+    assert.ok(!html.includes("classList.add('is-loading')"), `${path}: visible first paint`);
     const title = /<title>(.*?)<\/title>/.exec(html)?.[1];
     const description = /<meta name="description" content="([^"]+)"/.exec(html)?.[1];
     assert.ok(title && !titles.has(title), `${path}: unique title`);

@@ -11,7 +11,7 @@
   height: 64px;
   padding: 0 max(24px, calc((100% - 1180px) / 2 + 32px));
   border-bottom: 1px solid var(--line);
-  background: rgb(255 255 255 / 0.86);
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
   -webkit-backdrop-filter: blur(16px) saturate(1.8);
   backdrop-filter: blur(16px) saturate(1.8);
 }
@@ -28,7 +28,7 @@
   color: var(--ink);
 }
 .island-brand svg {
-  color: var(--accent);
+  color: var(--ink);
 }
 .island-nav {
   display: flex;
@@ -128,7 +128,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgb(255 255 255 / 0.92);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
   -webkit-backdrop-filter: blur(64px);
   backdrop-filter: blur(64px);
   opacity: 0;
@@ -180,7 +180,7 @@
   color: var(--ink);
 }
 .island-menu a[aria-current='page'] {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .island-menu a:active {
   transform: translateY(1px);
@@ -275,7 +275,8 @@ html.menu-open {
     transform 300ms var(--island-ease);
 }
 .island-cta:hover {
-  background: #2b2f2d;
+  background: var(--accent-hover);
+  color: var(--accent-ink);
 }
 .island-cta:active {
   transform: scale(0.98);
@@ -287,7 +288,7 @@ html.menu-open {
   height: 20px;
   margin-left: -4px;
   border-radius: 9999px;
-  background: #ffffff;
+  background: var(--surface);
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--ink);

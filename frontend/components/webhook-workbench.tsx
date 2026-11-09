@@ -571,7 +571,7 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
                         <Button
                             size="3"
                             variant="solid"
-                            color="green"
+                            color="indigo"
                             disabled={working}
                             onClick={() => void create()}
                         >
@@ -989,7 +989,7 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
                         </AlertDialog.Cancel>
                         <AlertDialog.Action>
                             <Button
-                                color={confirmation === 'delete' ? 'red' : 'green'}
+                                color={confirmation === 'delete' ? 'red' : 'indigo'}
                                 onClick={() => {
                                     const action = confirmation;
                                     setConfirmation(null);

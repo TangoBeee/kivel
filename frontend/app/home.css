@@ -31,8 +31,8 @@
   padding: 0 24px;
   border: 0;
   border-radius: 9999px;
-  background: var(--ink);
-  color: #ffffff;
+  background: var(--surface-3);
+  color: var(--text);
   font: inherit;
   font-size: 0.9375rem;
   font-weight: 500;
@@ -285,7 +285,7 @@
 .home-live {
   border: 1px solid var(--line);
   border-radius: 14px;
-  background: #ffffff;
+  background: var(--surface);
   overflow: hidden;
 }
 .home-live-head {
@@ -357,7 +357,7 @@
   cursor: pointer;
 }
 .home-live-url button:hover {
-  background: #ffffff;
+  background: var(--surface);
   color: var(--ink);
 }
 .home-button {
@@ -368,7 +368,7 @@
   padding: 0 16px;
   border: 1px solid var(--line-strong);
   border-radius: 9999px;
-  background: #ffffff;
+  background: var(--surface);
   color: var(--ink);
   font: inherit;
   font-size: 0.875rem;
@@ -426,8 +426,8 @@
 .home-method {
   padding: 2px 8px;
   border-radius: 6px;
-  background: var(--ink);
-  color: #ffffff;
+  background: var(--surface-3);
+  color: var(--text);
   font-family: var(--home-mono);
   font-weight: 500;
 }
@@ -567,7 +567,7 @@
   height: 48px;
   border: 1px solid var(--line);
   border-radius: 9999px;
-  background: #ffffff;
+  background: var(--surface);
   color: var(--ink);
   box-shadow: 0 8px 24px rgb(20 20 20 / 0.1);
   cursor: pointer;
@@ -588,7 +588,7 @@
   padding: 20px;
   border: 1px solid var(--line);
   border-radius: 16px;
-  background: #ffffff;
+  background: var(--surface);
   box-shadow: 0 20px 50px rgb(20 20 20 / 0.12);
   transform-origin: bottom right;
   animation: cookie-pop 320ms var(--home-ease) backwards;
@@ -691,7 +691,7 @@
   padding: 8px 10px;
   border: 1px dashed var(--line-strong);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--surface);
   cursor: pointer;
 }
 .cookie-coupon code {

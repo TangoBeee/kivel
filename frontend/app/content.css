@@ -13,7 +13,7 @@
 }
 .content-label {
   display: block;
-  color: var(--accent);
+  color: var(--accent-text);
   font-size: 0.875rem;
   font-weight: 550;
   letter-spacing: 0.035em;
@@ -122,7 +122,7 @@
   color: var(--ink);
 }
 .content-note > svg {
-  color: var(--accent);
+  color: var(--accent-text);
   margin-top: 3px;
 }
 .reading-page {
@@ -135,7 +135,7 @@
   margin-bottom: 28px;
 }
 .content-back:hover {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .reading-page .content-intro {
   margin-bottom: 52px;
@@ -166,11 +166,13 @@
   line-height: 1.6;
 }
 .content-toc > a:hover {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .reading-body {
   min-width: 0;
-  font-size: 1rem;
+  max-width: 68ch;
+  font-size: 17px;
+  line-height: 1.7;
 }
 .reading-body section {
   scroll-margin-top: 120px;
@@ -191,8 +193,8 @@
 }
 .reading-body p,
 .reading-body li {
-  color: var(--muted);
-  line-height: 1.9;
+  color: var(--text-2);
+  line-height: 1.7;
   overflow-wrap: anywhere;
 }
 .reading-body p + p {
@@ -203,7 +205,7 @@
   margin-top: 16px;
 }
 .reading-body a:not(.button) {
-  color: var(--accent);
+  color: var(--info);
   text-decoration: underline;
   text-decoration-color: var(--accent-line);
   text-underline-offset: 4px;
@@ -237,7 +239,7 @@
 .reading-summary > strong {
   display: block;
   margin-bottom: 10px;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .reading-summary p {
   font-size: 0.875rem;
@@ -345,7 +347,7 @@
   line-height: 1.85;
 }
 .explanation-grid a {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .pricing-grid {
   display: grid;
@@ -376,7 +378,7 @@
   letter-spacing: -0.02em;
 }
 .pricing-card.is-featured .content-tag {
-  color: var(--accent);
+  color: var(--accent-text);
   border-color: var(--accent-line);
   background: var(--accent-soft);
 }
@@ -418,7 +420,7 @@
   color: var(--muted);
 }
 .pricing-card li svg {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .plan-comparison {
   min-width: 740px;
@@ -452,7 +454,7 @@
   background: var(--accent-soft);
 }
 .integration-directory svg {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .integration-directory strong {
   font-size: 0.875rem;
@@ -875,7 +877,7 @@ a brand dot pattern with its icon in a raised tile */
   border: 1px solid var(--accent-line);
   border-radius: var(--radius-card);
   background: var(--surface);
-  color: var(--accent);
+  color: var(--accent-text);
   box-shadow: var(--shadow-md);
   transition: transform 500ms var(--ease);
 }
@@ -1006,7 +1008,7 @@ a brand dot pattern with its icon in a raised tile */
   height: 36px;
   border-radius: var(--radius-control);
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 @media (max-width: 720px) {
   .not-found {
@@ -1036,6 +1038,9 @@ a brand dot pattern with its icon in a raised tile */
   align-self: start;
   max-height: calc(100dvh - 120px);
   overflow-y: auto;
+}
+.button.docs-nav-toggle {
+  display: none;
 }
 .docs-nav-home,
 .docs-nav a {
@@ -1080,7 +1085,7 @@ a brand dot pattern with its icon in a raised tile */
   color: var(--muted);
 }
 .docs-toc a:hover {
-  border-left-color: var(--accent);
+  border-left-color: var(--accent-text);
   color: var(--ink);
 }
 .docs-article {
@@ -1094,7 +1099,7 @@ a brand dot pattern with its icon in a raised tile */
   color: var(--muted);
 }
 .docs-breadcrumb a:hover {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .docs-article-head {
   margin-bottom: 32px;
@@ -1289,7 +1294,7 @@ a brand dot pattern with its icon in a raised tile */
 }
 .more-guides small {
   font-size: 0.75rem;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .more-guides strong {
   font-size: 0.9375rem;
@@ -1381,11 +1386,11 @@ a brand dot pattern with its icon in a raised tile */
   font-family: var(--mono);
   font-size: 0.6875rem;
   font-weight: 700;
-  color: #1d4ed8;
-  background: #eff4ff;
+  color: var(--info);
+  background: var(--accent-soft);
 }
 .api-method-post {
-  color: var(--accent);
+  color: var(--accent-text);
   background: var(--accent-soft);
 }
 .api-method-delete {
@@ -1496,7 +1501,7 @@ a brand dot pattern with its icon in a raised tile */
   position: absolute;
   left: 0;
   font-weight: 700;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 /* Dashboard: recently used tools */
@@ -1539,7 +1544,18 @@ a brand dot pattern with its icon in a raised tile */
 @media (max-width: 860px) {
   .docs-shell {
     grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
     padding: 24px 16px;
+  }
+  .button.docs-nav-toggle {
+    display: flex;
+    justify-content: space-between;
+  }
+  .docs-nav-toggle[aria-expanded='true'] svg {
+    rotate: 180deg;
+  }
+  .docs-nav[data-open='false'] {
+    display: none;
   }
   .docs-nav {
     position: static;
@@ -1597,13 +1613,13 @@ a brand dot pattern with its icon in a raised tile */
 /* Signed-in viewer's own plan on the pricing cards */
 .pricing-card .plan-current {
   gap: 6px;
-  color: var(--accent);
+  color: var(--accent-text);
   border-color: var(--accent-line);
   background: var(--accent-soft);
   opacity: 1;
 }
 .plan-yours {
-  color: var(--accent);
+  color: var(--accent-text);
   border-color: var(--accent-line);
   background: var(--accent-soft);
 }
@@ -1719,7 +1735,7 @@ a brand dot pattern with its icon in a raised tile */
   height: 48px;
   border-radius: var(--radius-card);
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .agent-link-card h1 {
   font-size: 1.5rem;
@@ -1729,7 +1745,7 @@ a brand dot pattern with its icon in a raised tile */
 }
 .agent-link-card h1 em {
   font-style: normal;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .agent-link-card p {
   font-size: 0.9375rem;
@@ -1848,7 +1864,7 @@ a brand dot pattern with its icon in a raised tile */
   color: var(--muted);
 }
 .docs-row:hover strong {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 @media (max-width: 720px) {
   .docs-shell-index {

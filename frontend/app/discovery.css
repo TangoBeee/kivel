@@ -182,7 +182,7 @@ body {
   justify-content: center;
   min-height: 225px;
   gap: 17px;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .search-secret code {
   font-size: 1rem;
@@ -235,7 +235,7 @@ body {
   display: grid;
   place-items: center;
   background: var(--subtle);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .tool-preview .rt-DialogTitle {
   letter-spacing: -0.7px;
@@ -266,7 +266,7 @@ body {
   align-items: center;
   gap: 9px;
   font-size: 0.875rem;
-  color: var(--accent);
+  color: var(--accent-text);
   border-bottom: 1px solid var(--line);
 }
 .preview-category > span {
@@ -289,7 +289,7 @@ body {
   height: 58px;
   background: var(--subtle);
   border: 1px solid var(--line);
-  color: var(--accent);
+  color: var(--accent-text);
   display: grid;
   place-items: center;
   border-radius: 12px;
@@ -461,7 +461,7 @@ body {
 }
 .catalog-tool-icon.is-ready {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .catalog-tool-copy {
   flex: 1;

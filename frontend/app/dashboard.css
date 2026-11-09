@@ -138,7 +138,7 @@ body:has(.dashboard-layout) main::after {
 .settings-avatar {
   border-radius: 9999px;
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .dashboard-workspace-menu {
   min-width: 232px;
@@ -196,7 +196,7 @@ body:has(.dashboard-layout) main::after {
   font-weight: 600;
 }
 .dashboard-nav button[aria-current='page'] svg {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 /* Usage card */
@@ -225,7 +225,7 @@ body:has(.dashboard-layout) main::after {
   background: none;
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .meter {
   display: flex;
@@ -280,7 +280,7 @@ body:has(.dashboard-layout) main::after {
   height: 56px;
   padding: 0 32px;
   border-bottom: 1px solid var(--line);
-  background: rgb(255 255 255 / 0.85);
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
 }
@@ -380,7 +380,7 @@ body:has(.dashboard-layout) main::after {
   color: var(--muted);
 }
 .dashboard-metric-label svg {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .dashboard-metrics strong {
   font-size: 1.5rem;
@@ -497,7 +497,7 @@ body:has(.dashboard-layout) main::after {
   height: 36px;
   border-radius: var(--radius-control);
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .quick-create-tile strong,
 .tool-launch strong {
@@ -659,7 +659,7 @@ body:has(.dashboard-layout) main::after {
   height: 36px;
   border-radius: var(--radius-control);
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .dashboard-resource-name > div {
   min-width: 0;
@@ -674,7 +674,7 @@ body:has(.dashboard-layout) main::after {
   font-weight: 600;
 }
 .dashboard-resource-name button:hover {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .dashboard-resource-name small {
   display: block;
@@ -713,7 +713,7 @@ body:has(.dashboard-layout) main::after {
   margin-bottom: 16px;
   border-radius: var(--radius-row);
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .dashboard-empty h3 {
   font-size: 1rem;
@@ -739,7 +739,7 @@ body:has(.dashboard-layout) main::after {
   gap: 6px;
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .dashboard-empty > .rt-Button {
   margin-top: 16px;
@@ -1144,7 +1144,7 @@ body:has(.dashboard-layout) main::after {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  color: var(--accent);
+  color: var(--accent-text);
   background: var(--surface);
   border: 1px solid var(--accent-line);
 }
@@ -1233,7 +1233,7 @@ body:has(.dashboard-layout) main::after {
 }
 .monitor-hint a {
   font-weight: 600;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .monitor-empty {
   display: grid;

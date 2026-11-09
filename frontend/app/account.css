@@ -122,7 +122,7 @@
   color: var(--muted);
 }
 .account-metrics a:hover {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .account-metrics strong {
   font-size: 1.5rem;
@@ -436,7 +436,7 @@
 }
 .account-email-editor summary {
   cursor: pointer;
-  color: var(--accent);
+  color: var(--accent-text);
   font-size: 0.875rem;
   padding: 8px 0;
 }

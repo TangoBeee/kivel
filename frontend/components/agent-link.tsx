@@ -102,7 +102,7 @@ export function AgentLink() {
                             placeholder="ABCD-1234"
                             onChange={(event) => setTyped(event.target.value.toUpperCase())}
                         />
-                        <Button size="3" color="green" type="submit">
+                        <Button size="3" color="indigo" type="submit">
                             Continue
                         </Button>
                     </form>
@@ -220,7 +220,7 @@ export function AgentLink() {
                                 <div className="agent-link-actions">
                                     <Button
                                         size="3"
-                                        color="green"
+                                        color="indigo"
                                         disabled={busy || (full && !replace)}
                                         onClick={() => void answer(true)}
                                     >

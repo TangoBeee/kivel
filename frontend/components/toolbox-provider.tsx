@@ -156,8 +156,8 @@ export function ToolboxProvider({ children }: { children: React.ReactNode }) {
 
     return (
         <Theme
-            appearance="light"
-            accentColor="green"
+            appearance="dark"
+            accentColor="indigo"
             grayColor="gray"
             radius="large"
             scaling="100%"
@@ -526,7 +526,7 @@ export function Availability({ tool }: { tool: CatalogTool }) {
             )}
             <Badge
                 variant="soft"
-                color={tool.status === 'available' ? 'green' : 'gray'}
+                color={tool.status === 'available' ? 'indigo' : 'gray'}
                 className="availability-badge"
             >
                 {tool.status === 'available' ? 'Available' : 'Coming soon'}

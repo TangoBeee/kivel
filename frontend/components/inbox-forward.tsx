@@ -102,7 +102,7 @@ export function InboxForwardSettings({
                         />
                     </label>
                     <div className="button-row">
-                        <Button size="2" color="green" type="submit" disabled={busy}>
+                        <Button size="2" color="indigo" type="submit" disabled={busy}>
                             {inbox.forwardUrl ? 'Update' : 'Start forwarding'}
                         </Button>
                         {inbox.forwardUrl && (

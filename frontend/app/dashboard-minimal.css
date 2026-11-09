@@ -1,11 +1,6 @@
-/*
-  Dashboard, minimal: a quiet grey sidebar, a narrow white page, and every section the same way:
-  a small heading, one muted line, then plain rows on hairlines. No boxes around content.
-  Loaded last so it wins over the older dashboard, account and settings styles.
-*/
 .dashboard-layout {
   grid-template-columns: 232px minmax(0, 1fr);
-  background: #ffffff;
+  background: var(--surface);
 }
 
 /* Sidebar */
@@ -13,7 +8,7 @@
   gap: 4px;
   padding: 14px 10px;
   border-right: 1px solid var(--line);
-  background: #fafafa;
+  background: var(--surface);
 }
 .dashboard-sidebar-top {
   padding: 4px 8px 12px;
@@ -32,7 +27,7 @@
 .dashboard-user:hover,
 .dashboard-workspace[data-state='open'],
 .dashboard-user[data-state='open'] {
-  background: #f0f0ef;
+  background: var(--surface-2);
 }
 .dashboard-workspace-mark,
 .dashboard-user-avatar {
@@ -62,10 +57,10 @@
   font-weight: 500;
 }
 .dashboard-nav button:hover {
-  background: #f0f0ef;
+  background: var(--surface-2);
 }
 .dashboard-nav button[aria-current='page'] {
-  background: #ffffff;
+  background: var(--surface);
   box-shadow: 0 0 0 1px var(--line);
   font-weight: 500;
 }
@@ -190,13 +185,13 @@
   transition: background-color 150ms var(--motion-ease, ease);
 }
 .dashboard-content .account-table tbody tr:hover {
-  background: #fafafa;
+  background: var(--surface);
 }
 .dashboard-content .dashboard-resource-icon {
   width: 32px;
   height: 32px;
   border: 0;
-  background: #f4f4f3;
+  background: var(--surface-2);
 }
 .dashboard-content .settings-list > * {
   border-radius: 0;
@@ -228,12 +223,12 @@
   box-shadow: none;
 }
 .dashboard-content .tool-launch:hover {
-  background: #fafafa;
+  background: var(--surface);
   transform: none;
 }
 .dashboard-content .tool-launch-icon {
   border: 0;
-  background: #f4f4f3;
+  background: var(--surface-2);
 }
 .dashboard-content .recent-tool {
   border-color: var(--line);
@@ -284,7 +279,7 @@
   padding: 8px 14px 8px 8px;
   border: 1px solid var(--line);
   border-radius: 9999px;
-  background: #ffffff;
+  background: var(--surface);
   box-shadow: none;
 }
 .dashboard-content .quick-create > a:hover {
@@ -304,7 +299,7 @@
   width: 24px;
   height: 24px;
   border: 0;
-  background: #f4f4f3;
+  background: var(--surface-2);
 }
 .dashboard-content .quick-create-arrow {
   display: none;
@@ -412,7 +407,7 @@
   width: 8px;
   height: 8px;
   border-radius: 9999px;
-  background: #b8bbb8;
+  background: var(--text-3);
 }
 .activity-dot.is-failed {
   background: var(--danger);
@@ -424,7 +419,7 @@
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: #f4f4f3;
+  background: var(--surface-2);
   font-size: 0.8125rem;
   font-weight: 600;
 }
@@ -513,7 +508,7 @@
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: #f4f4f3;
+  background: var(--surface-2);
   color: var(--ink);
 }
 .resource-main {
@@ -600,7 +595,7 @@
   padding: 4px 12px;
   border: 1px solid var(--line);
   border-radius: 9999px;
-  background: #ffffff;
+  background: var(--surface);
   font: inherit;
   font-size: 0.8125rem;
   color: var(--ink);
@@ -614,8 +609,8 @@
 }
 .filter-chips button[aria-pressed='true'] {
   border-color: var(--ink);
-  background: var(--ink);
-  color: #ffffff;
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 .filter-chips button:focus-visible {
   outline: 2px solid var(--ink);
@@ -697,7 +692,7 @@
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #8b8b88;
+  color: var(--text-3);
 }
 .nav-chip {
   display: inline-grid;
@@ -706,7 +701,7 @@
   width: 20px;
   height: 20px;
   border-radius: 6px;
-  background: color-mix(in srgb, var(--tint) 12%, #ffffff);
+  background: color-mix(in srgb, var(--tint) 12%, var(--surface));
   color: var(--tint);
 }
 .nav-chip.is-large {
@@ -718,7 +713,7 @@
   margin-left: auto;
   font-size: 0.75rem;
   font-weight: 400;
-  color: #8b8b88;
+  color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
 .nav-count.is-full {
@@ -734,10 +729,10 @@
   padding: 0 10px;
   border: 1px solid var(--line);
   border-radius: 9px;
-  background: #ffffff;
+  background: var(--surface);
   font: inherit;
   font-size: 0.8125rem;
-  color: #8b8b88;
+  color: var(--text-3);
   cursor: pointer;
 }
 .dashboard-search:hover {
@@ -820,7 +815,7 @@
   background: none;
   font: inherit;
   font-size: 0.75rem;
-  color: #8b8b88;
+  color: var(--text-3);
   text-align: left;
 }
 .tool-meter-note.is-full {
@@ -833,7 +828,7 @@
   height: 4px;
   overflow: hidden;
   border-radius: 4px;
-  background: #ededea;
+  background: var(--surface-2);
 }
 .usage-bar i {
   display: block;
@@ -857,7 +852,7 @@
   padding: 14px 16px;
   border: 1px solid var(--line);
   border-radius: 14px;
-  background: #ffffff;
+  background: var(--surface);
   font: inherit;
   color: var(--ink);
   text-align: left;
@@ -935,7 +930,7 @@
   height: 46px;
   padding: 0 14px;
   border-bottom: 1px solid var(--line);
-  color: #8b8b88;
+  color: var(--text-3);
 }
 .utility-search input {
   flex: 1;
@@ -960,7 +955,7 @@
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #8b8b88;
+  color: var(--text-3);
 }
 .utility-item {
   display: flex;
@@ -977,7 +972,7 @@
   cursor: pointer;
 }
 .utility-item:hover {
-  background: #fafafa;
+  background: var(--surface);
 }
 .utility-item[aria-current='true'] {
   background: var(--subtle);
@@ -990,7 +985,7 @@
 }
 .utility-item small {
   margin-left: auto;
-  color: #8b8b88;
+  color: var(--text-3);
 }
 .utility-empty {
   margin: 0;
@@ -1078,7 +1073,7 @@
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #8b8b88;
+  color: var(--text-3);
 }
 .usage-groups ul {
   margin: 0;
@@ -1103,7 +1098,7 @@
 }
 .usage-groups li small {
   font-size: 0.75rem;
-  color: #8b8b88;
+  color: var(--text-3);
 }
 .usage-groups li b {
   font-size: 0.8125rem;
@@ -1124,7 +1119,7 @@
   height: 56px;
   padding: 0 18px;
   border-bottom: 1px solid var(--line);
-  color: #8b8b88;
+  color: var(--text-3);
 }
 .palette-input input {
   flex: 1;
@@ -1166,7 +1161,7 @@
 .palette-results small {
   margin-left: auto;
   font-size: 0.75rem;
-  color: #8b8b88;
+  color: var(--text-3);
 }
 
 @media (max-width: 1000px) {
@@ -1274,7 +1269,7 @@ button.resource-title {
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #8b8b88;
+  color: var(--text-3);
 }
 .nav-customize h3 span {
   font-weight: 400;
@@ -1305,7 +1300,7 @@ button.resource-title {
   cursor: pointer;
 }
 .nav-customize-list label:hover {
-  background: #fafafa;
+  background: var(--surface);
 }
 .nav-customize-search {
   margin-bottom: 8px;

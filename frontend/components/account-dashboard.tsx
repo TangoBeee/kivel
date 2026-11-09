@@ -241,23 +241,6 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
             setRefreshing(false);
         }
     }
-    async function crossfade(update: () => Promise<void>) {
-        const start = (
-            document as Document & {
-                startViewTransition?: (callback: () => Promise<void>) => {
-                    finished: Promise<void>;
-                };
-            }
-        ).startViewTransition;
-        if (!start || matchMedia('(prefers-reduced-motion: reduce)').matches) return update();
-        await start.call(document, async () => {
-            await update();
-            // Let React paint the new screen before the browser captures it.
-            await new Promise((resolve) =>
-                requestAnimationFrame(() => requestAnimationFrame(resolve)),
-            );
-        }).finished;
-    }
     async function action(work: () => Promise<void>) {
         setBusy(true);
         setError('');
@@ -279,8 +262,7 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                 ...(mode === 'register' ? { email: data.get('email') } : {}),
             });
             form.reset();
-            // Cross-fade from the sign-in screen to the workspace instead of flashing white.
-            await crossfade(refresh);
+            await refresh();
             refreshViewer();
             // Pages such as the agent approval page send people here to sign in, then take them back.
             try {
@@ -1022,7 +1004,7 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                             </div>
                                             <Badge
                                                 variant="soft"
-                                                color={member.role === 'owner' ? 'green' : 'gray'}
+                                                color={member.role === 'owner' ? 'indigo' : 'gray'}
                                             >
                                                 {member.role}
                                             </Badge>
@@ -1237,7 +1219,7 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                             )}
                             <section className="plan-hero">
                                 <div className="plan-hero-copy">
-                                    <Badge color="green" variant="soft">
+                                    <Badge color="indigo" variant="soft">
                                         {subscribed ? 'Subscribed' : 'Current plan'}
                                     </Badge>
                                     <h2>{planName} plan</h2>

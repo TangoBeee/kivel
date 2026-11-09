@@ -1,18 +1,3 @@
-/*
-  Shared building blocks. Every page uses these,
-so they live in one place and load last.
-  Direction: crisp product. White surfaces,
-near-black ink and primary actions,
-green as the one accent.
-  Rules: content pages use a 60px heading; app pages (tools,
-catalog,
-workspace) use a 36px heading
-  next to an icon tile. Labels are outlined pills. Controls are 10px round,
-cards 16px,
-panels 24px.
-  Cards are flat and gain depth only on hover. Code is always shown on a dark surface.
-*/
-
 /* Labels: one short,
 sentence case label above a page heading */
 .eyebrow,
@@ -33,7 +18,7 @@ sentence case label above a page heading */
   color: var(--ink);
 }
 
-/* Content and marketing page headings: the display serif */
+/* Page headings */
 .content-intro h1,
 .not-found h1 {
   font-family: var(--display);
@@ -56,7 +41,7 @@ sentence case label above a page heading */
   text-wrap: pretty;
 }
 
-/* App page headings: the display serif at a working size */
+/* Tool headings */
 .tool-header-copy h1,
 .catalog-title h1,
 .account-heading h1,
@@ -93,7 +78,7 @@ sentence case label above a page heading */
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
   background: var(--surface);
-  color: var(--accent);
+  color: var(--accent-text);
   box-shadow: var(--shadow-sm);
 }
 .tool-header-icon {
@@ -129,8 +114,9 @@ sentence case label above a page heading */
   filter: none;
 }
 .button-primary:hover {
-  border-color: #2b2f2d;
-  background: #2b2f2d;
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+  color: var(--accent-ink);
 }
 .button:active {
   transform: scale(0.98);
@@ -144,32 +130,6 @@ sentence case label above a page heading */
 .radix-themes .rt-Button {
   border-radius: 9999px;
   font-weight: 500;
-}
-/* Radix solid buttons follow the same rule: near-black,
-with green kept for soft accents */
-.radix-themes[data-accent-color='green'],
-.radix-themes [data-accent-color='green'] {
-  /* The interface is ink and grey; colour comes from the art */
-  --accent-2: #fafafa;
-  --accent-3: #f2f2f1;
-  --accent-4: #ebebea;
-  --accent-5: #e2e2e1;
-  --accent-6: #d6d6d5;
-  --accent-7: #c4c4c3;
-  --accent-8: #a3a3a2;
-  --accent-9: var(--ink);
-  --accent-10: #2b2f2d;
-  --accent-11: var(--ink);
-  --accent-12: var(--ink);
-  --accent-a3: rgb(20 20 20 / 0.05);
-  --accent-a4: rgb(20 20 20 / 0.08);
-  --accent-a5: rgb(20 20 20 / 0.11);
-  --accent-a6: rgb(20 20 20 / 0.16);
-  --accent-a7: rgb(20 20 20 / 0.24);
-  --accent-a8: rgb(20 20 20 / 0.36);
-  --accent-a11: var(--ink);
-  --accent-contrast: var(--bg);
-  --accent-surface: #fafafa;
 }
 .text-link {
   font-weight: 600;
@@ -294,7 +254,7 @@ and depth on every page */
   transition: color 300ms var(--ease);
 }
 .footer-column a:hover {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .footer-legal {
   display: flex;
@@ -374,7 +334,7 @@ and depth on every page */
   background: var(--accent-soft);
   font-size: 0.875rem;
   line-height: 1.375rem;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .alert,
 .account-message.error {
@@ -383,11 +343,10 @@ and depth on every page */
   color: var(--danger);
 }
 
-/* Code: always on a dark surface */
-/* Code: a quiet light block, the same family as the page */
+/* Code */
 .code-example {
   border-color: var(--line);
-  background: #fafaf9;
+  background: var(--surface-2);
   box-shadow: none;
 }
 .code-example-bar {
@@ -410,31 +369,31 @@ and depth on every page */
   color: var(--ink);
 }
 
-/* Syntax colours for code blocks (lib/highlight.tsx), after GitHub's light palette */
+/* Syntax colours */
 .tok-key {
-  color: #6f42c1;
+  color: #c4b5fd;
 }
 .tok-string {
-  color: #116329;
+  color: var(--text-2);
 }
 .tok-url,
 .tok-number,
 .tok-literal {
-  color: #0550ae;
+  color: var(--info);
 }
 .tok-flag,
 .tok-var {
-  color: #953800;
+  color: var(--warning);
 }
 .tok-section {
-  color: #8250df;
+  color: #c4b5fd;
 }
 .tok-command {
   font-weight: 600;
   color: var(--ink);
 }
 .tok-comment {
-  color: #6e7781;
+  color: var(--text-3);
 }
 
 /* Visible to screen readers only */

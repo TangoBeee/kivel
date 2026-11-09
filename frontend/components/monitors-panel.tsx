@@ -155,7 +155,7 @@ export function MonitorsPanel({
                         We check on a schedule and email you when something goes down or comes back.
                     </p>
                 </div>
-                <Button color="green" disabled={full} onClick={start}>
+                <Button color="indigo" disabled={full} onClick={start}>
                     <Plus size={16} /> Add monitor
                 </Button>
             </div>
@@ -202,7 +202,7 @@ export function MonitorsPanel({
                                                 monitor.paused
                                                     ? 'gray'
                                                     : monitor.status === 'up'
-                                                      ? 'green'
+                                                      ? 'indigo'
                                                       : monitor.status === 'down'
                                                         ? 'red'
                                                         : 'gray'
@@ -297,7 +297,7 @@ export function MonitorsPanel({
                     <Pulse size={28} />
                     <strong>Nothing is being watched yet.</strong>
                     <p>Add a website, an SSL certificate or a cron job. It takes ten seconds.</p>
-                    <Button color="green" onClick={start}>
+                    <Button color="indigo" onClick={start}>
                         <Plus size={16} /> Add your first monitor
                     </Button>
                 </div>
@@ -323,7 +323,7 @@ export function MonitorsPanel({
                                 Shown once. To report a failure, call the same URL with /fail.
                             </p>
                             <div className="button-row">
-                                <Button color="green" onClick={() => setOpen(false)}>
+                                <Button color="indigo" onClick={() => setOpen(false)}>
                                     Done
                                 </Button>
                             </div>
@@ -457,7 +457,7 @@ export function MonitorsPanel({
                                         Cancel
                                     </Button>
                                 </Dialog.Close>
-                                <Button color="green" type="submit" disabled={busy}>
+                                <Button color="indigo" type="submit" disabled={busy}>
                                     {busy ? 'Adding…' : 'Add monitor'}
                                 </Button>
                             </div>

@@ -156,7 +156,7 @@ export function DashboardSearch({
                                         className="nav-chip"
                                         style={
                                             {
-                                                '--tint': result.tint ?? '#5b5b5b',
+                                                '--tint': result.tint ?? 'var(--text-3)',
                                             } as React.CSSProperties
                                         }
                                     >

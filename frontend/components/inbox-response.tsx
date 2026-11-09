@@ -142,7 +142,7 @@ export function InboxResponseSettings({
                     </span>
                 </label>
                 <div className="button-row">
-                    <Button size="2" color="green" type="submit" disabled={busy}>
+                    <Button size="2" color="indigo" type="submit" disabled={busy}>
                         Save response
                     </Button>
                     {current && (

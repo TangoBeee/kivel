@@ -1,10 +1,11 @@
 import Link from 'next/link';
 import { docGroups, docPages } from '../lib/docs';
+import { DocsNavMenu } from './docs-nav-menu';
 
 /** The documentation sidebar, grouped, with the API reference at the end. */
 export function DocsNav({ current }: { current?: string }) {
     return (
-        <nav className="docs-nav" aria-label="Documentation">
+        <DocsNavMenu key={current ?? 'home'}>
             <Link href="/docs/" className={`docs-nav-home ${current ? '' : 'is-current'}`}>
                 Documentation home
             </Link>
@@ -35,6 +36,6 @@ export function DocsNav({ current }: { current?: string }) {
                     </div>
                 );
             })}
-        </nav>
+        </DocsNavMenu>
     );
 }

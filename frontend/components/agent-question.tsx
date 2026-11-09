@@ -208,7 +208,7 @@ export function AgentQuestion() {
                                 <Button
                                     key={option}
                                     size="3"
-                                    color={index === 0 ? 'green' : 'gray'}
+                                    color={index === 0 ? 'indigo' : 'gray'}
                                     variant={index === 0 ? 'solid' : 'soft'}
                                     disabled={
                                         busy || Boolean(draftId && option === 'Approve' && !draft)

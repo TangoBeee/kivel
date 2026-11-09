@@ -1,18 +1,3 @@
-/* Landing page: dark, with a blue glow, Manrope headlines and Inter text. Only the home page loads this. */
-:root:has(.kv-landing) {
-  --kv-bg: #000;
-  --kv-card: #0d0d0d;
-  --kv-stroke: #5a5a5a61;
-  --kv-line: #ffffff1f;
-  --kv-brand: #4052ee;
-  --kv-warm: #ffe9c5;
-  --kv-blue: #105ac9;
-  --kv-muted: #dadada;
-  --kv-quiet: #999;
-  --kv-ease: cubic-bezier(0.16, 1, 0.3, 1);
-  color-scheme: dark;
-  background: var(--kv-bg);
-}
 /* Lenis drives wheel scrolling here, so the browser's own smooth scrolling must not fight it */
 html.lenis,
 html.lenis body {
@@ -23,15 +8,6 @@ html.lenis.lenis-smooth {
 }
 html.lenis.lenis-stopped {
   overflow: hidden;
-}
-:root:has(.kv-landing) body {
-  background: var(--kv-bg);
-  color: #fff;
-  font-family: var(--kv-text), sans-serif;
-}
-:root:has(.kv-landing) ::selection {
-  background: var(--kv-brand);
-  color: #fff;
 }
 .kv-landing {
   overflow-x: clip;

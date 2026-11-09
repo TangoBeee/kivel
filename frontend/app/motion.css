@@ -3,7 +3,7 @@
   base.css switches all of it off for people who ask for reduced motion.
 */
 :root {
-  --motion-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-ease: var(--ease);
   interpolate-size: allow-keywords;
 }
 
@@ -75,17 +75,14 @@ details[open]::details-content {
 .skeleton {
   display: block;
   border-radius: var(--radius-sm);
-  background: linear-gradient(90deg, #f1f1f0 25%, #e6e6e4 50%, #f1f1f0 75%);
+  background: linear-gradient(
+    90deg,
+    var(--surface-2) 25%,
+    var(--surface-3) 50%,
+    var(--surface-2) 75%
+  );
   background-size: 200% 100%;
   animation: motion-shimmer 1.3s ease-in-out infinite;
-}
-
-/* First load: nothing shows until the page is ready, then it all fades in together */
-body {
-  transition: opacity 450ms var(--motion-ease);
-}
-html.is-loading body {
-  opacity: 0;
 }
 
 /* Page changes: a thin bar while the next page loads, then the page eases in */
@@ -250,11 +247,4 @@ body:has(input[data-password]:focus) .live-logo-eyes {
 .password-toggle:focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 1px;
-}
-
-/* Signing in cross-fades the old screen into the new one */
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation-duration: 380ms;
-  animation-timing-function: var(--motion-ease);
 }

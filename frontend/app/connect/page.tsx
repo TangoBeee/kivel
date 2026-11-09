@@ -245,7 +245,7 @@ export default function Connect() {
                         <h3>Same limits everywhere</h3>
                         <p>
                             MCP, the API, the CLI and the browser share your plan’s allowances. See{' '}
-                            <Link href="/plans/">Plans</Link> for the numbers.
+                            <Link href="/pricing/">Plans</Link> for the numbers.
                         </p>
                     </div>
                 </div>

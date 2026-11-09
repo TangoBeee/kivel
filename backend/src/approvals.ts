@@ -247,7 +247,6 @@ interface ApprovalContext {
     identities: IdentityRepository;
     recovery: RecoveryRepository;
     waiters: Waiters;
-    origin: string;
     mail?: MailSender;
 }
 
@@ -260,10 +259,9 @@ export function registerApprovals({
     identities,
     recovery,
     waiters,
-    origin,
     mail,
 }: ApprovalContext) {
-    const answerUrl = (id: string) => `${origin}/approve/?id=${id}`;
+    const answerUrl = (id: string) => access.appUrl(`/approve/?id=${id}`);
     const view = (approval: Approval) => {
         const { accountId: _account, keyId: _key, editedEmail: _edit, ...rest } = approval;
         return { ...rest, answerUrl: answerUrl(approval.id) };
@@ -315,7 +313,7 @@ export function registerApprovals({
         if ((await approvals.countSince(identity.account.id, since)) >= approvalLimits[plan])
             throw new HttpError(
                 429,
-                `Your plan allows ${approvalLimits[plan]} questions a day. Ask your human to upgrade at ${origin}/plans/.`,
+                `Your plan allows ${approvalLimits[plan]} questions a day. Ask your human to upgrade at ${access.origin}/plans/.`,
             );
         const agent = identity.keyId
             ? (await agents.agents(identity.account.id)).find(

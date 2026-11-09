@@ -674,7 +674,10 @@ test('SSH verifies host identity, executes the shared engine, rejects shell comm
         ['tools:run', 'account:read', 'resources:read', 'resources:write'],
         new Date(Date.now() + 60000).toISOString(),
     );
+    const publicBaseUrl = 'https://kivel.example';
     const app = buildApp({
+        publicBaseUrl,
+        appBaseUrl: 'https://app.kivel.example',
         mailDomain: 'inbox.example.test',
         emailIngestSecret: 'test-ingest-secret',
         identityStore: identities,
@@ -687,7 +690,13 @@ test('SSH verifies host identity, executes the shared engine, rejects shell comm
         parsed = utils.parseKey(hostKey);
     assert.ok(!(parsed instanceof Error));
     const hash = createHash('sha256').update(parsed.getPublicSSH()).digest('hex');
-    const gateway = createSshServer(app, identities, new PostgresRateLimiter(pool), hostKey);
+    const gateway = createSshServer(
+        app,
+        identities,
+        new PostgresRateLimiter(pool),
+        hostKey,
+        publicBaseUrl,
+    );
     await new Promise<void>((resolve) => gateway.server.listen(0, '127.0.0.1', resolve));
     const address = gateway.server.address();
     assert.ok(address && typeof address === 'object');
@@ -747,7 +756,7 @@ test('SSH verifies host identity, executes the shared engine, rejects shell comm
     assert.equal(paid.stdout, '');
     assert.equal(JSON.parse(paid.stderr).status, 402);
     assert.equal(JSON.parse(paid.stderr).requiredPlan, 'pro');
-    assert.equal(JSON.parse(paid.stderr).upgradeUrl, 'http://localhost:3000/plans/');
+    assert.equal(JSON.parse(paid.stderr).upgradeUrl, `${publicBaseUrl}/plans/`);
     const email = await execute(client, 'kivel email create');
     assert.equal(email.code, 0, email.stderr);
     const emailId = JSON.parse(email.stdout).id;

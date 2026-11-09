@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { appLink, legacyAccountLink } from '../lib/app-routes';
 import { useEffect, useRef, useState } from 'react';
 import { AlertDialog, Button, Select, Switch, TextArea, TextField } from '@radix-ui/themes';
 import { api } from '../lib/api';
@@ -295,12 +296,14 @@ function CredentialDetail({
             )}
             {entry.authenticatorId && (
                 <p>
-                    <Link href="/account/#authenticators">Open linked authenticator</Link>
+                    <Link href={legacyAccountLink('/account/#authenticators')}>
+                        Open linked authenticator
+                    </Link>
                 </p>
             )}
             {entry.inboxId && (
                 <p>
-                    <Link href={`/account/?resource=${entry.inboxId}#email`}>
+                    <Link href={appLink(`/email/?inbox=${encodeURIComponent(entry.inboxId)}`)}>
                         Open linked inbox
                     </Link>
                 </p>
@@ -480,8 +483,8 @@ export function VaultPanel({ onChange }: { onChange?: () => void }) {
     if (viewer.status !== 'user')
         return (
             <p>
-                <Link href="/account/">Sign in</Link> to save credentials for accounts you asked
-                your agent to operate.
+                <Link href={appLink('/login/')}>Sign in</Link> to save credentials for accounts you
+                asked your agent to operate.
             </p>
         );
     return (

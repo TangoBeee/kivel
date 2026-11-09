@@ -4,6 +4,10 @@ export default function config(phase: string): NextConfig {
     const development = phase === 'phase-development-server';
     return {
         ...(development ? {} : { output: 'export' }),
+        env: {
+            SITE_URL: process.env.SITE_URL ?? 'https://kivel.io',
+            APP_URL: process.env.APP_URL ?? 'https://app.kivel.io',
+        },
         trailingSlash: true,
         poweredByHeader: false,
         ...(development

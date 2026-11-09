@@ -55,6 +55,8 @@ export class RecoveryService {
         private origin: string,
         private limits: RateLimitRepository,
         private failed: () => void,
+        private verifyUrl: string,
+        private resetUrl: string,
     ) {
         this.key = createHash('sha256').update(`socket-help:recovery:${secret}`).digest();
     }
@@ -119,7 +121,7 @@ export class RecoveryService {
                 to: email,
                 subject:
                     purpose === 'verify' ? 'Verify your Kivel email' : 'Reset your Kivel password',
-                text: `${username ? `Account: ${username}\n\n` : ''}Your ${purpose === 'verify' ? 'email verification' : 'password reset'} code is:\n\n${code}\n\nEnter this code at ${this.origin}/account/. It expires in 15 minutes and works once.\n\n${purpose === 'reset' ? 'Resetting your password signs out all sessions and revokes your API keys.\n\n' : ''}If you did not request this, ignore this email.`,
+                text: `${username ? `Account: ${username}\n\n` : ''}Your ${purpose === 'verify' ? 'email verification' : 'password reset'} code is:\n\n${code}\n\nEnter this code at ${purpose === 'verify' ? this.verifyUrl : this.resetUrl}. It expires in 15 minutes and works once.\n\n${purpose === 'reset' ? 'Resetting your password signs out all sessions and revokes your API keys.\n\n' : ''}If you did not request this, ignore this email.`,
             }),
         });
         this.kick();

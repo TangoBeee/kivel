@@ -332,7 +332,6 @@ export interface AgentContext {
     access: Access;
     identities: IdentityRepository;
     agents: AgentRepository;
-    origin: string;
     limits: RateLimitRepository;
     mail?: MailSender;
 }
@@ -357,22 +356,14 @@ async function workspaceAgents(
         .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
 }
 
-export function registerAgents({
-    app,
-    access,
-    identities,
-    agents,
-    origin,
-    limits,
-    mail,
-}: AgentContext) {
+export function registerAgents({ app, access, identities, agents, limits, mail }: AgentContext) {
     access.trials = async (token) => {
         const trial = await agents.trialByToken(hash('trial', token).toString('hex'));
         if (!trial) return undefined;
         const login = await agents.loginById(trial.loginId);
         return {
             id: trial.id,
-            ...(login ? { claimUrl: `${origin}/link/?code=${login.userCode}` } : {}),
+            ...(login ? { claimUrl: access.appUrl(`/link/?code=${login.userCode}`) } : {}),
         };
     };
     const manager = (identity: Identity) => {
@@ -413,7 +404,7 @@ export function registerAgents({
                 expiresAt: new Date(now + LOGIN_TTL_MS).toISOString(),
             };
             await agents.createLogin(login);
-            const link = `${origin}/link/?code=${login.userCode}`;
+            const link = access.appUrl(`/link/?code=${login.userCode}`);
             return reply.code(201).send({
                 userCode: login.userCode,
                 verificationUrl: link,
@@ -480,7 +471,7 @@ export function registerAgents({
                 createdAt: login.createdAt,
                 expiresAt: login.expiresAt,
             });
-            const claimUrl = `${origin}/link/?code=${login.userCode}`;
+            const claimUrl = access.appUrl(`/link/?code=${login.userCode}`);
             let notified = false;
             // One notice per address per minute, so the trial endpoint cannot be used to spam people.
             if (humanEmail && mail && !(await limits.consume(`trial-mail:${humanEmail}`, 1))) {
@@ -622,7 +613,7 @@ export function registerAgents({
         return {
             status: 'approved',
             apiKey,
-            mcp: { url: `${origin}/mcp`, header: `Authorization: Bearer ${apiKey}` },
+            mcp: { url: `${access.origin}/mcp`, header: `Authorization: Bearer ${apiKey}` },
             next: 'Store the key in your MCP client config or an environment variable such as KIVEL_API_KEY. Do not print it in chat.',
         };
     });

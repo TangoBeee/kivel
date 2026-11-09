@@ -7,11 +7,11 @@ import { Icon } from '../../components/icons';
 import { StructuredData } from '../../components/content-layout';
 import { FaqSection, absolute, faqSchema } from '../../components/content-blocks';
 import { money, paidPlansEnabled, pricing } from '../../lib/pricing';
-import { PlanAction, PlanBadge } from '../../components/plan-action';
+import { PlanAction } from '../../components/plan-action';
 export const metadata = pageMetadata(
     'Pricing, plans & API limits',
     'Compare Free, Pro and Team workspace limits for agents, API requests, storage and retention. Paid subscriptions are optional; Free needs no payment method.',
-    '/plans/',
+    '/pricing/',
 );
 const ids = Object.keys(plans) as PlanId[];
 const cardIds = ids.filter((id) => id !== 'anonymous');
@@ -144,7 +144,7 @@ export default function Plans() {
                     '@type': 'Product',
                     name: 'Kivel',
                     description: 'An online toolbox for developers, everyday users, and AI agents.',
-                    url: absolute('/plans/'),
+                    url: absolute('/pricing/'),
                     offers: [
                         { name: 'Free', price: 0 },
                         ...(paidPlansEnabled
@@ -158,7 +158,7 @@ export default function Plans() {
                         name: offer.name,
                         price: offer.price,
                         priceCurrency: pricing.currency,
-                        url: absolute('/plans/'),
+                        url: absolute('/pricing/'),
                     })),
                 }}
             />
@@ -185,14 +185,8 @@ export default function Plans() {
                     >
                         <div className="pricing-card-top">
                             <h2>{plans[id].name}</h2>
-                            <PlanBadge
-                                id={id}
-                                fallback={
-                                    id === 'free' ? (
-                                        <span className="content-tag">Start here</span>
-                                    ) : undefined
-                                }
-                            />
+                            id === 'free' ? (<span className="content-tag">Start here</span>) :
+                            undefined
                             {!paidPlansEnabled && (id === 'pro' || id === 'team') && (
                                 <span className="content-tag">Planned</span>
                             )}

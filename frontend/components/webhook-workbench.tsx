@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { appLink } from '../lib/app-routes';
+import { siteOrigin } from '../lib/site';
 import { formatJson } from '@kivel.io/tools/engine';
 import { SharingControl } from './sharing-control';
 import type { Visibility } from './sharing-control';
@@ -34,7 +36,7 @@ async function openInbox(id: string, token: string, signal?: AbortSignal): Promi
     const info = await (
         await api(`/api/inboxes/${id}`, { headers: resourceHeaders(token), signal })
     ).json();
-    return { ...info, id, inspectionToken: token, webhookUrl: `${location.origin}/hooks/${id}` };
+    return { ...info, id, inspectionToken: token, webhookUrl: `${siteOrigin}/hooks/${id}` };
 }
 
 function download(contents: BlobPart, filename: string) {
@@ -642,7 +644,7 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
                         <p className="keep-longer">
                             <Icon name="clock" size={14} />
                             Anonymous inboxes last 1 hour.{' '}
-                            <Link href="/account/#register">Sign up free</Link> to keep them for 7
+                            <Link href={appLink('/signup/')}>Sign up free</Link> to keep them for 7
                             days and use them from your AI agent.
                         </p>
                     )}
@@ -1005,7 +1007,7 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
             </AlertDialog.Root>
             <p className="work-note">
                 <Icon name="shield" size={13} /> Private to inspect. Expires after one hour.{' '}
-                <Link className="text-link" href="/docs/">
+                <Link className="text-link" href={`${siteOrigin}/docs/`}>
                     API reference
                 </Link>
             </p>

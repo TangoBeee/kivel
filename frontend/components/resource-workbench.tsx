@@ -802,7 +802,10 @@ export function ResourceWorkbench({
                                     and real answers are saved as routes. Beeceptor charges $10 a
                                     month for its paid plans; this is part of Kivel Pro.
                                 </p>
-                                <Link className="button button-primary button-small" href="/plans/">
+                                <Link
+                                    className="button button-primary button-small"
+                                    href="/pricing/"
+                                >
                                     Get Pro for $2 a month
                                 </Link>
                             </div>

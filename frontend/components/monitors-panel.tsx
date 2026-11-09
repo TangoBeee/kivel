@@ -1,4 +1,5 @@
 'use client';
+import { legacyAccountLink } from '../lib/app-routes';
 
 import { useEffect, useState } from 'react';
 import { Badge, Button, Dialog, DropdownMenu, IconButton, Select } from '@radix-ui/themes';
@@ -161,7 +162,8 @@ export function MonitorsPanel({
             </div>
             {!verifiedEmail && !!monitors?.length && (
                 <p className="monitor-hint">
-                    <a href="/account/#security">Verify your email</a> to get alert emails.
+                    <a href={legacyAccountLink('/account/#security')}>Verify your email</a> to get
+                    alert emails.
                 </p>
             )}
             {monitors === null ? null : monitors.length ? (

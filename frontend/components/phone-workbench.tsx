@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { appLink } from '../lib/app-routes';
 import { useEffect, useState } from 'react';
 import { Button, TextField, AlertDialog } from '@radix-ui/themes';
 import { api } from '../lib/api';
@@ -166,7 +167,7 @@ export function PhoneWorkbench() {
             )}
             {notice && <p role="status">{notice}</p>}
             {viewer.status === 'guest' ? (
-                <Link className="button" href="/account/">
+                <Link className="button" href={appLink('/login/')}>
                     Sign in
                 </Link>
             ) : viewer.status === 'loading' ? (

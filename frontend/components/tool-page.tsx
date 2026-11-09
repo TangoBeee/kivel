@@ -22,6 +22,7 @@ export type ToolPanel = Extract<
     | 'vault'
     | 'authenticators'
     | 'automation'
+    | 'status'
 >;
 export const toolPanels: ToolPanel[] = [
     'email',
@@ -34,6 +35,7 @@ export const toolPanels: ToolPanel[] = [
     'vault',
     'authenticators',
     'automation',
+    'status',
 ];
 export const isToolPanel = (panel: DashboardPanel): panel is ToolPanel =>
     (toolPanels as string[]).includes(panel);

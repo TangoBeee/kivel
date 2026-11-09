@@ -27,13 +27,13 @@ import { isUtf8 } from 'node:buffer';
 import { METHODS } from 'node:http';
 import { randomUUID, randomBytes } from 'node:crypto';
 import fastify, { LogController } from 'fastify';
-import type { FastifyRequest } from 'fastify';
+import type { FastifyReply, FastifyRequest } from 'fastify';
 import fastifyStatic from '@fastify/static';
 import { InboxStore, validateInboxResponse } from './inboxes.js';
 import type { InboxRepository } from './inboxes.js';
 import { CREATIONS_PER_MINUTE, RateLimiter, REQUESTS_PER_MINUTE } from './rate-limit.js';
 import type { RateLimitRepository } from './rate-limit.js';
-import { clientKey, documentPolicies, policy } from './security.js';
+import { clientKey, documentPolicies, httpOrigin, policy } from './security.js';
 import { openApi } from './openapi.js';
 import { ResourceStore } from './resources.js';
 import type { ResourceRepository } from './resources.js';
@@ -80,6 +80,8 @@ export const MAX_BODY_BYTES = 100 * 1024;
 
 interface AppOptions {
     publicBaseUrl?: string;
+    appBaseUrl?: string;
+    dashboardDir?: string;
     inboxStore?: InboxRepository;
     resourceStore?: ResourceRepository;
     rateLimiter?: RateLimitRepository;
@@ -145,6 +147,8 @@ function capturedHeaders(request: FastifyRequest): Record<string, string | strin
 
 export function buildApp({
     publicBaseUrl = 'http://localhost:3000',
+    appBaseUrl = publicBaseUrl,
+    dashboardDir,
     inboxStore: providedInboxes,
     resourceStore: providedResources,
     rateLimiter = new RateLimiter(),
@@ -199,7 +203,18 @@ export function buildApp({
             (id, bytes) => resourceStore.adjustEmailBytes(id, bytes),
             (id) => resourceStore.emailExists(id),
         );
-    const access = new Access(identityStore, rateLimiter, publicBaseUrl, authSecret);
+    const baseUrl = httpOrigin(publicBaseUrl, 'PUBLIC_BASE_URL');
+    const appUrl = httpOrigin(appBaseUrl, 'APP_BASE_URL');
+    if (appUrl.origin !== baseUrl.origin && appUrl.hostname === baseUrl.hostname)
+        throw new Error('APP_BASE_URL must use a different hostname from PUBLIC_BASE_URL.');
+    const access = new Access(
+        identityStore,
+        rateLimiter,
+        baseUrl.origin,
+        authSecret,
+        appUrl.origin,
+        !production && trustProxy.length > 0,
+    );
     const waiters = new Waiters();
     // Paid features are re-checked on use, so they stop as soon as the owner's plan lapses.
     const ownerIsPaid = async (ownerId?: string) => {
@@ -210,20 +225,6 @@ export function buildApp({
     };
     const forwarder = new Forwarder(inboxStore, forwardSend, forwardDelays);
     const tools = new ToolService(access, frontendDir, webhookEventSend);
-    const baseUrl = new URL(publicBaseUrl);
-    if (
-        !['http:', 'https:'].includes(baseUrl.protocol) ||
-        baseUrl.username ||
-        baseUrl.password ||
-        baseUrl.pathname !== '/' ||
-        baseUrl.search ||
-        baseUrl.hash
-    ) {
-        throw new Error(
-            'PUBLIC_BASE_URL must be an HTTP(S) origin without credentials, path, query, or fragment.',
-        );
-    }
-
     const app = fastify({
         bodyLimit: MAX_BODY_BYTES,
         requestTimeout: 60_000,
@@ -273,8 +274,12 @@ export function buildApp({
     });
 
     let pagePolicies = new Map<string, string>();
+    let dashboardPolicies = new Map<string, string>();
     app.addHook('onReady', async () => {
-        pagePolicies = await documentPolicies(frontendDir);
+        [pagePolicies, dashboardPolicies] = await Promise.all([
+            documentPolicies(frontendDir),
+            documentPolicies(dashboardDir),
+        ]);
     });
 
     app.setErrorHandler((error, request, reply) => {
@@ -375,31 +380,54 @@ export function buildApp({
     });
 
     app.addHook('onRequest', async (request, reply) => {
+        const url = new URL(request.url, baseUrl);
+        const path = url.pathname;
+        const route = request.routeOptions.url ?? path;
+        const appHost = access.separateApp && access.isAppHost(request);
+        const publicHost = access.requestHost(request) === baseUrl.host;
+        const policies = appHost ? dashboardPolicies : pagePolicies;
         reply.header('Cache-Control', 'no-store');
         reply.header('X-Content-Type-Options', 'nosniff');
         reply.header('X-Request-Id', request.id);
         reply.header('Referrer-Policy', 'no-referrer');
         if (
-            /^\/(api|hooks|mock|oauth|pay|checkout|ws|mcp|files|billing)(\/|$)/.test(
-                new URL(request.url, baseUrl).pathname,
-            )
+            appHost ||
+            /^\/(api|hooks|mock|oauth|pay|checkout|ws|mcp|files|billing)(\/|$)/.test(path)
         )
             reply.header('X-Robots-Tag', 'noindex, nofollow, nosnippet');
-        reply.header(
-            'Content-Security-Policy',
-            pagePolicies.get(new URL(request.url, baseUrl).pathname) ?? policy(),
-        );
+        reply.header('Content-Security-Policy', policies.get(path) ?? policy());
         reply.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
         if (production && request.protocol === 'https')
             reply.header('Strict-Transport-Security', 'max-age=31536000');
-        if (
-            request.url.startsWith('/api/') &&
-            request.headers.origin &&
-            request.headers.origin !== baseUrl.origin
-        ) {
-            return reply.code(403).send({ error: 'Origin not allowed.' });
-        }
         if (['/health', '/ready'].includes(request.routeOptions.url ?? '')) return;
+        if (access.separateApp && !appHost && !publicHost)
+            return reply.code(421).send({ error: 'Host not allowed.' });
+        if (appHost && /^\/(hooks|mock|oauth|pay|checkout|ws|mcp|status|billing)(\/|$)/.test(path))
+            return reply.code(404).send({ error: 'Route not found.' });
+        if (path.startsWith('/api/') || route.startsWith('/api/')) {
+            const origin = appHost ? appUrl.origin : baseUrl.origin;
+            if (request.headers.origin && request.headers.origin !== origin)
+                return reply.code(403).send({ error: 'Origin not allowed.' });
+            if (
+                access.separateApp &&
+                route.startsWith('/api/auth/') &&
+                !['GET', 'HEAD', 'OPTIONS'].includes(request.method) &&
+                (!appHost || request.headers.origin !== appUrl.origin)
+            )
+                return reply
+                    .code(403)
+                    .send({ error: 'Open this form in the Kivel app to continue.' });
+        }
+        if (publicHost && access.separateApp && ['GET', 'HEAD'].includes(request.method)) {
+            if (path === '/plans' || path === '/plans/')
+                return reply.redirect(`/pricing/${url.search}`, 308);
+            if (/^\/(approve|link|phone)\/?$/.test(path) || /^\/app(\/|$)/.test(path)) {
+                const target = new URL(appUrl);
+                target.pathname = /^\/app(\/|$)/.test(path) ? path.slice(4) || '/' : path;
+                target.search = url.search;
+                return reply.redirect(target.href, 308);
+            }
+        }
         if (
             frontendDir &&
             request.routeOptions.url === '/*' &&
@@ -756,9 +784,11 @@ export function buildApp({
         recoveryStore ?? new MemoryRecoveryRepository(identityStore as MemoryIdentityRepository),
         mailSender,
         authSecret ?? randomUUID(),
-        publicBaseUrl,
+        appUrl.origin,
         rateLimiter,
         () => app.log.error('Recovery email delivery failed; pending mail will retry.'),
+        access.appUrl('/settings/?tab=security', '/account/'),
+        access.appUrl('/recovery/', '/account/'),
     );
     recovery.register(app, access);
     recovery.start();
@@ -793,7 +823,6 @@ export function buildApp({
         access,
         identities: identityStore,
         agents: agentStore,
-        origin: baseUrl.origin,
         limits: rateLimiter,
         ...(mailSender ? { mail: mailSender } : {}),
     });
@@ -805,7 +834,6 @@ export function buildApp({
         identities: identityStore,
         recovery: recovery.store,
         waiters,
-        origin: baseUrl.origin,
         ...(mailSender ? { mail: mailSender } : {}),
     });
     registerKv(app, access, memory);
@@ -948,14 +976,12 @@ export function buildApp({
     });
 
     if (frontendDir) {
-        app.register(fastifyStatic, {
-            root: frontendDir,
+        const staticOptions = {
             index: 'index.html',
             redirect: true,
             dotfiles: 'ignore',
             cacheControl: false,
-            setHeaders(response, path) {
-                // Next exports the generated share image without a file extension.
+            setHeaders(response: FastifyReply, path: string) {
                 if (path.endsWith('/opengraph-image')) response.header('Content-Type', 'image/png');
                 response.header(
                     'Cache-Control',
@@ -964,18 +990,30 @@ export function buildApp({
                         : 'no-cache',
                 );
             },
-        });
+        } as const;
+        app.register(fastifyStatic, { ...staticOptions, root: frontendDir });
+        if (dashboardDir && access.separateApp)
+            app.register(fastifyStatic, {
+                ...staticOptions,
+                root: dashboardDir,
+                constraints: { host: appUrl.host },
+                decorateReply: false,
+            });
         app.setNotFoundHandler(async (request, reply) => {
             if (
                 (request.method === 'GET' || request.method === 'HEAD') &&
                 !/^\/(api|hooks|mock|files|mcp)(\/|$)/.test(request.url) &&
                 request.headers.accept?.includes('text/html')
             ) {
+                const appHost = access.separateApp && access.isAppHost(request);
                 return reply
                     .code(404)
-                    .header('Content-Security-Policy', pagePolicies.get('/404.html') ?? policy())
+                    .header(
+                        'Content-Security-Policy',
+                        (appHost ? dashboardPolicies : pagePolicies).get('/404.html') ?? policy(),
+                    )
                     .type('text/html')
-                    .sendFile('404.html');
+                    .sendFile('404.html', appHost ? dashboardDir : frontendDir);
             }
             return reply.code(404).send({ error: 'Route not found.' });
         });

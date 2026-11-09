@@ -348,7 +348,7 @@ curl -X POST https://kivel.io/api/inboxes \\
         related: [
             { title: 'Sharing and access', href: '/docs/sharing-and-access/' },
             { title: 'Limits and errors', href: '/docs/limits-and-errors/' },
-            { title: 'Plans and limits', href: '/plans/' },
+            { title: 'Plans and limits', href: '/pricing/' },
             { title: 'Privacy and data handling', href: '/privacy/' },
         ],
     },
@@ -383,7 +383,7 @@ curl -X POST https://kivel.io/api/inboxes \\
                         ['Persistent leases', 'No', 'No', 'Yes', 'Yes'],
                     ],
                 },
-                note: 'Pro and Team are not currently sold. Their allowances are listed so you can plan; see /plans/ for availability.',
+                note: 'Pro and Team are not currently sold. Their allowances are listed so you can plan; see /pricing/ for availability.',
             },
             {
                 id: 'fixed-limits',
@@ -535,7 +535,7 @@ X-Request-Id: 1e3e28f5-fb64-474f-845f-b06c17f52eef
             },
         ],
         related: [
-            { title: 'Plans and limits', href: '/plans/' },
+            { title: 'Plans and limits', href: '/pricing/' },
             { title: 'Lifetimes and renewal', href: '/docs/lifetimes-and-renewal/' },
             { title: 'Authentication and API keys', href: '/docs/authentication/' },
             { title: 'API reference', href: '/docs/reference/' },
@@ -1250,7 +1250,7 @@ curl -o report.txt https://kivel.io/files/FILE_ID \\
                 paragraphs: [
                     'On an active paid plan, send persistent=true at creation or {"persistent":true} on renewal. A persistent resource expires 24 hours after the end of the current subscription period, and successful billing renewals extend live leases. Cancelling stops the extensions. Without an active paid plan, persistent returns 403.',
                 ],
-                note: 'Pro and Team, the plans that include persistent leases, are not currently sold. Check /plans/ for availability.',
+                note: 'Pro and Team, the plans that include persistent leases, are not currently sold. Check /pricing/ for availability.',
             },
             {
                 id: 'delete',
@@ -1279,7 +1279,7 @@ curl -o report.txt https://kivel.io/files/FILE_ID \\
             },
         ],
         related: [
-            { title: 'Plans and limits', href: '/plans/' },
+            { title: 'Plans and limits', href: '/pricing/' },
             { title: 'Limits and errors', href: '/docs/limits-and-errors/' },
             { title: 'Privacy and data handling', href: '/privacy/' },
         ],

@@ -402,7 +402,7 @@ export function registerMonitors({
             .send({
                 to: contact.email,
                 subject,
-                text: `${monitor.name} is ${monitor.status === 'down' ? 'DOWN' : 'back UP'}.\n\n${message}\n\nManage your monitors: ${origin}/account/#monitors\n`,
+                text: `${monitor.name} is ${monitor.status === 'down' ? 'DOWN' : 'back UP'}.\n\n${message}\n\nManage your monitors: ${access.appUrl('/monitors/', '/account/#monitors')}\n`,
             })
             .catch(() => app.log.warn({ monitor: monitor.id }, 'Monitor email alert failed.'));
     }

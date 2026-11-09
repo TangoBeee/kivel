@@ -1,4 +1,5 @@
 'use client';
+import { siteOrigin } from '../lib/site';
 import { useEffect, useState } from 'react';
 import { Button, Checkbox, Select, TextArea, TextField } from '@radix-ui/themes';
 import { oauthScenarios, validateOAuth, oauthClaimPresets } from '@kivel.io/tools/oauth';
@@ -321,7 +322,7 @@ export function OAuthWorkbench({ toolId }: { toolId: string }) {
                                 rotating refresh tokens. The hosted approval page always identifies
                                 itself as a Kivel test provider.
                             </p>
-                            <a className="text-link" href="/docs/mock-oauth/">
+                            <a className="text-link" href={`${siteOrigin}/docs/mock-oauth/`}>
                                 Read the OAuth testing guide
                             </a>
                         </>

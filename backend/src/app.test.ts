@@ -750,3 +750,209 @@ test('generic webhook capture keeps extended methods, nested paths, exact querie
         413,
     );
 });
+
+test('the app host uses its own export, CSP and browser sessions while public APIs keep their URLs', async (t) => {
+    const root = await mkdtemp(join(tmpdir(), 'kivel-hosts-'));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const publicOrigin = 'https://kivel.example';
+    const appOrigin = 'https://app.kivel.example';
+    const publicHeaders = { host: 'kivel.example' };
+    const appHeaders = { host: 'app.kivel.example' };
+    for (const site of ['public', 'app']) {
+        const dir = join(root, site);
+        await mkdir(join(dir, 'webhooks'), { recursive: true });
+        await mkdir(join(dir, '_next', 'static'), { recursive: true });
+        await writeFile(
+            join(dir, 'webhooks', 'index.html'),
+            `<script>window.site = '${site}'</script>`,
+        );
+        await writeFile(join(dir, '_next', 'static', 'site.js'), `window.site = '${site}'`);
+        await writeFile(join(dir, '404.html'), `${site} not found`);
+    }
+    await mkdir(join(root, 'public', 'account'));
+    await writeFile(join(root, 'public', 'account', 'index.html'), 'Legacy account bridge');
+    const app = buildApp({
+        publicBaseUrl: publicOrigin,
+        appBaseUrl: appOrigin,
+        frontendDir: join(root, 'public'),
+        dashboardDir: join(root, 'app'),
+        production: true,
+        authSecret: 'dual-host-test-payments-auth-secret',
+        trustProxy: ['127.0.0.1'],
+    });
+    t.after(() => app.close());
+    for (const [site, headers] of [
+        ['public', publicHeaders],
+        ['app', appHeaders],
+    ] as const) {
+        const response = await app.inject({ url: '/webhooks/', headers });
+        const script = `window.site = '${site}'`;
+        const hash = createHash('sha256').update(script).digest('base64');
+        assert.equal(response.statusCode, 200);
+        assert.equal(response.body, `<script>${script}</script>`);
+        assert.ok(String(response.headers['content-security-policy']).includes(`'sha256-${hash}'`));
+        const asset = await app.inject({ url: '/_next/static/site.js', headers });
+        assert.equal(asset.body, script);
+        assert.equal(asset.headers['cache-control'], 'public, max-age=31536000, immutable');
+    }
+    const missing = await app.inject({
+        url: '/account/',
+        headers: { ...appHeaders, accept: 'text/html' },
+    });
+    assert.equal(missing.statusCode, 404);
+    assert.equal(missing.body, 'app not found');
+    assert.equal(missing.headers['x-robots-tag'], 'noindex, nofollow, nosnippet');
+    assert.equal(
+        (await app.inject({ url: '/account/?resource=example', headers: publicHeaders })).body,
+        'Legacy account bridge',
+    );
+    assert.equal(
+        (await app.inject({ url: '/webhooks/', headers: { host: 'unknown.example' } })).statusCode,
+        421,
+    );
+    for (const [path, expected] of [
+        ['/plans/?ref=guide', '/pricing/?ref=guide'],
+        ['/approve/?id=example', `${appOrigin}/approve/?id=example`],
+        ['/link/?code=example', `${appOrigin}/link/?code=example`],
+        ['/app/webhooks/?id=example', `${appOrigin}/webhooks/?id=example`],
+        ['/app//unknown.example/', `${appOrigin}//unknown.example/`],
+    ] as const) {
+        const moved = await app.inject({ url: path, headers: publicHeaders });
+        assert.equal(moved.statusCode, 308);
+        assert.equal(moved.headers.location, expected);
+    }
+    const payload = {
+        username: 'host-test',
+        password: 'local fixture password',
+        email: 'host@example.com',
+    };
+    const auth = { method: 'POST', url: '/api/auth/register', payload } as const;
+    assert.equal(
+        (await app.inject({ ...auth, headers: { ...publicHeaders, origin: publicOrigin } }))
+            .statusCode,
+        403,
+    );
+    assert.equal((await app.inject({ ...auth, headers: appHeaders })).statusCode, 403);
+    const agent = await app.inject({
+        method: 'POST',
+        url: '/api/agents/login',
+        headers: publicHeaders,
+        payload: { name: 'Host test agent' },
+    });
+    assert.equal(agent.statusCode, 201, agent.body);
+    assert.match(agent.json().verificationUrl, /^https:\/\/app\.kivel\.example\/link\/\?code=/);
+    const registered = await app.inject({ ...auth, headers: { ...appHeaders, origin: appOrigin } });
+    assert.equal(registered.statusCode, 201, registered.body);
+    const session = String(registered.headers['set-cookie']);
+    assert.match(
+        session,
+        /^__Host-kivel_session=[A-Za-z0-9_-]{43}; Path=\/; HttpOnly; SameSite=Strict; Max-Age=604800; Secure$/,
+    );
+    const cookie = session.split(';', 1)[0]!;
+    assert.equal(
+        (await app.inject({ url: '/api/account', headers: { ...appHeaders, cookie } })).statusCode,
+        200,
+    );
+    assert.equal(
+        (
+            await app.inject({
+                url: '/api/account',
+                headers: { ...publicHeaders, cookie, 'x-forwarded-host': appHeaders.host },
+            })
+        ).statusCode,
+        401,
+    );
+    for (const origin of [undefined, publicOrigin]) {
+        const result = await app.inject({
+            method: 'POST',
+            url: '/api/inboxes',
+            headers: { ...appHeaders, cookie, ...(origin ? { origin } : {}) },
+        });
+        assert.equal(result.statusCode, 403);
+    }
+    const key = await app.inject({
+        method: 'POST',
+        url: '/api/account/keys',
+        headers: { ...appHeaders, cookie, origin: appOrigin },
+        payload: { name: 'host test', scopes: ['resources:write'] },
+    });
+    assert.equal(key.statusCode, 201, key.body);
+    const created = await app.inject({
+        method: 'POST',
+        url: '/api/inboxes?visibility=public',
+        headers: { ...publicHeaders, authorization: `Bearer ${key.json().key}` },
+    });
+    assert.equal(created.statusCode, 201, created.body);
+    const rpc = await app.inject({
+        method: 'POST',
+        url: '/mcp',
+        headers: { ...publicHeaders, accept: 'application/json, text/event-stream' },
+        payload: {
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'tools/call',
+            params: { name: 'start_login', arguments: { name: 'MCP host test' } },
+        },
+    });
+    assert.equal(rpc.statusCode, 200, rpc.body);
+    const login = JSON.parse(rpc.json().result.content[0].text);
+    assert.match(login.verificationUrl, /^https:\/\/app\.kivel\.example\/link\//);
+    const human = { ...appHeaders, cookie, origin: appOrigin };
+    const approved = await app.inject({
+        method: 'POST',
+        url: `/api/agents/login/${login.userCode}/approve`,
+        headers: human,
+        payload: {},
+    });
+    assert.equal(approved.statusCode, 200, approved.body);
+    const exchanged = await app.inject({
+        method: 'POST',
+        url: '/api/agents/token',
+        headers: publicHeaders,
+        payload: { deviceCode: login.deviceCode },
+    });
+    assert.equal(exchanged.statusCode, 200, exchanged.body);
+    assert.equal(exchanged.json().mcp.url, `${publicOrigin}/mcp`);
+    const wallet = await app.inject({
+        method: 'POST',
+        url: '/api/test-wallets',
+        headers: human,
+        payload: {
+            name: 'Test wallet',
+            balance: 10,
+            perPaymentLimit: 5,
+            dailyLimit: 10,
+            approvalThreshold: 5,
+        },
+    });
+    assert.equal(wallet.statusCode, 201, wallet.body);
+    const paywall = await app.inject({
+        method: 'POST',
+        url: '/api/test-paywalls',
+        headers: human,
+        payload: {
+            name: 'Test paywall',
+            amount: 1,
+            response: { status: 200, body: { unlocked: true } },
+        },
+    });
+    assert.equal(paywall.statusCode, 201, paywall.body);
+    const paid = await app.inject({
+        method: 'POST',
+        url: `/api/test-wallets/${wallet.json().id}/pay`,
+        headers: human,
+        payload: { payee: paywall.json().endpointUrl, idempotencyKey: 'dual-host-payment' },
+    });
+    assert.equal(paid.statusCode, 200, paid.body);
+    assert.deepEqual(paid.json().content, { unlocked: true });
+    const path = new URL(created.json().webhookUrl).pathname;
+    assert.equal(created.json().webhookUrl, publicOrigin + path);
+    assert.equal(
+        (await app.inject({ method: 'POST', url: path, headers: publicHeaders })).statusCode,
+        200,
+    );
+    assert.equal(
+        (await app.inject({ method: 'POST', url: path, headers: appHeaders })).statusCode,
+        404,
+    );
+});

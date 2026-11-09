@@ -1,6 +1,7 @@
 import { PaymentsWorkbench } from './test-payments-workbench';
 import { VaultWorkbench } from './vault-workbench';
 import Link from 'next/link';
+import { siteOrigin } from '../lib/site';
 import { AuthenticatorWorkbench } from './authenticator-workbench';
 import { WebSocketWorkbench } from './websocket-workbench';
 import { OAuthWorkbench } from './oauth-workbench';
@@ -52,7 +53,7 @@ export function ToolWorkbench({ toolId }: { toolId: string }) {
                 <span className="badge">Coming soon</span>
             </ToolHeader>
             <p className="tool-notice">This tool is planned. It is not available yet.</p>
-            <Link className="text-link" href={`/catalog/${tool.categoryId}/`}>
+            <Link className="text-link" href={`${siteOrigin}/catalog/${tool.categoryId}/`}>
                 Explore {categories.find((category) => category.id === tool.categoryId)?.name}
             </Link>
         </div>

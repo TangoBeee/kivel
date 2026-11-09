@@ -4,7 +4,7 @@ import { catalog, categories, toolAvailability } from '@kivel.io/tools/catalog';
 import type { ServerCapabilities } from '@kivel.io/tools/catalog';
 import { catalogGuide } from './tool-discovery.js';
 import { llmMockSchema } from '@kivel.io/tools/llm-mock';
-import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyInstance, FastifyReply, FastifyRequest, InjectOptions } from 'fastify';
 import { isUuid } from './security.js';
 import { PlanError } from './entitlements.js';
 import { API_VERSION } from './version.js';
@@ -1172,6 +1172,9 @@ export function registerMcp({
     activity,
     capabilities,
 }: Context) {
+    const publicHost = new URL(origin).host;
+    const injectPublic = (options: InjectOptions) =>
+        app.inject({ ...options, headers: { ...options.headers, host: publicHost } });
     const advertisedTools = platformTools.map((tool) =>
         tool.name === 'wait_for_event'
             ? {
@@ -1301,7 +1304,7 @@ export function registerMcp({
                       : `/api/test-wallets/${encodeURIComponent(String(id))}${name === 'wallet_pay' ? '/pay' : name === 'list_wallet_transactions' ? '/transactions' : ''}`;
         const read = ['wallet_balance', 'list_wallet_transactions'].includes(name);
         const call = () =>
-            app.inject({
+            injectPublic({
                 method: read ? 'GET' : 'POST',
                 url:
                     read && name === 'list_wallet_transactions'
@@ -1320,7 +1323,7 @@ export function registerMcp({
             return httpResult(response);
         uploads.delete(request);
         const pending = response.json();
-        const waited = await app.inject({
+        const waited = await injectPublic({
             method: 'GET',
             url: `/api/approvals/${pending.approvalId}/wait?timeoutSeconds=${timeout}`,
             headers,
@@ -1351,10 +1354,21 @@ export function registerMcp({
               ? '/api/passwords/generate'
               : '/api/credentials';
         const call = (payload: object) =>
-            app.inject({ method: 'POST', url: path, headers, payload, remoteAddress: request.ip });
+            injectPublic({
+                method: 'POST',
+                url: path,
+                headers,
+                payload,
+                remoteAddress: request.ip,
+            });
         const response =
             name === 'list_credentials'
-                ? await app.inject({ method: 'GET', url: path, headers, remoteAddress: request.ip })
+                ? await injectPublic({
+                      method: 'GET',
+                      url: path,
+                      headers,
+                      remoteAddress: request.ip,
+                  })
                 : await call(reveal ? { approvalId: value.approvalId } : value);
         if (
             !reveal ||
@@ -1364,7 +1378,7 @@ export function registerMcp({
             return httpResult(response);
         uploads.delete(request);
         const pending = response.json();
-        const waited = await app.inject({
+        const waited = await injectPublic({
             method: 'GET',
             url: `/api/approvals/${pending.approvalId}/wait?timeoutSeconds=${timeout}`,
             headers,
@@ -1386,7 +1400,7 @@ export function registerMcp({
         const headers: Record<string, string> = {};
         for (const key of ['authorization', 'cookie', 'origin'])
             if (typeof request.headers[key] === 'string') headers[key] = request.headers[key];
-        const response = await app.inject({
+        const response = await injectPublic({
             method:
                 name === 'add_authenticator'
                     ? 'POST'
@@ -1685,7 +1699,7 @@ export function registerMcp({
             headers.authorization = `Bearer ${value.accessToken}`;
         if (oauth && value.body !== undefined)
             headers['content-type'] = 'application/x-www-form-urlencoded';
-        const response = await app.inject({
+        const response = await injectPublic({
             method: value.method as
                 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS',
             url: `/${oauth ? 'oauth' : 'mock'}/${value.id}${value.path}`,
@@ -1723,7 +1737,7 @@ export function registerMcp({
         const headers: Record<string, string> = {};
         for (const key of ['authorization', 'cookie', 'origin'])
             if (typeof request.headers[key] === 'string') headers[key] = request.headers[key];
-        const response = await app.inject({
+        const response = await injectPublic({
             method: 'POST',
             url: '/api/events/wait',
             headers,
@@ -1809,7 +1823,7 @@ export function registerMcp({
             // Waiting holds no MCP upload slot, so other calls are not blocked meanwhile.
             if (name === 'wait_for_email') uploads.delete(request);
         }
-        const response = await app.inject({
+        const response = await injectPublic({
             method,
             url,
             headers,
@@ -1833,7 +1847,7 @@ export function registerMcp({
             .split('/')
             .map(encodeURIComponent)
             .join('/');
-        const response = await app.inject({
+        const response = await injectPublic({
             method: name === 'memory_set' ? 'PUT' : name === 'memory_delete' ? 'DELETE' : 'GET',
             url:
                 name === 'memory_list'
@@ -1864,7 +1878,7 @@ export function registerMcp({
         request: FastifyRequest,
     ) {
         if (name === 'start_login' || name === 'start_trial') {
-            const response = await app.inject({
+            const response = await injectPublic({
                 method: 'POST',
                 url: name === 'start_trial' ? '/api/agents/trial' : '/api/agents/login',
                 headers: { 'content-type': 'application/json' },
@@ -1876,7 +1890,7 @@ export function registerMcp({
         uploads.delete(request);
         const deadline = Date.now() + 25000;
         for (;;) {
-            const response = await app.inject({
+            const response = await injectPublic({
                 method: 'POST',
                 url: '/api/agents/token',
                 headers: { 'content-type': 'application/json' },
@@ -1906,7 +1920,7 @@ export function registerMcp({
             if (!isUuid(String(value.id))) throw new RpcError(-32602, 'Provide an approval UUID.');
             uploads.delete(request);
         }
-        const response = await app.inject({
+        const response = await injectPublic({
             method: name === 'ask_human' ? 'POST' : 'GET',
             url:
                 name === 'ask_human'
@@ -1938,7 +1952,7 @@ export function registerMcp({
             throw new RpcError(-32602, 'Provide a monitor UUID.');
         if (name === 'ping_monitor' && !/^[A-Za-z0-9_-]{32}$/.test(String(value.token)))
             throw new RpcError(-32602, 'Provide the 32-character token from pingUrl.');
-        const response = await app.inject({
+        const response = await injectPublic({
             method:
                 name === 'create_monitor' ||
                 name === 'ping_monitor' ||
@@ -1987,7 +2001,7 @@ export function registerMcp({
         const headers: Record<string, string> = {};
         for (const key of ['authorization', 'cookie', 'origin'])
             if (typeof request.headers[key] === 'string') headers[key] = request.headers[key];
-        const response = await app.inject({
+        const response = await injectPublic({
             method: 'GET',
             url: path,
             headers,
@@ -2016,7 +2030,7 @@ export function registerMcp({
             query.set('timeoutSeconds', String(value.timeoutSeconds));
         const url = `/api/phone-numbers${creating || name === 'list_phone_numbers' ? '' : `/${encodeURIComponent(String(value.id))}${name === 'wait_for_sms' ? `/wait?${query}` : name === 'list_sms' ? '/sms' : ''}`}`;
         if (name === 'wait_for_sms') uploads.delete(request);
-        const response = await app.inject({
+        const response = await injectPublic({
             method: creating ? 'POST' : name === 'release_phone_number' ? 'DELETE' : 'GET',
             url,
             headers,
@@ -2071,7 +2085,7 @@ export function registerMcp({
                         : 'POST';
             const base = ['renew', 'calls'].includes(action) ? 'mocks' : kind;
             const path = `/api/${base}${['create', 'list'].includes(action) ? '' : `/${value.id}`}${['create', 'list', 'inspect', 'update', 'delete'].includes(action) ? '' : `/${action}`}`;
-            const response = await app.inject({
+            const response = await injectPublic({
                 method,
                 url: path,
                 headers,
@@ -2199,7 +2213,7 @@ export function registerMcp({
                     : 'GET';
         // A JSON content type without a body is rejected, so only writes declare one.
         if (['POST', 'PUT', 'PATCH'].includes(method)) headers['content-type'] = 'application/json';
-        const response = await app.inject({
+        const response = await injectPublic({
             method,
             url: path,
             headers,

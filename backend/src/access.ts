@@ -38,6 +38,8 @@ export const resourceToken = (request: FastifyRequest) => {
 export class Access {
     private actors = new WeakMap<FastifyRequest, Actor>();
     readonly cookieName: string;
+    readonly separateApp: boolean;
+    private readonly appHost: string;
     /** Resolves a trial key and its claim link; installed by the agents module. */
     trials?: (token: string) => Promise<{ id: string; claimUrl?: string } | undefined>;
     constructor(
@@ -45,8 +47,21 @@ export class Access {
         private limits: RateLimitRepository,
         readonly origin: string,
         private secret = randomBytes(32).toString('hex'),
+        readonly appOrigin = origin,
+        private readonly useDevelopmentProxy = false,
     ) {
-        this.cookieName = origin.startsWith('https:') ? '__Host-kivel_session' : 'kivel_session';
+        this.separateApp = appOrigin !== origin;
+        this.appHost = new URL(appOrigin).host;
+        this.cookieName = appOrigin.startsWith('https:') ? '__Host-kivel_session' : 'kivel_session';
+    }
+    requestHost(request: FastifyRequest) {
+        return this.useDevelopmentProxy ? request.host : request.headers.host;
+    }
+    isAppHost(request: FastifyRequest) {
+        return !this.separateApp || this.requestHost(request) === this.appHost;
+    }
+    appUrl(path: string, legacyPath = path) {
+        return this.appOrigin + (this.separateApp ? path : legacyPath);
     }
     async actor(request: FastifyRequest): Promise<Actor> {
         const cached = this.actors.get(request);
@@ -77,7 +92,7 @@ export class Access {
             const key = /^Bearer ((?:kv|sh)_[A-Za-z0-9_-]{43})$/i.exec(authorization)?.[1];
             identity = key ? await this.identities.authenticateKey(key) : undefined;
             if (!identity) throw new HttpError(401, 'API key is invalid, expired, or revoked.');
-        } else {
+        } else if (this.isAppHost(request)) {
             const cookie = request.headers.cookie
                 ?.split(';')
                 .map((part) => part.trim())
@@ -88,7 +103,7 @@ export class Access {
             if (
                 identity &&
                 !['GET', 'HEAD', 'OPTIONS'].includes(request.method) &&
-                request.headers.origin !== this.origin
+                request.headers.origin !== this.appOrigin
             )
                 throw new HttpError(
                     403,
@@ -120,7 +135,7 @@ export class Access {
             const actor = await this.actor(request);
             const site = request.headers['sec-fetch-site'];
             const localSession =
-                (!request.headers.origin || request.headers.origin === this.origin) &&
+                (!request.headers.origin || request.headers.origin === this.appOrigin) &&
                 (!site || site === 'same-origin' || site === 'none');
             if (
                 actor.identity?.keyScopes.includes(requiredScope) &&
@@ -217,6 +232,6 @@ export class Access {
         };
     }
     cookie(token: string, clear = false) {
-        return `${this.cookieName}=${clear ? '' : token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${clear ? 0 : 604800}${this.origin.startsWith('https:') ? '; Secure' : ''}`;
+        return `${this.cookieName}=${clear ? '' : token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${clear ? 0 : 604800}${this.appOrigin.startsWith('https:') ? '; Secure' : ''}`;
     }
 }

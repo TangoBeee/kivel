@@ -224,9 +224,9 @@ export default function Privacy() {
                     capacity have additional limits.
                 </p>
                 <p>
-                    Read the <Link href="/plans/">plans and limits</Link> before a workflow depends
-                    on a resource. Use sample data for testing and keep an independent copy of
-                    anything important.
+                    Read the <Link href="/pricing/">plans and limits</Link> before a workflow
+                    depends on a resource. Use sample data for testing and keep an independent copy
+                    of anything important.
                 </p>
             </section>
         </ReadingLayout>

@@ -229,7 +229,7 @@ if (result.status === 'answered' && result.answer === 'Deploy to staging') {
         related: [
             { title: 'Agent approval API and SDK workflow', href: '/docs/agent-workflows/#human' },
             { title: 'Connect a coding agent', href: '/connect/' },
-            { title: 'Plans and limits', href: '/plans/' },
+            { title: 'Plans and limits', href: '/pricing/' },
         ],
     },
 ];

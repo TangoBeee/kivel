@@ -2,43 +2,14 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { appLink } from '../../lib/app-routes';
 import { Cookie, X } from '@phosphor-icons/react';
-import { api, ApiError } from '../../lib/api';
 
 const COUPON_AT = 20;
-type Coupon =
-    | { state: 'idle' }
-    | { state: 'claiming' }
-    | { state: 'won'; code: string; months: number }
-    | { state: 'sign-in' }
-    | { state: 'no'; message: string };
-
 /** The cookie banner we don't need: a button that hands out a cookie and explains why. */
 export function CookieJar() {
     const [open, setOpen] = useState(false);
     const [eaten, setEaten] = useState(0);
-    const [coupon, setCoupon] = useState<Coupon>({ state: 'idle' });
-    const [copied, setCopied] = useState(false);
-    async function claim() {
-        setCoupon({ state: 'claiming' });
-        try {
-            const result = await (await api('/api/coupons/cookie', { method: 'POST' })).json();
-            setCoupon({ state: 'won', code: result.code, months: result.months });
-        } catch (failure) {
-            if (failure instanceof ApiError && failure.status === 401)
-                setCoupon({ state: 'sign-in' });
-            else
-                setCoupon({
-                    state: 'no',
-                    message: failure instanceof Error ? failure.message : 'No coupon this time.',
-                });
-        }
-    }
-    function eat() {
-        const next = eaten + 1;
-        setEaten(next);
-        if (next === COUPON_AT) void claim();
-    }
     const panel = useRef<HTMLDivElement>(null);
     useEffect(() => {
         if (!open) return;
@@ -74,7 +45,7 @@ export function CookieJar() {
                         type="button"
                         className={`cookie-treat ${eaten ? 'is-eaten' : ''}`}
                         key={eaten}
-                        onClick={eat}
+                        onClick={() => setEaten(eaten + 1)}
                         aria-label="Eat the cookie"
                     >
                         <Cookie size={44} weight="duotone" />
@@ -96,33 +67,14 @@ export function CookieJar() {
                                         ? 'Still nothing. We checked the jar twice.'
                                         : `${eaten} cookies. Your dentist has been notified.`}
                     </small>
-                    {coupon.state === 'claiming' && <small>Baking your coupon…</small>}
-                    {coupon.state === 'won' && (
-                        <div className="cookie-coupon">
-                            <span>10% off Pro or Team for {coupon.months} months</span>
-                            <button
-                                type="button"
-                                onClick={async () => {
-                                    try {
-                                        await navigator.clipboard.writeText(coupon.code);
-                                        setCopied(true);
-                                    } catch {}
-                                }}
-                            >
-                                <code>{coupon.code}</code>
-                                <small>{copied ? 'Copied' : 'Copy'}</small>
-                            </button>
-                            <small>It is applied for you at checkout. One per person.</small>
-                        </div>
+                    {eaten >= COUPON_AT && (
+                        <Link
+                            className="text-link"
+                            href={appLink('/usage/?tab=billing&reward=cookie')}
+                        >
+                            Claim your cookie reward
+                        </Link>
                     )}
-                    {coupon.state === 'sign-in' && (
-                        <small>
-                            A coupon is waiting.{' '}
-                            <Link href="/account/#register">Create a free account</Link> or{' '}
-                            <Link href="/account/">sign in</Link>, then eat 20 more.
-                        </small>
-                    )}
-                    {coupon.state === 'no' && <small>{coupon.message}</small>}
                 </div>
             )}
             <button

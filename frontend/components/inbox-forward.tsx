@@ -152,7 +152,7 @@ export function InboxForwardSettings({
                         delivery log. Other webhook tools charge more for this; on Kivel it’s part
                         of Pro.
                     </p>
-                    <Link className="button button-primary button-small" href="/plans/">
+                    <Link className="button button-primary button-small" href="/pricing/">
                         Get Pro for $2 a month
                     </Link>
                 </div>

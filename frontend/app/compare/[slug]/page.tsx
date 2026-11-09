@@ -103,7 +103,7 @@ export default async function Comparison({ params }: { params: Promise<{ slug: s
                 <p>{item.limitations}</p>
                 <p>
                     You can start without an account, and a free account keeps resources for up to
-                    seven days. See the <Link href="/plans/">published allowances</Link> for
+                    seven days. See the <Link href="/pricing/">published allowances</Link> for
                     storage, rate limits and retention.
                 </p>
             </section>

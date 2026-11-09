@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@radix-ui/themes';
 import Link from 'next/link';
+import { legacyAccountLink } from '../lib/app-routes';
 import { api, ApiError } from '../lib/api';
 import type { CapturedRequest } from '../lib/api';
 
@@ -88,7 +89,7 @@ export function ReplayRequest({ request }: { request: CapturedRequest }) {
                     {outcome.text.startsWith('Sign in') && (
                         <>
                             {' '}
-                            <Link href="/account/#signin">Sign in</Link>
+                            <Link href={legacyAccountLink('/account/#signin')}>Sign in</Link>
                         </>
                     )}
                 </span>

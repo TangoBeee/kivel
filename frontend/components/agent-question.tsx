@@ -23,9 +23,9 @@ interface Approval {
 }
 
 /** Where a human answers a question an agent asked with ask_human. */
-export function AgentQuestion() {
+export function AgentQuestion({ approvalId }: { approvalId?: string } = {}) {
     const viewer = useViewer();
-    const [id, setId] = useState('');
+    const [id, setId] = useState(approvalId ?? '');
     const [approval, setApproval] = useState<Approval | null>(null);
     const [draft, setDraft] = useState<DraftContent>();
     const [editing, setEditing] = useState(false);
@@ -35,8 +35,8 @@ export function AgentQuestion() {
     const [busy, setBusy] = useState(false);
 
     useEffect(() => {
-        setId(new URLSearchParams(location.search).get('id') ?? '');
-    }, []);
+        if (!approvalId) setId(new URLSearchParams(location.search).get('id') ?? '');
+    }, [approvalId]);
     useEffect(() => {
         if (!id || viewer.status !== 'user') return;
         void api(`/api/approvals/${encodeURIComponent(id)}`)
@@ -115,7 +115,7 @@ export function AgentQuestion() {
                         <div className="agent-link-actions">
                             <Link
                                 className="button button-primary"
-                                href="/account/#signin"
+                                href="/login/"
                                 onClick={remember}
                             >
                                 Sign in
@@ -141,7 +141,7 @@ export function AgentQuestion() {
                             on by itself.
                         </p>
                         <div className="agent-link-actions">
-                            <Link className="button button-secondary" href="/account/#agents">
+                            <Link className="button button-secondary" href="/agents/">
                                 See agent activity
                             </Link>
                         </div>

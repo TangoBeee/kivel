@@ -1,13 +1,52 @@
 import { toolDetails } from '../../../lib/tool-details';
 import Link from 'next/link';
+import { appLink, workspaceHref, type WorkspacePanel } from '../../../lib/app-routes';
+import { resourceOperations } from '@kivel.io/tools/resource-definitions';
+import { ToolHeader } from '../../../components/tool-header';
 import { ToolWorkbench } from '../../../components/tool-workbench';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { catalog, toolSlug, toolPageHref } from '../../../lib/catalog';
+import {
+    catalog,
+    toolSlug,
+    toolPageHref,
+    fileToolIds,
+    memoryToolIds,
+    monitorToolIds,
+    scheduledToolIds,
+    type CatalogTool,
+} from '../../../lib/catalog';
 import { toolGuide, toolExample, toolArticle } from '../../../lib/tool-guides';
 import { CodeExample } from '../../../components/code-example';
 import { StructuredData } from '../../../components/content-layout';
 import { breadcrumbs, pageMetadata } from '../../../lib/seo';
+
+function appPanel(tool: CatalogTool): WorkspacePanel | undefined {
+    if (tool.status !== 'available') return undefined;
+    const { id } = tool;
+    if (['webhooks', 'domains-temporary-callback-url', 'network-request-forwarding'].includes(id))
+        return 'webhooks';
+    if (tool.categoryId === 'email') return 'email';
+    if (fileToolIds.includes(id)) return 'files';
+    if (memoryToolIds.includes(id)) return 'memory';
+    if (monitorToolIds.includes(id)) return 'monitors';
+    if (scheduledToolIds.includes(id) || id === 'monitoring-public-status-page')
+        return 'automation';
+    if (id.startsWith('agents-test-')) return 'payments';
+    if (id === 'agents-password-vault') return 'vault';
+    if (id === 'agents-agent-authenticator') return 'authenticators';
+    if (
+        tool.categoryId === 'mock-apis' ||
+        Object.hasOwn(resourceOperations, id) ||
+        [
+            'agents-mock-mcp-server',
+            'agents-mock-llm-endpoint',
+            'agents-mock-agents-llms',
+            'agents-llm-streaming-simulator',
+        ].includes(id)
+    )
+        return 'mocks';
+}
 
 export const dynamicParams = false;
 export function generateStaticParams() {
@@ -36,6 +75,7 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
     const { slug } = await params;
     const tool = catalog.find((tool) => toolSlug(tool) === slug);
     if (!tool) notFound();
+    const panel = appPanel(tool);
     const guide = toolGuide(tool);
     const example = toolExample(tool.id);
     const article = toolArticle(tool.id);
@@ -60,7 +100,19 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
                     { name: tool.name, path: toolPageHref(tool) },
                 ])}
             />
-            <ToolWorkbench toolId={tool.id} />
+            {panel ? (
+                <div className="page-width work-page">
+                    <ToolHeader toolId={tool.id} />
+                    <Link
+                        className="button button-primary"
+                        href={appLink(workspaceHref(panel, { tool: tool.id }))}
+                    >
+                        Open in Kivel
+                    </Link>
+                </div>
+            ) : (
+                <ToolWorkbench toolId={tool.id} />
+            )}
             {tool.status === 'available' && (
                 <div className="page-width">
                     <aside className="tool-agent" aria-label="Use it from an agent">
@@ -121,7 +173,7 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
                             SDK, CLI, SSH, or MCP
                         </Link>
                         . Hosted calls share your{' '}
-                        <Link className="text-link" href="/plans/">
+                        <Link className="text-link" href="/pricing/">
                             plan allowances
                         </Link>
                         .

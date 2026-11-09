@@ -55,20 +55,18 @@ docker compose up -d --build --wait
 pnpm test:smoke
 ```
 
-Open http://localhost:8080. `/account/` manages resources, scoped API keys, and usage;
-`/plans/` describes quotas and `/integrations/` covers every interface.
+Open the public site at http://localhost:8080 and the workspace at http://127.0.0.1:8080. The workspace manages resources, keys and usage. The public site has pricing, docs and the tool catalog.
 Passwords are generated in ignored `.env` with owner-only
 permissions. PostgreSQL uses a persistent volume; the app runs as a non-root user
 with a read-only filesystem. Do not remove volumes when upgrading.
 
-For public HTTPS, point your domain to the server, allow ports 80/443, set `DOMAIN`
-in `.env`, then run:
+For public HTTPS, point your domain and its `app` subdomain at the server. Set up both DNS records before deploying the host split, allow ports 80 and 443, and set `DOMAIN` in `.env`. Caddy serves both hosts from one app image and provisions their certificates.
 
 ```sh
 docker compose -f compose.yaml -f compose.production.yaml up -d --build --wait
 ```
 
-Caddy provisions TLS. The app trusts only the proxy's configured IP. The proxy
+The app trusts only the proxy's configured IP. The proxy
 network uses `10.203.0.0/24`; set `PROXY_NETWORK_PREFIX` to another unused prefix
 if that range conflicts with your host. HTTP and SSH app ports bind to localhost; only the proxy exposes public ports by default.
 If you add a CDN or another proxy, configure its trusted IP ranges in Caddy too.

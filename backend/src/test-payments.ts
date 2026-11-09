@@ -894,7 +894,7 @@ export function registerTestPayments({
                 const response = await app.inject({
                     method: 'GET',
                     url: `${location.pathname}${location.search}`,
-                    headers: { 'x-payment': header },
+                    headers: { host: location.host, 'x-payment': header },
                 });
                 return reply.code(response.statusCode).send({
                     testMode: true,

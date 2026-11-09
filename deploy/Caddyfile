@@ -36,7 +36,7 @@ www.{$DOMAIN} {
 	redir https://{$DOMAIN}{uri} permanent
 }
 
-{$DOMAIN} {
+{$DOMAIN}, app.{$DOMAIN} {
 	encode zstd gzip
 	# The MCP tool page moved when socket.help became Kivel.
 	redir /tools/socket-help-mcp/ /tools/kivel-mcp/ permanent

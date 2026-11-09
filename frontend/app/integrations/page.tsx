@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { appLink } from '../../lib/app-routes';
 import { PageIntro } from '../../components/content-layout';
 import { CodeExample } from '../../components/code-example';
 import { Icon } from '../../components/icons';
@@ -19,7 +20,7 @@ export default function Integrations() {
                 <Link className="button button-primary" href="/docs/">
                     Read the quickstart →
                 </Link>
-                <Link className="button button-secondary" href="/account/">
+                <Link className="button button-secondary" href={appLink()}>
                     Manage API keys
                 </Link>
             </PageIntro>
@@ -81,7 +82,7 @@ export default function Integrations() {
                         <p>
                             Switching interfaces does not reset quotas. All hosted clients share the
                             same workspace or anonymous allowances.{' '}
-                            <Link href="/plans/">Compare the limits →</Link>
+                            <Link href="/pricing/">Compare the limits →</Link>
                         </p>
                     </div>
                 </div>

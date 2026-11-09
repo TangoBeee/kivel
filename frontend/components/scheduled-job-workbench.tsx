@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { legacyAccountLink } from '../lib/app-routes';
 import { useEffect, useState } from 'react';
 import { Button, TextArea, TextField, Select, AlertDialog } from '@radix-ui/themes';
 import { api } from '../lib/api';
@@ -108,7 +109,7 @@ export function ScheduledJobWorkbench({ toolId }: { toolId: string }) {
                     <p>
                         Owned jobs survive restarts and keep a delivery history in your workspace.
                     </p>
-                    <Link className="button" href="/account/#register">
+                    <Link className="button" href={legacyAccountLink('/account/#register')}>
                         Create a free account
                     </Link>
                 </div>

@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { legacyAccountLink } from '../lib/app-routes';
 import { useEffect, useState } from 'react';
 import { Button, Tabs } from '@radix-ui/themes';
 import { api } from '../lib/api';
@@ -127,7 +128,7 @@ export function SmtpWorkbench({ toolId }: { toolId: string }) {
                 <div className="dashboard-empty">
                     <h2>Test mail before it leaves your app.</h2>
                     <p>A free workspace keeps SMTP captures private.</p>
-                    <Link className="button" href="/account/#register">
+                    <Link className="button" href={legacyAccountLink('/account/#register')}>
                         Create a free account
                     </Link>
                 </div>

@@ -1,6 +1,7 @@
 packages:
   - backend
   - frontend
+  - dashboard
   - packages/*
 
 onlyBuiltDependencies:

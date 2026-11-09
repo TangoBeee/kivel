@@ -92,18 +92,18 @@ export const categories: Category[] = [
 
 // A muted tint per category, so the board reads as a patchwork of neighbourhoods.
 export const categoryTints: Record<Category['id'], string> = {
-    network: '#3a6f8f',
-    'mock-apis': '#6a5a9e',
-    agents: '#8a4f86',
-    files: '#9a6b3a',
-    everyday: '#4f7d5a',
-    email: '#a0564f',
-    domains: '#2f7c84',
-    monitoring: '#7d7530',
-    databases: '#4f64a0',
-    'test-media': '#94566b',
-    developer: '#286747',
-    automation: '#9a7424',
+    network: '#7db8df',
+    'mock-apis': '#b6a3ee',
+    agents: '#d39acc',
+    files: '#e0b07e',
+    everyday: '#aab8df',
+    email: '#ea9c91',
+    domains: '#77b8dc',
+    monitoring: '#dac06b',
+    databases: '#98a9f1',
+    'test-media': '#e5a0b8',
+    developer: '#a6a0ef',
+    automation: '#ddba67',
 };
 
 export interface CatalogTool {

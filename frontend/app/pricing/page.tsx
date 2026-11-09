@@ -185,8 +185,7 @@ export default function Plans() {
                     >
                         <div className="pricing-card-top">
                             <h2>{plans[id].name}</h2>
-                            id === 'free' ? (<span className="content-tag">Start here</span>) :
-                            undefined
+                            {id === 'free' && <span className="content-tag">Start here</span>}
                             {!paidPlansEnabled && (id === 'pro' || id === 'team') && (
                                 <span className="content-tag">Planned</span>
                             )}

@@ -162,6 +162,11 @@ for (const item of comparisons)
 console.log(`Verified llms.txt, llms-full.txt, and the RSS feed (${articles.length} guides).`);
 
 const plansHtml = await readFile('out/pricing/index.html', 'utf8');
+assert.equal(
+    [...plansHtml.matchAll(/<span class="content-tag">Start here<\/span>/g)].length,
+    1,
+    'Only the Free card shows the introductory badge',
+);
 assert.ok(
     !plansHtml.includes('cycle-yearly'),
     'Annual billing must not be advertised without checkout support',

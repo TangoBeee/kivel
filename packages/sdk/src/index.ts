@@ -71,6 +71,22 @@ export interface Execution {
     output: string;
     usage: { used: number; limit: number; resetsAt: string };
 }
+export interface KivelUsage {
+    plan: 'anonymous' | 'free' | 'pro' | 'team';
+    limits: Record<string, unknown>;
+    runsToday: number;
+    resetsAt: string;
+    period?: { start: string; end: string };
+    items?: {
+        key: string;
+        label: string;
+        unit: 'count' | 'bytes';
+        used: number;
+        max: number;
+        resetsAt?: string;
+    }[];
+}
+
 export class KivelError extends Error {
     constructor(
         message: string,
@@ -804,7 +820,7 @@ export class Kivel {
         });
     }
     usage() {
-        return this.request('GET', '/api/usage');
+        return this.request<KivelUsage>('GET', '/api/usage');
     }
     resources() {
         return this.request('GET', '/api/account/resources');

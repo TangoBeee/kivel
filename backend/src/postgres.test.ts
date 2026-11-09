@@ -3370,3 +3370,88 @@ test('test wallet approvals, atomic debits, token replay and checkout expiry wor
             ),
     );
 });
+
+test('workspace usage reads durable counters and keeps totals behind account read scope', async (t) => {
+    const identities = new PostgresIdentityRepository(pool);
+    const inboxes = new PostgresInboxStore(pool);
+    const resources = new PostgresResourceStore(pool);
+    const memory = new PostgresKv(pool);
+    const sending = new PostgresEmailSending(pool);
+    const approvals = new PostgresApprovals(pool);
+    const app = buildApp({
+        identityStore: identities,
+        recoveryStore: new PostgresRecoveryRepository(pool),
+        inboxStore: inboxes,
+        resourceStore: resources,
+        memory,
+        emailSending: sending,
+        approvalStore: approvals,
+        usagePool: pool,
+    });
+    t.after(() => app.close());
+    async function workspace(name: string) {
+        const user = (await identities.register(name, 'unused'))!;
+        const owner = user.personalAccountId;
+        const token = randomBytes(32).toString('base64url');
+        await identities.createSession(user.id, owner, token);
+        const identity = (await identities.authenticateSession(token))!;
+        const expires = new Date(Date.now() + 60000).toISOString();
+        const key = await identities.createKey(
+            identity,
+            'Workspace key',
+            ['account:read', 'resources:write'],
+            expires,
+        );
+        const runner = await identities.createKey(identity, 'Run only', ['tools:run'], expires);
+        return {
+            owner,
+            headers: { authorization: `Bearer ${key.key}` },
+            runner: { authorization: `Bearer ${runner.key}` },
+        };
+    }
+    const first = await workspace('usage-first');
+    const second = await workspace('usage-second');
+    const created = await app.inject({
+        method: 'POST',
+        url: '/api/inboxes',
+        headers: first.headers,
+    });
+    assert.equal(created.statusCode, 201, created.body);
+    const saved = await app.inject({
+        method: 'PUT',
+        url: '/api/memory/default/fixture',
+        headers: first.headers,
+        payload: { value: 'hello' },
+    });
+    assert.equal(saved.statusCode, 200, saved.body);
+    const asked = await app.inject({
+        method: 'POST',
+        url: '/api/approvals',
+        headers: first.headers,
+        payload: { question: 'Continue the fixture?' },
+    });
+    assert.equal(asked.statusCode, 201, asked.body);
+    const usage = async (headers?: Record<string, string>) => {
+        const response = await app.inject({ url: '/api/usage', ...(headers ? { headers } : {}) });
+        assert.equal(response.statusCode, 200, response.body);
+        return response.json();
+    };
+    const firstUsage = await usage(first.headers);
+    const counters = Object.fromEntries(
+        firstUsage.items.map((item: { key: string; used: number }) => [item.key, item.used]),
+    );
+    assert.equal(counters['resources.active'], 1);
+    assert.equal(counters['memory.bytes'], 7);
+    assert.equal(counters['approvals.questions'], 1);
+    assert.equal(firstUsage.period.end, firstUsage.resetsAt);
+    assert.equal(Date.parse(firstUsage.period.end) - Date.parse(firstUsage.period.start), 86400000);
+    const secondUsage = await usage(second.headers);
+    assert.ok(secondUsage.items.every((item: { used: number }) => item.used === 0));
+    for (const headers of [first.runner, undefined]) {
+        const scoped = await usage(headers);
+        assert.deepEqual(
+            scoped.items.map((item: { key: string }) => item.key),
+            ['tools.runs'],
+        );
+    }
+});

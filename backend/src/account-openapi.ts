@@ -161,12 +161,43 @@ export function accountOpenApi() {
             get: {
                 ...operation(
                     'getUsage',
-                    'Read the current principal’s hosted execution usage',
+                    'Read hosted execution usage and workspace allowance counters',
                     'Accounts',
                     undefined,
                     false,
                 ),
+                description:
+                    'Hosted run usage is available to every caller. A workspace session or key with account:read also receives workspace counters in items. Each item includes key, label, unit, used, max and an optional UTC resetsAt. The period describes the current UTC day.',
                 security: [...auth, {}],
+                responses: {
+                    '200': json(
+                        object({
+                            plan: { type: 'string', enum: ['anonymous', 'free', 'pro', 'team'] },
+                            limits: { type: 'object', additionalProperties: true },
+                            runsToday: { type: 'integer', minimum: 0 },
+                            resetsAt: { type: 'string', format: 'date-time' },
+                            period: object({
+                                start: { type: 'string', format: 'date-time' },
+                                end: { type: 'string', format: 'date-time' },
+                            }),
+                            items: {
+                                type: 'array',
+                                items: object(
+                                    {
+                                        key: string,
+                                        label: string,
+                                        unit: { type: 'string', enum: ['count', 'bytes'] },
+                                        used: { type: 'integer', minimum: 0 },
+                                        max: { type: 'integer', minimum: 0 },
+                                        resetsAt: { type: 'string', format: 'date-time' },
+                                    },
+                                    ['key', 'label', 'unit', 'used', 'max'],
+                                ),
+                            },
+                        }),
+                    ),
+                    ...errors,
+                },
             },
         },
         '/api/email-sending/usage': {

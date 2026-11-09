@@ -159,3 +159,43 @@ export const resourceDefinitions = {
     forwarding: features.webhookForwarding,
     persistent: features.persistentResource,
 } as const;
+
+const usageDescriptions = {
+    'tools.runs': { label: 'Hosted tool runs', group: 'Tools', unit: 'count' },
+    'resources.active': { label: 'Active resources', group: 'Resources', unit: 'count' },
+    'resources.storage': { label: 'Resource storage', group: 'Resources', unit: 'bytes' },
+    'agents.connected': { label: 'Connected agents', group: 'Workspace', unit: 'count' },
+    'monitors.active': { label: 'Monitors', group: 'Resources', unit: 'count' },
+    'memory.bytes': { label: 'Memory', group: 'Workspace', unit: 'bytes' },
+    'authenticators.entries': { label: 'Authenticators', group: 'Workspace', unit: 'count' },
+    'vault.entries': { label: 'Vault entries', group: 'Workspace', unit: 'count' },
+    'email.inboxes': { label: 'Active email inboxes', group: 'Email', unit: 'count' },
+    'email.sent_today': { label: 'Email recipients today', group: 'Email', unit: 'count' },
+    'email.sent_month': { label: 'Email recipients this month', group: 'Email', unit: 'count' },
+    'approvals.questions': {
+        label: 'Approval requests in the last 24 hours',
+        group: 'Workspace',
+        unit: 'count',
+    },
+    'mocks.oauth': { label: 'OAuth providers', group: 'Resources', unit: 'count' },
+} as const;
+export type UsageKey = keyof typeof usageDescriptions;
+export function describeLimit(key: UsageKey) {
+    return usageDescriptions[key];
+}
+export interface UsageItem {
+    key: UsageKey;
+    label: string;
+    unit: 'count' | 'bytes';
+    used: number;
+    max: number;
+    resetsAt?: string;
+}
+export interface UsageResponse {
+    plan: PlanId;
+    limits: (typeof plans)[PlanId];
+    runsToday: number;
+    resetsAt: string;
+    period: { start: string; end: string };
+    items: UsageItem[];
+}

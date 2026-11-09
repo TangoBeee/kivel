@@ -485,15 +485,4 @@ export function registerTools(
         },
         (request) => service.run(request, request.params.id, request.body),
     );
-    app.get('/api/usage', async (request) => {
-        const actor = await access.actor(request);
-        return {
-            plan: actor.plan,
-            limits: plans[actor.plan],
-            runsToday: await access.identities.runUsage(actor.quotaKey),
-            resetsAt: new Date(
-                Math.floor(Date.now() / 86400000) * 86400000 + 86400000,
-            ).toISOString(),
-        };
-    });
 }

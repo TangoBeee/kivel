@@ -72,6 +72,8 @@ import { effectivePlan, MemoryIdentityRepository } from './identity.js';
 import type { IdentityRepository } from './identity.js';
 import { registerAccounts } from './account-routes.js';
 import { ToolService, registerTools } from './tool-routes.js';
+import type { Pool } from 'pg';
+import { registerWorkspaceUsage } from './workspace-usage.js';
 import { registerLifecycle } from './lifecycle-routes.js';
 import { registerBilling } from './billing.js';
 import type { BillingRepository, BillingConfig } from './billing.js';
@@ -82,6 +84,7 @@ interface AppOptions {
     publicBaseUrl?: string;
     appBaseUrl?: string;
     dashboardDir?: string;
+    usagePool?: Pool;
     inboxStore?: InboxRepository;
     resourceStore?: ResourceRepository;
     rateLimiter?: RateLimitRepository;
@@ -149,6 +152,7 @@ export function buildApp({
     publicBaseUrl = 'http://localhost:3000',
     appBaseUrl = publicBaseUrl,
     dashboardDir,
+    usagePool,
     inboxStore: providedInboxes,
     resourceStore: providedResources,
     rateLimiter = new RateLimiter(),
@@ -816,6 +820,23 @@ export function buildApp({
         agentStore,
     );
     registerTools(app, access, tools, capabilities);
+    registerWorkspaceUsage(
+        app,
+        access,
+        {
+            agents: agentStore,
+            approvals: approvalStore,
+            authenticators: authenticatorStore,
+            credentials: credentialStore,
+            addresses: emailAddresses,
+            sending: emailSending,
+            inboxes: inboxStore,
+            memory,
+            monitors: monitorStore,
+            resources: resourceStore,
+        },
+        usagePool,
+    );
     registerMusic(app, frontendDir);
     if (authSecret) setAgentPepper(authSecret);
     registerAgents({

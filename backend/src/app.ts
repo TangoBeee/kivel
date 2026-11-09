@@ -64,7 +64,7 @@ import { Forwarder } from './forwarding.js';
 import type { ForwardSend } from './forwarding.js';
 import { publicRequest, publicUrl } from './public-network.js';
 import type { MockCallRepository } from './mock-calls.js';
-import { MemoryAllocations, QuotaError } from './allocations.js';
+import { MemoryAllocations, allocationError } from './allocations.js';
 import { Access, HttpError, resourceToken } from './access.js';
 import { registerStatusPages } from './status-pages.js';
 import { registerEvents } from './events.js';
@@ -288,24 +288,20 @@ export function buildApp({
     });
 
     app.setErrorHandler((error, request, reply) => {
-        const failure = error as { statusCode?: number; code?: string; message?: string };
-        if (
-            failure.message === 'account_resource_limit' ||
-            failure.message === 'account_storage_limit'
-        )
-            error = new QuotaError(
-                failure.message === 'account_resource_limit' ? 'resources' : 'storage',
-            );
-        const expected =
-            error instanceof HttpError || error instanceof QuotaError ? error : undefined;
+        const failure = error as {
+            statusCode?: number;
+            code?: string;
+            message?: string;
+            detail?: string;
+        };
+        const expected = error instanceof HttpError ? error : allocationError(failure);
         if (expected) {
             if (expected instanceof LimitError)
                 return reply
                     .code(402)
                     .send({ ...expected.details(baseUrl.origin), requestId: request.id });
-            if (expected instanceof HttpError && expected.retryAfter)
-                reply.header('Retry-After', expected.retryAfter);
-            if (expected instanceof HttpError && expected.statusCode === 429 && expected.retryAfter)
+            if (expected.retryAfter) reply.header('Retry-After', expected.retryAfter);
+            if (expected.statusCode === 429 && expected.retryAfter)
                 return reply.code(429).send({
                     error: 'rate_limited',
                     message: expected.message,

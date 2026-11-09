@@ -17,7 +17,6 @@ export class HttpError extends Error {
 }
 
 export class LimitError extends HttpError {
-    readonly max: number;
     readonly requiredPlan: AccountPlan | undefined;
     constructor(
         readonly limit: UsageKey,
@@ -25,6 +24,7 @@ export class LimitError extends HttpError {
         readonly plan: PlanId,
         adding = 1,
         message?: string,
+        readonly max = describeLimit(limit).max(plan),
     ) {
         const definition = describeLimit(limit);
         super(
@@ -32,7 +32,6 @@ export class LimitError extends HttpError {
             message ??
                 `Your plan's allowance for ${definition.label.toLowerCase()} has been reached.`,
         );
-        this.max = definition.max(plan);
         this.requiredPlan = (['free', 'pro', 'team'] as const).find(
             (candidate) =>
                 planRank[candidate] > planRank[plan] && definition.max(candidate) >= used + adding,

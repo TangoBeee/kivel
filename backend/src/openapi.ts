@@ -851,15 +851,16 @@ export function openApi(origin: string) {
                 responses?: Record<string, object>;
             };
             if (
-                method === 'post' &&
                 operation.responses &&
-                /^\/api\/(authenticators|credentials|email-inboxes|oauth-providers|tools\/\{[^}]+\}\/run)$/.test(
-                    path,
-                )
+                ((method === 'post' &&
+                    /^\/api\/(inboxes|authenticators|credentials|email-inboxes|oauth-providers|mocks|mcp-servers|files|email-inboxes\/\{id\}\/send|tools\/\{[^}]+\}\/run)$/.test(
+                        path,
+                    )) ||
+                    (method === 'put' && path === '/api/memory/{namespace}/{key}'))
             )
                 operation.responses['402'] = json(
-                    reference('LimitError'),
-                    'Plan allowance reached',
+                    { anyOf: [reference('LimitError'), reference('Error')] },
+                    'Plan allowance reached or feature requires a higher plan',
                 );
             if (
                 /^\/api\/(inboxes|mocks|files|mcp-servers|email-inboxes|status-pages|memory|monitors)(\/|$)/.test(

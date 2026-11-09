@@ -1,7 +1,8 @@
 import { requireWorkspace } from './access.js';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { Pool } from 'pg';
-import { plans } from '@kivel.io/tools/plans';
+import { plans, type PlanId } from '@kivel.io/tools/plans';
+import { checkLimit } from './errors.js';
 import { HttpError } from './access.js';
 import type { Access } from './access.js';
 import { transaction } from './database.js';
@@ -21,12 +22,7 @@ export interface MemoryEntry {
 
 type MaybePromise<T> = T | Promise<T>;
 export interface MemoryRepository {
-    /** Stores a value unless the account's total would exceed `limit` bytes. */
-    set(
-        accountId: string,
-        entry: Omit<MemoryEntry, 'updatedAt'>,
-        limit: number,
-    ): MaybePromise<'stored' | 'full'>;
+    set(accountId: string, entry: Omit<MemoryEntry, 'updatedAt'>, plan: PlanId): MaybePromise<void>;
     get(accountId: string, namespace: string, key: string): MaybePromise<MemoryEntry | undefined>;
     list(accountId: string, namespace: string, prefix: string): MaybePromise<MemoryEntry[]>;
     delete(accountId: string, namespace: string, key: string): MaybePromise<boolean>;
@@ -43,13 +39,12 @@ export class MemoryKv implements MemoryRepository {
         if (!map) this.entries.set(accountId, (map = new Map()));
         return map;
     }
-    set(accountId: string, entry: Omit<MemoryEntry, 'updatedAt'>, limit: number) {
+    set(accountId: string, entry: Omit<MemoryEntry, 'updatedAt'>, plan: PlanId) {
         const map = this.account(accountId);
         const id = `${entry.namespace}\u0000${entry.key}`;
-        const others = this.usage(accountId) - (map.get(id)?.bytes ?? 0);
-        if (others + entry.bytes > limit) return 'full' as const;
+        const previous = this.get(accountId, entry.namespace, entry.key)?.bytes ?? 0;
+        checkLimit(plan, 'memory.bytes', this.usage(accountId), entry.bytes - previous);
         map.set(id, { ...entry, updatedAt: new Date().toISOString() });
-        return 'stored' as const;
     }
     get(accountId: string, namespace: string, key: string) {
         const entry = this.entries.get(accountId)?.get(`${namespace}\u0000${key}`);
@@ -97,16 +92,18 @@ const unexpired = '(expires_at IS NULL OR expires_at > clock_timestamp())';
 
 export class PostgresKv implements MemoryRepository {
     constructor(private readonly pool: Pool) {}
-    set(accountId: string, entry: Omit<MemoryEntry, 'updatedAt'>, limit: number) {
+    set(accountId: string, entry: Omit<MemoryEntry, 'updatedAt'>, plan: PlanId) {
         return transaction(this.pool, async (client) => {
             // One writer per account at a time keeps the storage total exact.
             await client.query('SELECT id FROM accounts WHERE id = $1 FOR UPDATE', [accountId]);
-            const others = await client.query<{ total: string | null }>(
-                `SELECT sum(bytes) AS total FROM kv_entries WHERE account_id = $1 AND ${unexpired} AND namespace NOT LIKE '$%'
-                 AND NOT (namespace = $2 AND key = $3)`,
+            const { rows } = await client.query<{ total: string; previous: string }>(
+                `SELECT COALESCE(sum(bytes), 0) AS total,
+                        COALESCE(sum(bytes) FILTER (WHERE namespace = $2 AND key = $3), 0) AS previous
+                 FROM kv_entries WHERE account_id = $1 AND ${unexpired} AND namespace NOT LIKE '$%'`,
                 [accountId, entry.namespace, entry.key],
             );
-            if (Number(others.rows[0]!.total ?? 0) + entry.bytes > limit) return 'full' as const;
+            const { total, previous } = rows[0]!;
+            checkLimit(plan, 'memory.bytes', Number(total), entry.bytes - Number(previous));
             await client.query(
                 `INSERT INTO kv_entries (account_id, namespace, key, value, bytes, expires_at, updated_at)
                  VALUES ($1, $2, $3, $4::jsonb, $5, $6, clock_timestamp())
@@ -121,7 +118,6 @@ export class PostgresKv implements MemoryRepository {
                     entry.expiresAt ?? null,
                 ],
             );
-            return 'stored' as const;
         });
     }
     async get(accountId: string, namespace: string, key: string) {
@@ -194,7 +190,7 @@ export function registerKv(app: FastifyInstance, access: Access, kv: MemoryRepos
                 throw new HttpError(400, 'ttlSeconds must be between 1 and 31,536,000.');
             expiresAt = new Date(Date.now() + ttl * 1000).toISOString();
         }
-        const stored = await kv.set(
+        await kv.set(
             accountId,
             {
                 namespace: request.params.namespace,
@@ -203,13 +199,8 @@ export function registerKv(app: FastifyInstance, access: Access, kv: MemoryRepos
                 bytes,
                 ...(expiresAt ? { expiresAt } : {}),
             },
-            plans[plan].memoryBytes,
+            plan,
         );
-        if (stored === 'full')
-            throw new HttpError(
-                413,
-                'Memory is full for your plan. Delete keys or upgrade for more space.',
-            );
         return {
             namespace: request.params.namespace,
             key,

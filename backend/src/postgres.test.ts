@@ -1,4 +1,5 @@
 import DodoPayments from 'dodopayments';
+import { plans } from '@kivel.io/tools/plans';
 import assert from 'node:assert/strict';
 import { after, before, beforeEach, test } from 'node:test';
 import { randomBytes, createHash, createHmac } from 'node:crypto';
@@ -1350,21 +1351,23 @@ test('agent memory enforces the account allowance, expires values and lists by p
         bytes,
         ...(expiresAt ? { expiresAt } : {}),
     });
-    assert.equal(await kv.set(account, entry('a/1', 60), 100), 'stored');
-    assert.equal(await kv.set(account, entry('a/2', 50), 100), 'full');
-    assert.equal(await kv.set(account, entry('a/1', 90), 100), 'stored');
-    assert.equal(await kv.usage(account), 90);
-    assert.equal(
-        await kv.set(account, entry('b/old', 5, new Date(Date.now() - 1000).toISOString()), 100),
-        'stored',
-    );
+    const max = plans.free.memoryBytes;
+    await kv.set(account, entry('a/1', max - 40), 'free');
+    await assert.rejects(kv.set(account, entry('a/2', 50), 'free'), {
+        limit: 'memory.bytes',
+        statusCode: 402,
+        used: max - 40,
+    });
+    await kv.set(account, entry('a/1', max - 10), 'free');
+    assert.equal(await kv.usage(account), max - 10);
+    await kv.set(account, entry('b/old', 5, new Date(Date.now() - 1000).toISOString()), 'free');
     assert.equal(await kv.get(account, 'ns', 'b/old'), undefined);
     assert.deepEqual(
         (await kv.list(account, 'ns', 'a/')).map((item) => item.key),
         ['a/1'],
     );
     await kv.deleteExpired();
-    assert.equal(await kv.usage(account), 90);
+    assert.equal(await kv.usage(account), max - 10);
     assert.equal(await kv.delete(account, 'ns', 'a/1'), true);
     assert.equal(await kv.usage(account), 0);
 });
@@ -3501,5 +3504,45 @@ test('concurrent monitor creation across replicas stops at the plan allowance', 
             requiredPlan: 'pro',
             upgradeUrl: 'http://localhost:3000/pricing/',
         });
+    }
+});
+
+test('PostgreSQL resource and storage rejections report the checked limits', async (t) => {
+    const app = buildApp({
+        inboxStore: new PostgresInboxStore(pool, {}, true),
+        resourceStore: new PostgresResourceStore(pool, undefined, undefined, true),
+    });
+    t.after(() => app.close());
+    const caps = plans.anonymous;
+    for (let i = 0; i < caps.maxResources; i++) {
+        const response = await app.inject({ method: 'POST', url: '/api/inboxes' });
+        assert.equal(response.statusCode, 201, response.body);
+    }
+    const count = await app.inject({ method: 'POST', url: '/api/inboxes' });
+    assert.equal(count.statusCode, 402, count.body);
+    assert.equal(count.json().limit, 'resources.active');
+    assert.equal(count.json().used, caps.maxResources);
+    assert.equal(count.json().max, caps.maxResources);
+    assert.equal(count.json().plan, 'anonymous');
+    const original = (await pool.query("SELECT settings FROM usage_plans WHERE id='anonymous'"))
+        .rows[0].settings;
+    try {
+        await pool.query(
+            "UPDATE usage_plans SET settings=jsonb_set(settings,'{storageBytes}','64') WHERE id='anonymous'",
+        );
+        const storage = await app.inject({
+            method: 'POST',
+            url: '/api/files',
+            remoteAddress: '192.0.2.30',
+            headers: { 'content-type': 'application/octet-stream', 'x-file-name': 'fixture.txt' },
+            payload: 'a'.repeat(128),
+        });
+        assert.equal(storage.statusCode, 402, storage.body);
+        assert.equal(storage.json().limit, 'resources.storage');
+        assert.equal(storage.json().used, 0);
+        assert.equal(storage.json().max, 64);
+        assert.equal(storage.json().plan, 'anonymous');
+    } finally {
+        await pool.query("UPDATE usage_plans SET settings=$1 WHERE id='anonymous'", [original]);
     }
 });

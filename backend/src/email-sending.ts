@@ -1,3 +1,4 @@
+import { LimitError } from './errors.js';
 import { emailAddressPattern, emailAllowed, emailApprovalRequired } from './email-threading.js';
 import type { EmailRules } from './email-threading.js';
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
@@ -336,21 +337,23 @@ export function registerEmailSending({
                         'This send has an uncertain relay outcome. Inspect the mail queue before creating another message; retrying could send a duplicate.',
                     );
                 if (!job) {
-                    if (
-                        (await session.usage('month')) + recipients.length >
-                        plans[actor.plan].emailsPerMonth
-                    )
-                        throw new HttpError(
-                            429,
-                            `Monthly email allowance reached (${plans[actor.plan].emailsPerMonth} recipient deliveries, UTC calendar month).`,
+                    const month = await session.usage('month');
+                    if (month + recipients.length > plans[actor.plan].emailsPerMonth)
+                        throw new LimitError(
+                            'email.sent_month',
+                            month,
+                            actor.plan,
+                            recipients.length,
+                            'Monthly email allowance reached. It resets on the first day of the month at 00:00 UTC.',
                         );
-                    if (
-                        (await session.usage()) + recipients.length >
-                        plans[actor.plan].emailsPerDay
-                    )
-                        throw new HttpError(
-                            429,
-                            `Daily email allowance reached (${plans[actor.plan].emailsPerDay} recipient deliveries, UTC reset).`,
+                    const day = await session.usage();
+                    if (day + recipients.length > plans[actor.plan].emailsPerDay)
+                        throw new LimitError(
+                            'email.sent_today',
+                            day,
+                            actor.plan,
+                            recipients.length,
+                            'Daily email allowance reached. It resets at 00:00 UTC.',
                         );
                     job = newSendJob({
                         ownerId: row.ownerId,

@@ -848,9 +848,12 @@ test('agent memory stores JSON per workspace within the plan allowance, over HTT
     assert.equal(list.keys.length, 1);
     assert.equal(list.keys[0].value, undefined);
     assert.equal(list.limitBytes, 5 * 1024 * 1024);
-    for (let index = 0; index < 20; index++)
-        await put(`fill/k${index}`, { value: 'y'.repeat(250 * 1024) });
-    const over = await put('fill/over', { value: 'y'.repeat(250 * 1024) });
+    const value = 'y'.repeat(90 * 1024);
+    for (let index = 0; index < 56; index++) {
+        const fill = await put(`fill/k${index}`, { value });
+        assert.equal(fill.statusCode, 200, fill.body);
+    }
+    const over = await put('fill/over', { value });
     assert.equal(over.statusCode, 402, over.body);
     assert.equal(over.json().limit, 'memory.bytes');
     assert.equal(over.json().max, list.limitBytes);

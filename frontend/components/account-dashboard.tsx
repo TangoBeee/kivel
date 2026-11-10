@@ -457,12 +457,12 @@ export function AccountDashboard({
             {!session ? (
                 <>
                     <div className="app-standalone-brand">
-                        <Link href="/" aria-label="Kivel workspace">
+                        <Link href={siteOrigin} aria-label="Kivel home">
                             <LiveLogo size={28} />
                             Kivel
                         </Link>
                     </div>
-                    <div className="app-auth-layout">
+                    <div className="auth-layout">
                         <div className="auth-main">
                             <header key={`head-${mode}`} className="auth-heading page-enter">
                                 <h1>
@@ -477,7 +477,7 @@ export function AccountDashboard({
                                         ? 'Reset your password with a code sent to your recovery email.'
                                         : mode === 'register'
                                           ? 'Free for 3 agents. No card needed.'
-                                          : 'Welcome back to Kivel.'}
+                                          : 'Sign in to your Kivel workspace.'}
                                 </p>
                             </header>
                             {messages}
@@ -493,30 +493,6 @@ export function AccountDashboard({
                                 />
                             ) : (
                                 <section className="account-card account-auth-card">
-                                    <div className="account-tabs">
-                                        <button
-                                            aria-pressed={mode === 'login'}
-                                            onClick={() => {
-                                                setMode('login');
-                                                setError('');
-                                                setNotice('');
-                                                history.replaceState(null, '', '/login/');
-                                            }}
-                                        >
-                                            Sign in
-                                        </button>
-                                        <button
-                                            aria-pressed={mode === 'register'}
-                                            onClick={() => {
-                                                setMode('register');
-                                                setError('');
-                                                setNotice('');
-                                                history.replaceState(null, '', '/signup/');
-                                            }}
-                                        >
-                                            Create account
-                                        </button>
-                                    </div>
                                     <form
                                         className="account-form page-enter"
                                         key={mode}
@@ -534,8 +510,21 @@ export function AccountDashboard({
                                                 pattern="[a-z0-9][a-z0-9_.-]{2,31}"
                                                 minLength={3}
                                                 maxLength={32}
+                                                aria-describedby={
+                                                    mode === 'register'
+                                                        ? 'signup-username-hint'
+                                                        : undefined
+                                                }
                                                 required
                                             />
+                                            {mode === 'register' && (
+                                                <small
+                                                    id="signup-username-hint"
+                                                    className="account-form-note"
+                                                >
+                                                    Use 3 to 32 lowercase characters.
+                                                </small>
+                                            )}
                                         </label>
                                         {mode === 'register' && (
                                             <label>
@@ -546,13 +535,47 @@ export function AccountDashboard({
                                                     name="email"
                                                     autoComplete="email"
                                                     maxLength={254}
+                                                    aria-describedby={
+                                                        emailEnabled
+                                                            ? 'signup-email-hint'
+                                                            : undefined
+                                                    }
                                                     required
                                                 />
+                                                {emailEnabled && (
+                                                    <small
+                                                        id="signup-email-hint"
+                                                        className="account-form-note"
+                                                    >
+                                                        We’ll send you a verification code.
+                                                    </small>
+                                                )}
                                             </label>
                                         )}
-                                        <label>
-                                            Password
+                                        <div className="auth-password">
+                                            <div className="auth-password-label">
+                                                <label htmlFor="workspace-password">Password</label>
+                                                {mode === 'login' && (
+                                                    <button
+                                                        type="button"
+                                                        className="text-link"
+                                                        onClick={() => {
+                                                            setRecovering(true);
+                                                            history.replaceState(
+                                                                null,
+                                                                '',
+                                                                '/recovery/',
+                                                            );
+                                                            setError('');
+                                                            setNotice('');
+                                                        }}
+                                                    >
+                                                        Forgot password?
+                                                    </button>
+                                                )}
+                                            </div>
                                             <PasswordField
+                                                id="workspace-password"
                                                 size="3"
                                                 name="password"
                                                 autoComplete={
@@ -562,17 +585,22 @@ export function AccountDashboard({
                                                 }
                                                 minLength={8}
                                                 maxLength={256}
+                                                aria-describedby={
+                                                    mode === 'register'
+                                                        ? 'signup-password-hint'
+                                                        : undefined
+                                                }
                                                 required
                                             />
-                                        </label>
-                                        {mode === 'register' && (
-                                            <p className="account-form-note">
-                                                Use at least 8 characters. Usernames are lowercase.
-                                                {emailEnabled
-                                                    ? ' Verify your email after creating your account.'
-                                                    : ''}
-                                            </p>
-                                        )}
+                                            {mode === 'register' && (
+                                                <small
+                                                    id="signup-password-hint"
+                                                    className="account-form-note"
+                                                >
+                                                    Use at least 8 characters.
+                                                </small>
+                                            )}
+                                        </div>
                                         <button
                                             className="button button-primary"
                                             disabled={busy}
@@ -588,22 +616,41 @@ export function AccountDashboard({
                                                   : 'Create free account'}
                                         </button>
                                     </form>
-                                    {mode === 'login' && (
+                                    <p className="auth-switch">
+                                        {mode === 'login'
+                                            ? 'New to Kivel?'
+                                            : 'Already have an account?'}
                                         <button
-                                            className="text-link account-forgot"
+                                            type="button"
+                                            className="text-link"
                                             onClick={() => {
-                                                setRecovering(true);
-                                                history.replaceState(null, '', '/recovery/');
+                                                const signingUp = mode === 'login';
+                                                setMode(signingUp ? 'register' : 'login');
                                                 setError('');
                                                 setNotice('');
+                                                history.replaceState(
+                                                    null,
+                                                    '',
+                                                    signingUp ? '/signup/' : '/login/',
+                                                );
                                             }}
                                         >
-                                            Forgot password?
+                                            {mode === 'login' ? 'Create an account' : 'Sign in'}
                                         </button>
-                                    )}
+                                    </p>
                                 </section>
                             )}
                         </div>
+                        <figure className="auth-art">
+                            <img
+                                src="/art/klint-childhood.webp"
+                                alt=""
+                                width={1275}
+                                height={1690}
+                                loading="lazy"
+                            />
+                            <figcaption>Hilma af Klint, The Ten Largest, No. 1, 1907</figcaption>
+                        </figure>
                     </div>
                 </>
             ) : (

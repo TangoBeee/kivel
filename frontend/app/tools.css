@@ -111,9 +111,6 @@ and calmer editors. Loaded last. */
     border-color 400ms cubic-bezier(0.32, 0.72, 0, 1),
     box-shadow 400ms cubic-bezier(0.32, 0.72, 0, 1);
 }
-.editor-panel:focus-within {
-  border-color: var(--accent-line);
-}
 .editor-heading {
   padding: 12px 16px;
   font-size: 0.75rem;

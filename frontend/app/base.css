@@ -112,15 +112,20 @@ input:where(
       [type='reset'],
       [type='submit']
     )
-  ):focus,
-textarea:focus {
+  ):enabled:focus,
+textarea:enabled:focus {
   outline: 2px solid transparent;
   outline-offset: -2px;
-  box-shadow: inset 0 -2px var(--accent);
+  background-color: var(--accent-soft);
+}
+input.rt-TextFieldInput:focus,
+textarea.rt-TextAreaInput:focus {
+  background-color: transparent;
 }
 .rt-TextFieldRoot:has(.rt-TextFieldInput:focus),
 .rt-TextAreaRoot:has(.rt-TextAreaInput:focus) {
   outline: none;
+  background-color: var(--accent-soft);
 }
 ::selection {
   background: var(--accent-line);

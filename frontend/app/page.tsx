@@ -48,24 +48,24 @@ const showcase = [
         title: 'Email inboxes',
         body: 'Send and receive email on socketspace.xyz. Extract one-time codes and verification links automatically.',
         href: '/catalog/email/',
-        art: '/art/klee-castle-and-sun.webp',
-        credit: 'Paul Klee, Castle and Sun, 1928',
+        art: '/art/monet-japanese-footbridge.webp',
+        credit: 'Claude Monet, The Japanese Footbridge, 1899',
         snippet: 'email',
     },
     {
         title: 'Webhook inboxes',
         body: 'Capture webhooks from Stripe, GitHub, Slack or your own app. Inspect, replay and forward requests.',
         href: '/webhooks/',
-        art: '/art/kandinsky-several-circles.webp',
-        credit: 'Wassily Kandinsky, Several Circles, 1926',
+        art: '/art/hokusai-great-wave.webp',
+        credit: 'Katsushika Hokusai, The Great Wave, c. 1830–32',
         snippet: 'webhook',
     },
     {
         title: 'Mock APIs',
         body: 'Mock REST, GraphQL and OAuth endpoints. Set routes, responses, delays and errors.',
         href: '/catalog/mock-apis/',
-        art: '/art/malevich-suprematist.webp',
-        credit: 'Kazimir Malevich, Suprematist Composition, 1916',
+        art: '/art/gris-fantomas.webp',
+        credit: 'Juan Gris, Fantômas, 1915',
         snippet: 'mock',
     },
 ] as const;
@@ -342,10 +342,10 @@ export default function Home() {
                         This is a real webhook inbox, the same one your agent gets. Send it a
                         request.
                     </p>
-                    <p className="home-credit">Robert Delaunay, Homage to Blériot, 1914</p>
+                    <p className="home-credit">Vincent van Gogh, Flower Beds in Holland, c. 1883</p>
                 </div>
                 <div className="home-try-art">
-                    <img src="/art/delaunay-bleriot.webp" alt="" loading="lazy" />
+                    <img src="/art/van-gogh-flower-beds.webp" alt="" loading="lazy" />
                     <LiveWebhook />
                 </div>
             </section>

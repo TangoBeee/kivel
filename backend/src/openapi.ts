@@ -417,6 +417,73 @@ export function openApi(origin: string) {
                     responses: { '200': { description: 'Agents with last use' }, ...limited },
                 },
             },
+            '/api/stream': {
+                get: {
+                    operationId: 'streamWorkspaceEvents',
+                    tags: ['Workspace'],
+                    summary: 'Follow live changes',
+                    description:
+                        'Streams change notices without resource content. Supply a workspace session, read key, resource token or short-lived ticket. Clients can resume with the last event ID.',
+                    security: [...secured, {}],
+                    parameters: [
+                        {
+                            in: 'query',
+                            name: 'topics',
+                            required: true,
+                            schema: { type: 'string' },
+                            example: 'approvals,monitors',
+                        },
+                        {
+                            in: 'query',
+                            name: 'ticket',
+                            schema: { type: 'string' },
+                            description:
+                                'Short-lived ticket from POST /api/stream/ticket. Use this only for one anonymous topic.',
+                        },
+                        { in: 'header', name: 'Last-Event-ID', schema: { type: 'string' } },
+                    ],
+                    responses: {
+                        '200': {
+                            description: 'Server-sent events',
+                            content: { 'text/event-stream': { schema: { type: 'string' } } },
+                        },
+                        ...unavailable,
+                        ...limited,
+                    },
+                },
+            },
+            '/api/stream/ticket': {
+                post: {
+                    operationId: 'createLiveStreamTicket',
+                    tags: ['Workspace'],
+                    summary: 'Get a 30-second ticket for one anonymous topic',
+                    security: [{ resourceToken: [] }],
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    required: ['topics'],
+                                    properties: { topics: { type: 'string' } },
+                                },
+                            },
+                        },
+                    },
+                    responses: {
+                        '200': json({
+                            type: 'object',
+                            required: ['ticket', 'expiresAt'],
+                            properties: {
+                                ticket: { type: 'string' },
+                                expiresAt: { type: 'string', format: 'date-time' },
+                            },
+                        }),
+                        ...unavailable,
+                        ...limited,
+                    },
+                },
+            },
             '/api/monitors': {
                 post: {
                     operationId: 'createMonitor',

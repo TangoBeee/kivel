@@ -1,3 +1,5 @@
+import { LiveEvents } from './live-events.js';
+import { registerLiveStream } from './live-stream.js';
 import { LimitError, RateLimitError } from './errors.js';
 import { registerTestPayments } from './test-payments.js';
 import { MemoryCredentials, registerCredentials } from './credentials.js';
@@ -85,7 +87,7 @@ interface AppOptions {
     publicBaseUrl?: string;
     appBaseUrl?: string;
     dashboardDir?: string;
-    usagePool?: Pool;
+    databasePool?: Pool;
     inboxStore?: InboxRepository;
     resourceStore?: ResourceRepository;
     rateLimiter?: RateLimitRepository;
@@ -153,7 +155,7 @@ export function buildApp({
     publicBaseUrl = 'http://localhost:3000',
     appBaseUrl = publicBaseUrl,
     dashboardDir,
-    usagePool,
+    databasePool,
     inboxStore: providedInboxes,
     resourceStore: providedResources,
     rateLimiter = new RateLimiter(),
@@ -844,7 +846,7 @@ export function buildApp({
             monitors: monitorStore,
             resources: resourceStore,
         },
-        usagePool,
+        databasePool,
     );
     registerMusic(app, frontendDir);
     if (authSecret) setAgentPepper(authSecret);
@@ -962,6 +964,9 @@ export function buildApp({
         sendDraft,
     );
     app.decorate('runScheduledJobs', scheduler.tick);
+    const liveEvents = databasePool ? new LiveEvents(databasePool) : undefined;
+    if (liveEvents)
+        registerLiveStream(app, access, inboxStore, resourceStore, liveEvents, authSecret);
     registerEvents({
         app,
         access,
@@ -972,6 +977,7 @@ export function buildApp({
         jobs: scheduler,
         phones,
         waiters,
+        ...(liveEvents ? { liveEvents } : {}),
     });
     app.register(async (sockets) => {
         registerWebSocketMocks(sockets, resourceStore, access, rateLimiter, mockCalls);

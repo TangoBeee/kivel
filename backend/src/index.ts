@@ -51,7 +51,7 @@ try {
     const limits = pool ? new PostgresRateLimiter(pool) : new RateLimiter();
     const app = buildApp({
         identityStore: identities,
-        ...(pool ? { usagePool: pool } : {}),
+        ...(pool ? { databasePool: pool } : {}),
         ...(pool ? { recoveryStore: new PostgresRecoveryRepository(pool) } : {}),
         ...(config.mailConfig ? { mailSender: smtpSender(config.mailConfig) } : {}),
         rateLimiter: limits,
@@ -105,6 +105,9 @@ try {
         ...(existsSync(frontendDir) ? { frontendDir } : {}),
         ...(separateApp ? { appBaseUrl: config.appBaseUrl } : {}),
         ...(separateApp && existsSync(dashboardDir) ? { dashboardDir } : {}),
+    });
+    pool?.on('error', (error: Error & { code?: string }) => {
+        app.log.warn({ code: error.code }, 'Idle database connection lost.');
     });
     const database = pool;
     app.addHook('onClose', async () => {

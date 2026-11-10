@@ -61,6 +61,7 @@ permissions. PostgreSQL uses a persistent volume; the app runs as a non-root use
 with a read-only filesystem. Do not remove volumes when upgrading.
 
 For public HTTPS, point your domain and its `app` subdomain at the server. Set up both DNS records before deploying the host split, allow ports 80 and 443, and set `DOMAIN` in `.env`. Caddy serves both hosts from one app image and provisions their certificates.
+Deploy the host split before enabling live events so the previous release can also start on database schema 20.
 
 ```sh
 docker compose -f compose.yaml -f compose.production.yaml up -d --build --wait

@@ -2093,21 +2093,21 @@ test('phone order ownership and SMS deduplication persist across repositories an
     assert.equal((await a.owners()).includes(owner), false);
 });
 
-test('rollback baseline accepts additive schemas through 19 and rejects unknown future schemas', async () => {
+test('rollback baseline accepts schema 20 and rejects unknown future schemas', async () => {
     const originalVersion = (
         await pool.query('SELECT max(version) AS version FROM schema_migrations')
     ).rows[0].version;
     try {
         await pool.query(
-            'INSERT INTO schema_migrations (version) VALUES (19) ON CONFLICT DO NOTHING',
+            'INSERT INTO schema_migrations (version) VALUES (20) ON CONFLICT DO NOTHING',
         );
         await migrate(pool);
         assert.equal(
             (await pool.query('SELECT max(version) AS version FROM schema_migrations')).rows[0]
                 .version,
-            19,
+            20,
         );
-        await pool.query('INSERT INTO schema_migrations (version) VALUES (20)');
+        await pool.query('INSERT INTO schema_migrations (version) VALUES (21)');
         await assert.rejects(migrate(pool), /newer than this application/);
     } finally {
         await pool.query('DELETE FROM schema_migrations WHERE version > $1', [originalVersion]);

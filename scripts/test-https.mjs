@@ -135,7 +135,8 @@ try {
     const appHost = 'app.localhost';
     const appOrigin = `https://${appHost}:${port}`;
     const landing = await call('/');
-    assert.match(landing.text, /Plug in/);
+    assert.equal(landing.status, 200);
+    assert.match(landing.text, /aria-label="Main navigation"/);
     const dashboard = await call('/', 'GET', {}, undefined, 15000, appHost);
     assert.equal(dashboard.status, 200);
     assert.match(dashboard.headers['x-robots-tag'], /noindex/);

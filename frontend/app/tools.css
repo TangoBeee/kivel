@@ -113,7 +113,6 @@ and calmer editors. Loaded last. */
 }
 .editor-panel:focus-within {
   border-color: var(--accent-line);
-  box-shadow: 0 0 0 4px var(--accent-soft);
 }
 .editor-heading {
   padding: 12px 16px;
@@ -125,9 +124,6 @@ and calmer editors. Loaded last. */
   padding: 16px;
   font-size: 0.875rem;
   line-height: 1.5rem;
-}
-.editor-panel textarea:focus-visible {
-  outline: none;
 }
 
 /* Catalog: each tool wears its own glyph and its category colour */

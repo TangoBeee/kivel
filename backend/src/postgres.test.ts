@@ -3741,3 +3741,82 @@ test('approval requests across replicas respect the same workspace allowance', a
     }
     assert.equal((await pool.query('SELECT 1 FROM approvals')).rowCount, max);
 });
+
+test('agent approvals and replacements respect workspace caps across replicas', async (t) => {
+    const identities = new PostgresIdentityRepository(pool);
+    const agents = new PostgresAgents(pool);
+    const options = {
+        identityStore: identities,
+        recoveryStore: new PostgresRecoveryRepository(pool),
+        agentStore: agents,
+    };
+    const apps = [buildApp(options), buildApp(options)];
+    t.after(async () => {
+        await Promise.all(apps.map((app) => app.close()));
+    });
+    const origin = 'http://localhost:3000';
+    for (const plan of ['free', 'pro'] as const) {
+        const registration = await apps[0]!.inject({
+            method: 'POST',
+            url: '/api/auth/register',
+            headers: { origin },
+            payload: {
+                username: `agent-cap-${plan}`,
+                email: `agent-cap-${plan}@example.test`,
+                password: 'correct-horse-battery-staple',
+            },
+        });
+        assert.equal(registration.statusCode, 201, registration.body);
+        const headers = {
+            origin,
+            cookie: String(registration.headers['set-cookie']).split(';')[0]!,
+        };
+        const accountId = registration.json().account.id;
+        if (plan === 'pro')
+            await identities.setEntitlement(
+                accountId,
+                plan,
+                new Date(Date.now() + 86_400_000).toISOString(),
+            );
+        const max = plans[plan].agents;
+        const pending: { userCode: string }[] = [];
+        for (let i = 0; i < max + 2; i++) {
+            const login = await apps[i % 2]!.inject({
+                method: 'POST',
+                url: '/api/agents/login',
+                remoteAddress: `192.0.2.${i + 1}`,
+                payload: { name: `Agent ${i}` },
+            });
+            assert.equal(login.statusCode, 201, login.body);
+            pending.push(login.json());
+        }
+        const approve = (code: string, index: number, replaceAgentId?: string) =>
+            apps[index % 2]!.inject({
+                method: 'POST',
+                url: `/api/agents/login/${code}/approve`,
+                headers,
+                payload: replaceAgentId ? { replaceAgentId } : {},
+            });
+        const results = await Promise.all(
+            pending.map(({ userCode }, index) => approve(userCode, index)),
+        );
+        const connected = results.filter(({ statusCode }) => statusCode === 200);
+        assert.equal(connected.length, max, results.map((response) => response.body).join('\n'));
+        const blocked = results.flatMap((response, index) => {
+            if (response.statusCode === 200) return [];
+            assert.equal(response.statusCode, 402, response.body);
+            assert.equal(response.json().limit, 'agents.connected');
+            assert.equal(response.json().used, max);
+            return [pending[index]!];
+        });
+        const old = connected[0]!.json().agentId;
+        const replaced = await Promise.all(
+            blocked.map(({ userCode }, index) => approve(userCode, index, old)),
+        );
+        assert.deepEqual(replaced.map(({ statusCode }) => statusCode).sort(), [200, 402]);
+        const keys = await identities.accountKeys(accountId);
+        assert.equal(keys.length, max);
+        assert.ok(!keys.some(({ id }) => id === old));
+        assert.equal((await agents.agents(accountId)).length, max);
+    }
+});

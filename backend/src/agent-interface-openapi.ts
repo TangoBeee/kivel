@@ -173,9 +173,17 @@ export function agentInterfaceOpenApi() {
                     requestBody: body({ replaceAgentId: { type: 'string', format: 'uuid' } }, []),
                     responses: {
                         '200': json(),
-                        '409': { description: 'Already answered or agent limit reached' },
-                        '410': { description: 'Code expired' },
                         ...errors,
+                        '402': {
+                            description: 'Connected agent allowance reached',
+                            content: {
+                                'application/json': {
+                                    schema: { $ref: '#/components/schemas/LimitError' },
+                                },
+                            },
+                        },
+                        '409': { description: 'Already answered' },
+                        '410': { description: 'Code expired' },
                     },
                 },
             ),

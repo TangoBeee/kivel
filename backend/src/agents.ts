@@ -8,7 +8,9 @@ import {
 } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { Pool } from 'pg';
-import { plans } from '@kivel.io/tools/plans';
+import { plans, type PlanId } from '@kivel.io/tools/plans';
+import { checkLimit } from './errors.js';
+import { transaction } from './database.js';
 import { HttpError } from './access.js';
 import type { Access } from './access.js';
 import { effectivePlan } from './identity.js';
@@ -56,6 +58,20 @@ export interface AgentTrial {
     expiresAt: string;
 }
 
+interface AgentConnection {
+    loginId: string;
+    agent: AgentRecord;
+    sealedKey: string;
+    plan: PlanId;
+    replace?: string;
+}
+
+function replacement(plan: PlanId, active: string[], requested?: string) {
+    if (active.length < plans[plan].agents) return;
+    if (requested && active.includes(requested)) return requested;
+    checkLimit(plan, 'agents.connected', active.length);
+}
+
 type MaybePromise<T> = T | Promise<T>;
 export interface AgentRepository {
     createTrial(trial: AgentTrial): MaybePromise<void>;
@@ -72,7 +88,7 @@ export interface AgentRepository {
         patch: Partial<AgentLogin>,
         from?: AgentLogin['status'],
     ): MaybePromise<boolean>;
-    addAgent(agent: AgentRecord): MaybePromise<void>;
+    connect(input: AgentConnection, identities: IdentityRepository): Promise<boolean>;
     agents(accountId: string): MaybePromise<AgentRecord[]>;
     removeAgent(accountId: string, keyId: string): MaybePromise<void>;
     deleteExpired(): MaybePromise<void>;
@@ -115,6 +131,27 @@ export class MemoryAgents implements AgentRepository {
         if (!login || login.status !== from) return false;
         Object.assign(login, patch);
         if (patch.sealedKey === undefined && 'sealedKey' in patch) delete login.sealedKey;
+        return true;
+    }
+    async connect(input: AgentConnection, identities: IdentityRepository) {
+        const { loginId, agent, sealedKey, plan } = input;
+        const accountKeys = identities.accountKeys(agent.accountId);
+        const activeKeys = accountKeys instanceof Promise ? await accountKeys : accountKeys;
+        const keys = new Set(activeKeys.map(({ id }) => id));
+        const login = this.logins.get(loginId);
+        if (login?.status !== 'pending' || Date.parse(login.expiresAt) <= Date.now()) return false;
+        const active = this.agents(agent.accountId).filter(({ keyId }) => keys.has(keyId));
+        const replace = replacement(
+            plan,
+            active.map(({ keyId }) => keyId),
+            input.replace,
+        );
+        this.addAgent(agent);
+        this.settle(loginId, { status: 'approved', accountId: agent.accountId, sealedKey });
+        if (replace) {
+            this.removeAgent(agent.accountId, replace);
+            await identities.revokeAccountKey(agent.accountId, replace);
+        }
         return true;
     }
     addAgent(agent: AgentRecord) {
@@ -253,11 +290,47 @@ export class PostgresAgents implements AgentRepository {
         );
         return result.rowCount === 1;
     }
-    async addAgent(agent: AgentRecord) {
-        await this.pool.query(
-            'INSERT INTO agents (key_id, account_id, name, client, created_at) VALUES ($1, $2, $3, $4, $5)',
-            [agent.keyId, agent.accountId, agent.name, agent.client ?? null, agent.createdAt],
-        );
+    connect({ loginId, agent, sealedKey, plan, replace: requested }: AgentConnection) {
+        return transaction(this.pool, async (client) => {
+            await client.query('SELECT id FROM accounts WHERE id = $1 FOR UPDATE', [
+                agent.accountId,
+            ]);
+            const login = await client.query(
+                "SELECT id FROM agent_logins WHERE id = $1 AND status = 'pending' AND expires_at > clock_timestamp() FOR UPDATE",
+                [loginId],
+            );
+            if (!login.rowCount) return false;
+            const active = await client.query<{ key_id: string }>(
+                `SELECT a.key_id FROM agents a JOIN api_keys k ON k.id = a.key_id
+                 WHERE a.account_id = $1 AND k.account_id = $1 AND k.revoked_at IS NULL
+                   AND k.expires_at > clock_timestamp()`,
+                [agent.accountId],
+            );
+            const replace = replacement(
+                plan,
+                active.rows.map(({ key_id }) => key_id),
+                requested,
+            );
+            if (replace) {
+                await client.query(
+                    'UPDATE api_keys SET revoked_at = clock_timestamp() WHERE account_id = $1 AND id = $2',
+                    [agent.accountId, replace],
+                );
+                await client.query('DELETE FROM agents WHERE account_id = $1 AND key_id = $2', [
+                    agent.accountId,
+                    replace,
+                ]);
+            }
+            await client.query(
+                'INSERT INTO agents (key_id, account_id, name, client, created_at) VALUES ($1, $2, $3, $4, $5)',
+                [agent.keyId, agent.accountId, agent.name, agent.client ?? null, agent.createdAt],
+            );
+            await client.query(
+                "UPDATE agent_logins SET status = 'approved', account_id = $2, sealed_key = $3 WHERE id = $1",
+                [loginId, agent.accountId, sealedKey],
+            );
+            return true;
+        });
     }
     async agents(accountId: string) {
         const result = await this.pool.query(
@@ -526,43 +599,38 @@ export function registerAgents({ app, access, identities, agents, limits, mail }
         if (login.status !== 'pending')
             throw new HttpError(409, 'This request was already answered.');
         const plan = effectivePlan(identity.account);
-        const limit = plans[plan].agents;
         const body = (request.body ?? {}) as { replaceAgentId?: unknown };
-        const current = await workspaceAgents(identities, agents, identity.account.id);
-        if (current.length >= limit) {
-            const replace = typeof body.replaceAgentId === 'string' ? body.replaceAgentId : '';
-            if (!current.some((agent) => agent.id === replace))
-                throw new HttpError(
-                    409,
-                    `Your ${plan === 'free' ? 'Free' : plan} plan includes ${limit} agents. Replace one or upgrade.`,
-                );
-            await identities.revokeAccountKey(identity.account.id, replace);
-            await agents.removeAgent(identity.account.id, replace);
-        }
+        const replace = typeof body.replaceAgentId === 'string' ? body.replaceAgentId : undefined;
         const created = await identities.createKey(
             identity,
             `Agent: ${login.name}`.slice(0, 80),
             identity.keyScopes,
             new Date(Date.now() + AGENT_KEY_DAYS * 86400000).toISOString(),
+            'agent',
         );
-        const sealed = sealForLogin(login, created.key);
-        if (
-            !(await agents.settle(login.id, {
-                status: 'approved',
-                accountId: identity.account.id,
-                sealedKey: sealed,
-            }))
-        ) {
+        try {
+            const connected = await agents.connect(
+                {
+                    loginId: login.id,
+                    agent: {
+                        keyId: created.info.id,
+                        accountId: identity.account.id,
+                        name: login.name,
+                        ...(login.client ? { client: login.client } : {}),
+                        createdAt: new Date().toISOString(),
+                    },
+                    sealedKey: sealForLogin(login, created.key),
+                    plan,
+                    ...(replace ? { replace } : {}),
+                },
+                identities,
+            );
+            if (!connected)
+                throw new HttpError(409, 'This request was already answered or expired.');
+        } catch (error) {
             await identities.revokeAccountKey(identity.account.id, created.info.id);
-            throw new HttpError(409, 'This request was already answered.');
+            throw error;
         }
-        await agents.addAgent({
-            keyId: created.info.id,
-            accountId: identity.account.id,
-            name: login.name,
-            ...(login.client ? { client: login.client } : {}),
-            createdAt: new Date().toISOString(),
-        });
         return { approved: true, agentId: created.info.id };
     });
 

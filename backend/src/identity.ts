@@ -61,6 +61,7 @@ export interface IdentityRepository {
         name: string,
         keyScopes: Scope[],
         expiresAt: string,
+        kind?: 'manual' | 'agent',
     ): MaybePromise<{ key: string; info: KeyInfo }>;
     listKeys(identity: Identity): MaybePromise<KeyInfo[]>;
     revokeKey(identity: Identity, id: string): MaybePromise<boolean>;
@@ -137,7 +138,10 @@ export class MemoryIdentityRepository implements IdentityRepository {
     private accounts = new Map<string, Account>();
     private memberships = new Map<string, Role>();
     private sessions = new Map<string, { userId: string; accountId: string; expires: number }>();
-    private keys = new Map<string, { userId: string; accountId: string; info: KeyInfo }>();
+    private keys = new Map<
+        string,
+        { userId: string; accountId: string; info: KeyInfo; kind: 'manual' | 'agent' }
+    >();
     private invitations = new Map<
         string,
         { accountId: string; username: string; role: Exclude<Role, 'owner'>; expires: number }
@@ -226,14 +230,29 @@ export class MemoryIdentityRepository implements IdentityRepository {
     revokeSession(token: string) {
         this.sessions.delete(digest(token).toString('hex'));
     }
-    createKey(identity: Identity, name: string, keyScopes: Scope[], expiresAt: string) {
+    createKey(
+        identity: Identity,
+        name: string,
+        keyScopes: Scope[],
+        expiresAt: string,
+        kind: 'manual' | 'agent' = 'manual',
+    ) {
         if (identity.sessionHash && !this.sessions.has(identity.sessionHash))
             throw Object.assign(new Error('Session expired. Sign in again.'), { statusCode: 401 });
-        if (this.listKeys(identity).length >= 20)
-            throw Object.assign(
-                new Error('At most 20 active API keys are allowed per user and workspace.'),
-                { statusCode: 409 },
+        if (kind === 'manual') {
+            const manualKeys = [...this.keys.values()].filter(
+                (key) =>
+                    key.kind === 'manual' &&
+                    key.userId === identity.userId &&
+                    key.accountId === identity.account.id &&
+                    Date.parse(key.info.expiresAt) > Date.now(),
             );
+            if (manualKeys.length >= 20)
+                throw Object.assign(
+                    new Error('At most 20 active API keys are allowed per user and workspace.'),
+                    { statusCode: 409 },
+                );
+        }
         const key = `kv_${randomBytes(32).toString('base64url')}`;
         const info: KeyInfo = {
             id: randomUUID(),
@@ -248,6 +267,7 @@ export class MemoryIdentityRepository implements IdentityRepository {
             userId: identity.userId,
             accountId: identity.account.id,
             info,
+            kind,
         });
         return { key, info };
     }
@@ -524,7 +544,13 @@ export class PostgresIdentityRepository implements IdentityRepository {
     async revokeSession(token: string) {
         await this.pool.query('DELETE FROM auth_sessions WHERE token_hash = $1', [digest(token)]);
     }
-    async createKey(identity: Identity, name: string, keyScopes: Scope[], expiresAt: string) {
+    async createKey(
+        identity: Identity,
+        name: string,
+        keyScopes: Scope[],
+        expiresAt: string,
+        kind: 'manual' | 'agent' = 'manual',
+    ) {
         const key = `kv_${randomBytes(32).toString('base64url')}`,
             id = randomUUID();
         const result = await transaction(this.pool, async (client) => {
@@ -541,15 +567,20 @@ export class PostgresIdentityRepository implements IdentityRepository {
                 throw Object.assign(new Error('Session expired. Sign in again.'), {
                     statusCode: 401,
                 });
-            const count = await client.query(
-                'SELECT count(*)::integer AS count FROM api_keys WHERE user_id = $1 AND account_id = $2 AND revoked_at IS NULL AND expires_at > clock_timestamp()',
-                [identity.userId, identity.account.id],
-            );
-            if (count.rows[0].count >= 20)
-                throw Object.assign(
-                    new Error('At most 20 active API keys are allowed per user and workspace.'),
-                    { statusCode: 409 },
+            if (kind === 'manual') {
+                const count = await client.query<{ count: number }>(
+                    `SELECT count(*)::integer AS count FROM api_keys k
+                     WHERE k.user_id = $1 AND k.account_id = $2 AND k.revoked_at IS NULL
+                     AND k.expires_at > clock_timestamp()
+                     AND NOT EXISTS (SELECT 1 FROM agents a WHERE a.key_id = k.id)`,
+                    [identity.userId, identity.account.id],
                 );
+                if (count.rows[0]!.count >= 20)
+                    throw Object.assign(
+                        new Error('At most 20 active API keys are allowed per user and workspace.'),
+                        { statusCode: 409 },
+                    );
+            }
             return client.query(
                 'INSERT INTO api_keys (id, token_hash, user_id, account_id, name, prefix, scopes, expires_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING created_at',
                 [

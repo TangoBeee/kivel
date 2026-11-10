@@ -1,7 +1,16 @@
 import { shareImage } from '../lib/seo';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Plus } from '@phosphor-icons/react/dist/ssr';
+import {
+    ArrowRight,
+    Code,
+    Folder,
+    HandPalm,
+    Key,
+    Plus,
+    Pulse,
+    Wallet,
+} from '@phosphor-icons/react/dist/ssr';
 import { CookieJar } from '../components/home/cookie-jar';
 import { CopyPrompt } from '../components/home/copy-prompt';
 import { LiveWebhook } from '../components/home/live-webhook';
@@ -33,53 +42,110 @@ export const metadata: Metadata = {
     twitter: { card: 'summary_large_image', title, description, images: [shareImage.url] },
 };
 
-const features = [
+// The three main products, each shown on a painting with a piece of the real product.
+const showcase = [
     {
         title: 'Email inboxes',
-        body: 'Real addresses that send and receive. Codes and verification links are pulled out for you.',
+        body: 'Real addresses that send and receive. Codes and links are pulled out for you.',
         href: '/catalog/email/',
+        art: '/art/blog/b01.webp',
+        snippet: 'email',
     },
     {
         title: 'Webhook inboxes',
-        body: 'A URL for GitHub, Shopify, Slack, Twilio, Stripe or your own app. Inspect, replay, forward.',
+        body: 'A URL for Stripe, GitHub, Slack or your own app. Inspect, replay, forward.',
         href: '/webhooks/',
+        art: '/art/blog/b06.webp',
+        snippet: 'webhook',
     },
     {
-        title: 'Mock APIs and MCP servers',
-        body: 'Services with real routes, data and failures, ready before the real one is.',
+        title: 'Mock APIs',
+        body: 'REST, GraphQL and OAuth services with real routes, data and failures.',
         href: '/catalog/mock-apis/',
+        art: '/art/blog/b11.webp',
+        snippet: 'mock',
     },
+] as const;
+
+const more = [
     {
         title: 'Test payments',
-        body: 'Wallets, paywalls and checkouts with spending limits. Test units, no real money.',
+        body: 'Test units, no real money',
         href: '/tools/test-wallet/',
+        Icon: Wallet,
     },
     {
-        title: 'Monitors and status pages',
-        body: 'Uptime, certificate and cron checks that email you, and a public view of health.',
+        title: 'Monitors',
+        body: 'Uptime, SSL and cron checks',
         href: '/catalog/monitoring/',
+        Icon: Pulse,
     },
     {
         title: 'Ask you first',
-        body: 'Risky steps wait until you answer in your browser.',
+        body: 'Risky steps wait for you',
         href: '/catalog/agents/',
+        Icon: HandPalm,
     },
     {
-        title: 'Passwords and sign-in codes',
-        body: 'An encrypted vault and authenticators for accounts you authorized.',
+        title: 'Password vault',
+        body: 'Encrypted, with 2FA codes',
         href: '/catalog/agents/',
+        Icon: Key,
     },
     {
         title: 'Files and memory',
-        body: 'Share files by link and remember results between sessions.',
+        body: 'Share and remember',
         href: '/catalog/files/',
+        Icon: Folder,
     },
     {
         title: 'Data and utilities',
-        body: 'Fixtures, media, JSON, DNS and network checks.',
+        body: 'Fixtures, JSON, DNS',
         href: '/catalog/developer/',
+        Icon: Code,
     },
 ];
+
+function Snippet({ kind }: { kind: (typeof showcase)[number]['snippet'] }) {
+    if (kind === 'email')
+        return (
+            <div className="home-snip">
+                <div className="home-snip-head">
+                    <span>agent-7f2k@socketspace.xyz</span>
+                </div>
+                <div className="home-snip-row">
+                    <div>
+                        <strong>Your verification code</strong>
+                        <small>Northwind · 09:41</small>
+                    </div>
+                    <code className="home-snip-code">482 901</code>
+                </div>
+            </div>
+        );
+    if (kind === 'webhook')
+        return (
+            <div className="home-snip">
+                <div className="home-snip-head">
+                    <span>
+                        <b>POST</b> /hooks/9xk2f
+                    </span>
+                    <span>200</span>
+                </div>
+                <pre>{'{\n  "type": "payment.succeeded",\n  "amount": 2400\n}'}</pre>
+            </div>
+        );
+    return (
+        <div className="home-snip">
+            <div className="home-snip-head">
+                <span>
+                    <b>GET</b> /v1/users/42
+                </span>
+                <span>200</span>
+            </div>
+            <pre>{'{\n  "id": 42,\n  "name": "Sam Rivera"\n}'}</pre>
+        </div>
+    );
+}
 
 const days = (seconds: number) => Math.round(seconds / 86400);
 const plans = [
@@ -215,43 +281,54 @@ export default function Home() {
                 </figure>
             </div>
 
-            <section className="home-wrap home-features" aria-label="What your agent gets">
-                {features.map((feature) => (
-                    <Link key={feature.title} href={feature.href}>
-                        <h2>{feature.title}</h2>
-                        <p>{feature.body}</p>
-                    </Link>
-                ))}
+            <section className="home-wrap home-products" aria-labelledby="products-heading">
+                <h2 id="products-heading">Everything your agent can&apos;t do alone.</h2>
+                <div className="home-showcase">
+                    {showcase.map((item) => (
+                        <Link key={item.title} href={item.href} className="home-show">
+                            <div className="home-show-art">
+                                <img src={item.art} alt="" loading="lazy" />
+                                <Snippet kind={item.snippet} />
+                            </div>
+                            <h3>
+                                {item.title}
+                                <ArrowRight size={18} aria-hidden="true" />
+                            </h3>
+                            <p>{item.body}</p>
+                        </Link>
+                    ))}
+                </div>
+                <ul className="home-more-list">
+                    {more.map(({ title, body, href, Icon }) => (
+                        <li key={title}>
+                            <Link href={href}>
+                                <Icon size={22} aria-hidden="true" />
+                                <span>
+                                    <strong>{title}</strong>
+                                    <small>{body}</small>
+                                </span>
+                            </Link>
+                        </li>
+                    ))}
+                </ul>
+                <nav className="home-categories" aria-label="Explore tool categories">
+                    <span>{toolTotal} tools in all:</span>
+                    {categories.map((category) => (
+                        <Link key={category.id} href={categoryHref(category.id)}>
+                            {category.name}{' '}
+                            <span>
+                                {
+                                    catalog.filter(
+                                        (tool) =>
+                                            tool.status === 'available' &&
+                                            tool.categoryId === category.id,
+                                    ).length
+                                }
+                            </span>
+                        </Link>
+                    ))}
+                </nav>
             </section>
-            <p className="home-wrap home-more">
-                {toolTotal} tools across {categories.length} categories. Your agent discovers the
-                whole catalog with <code>search_tools</code>. Utilities run through{' '}
-                <code>run_tool</code>; resources have their own tools. Browser utilities stay free.{' '}
-                <Link href="/catalog/" className="home-link">
-                    Browse every tool
-                </Link>
-                {' · '}
-                <Link href="/use-cases/" className="home-link">
-                    Explore agent workflows
-                </Link>
-            </p>
-
-            <nav className="home-wrap home-categories" aria-label="Explore tool categories">
-                {categories.map((category) => (
-                    <Link key={category.id} href={categoryHref(category.id)}>
-                        {category.name}{' '}
-                        <span>
-                            {
-                                catalog.filter(
-                                    (tool) =>
-                                        tool.status === 'available' &&
-                                        tool.categoryId === category.id,
-                                ).length
-                            }
-                        </span>
-                    </Link>
-                ))}
-            </nav>
 
             <section className="home-wrap home-split" aria-labelledby="try-heading">
                 <div>
@@ -261,7 +338,10 @@ export default function Home() {
                         request.
                     </p>
                 </div>
-                <LiveWebhook />
+                <div className="home-try-art">
+                    <img src="/art/blog/b08.webp" alt="" loading="lazy" />
+                    <LiveWebhook />
+                </div>
             </section>
 
             <section className="home-wrap home-split" aria-labelledby="pricing-heading">

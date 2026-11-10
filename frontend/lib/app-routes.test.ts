@@ -6,6 +6,7 @@ import {
     returnPath,
     workspaceHref,
     workspacePanel,
+    workspaceResource,
 } from './app-routes';
 
 test('legacy workspace links preserve useful state and keep credentials on the old origin', () => {
@@ -48,4 +49,10 @@ test('workspace routes preserve panel selection without accepting external retur
     ]) {
         assert.equal(returnPath(path), null);
     }
+});
+
+test('resource workbenches accept the app query and the legacy query', () => {
+    assert.equal(workspaceResource('?id=new&resource=old'), 'new');
+    assert.equal(workspaceResource('?resource=old'), 'old');
+    assert.equal(workspaceResource('?tool=webhooks'), null);
 });

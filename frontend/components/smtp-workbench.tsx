@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { legacyAccountLink } from '../lib/app-routes';
+import { legacyAccountLink, workspaceResource } from '../lib/app-routes';
 import { useEffect, useState } from 'react';
 import { Button, Tabs } from '@radix-ui/themes';
 import { api } from '../lib/api';
@@ -36,7 +36,7 @@ export function SmtpWorkbench({ toolId }: { toolId: string }) {
         setMessages([]);
         setError('');
         if (viewer.status !== 'user') return;
-        const id = new URLSearchParams(location.search).get('resource');
+        const id = workspaceResource(location.search);
         if (!id || !/^[a-f0-9-]{36}$/i.test(id)) return;
         let live = true;
         void api(`/api/smtp-inboxes/${id}`)

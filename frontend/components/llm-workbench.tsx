@@ -1,4 +1,6 @@
 'use client';
+
+import { workspaceResource } from '../lib/app-routes';
 import { useEffect, useRef, useState } from 'react';
 import { Button, Checkbox, Select, TextArea, TextField } from '@radix-ui/themes';
 import { validateLlmMock } from '@kivel.io/tools/llm-mock';
@@ -49,7 +51,7 @@ export function LlmWorkbench({ toolId }: { toolId: string }) {
         setOutput('');
         setProtocol('');
         if (viewer.status !== 'user') return;
-        const id = new URLSearchParams(location.search).get('resource');
+        const id = workspaceResource(location.search);
         if (!id || !/^[a-f0-9-]{36}$/i.test(id)) return;
         let live = true;
         void api(`/api/mocks/${id}`)

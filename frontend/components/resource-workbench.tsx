@@ -1,4 +1,6 @@
 'use client';
+
+import { workspaceResource } from '../lib/app-routes';
 import Link from 'next/link';
 import { EchoWorkbench } from './echo-workbench';
 import { StreamEventsPreview, renderToolResult } from './tool-result';
@@ -198,7 +200,7 @@ export function ResourceWorkbench({
     const base = `/api/${kind === 'mock' ? 'mocks' : kind === 'mcp' ? 'mcp-servers' : 'files'}`;
     const route = routes[active] ?? routes[0] ?? freshRoute();
     useEffect(() => {
-        const requested = new URLSearchParams(location.search).get('resource');
+        const requested = workspaceResource(location.search);
         if (requested && /^[a-f0-9-]{36}$/i.test(requested)) {
             setReady(true);
             void refresh({ id: requested, managementToken: '', expiresAt: '' });

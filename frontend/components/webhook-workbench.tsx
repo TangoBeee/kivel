@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { appLink } from '../lib/app-routes';
+import { appLink, workspaceResource } from '../lib/app-routes';
 import { siteOrigin } from '../lib/site';
 import { formatJson } from '@kivel.io/tools/engine';
 import { SharingControl } from './sharing-control';
@@ -245,11 +245,13 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
     const activeId = useRef<string | null>(null);
 
     useEffect(() => {
-        const requested = new URLSearchParams(location.search).get('resource');
+        const requested = workspaceResource(location.search);
         if (requested && /^[a-f0-9-]{36}$/i.test(requested)) {
             const controller = new AbortController();
             setWorking(true);
-            void openInbox(requested, '', controller.signal)
+            const saved = restore();
+            const token = saved?.id === requested ? saved.inspectionToken : '';
+            void openInbox(requested, token, controller.signal)
                 .then((value) => {
                     if (!controller.signal.aborted) activate(value);
                 })

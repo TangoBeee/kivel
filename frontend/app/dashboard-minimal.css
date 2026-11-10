@@ -783,6 +783,7 @@
 /* Usage meters on a tool page */
 .tool-page {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 32px;
 }
 .tool-meters {

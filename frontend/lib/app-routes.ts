@@ -48,6 +48,11 @@ export function workspaceHref(
     return url.pathname + url.search;
 }
 
+export function workspaceResource(search: string) {
+    const query = new URLSearchParams(search);
+    return query.get('id') ?? query.get('resource');
+}
+
 export function appLink(path = '/') {
     return `${appOrigin}${path}`;
 }

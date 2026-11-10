@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { legacyAccountLink } from '../lib/app-routes';
+import { legacyAccountLink, workspaceResource } from '../lib/app-routes';
 import { useEffect, useState } from 'react';
 import { Button, Checkbox, TextArea, TextField } from '@radix-ui/themes';
 import { api } from '../lib/api';
@@ -51,7 +51,7 @@ export function StatusPageWorkbench({ toolId }: { toolId: string }) {
             .catch((failure) => {
                 if (live) setError(failure.message);
             });
-        const id = new URLSearchParams(location.search).get('resource');
+        const id = workspaceResource(location.search);
         if (id && /^[a-f0-9-]{36}$/i.test(id))
             void api(`/api/status-pages/${id}`)
                 .then((response) => response.json())

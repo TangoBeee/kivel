@@ -1,4 +1,6 @@
 'use client';
+
+import { workspaceResource } from '../lib/app-routes';
 import { siteOrigin } from '../lib/site';
 import { useEffect, useState } from 'react';
 import { Button, Checkbox, Select, TextArea, TextField } from '@radix-ui/themes';
@@ -37,7 +39,7 @@ export function OAuthWorkbench({ toolId }: { toolId: string }) {
     useEffect(() => {
         setProvider(null);
         if (viewer.status !== 'user') return;
-        const id = new URLSearchParams(location.search).get('resource');
+        const id = workspaceResource(location.search);
         if (!id || !/^[a-f0-9-]{36}$/i.test(id)) return;
         let live = true;
         void api(`/api/oauth-providers/${id}`)

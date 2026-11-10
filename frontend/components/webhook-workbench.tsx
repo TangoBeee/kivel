@@ -16,6 +16,7 @@ import type { CapturedRequest, Inbox } from '../lib/api';
 import { AppSelect, SelectOption } from './app-select';
 import { filterRequests } from '../lib/request-filter';
 import { useViewer } from '../lib/viewer';
+import { useLiveStream } from '../lib/use-live-stream';
 import { InboxResponseSettings } from './inbox-response';
 import { InboxForwardSettings } from './inbox-forward';
 import { ReplayRequest } from './replay-request';
@@ -387,20 +388,12 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
         return () => clearInterval(timer);
     }, [inbox, clear]);
 
-    useEffect(() => {
-        if (!inbox || !live) return;
-        const controller = new AbortController();
-        let timer: ReturnType<typeof setTimeout>;
-        async function poll() {
-            const delay = document.hidden ? 5000 : await refresh(controller.signal);
-            if (!controller.signal.aborted) timer = setTimeout(poll, delay);
-        }
-        void poll();
-        return () => {
-            controller.abort();
-            clearTimeout(timer);
-        };
-    }, [inbox, live, refresh]);
+    const streaming = useLiveStream(
+        inbox ? `webhook:${inbox.id}` : '',
+        refresh,
+        !inbox || !live || viewer.status === 'loading',
+        viewer.status === 'guest' ? inbox?.inspectionToken : undefined,
+    );
 
     function create() {
         if (inbox) setConfirmation('create');
@@ -646,8 +639,8 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
                         <p className="keep-longer">
                             <Icon name="clock" size={14} />
                             Anonymous inboxes last 1 hour.{' '}
-                            <Link href={appLink('/signup/')}>Sign up free</Link> to keep them for 7
-                            days and use them from your AI agent.
+                            <Link href={appLink('/signup/')}>Sign up free</Link> for inboxes that
+                            last up to 7 days and work with your agent.
                         </p>
                     )}
                     <div className="inbox-toolbar">
@@ -656,7 +649,9 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
                             {live
                                 ? error
                                     ? 'Reconnecting'
-                                    : 'Listening for requests'
+                                    : streaming
+                                      ? 'Listening for requests'
+                                      : 'Checking for requests'
                                 : 'Updates paused'}
                         </div>
                         <div className="button-row">

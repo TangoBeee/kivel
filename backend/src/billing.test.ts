@@ -71,7 +71,7 @@ test('Dodo entitlements require a configured, active, paid fixed subscription', 
             JSON.stringify(override),
         );
 });
-test('Dodo verifies webhook body, timestamp and signature and retrieves current subscription state', async (t) => {
+test('Dodo verifies webhook signatures and renews an active subscription on a retired product', async (t) => {
     let applied = 0,
         retrieved = 0;
     const dodo = new DodoPayments({
@@ -80,7 +80,7 @@ test('Dodo verifies webhook body, timestamp and signature and retrieves current 
         maxRetries: 0,
         fetch: async () => {
             retrieved++;
-            return Response.json(subscription());
+            return Response.json(subscription({ product_id: 'pdt_oldpro' }));
         },
     });
     const repository = {
@@ -88,9 +88,9 @@ test('Dodo verifies webhook body, timestamp and signature and retrieves current 
             _id: string,
             _created: number,
             _customer: string,
-            load: () => Promise<unknown>,
+            load: () => Promise<ReturnType<typeof subscriptionState>>,
         ) => {
-            await load();
+            assert.equal((await load()).plan, 'pro');
             applied++;
             return true;
         },
@@ -98,7 +98,7 @@ test('Dodo verifies webhook body, timestamp and signature and retrieves current 
     const app = buildApp({
         billingRepository: repository as never,
         dodoClient: dodo,
-        billingConfig: config,
+        billingConfig: { ...config, legacyProducts: { pdt_oldpro: 'pro' } },
     });
     t.after(() => app.close());
     const payload = JSON.stringify({

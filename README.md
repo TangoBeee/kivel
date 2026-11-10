@@ -130,7 +130,9 @@ a monthly payment frequency. Annual billing is not offered. Prices come from Dod
 Register `/billing/webhook` for subscription lifecycle events, using the endpoint’s
 Standard Webhooks signing secret. Entitlements follow verified events and a fresh
 subscription retrieval, never the checkout return URL. The customer portal is
-available to workspace owners. See `docs/billing.md` for setup and validation.
+available to workspace owners. When replacing a Dodo product, add its old ID to
+`DODO_LEGACY_PRODUCT_IDS`, for example `{"pdt_oldpro":"pro"}`. Existing subscriptions
+keep their paid access and new checkout uses the current product IDs.
 
 ## Account recovery
 

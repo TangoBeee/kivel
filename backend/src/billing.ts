@@ -14,6 +14,7 @@ export interface BillingConfig {
     webhookSecret: string;
     proProduct: string;
     teamProduct: string;
+    legacyProducts?: Readonly<Record<string, Exclude<AccountPlan, 'free'>>>;
     phoneAddonId?: string;
     phoneAddonEnabled?: boolean;
     environment: 'test_mode' | 'live_mode';
@@ -28,7 +29,7 @@ export interface SubscriptionState {
 }
 export function subscriptionState(
     subscription: Subscription,
-    products: Pick<BillingConfig, 'proProduct' | 'teamProduct' | 'phoneAddonId'>,
+    products: Pick<BillingConfig, 'proProduct' | 'teamProduct' | 'legacyProducts' | 'phoneAddonId'>,
     warn: (message: string) => void = console.warn,
 ): SubscriptionState {
     const plan =
@@ -36,7 +37,10 @@ export function subscriptionState(
             ? 'pro'
             : subscription.product_id === products.teamProduct
               ? 'team'
-              : 'free';
+              : products.legacyProducts &&
+                  Object.hasOwn(products.legacyProducts, subscription.product_id)
+                ? products.legacyProducts[subscription.product_id]!
+                : 'free';
     const end = Date.parse(subscription.next_billing_date);
     const active =
         subscription.status === 'active' &&

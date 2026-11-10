@@ -21,7 +21,7 @@ const mcpSetup = `claude mcp add --transport http kivel https://kivel.io/mcp`;
 const faqs = [
     {
         question: 'Do I need an account to use the Kivel API?',
-        answer: 'No. Browser utilities and anonymous temporary resources work without an account. An account adds a workspace, longer retention within plan limits, and scoped API keys.',
+        answer: 'No. Browser utilities and anonymous resources with an expiry work without an account. An account adds a workspace, longer retention within plan limits, and scoped API keys.',
     },
     {
         question: 'Where is the OpenAPI specification?',

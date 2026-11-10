@@ -4,12 +4,12 @@ import { ReadingLayout } from '../../components/content-layout';
 import { pageMetadata } from '../../lib/seo';
 export const metadata = pageMetadata(
     'Privacy & data handling',
-    'Understand what Kivel processes locally, what temporary tools store, how private access works, and how accounts, email recovery, logs, and cleanup handle data.',
+    'Understand what Kivel processes locally, what hosted tools store, how private access works, and how accounts, email recovery, logs, and cleanup handle data.',
     '/privacy/',
 );
 const sections = [
     { id: 'local', title: 'Local browser tools' },
-    { id: 'resources', title: 'Temporary resources' },
+    { id: 'resources', title: 'Expiring resources' },
     { id: 'agent-email', title: 'Owned agent email' },
     { id: 'authenticators', title: 'Authenticator secrets' },
     { id: 'access', title: 'Sharing & credentials' },
@@ -32,7 +32,7 @@ export default function Privacy() {
             <aside className="reading-summary">
                 <strong>The short version</strong>
                 <p>
-                    Browser tools run locally. Hosted tools send input to the server. Temporary
+                    Browser tools run locally. Hosted tools send input to the server. Expiring
                     resources store what they need to work, with explicit access controls and
                     expiry.
                 </p>
@@ -51,7 +51,7 @@ export default function Privacy() {
                 </p>
             </section>
             <section id="resources">
-                <h2>Temporary resources</h2>
+                <h2>Expiring resources</h2>
                 <p>
                     Webhook inboxes store incoming methods, paths, headers, query parameters,
                     bodies, and timestamps for inspection. Header names containing authorization,
@@ -225,7 +225,7 @@ export default function Privacy() {
                 </p>
                 <p>
                     Read the <Link href="/plans/">plans and limits</Link> before a workflow depends
-                    on a resource. Use sample data for testing and keep an independent copy of
+                    on a resource. Use sample data in development and keep an independent copy of
                     anything important.
                 </p>
             </section>

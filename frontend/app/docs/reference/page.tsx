@@ -24,7 +24,7 @@ export default function Reference() {
                     '@type': 'WebAPI',
                     name: 'Kivel API',
                     description:
-                        'HTTP API for browser utilities, webhook inboxes, mock REST APIs, temporary file sharing, mock MCP servers, and workspace management.',
+                        'HTTP API for browser utilities, webhook inboxes, mock REST APIs, file sharing, mock MCP servers, and workspace management.',
                     documentation: absolute('/docs/'),
                     url: absolute('/docs/reference/'),
                     provider: { '@type': 'Organization', name: 'Kivel', url: absolute('/') },

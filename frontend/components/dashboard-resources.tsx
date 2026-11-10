@@ -283,7 +283,7 @@ export function ResourceList({
                                                         }
                                                     >
                                                         {resource.persistent
-                                                            ? 'Make temporary'
+                                                            ? 'Set an expiry'
                                                             : 'Keep while subscribed'}
                                                     </DropdownMenu.Item>
                                                 )}

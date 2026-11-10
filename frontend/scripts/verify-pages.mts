@@ -94,7 +94,7 @@ const contentPaths = [
     '/docs/',
     '/docs/reference/',
     ...docPages.map((page) => `/docs/${page.slug}/`),
-    '/plans/',
+    '/pricing/',
     '/integrations/',
     '/connect/',
     '/privacy/',
@@ -160,7 +160,7 @@ for (const item of comparisons)
     assert.ok(llmsFull.includes(`Kivel vs ${item.name}`), `llms-full: ${item.slug}`);
 console.log(`Verified llms.txt, llms-full.txt, and the RSS feed (${articles.length} guides).`);
 
-const plansHtml = await readFile('out/plans/index.html', 'utf8');
+const plansHtml = await readFile('out/pricing/index.html', 'utf8');
 assert.ok(
     !plansHtml.includes('cycle-yearly'),
     'Annual billing must not be advertised without checkout support',
@@ -206,7 +206,7 @@ console.log(
 );
 
 const availableCount = catalog.filter((tool) => tool.status === 'available').length;
-for (const path of ['/', '/connect/', '/plans/', '/docs/']) {
+for (const path of ['/', '/connect/', '/pricing/', '/docs/']) {
     const html = await readFile(join('out', path, 'index.html'), 'utf8');
     const text = html.replace(/<[^>]*>/g, '').replaceAll('&amp;', '&');
     assert.ok(text.includes(`${availableCount} tools`), `${path}: catalog-derived tool count`);
@@ -214,6 +214,20 @@ for (const path of ['/', '/connect/', '/plans/', '/docs/']) {
         assert.ok(text.toLowerCase().includes(term.toLowerCase()), `${path}: ${term}`);
 }
 const home = await readFile('out/index.html', 'utf8');
+assert.ok(home.includes('Email, webhooks and mock APIs for AI agents'), 'Home: product headline');
+assert.ok(home.includes('href="/account/#register"'), 'Home: signup action');
+assert.ok(home.includes('mailto:support@kivel.io'), 'Home: support contact');
+assert.ok(
+    home.includes('create_email_inbox') && home.includes('wait_for_email'),
+    'Home: MCP email example',
+);
+assert.ok(!/scroll-linked|tool-slider|kv-hero-dash/.test(home), 'Home: static first paint');
+const oldPlans = await readFile('out/plans/index.html', 'utf8');
+assert.ok(
+    !sitemap.includes(`${siteOrigin}/plans/</loc>`),
+    'Legacy pricing URL is excluded from sitemap',
+);
+assert.ok(oldPlans.includes('/pricing/'), 'Legacy pricing URL links to the canonical page');
 for (const category of categories)
     assert.ok(home.includes(`/catalog/${category.id}/`), `Home links to ${category.name}`);
 console.log('Verified full product coverage and catalog-derived counts.');

@@ -44,8 +44,8 @@ for (const path of ['/contact/', '/refunds/', '/terms/', '/privacy/', '/beta/'])
     const html = await (await request(path)).text();
     assert.ok(html.includes('support@kivel.io'), `${path}: support contact`);
 }
-const plans = await (await request('/plans/')).text();
-assert.ok(plans.includes('$2') && plans.includes('$6'), '/plans/: prices');
+const plans = await (await request('/pricing/')).text();
+assert.ok(plans.includes('$2') && plans.includes('$6'), '/pricing/: prices');
 const robots = await (await request('/robots.txt')).text();
 assert.ok(robots.includes(`${origin.origin}/sitemap.xml`), 'Build SEO URLs for this domain');
 console.log(

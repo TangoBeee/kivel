@@ -37,7 +37,7 @@ export const categories: Category[] = [
     {
         id: 'files',
         name: 'Files & sharing',
-        description: 'Move files, share text, and make space for temporary data.',
+        description: 'Transfer files, share text and store data.',
         icon: 'files',
     },
     {

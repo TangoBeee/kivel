@@ -13,6 +13,7 @@
 @import './crud.css';
 @import './motion.css';
 @import './dashboard-minimal.css';
+@import './marketing.css';
 
 .email-create-form {
   display: grid;

@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { LiveLogo } from './live-logo';
+import { LogoMark } from './logo';
+import { MarketingHeader } from './landing/marketing-header';
 import { SearchLaunch } from './toolbox-provider';
 import { supportEmail, supportHref } from '../lib/support';
 import { useViewer } from '../lib/viewer';
@@ -15,7 +17,7 @@ const links = [
         match: (path: string) => path.startsWith('/connect'),
     },
     { href: '/docs/', label: 'Docs', match: (path: string) => path.startsWith('/docs') },
-    { href: '/plans/', label: 'Pricing', match: (path: string) => path === '/plans' },
+    { href: '/pricing/', label: 'Pricing', match: (path: string) => path === '/pricing' },
     {
         href: '/catalog/',
         label: 'Free tools',
@@ -42,10 +44,6 @@ const menuLinks = [
 // Signed out: sign in and create account. Signed in: a way back to the dashboard.
 function HeaderAccount() {
     const viewer = useViewer();
-    // Tells the first-load reveal (app/layout.tsx) that the header knows who is signed in.
-    useEffect(() => {
-        if (viewer.status !== 'loading') dispatchEvent(new Event('kivel:viewer'));
-    }, [viewer.status]);
     if (viewer.status === 'loading')
         return <span className="island-account is-loading" aria-hidden="true" />;
     if (viewer.status === 'user')
@@ -82,7 +80,7 @@ function HeaderAccount() {
     );
 }
 
-export function Header() {
+function WorkspaceHeader() {
     const pathname = usePathname().replace(/\/$/, '');
     const viewer = useViewer();
     const accountLinks =
@@ -132,9 +130,7 @@ export function Header() {
 
     return (
         <>
-            <header
-                className={`island ${open ? 'is-open' : ''} ${pathname === '' ? 'is-landing' : ''}`}
-            >
+            <header className={`island ${open ? 'is-open' : ''}`}>
                 <Link href="/" className="island-brand" aria-label="Kivel home">
                     <LiveLogo size={28} />
                     <span>Kivel</span>
@@ -214,12 +210,25 @@ export function Header() {
     );
 }
 
+function marketingRoute(path: string) {
+    return (
+        path === '/' ||
+        /^\/(blog|compare|connect|contact|beta|catalog|docs|integrations|plans|pricing|privacy|refunds|terms|use-cases|webhooks)(\/|$)/.test(
+            path,
+        )
+    );
+}
+
+export function Header() {
+    return marketingRoute(usePathname()) ? <MarketingHeader /> : <WorkspaceHeader />;
+}
+
 const footerColumns = [
     {
         title: 'Product',
         links: [
             { href: '/connect/', label: 'Setup' },
-            { href: '/plans/', label: 'Pricing' },
+            { href: '/pricing/', label: 'Pricing' },
             { href: '/catalog/', label: 'Free tools' },
             { href: '/integrations/', label: 'Integrations' },
             { href: '/use-cases/', label: 'Use cases' },
@@ -250,13 +259,13 @@ const legalLinks = [
 ];
 
 export function Footer() {
-    const landing = usePathname().replace(/\/$/, '') === '';
+    const marketing = marketingRoute(usePathname());
     return (
-        <footer className={`site-footer ${landing ? 'is-landing' : ''}`}>
+        <footer className={`site-footer ${marketing ? 'marketing-footer' : ''}`}>
             <div className="footer-inner">
                 <div className="footer-about">
                     <Link href="/" className="footer-brand" aria-label="Kivel home">
-                        <LiveLogo size={28} />
+                        {marketing ? <LogoMark size={25} /> : <LiveLogo size={28} />}
                         <span>Kivel</span>
                     </Link>
                     <p>The internet toolkit for AI agents, and free tools for everyone else.</p>

@@ -1,0 +1,118 @@
+.cookie-jar {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+.cookie-button {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 9999px;
+  background: #ffffff;
+  color: var(--ink);
+  box-shadow: 0 8px 24px rgb(20 20 20 / 0.1);
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+.cookie-button:hover {
+  background: var(--subtle);
+}
+
+.cookie-card {
+  position: relative;
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  width: 280px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 20px 50px rgb(20 20 20 / 0.12);
+}
+.cookie-card:focus {
+  outline: none;
+}
+.cookie-card strong {
+  font-size: 0.9375rem;
+}
+.cookie-card p {
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  color: var(--muted);
+}
+.cookie-card small {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.cookie-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 9999px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.cookie-close:hover {
+  background: var(--subtle);
+  color: var(--ink);
+}
+.cookie-treat {
+  padding: 4px;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.cookie-button:focus-visible,
+.cookie-treat:focus-visible,
+.cookie-close:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+.cookie-coupon {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--subtle);
+}
+.cookie-coupon > span {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.cookie-coupon button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+}
+.cookie-coupon code {
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  letter-spacing: 0.04em;
+}
+.cookie-card a {
+  color: var(--ink);
+  text-decoration: underline;
+}

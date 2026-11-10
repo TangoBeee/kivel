@@ -7,3 +7,8 @@ export const pricing = {
 } as const;
 export type PaidPlan = 'pro' | 'team';
 export const money = (value: number) => `$${Number.isInteger(value) ? value : value.toFixed(2)}`;
+
+export const previewPricing = {
+    pro: { monthly: 5, listMonthly: 9 },
+    team: { monthly: 29 },
+} as const;

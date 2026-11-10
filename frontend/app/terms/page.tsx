@@ -4,7 +4,7 @@ import { ReadingLayout } from '../../components/content-layout';
 import { pageMetadata } from '../../lib/seo';
 export const metadata = pageMetadata(
     'Terms of use',
-    'Read the Kivel terms for tool and API use, acceptable behavior, your content, temporary resource expiry, service availability, and liability.',
+    'Read the Kivel terms for tool and API use, acceptable behavior, your content, resource expiry, service availability, and liability.',
     '/terms/',
 );
 const sections = [
@@ -22,7 +22,7 @@ export default function Terms() {
         <ReadingLayout
             meta={`Updated ${policyUpdated}`}
             title="Terms of use, in plain words."
-            description="These terms cover the tools, hosted interfaces, and temporary resources. By using Kivel, you agree to them."
+            description="These terms cover the tools, hosted interfaces, and expiring resources. By using Kivel, you agree to them."
             path="/terms/"
             sections={sections}
         >

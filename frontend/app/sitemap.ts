@@ -25,7 +25,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
             path: `/compare/${item.slug}/`,
             modified: item.reviewedAt,
         })),
-        { path: '/plans/' },
+        { path: '/pricing/' },
         { path: '/integrations/' },
         { path: '/connect/' },
         { path: '/privacy/' },

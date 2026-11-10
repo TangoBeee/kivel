@@ -10,7 +10,7 @@ import { pageMetadata } from '../../lib/seo';
 
 export const metadata = {
     ...pageMetadata(
-        'Blog: practical guides for testing & sharing',
+        'Blog: practical guides for agents and developers',
         'Practical Kivel guides to webhooks, mock APIs, MCP servers, JSON, file sharing, payment fixtures, and media tools, with working examples you can run.',
         '/blog/',
     ),

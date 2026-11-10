@@ -116,7 +116,7 @@ export function SmtpWorkbench({ toolId }: { toolId: string }) {
         <div className="page-width work-page">
             <ToolHeader
                 toolId={toolId}
-                description="Capture application email in an isolated test inbox. Messages stay here and are never delivered to real recipients."
+                description="Capture application email in an isolated capture inbox. Messages stay here and are never delivered to real recipients."
             />
             {error && (
                 <p className="alert" role="alert">

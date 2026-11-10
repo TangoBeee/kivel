@@ -1246,7 +1246,7 @@ export function ResourceWorkbench({
                 </section>
             ) : (
                 (!resource || expired) && (
-                    <section className="resource-editor" aria-label="Upload a temporary file">
+                    <section className="resource-editor" aria-label="Upload a file">
                         <div className="resource-form-fields">
                             <label>
                                 Download limit
@@ -1293,7 +1293,7 @@ export function ResourceWorkbench({
                                         placeholder={
                                             inlineFormat === 'json'
                                                 ? '{"ready": true}'
-                                                : 'Write or paste a temporary note…'
+                                                : 'Write or paste a note…'
                                         }
                                     />
                                 </label>

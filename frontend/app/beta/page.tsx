@@ -4,7 +4,7 @@ import { pageMetadata } from '../../lib/seo';
 import { supportEmail, supportHref } from '../../lib/support';
 export const metadata = pageMetadata(
     'Free open beta: what to expect',
-    'Try Kivel during the free open beta. Learn about available tools, account and API limits, temporary data, planned features, feedback and support.',
+    'Try Kivel during the free open beta. Learn about available tools, account and API limits, data retention, planned features, feedback and support.',
     '/beta/',
 );
 export default function Beta() {
@@ -15,7 +15,7 @@ export default function Beta() {
             path="/beta/"
             sections={[
                 { id: 'access', title: 'What is available' },
-                { id: 'limits', title: 'Limits & temporary data' },
+                { id: 'limits', title: 'Limits & data retention' },
                 { id: 'payments', title: 'No automatic charges' },
                 { id: 'feedback', title: 'Feedback & support' },
             ]}

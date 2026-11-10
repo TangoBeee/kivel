@@ -1710,6 +1710,10 @@ console.log(result.output, result.usage.used);`,
                             'Read questions and wait; a timeout never means approval',
                         ],
                         [
+                            'stream(topics, {token?, lastEventId?, signal?})',
+                            'Read live change notices and resume using the previous cursor. Fetch full records separately.',
+                        ],
+                        [
                             'waitForRequests(id, {token?, after?, timeoutSeconds?})',
                             'Long-poll for webhook captures',
                         ],

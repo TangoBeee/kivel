@@ -191,6 +191,10 @@ try {
             response.writeHead(401, { 'X-Request-Id': 'package-denied' });
             return response.end(JSON.stringify({ error: 'Denied' }));
         }
+        if (request.url === '/api/stream?topics=monitors') {
+            response.writeHead(200, { 'Content-Type': 'text/event-stream' });
+            return response.end('id: package-cursor\nevent: ready\ndata: {}\n\n');
+        }
         if (request.url === '/api/monitors' && request.method === 'POST') {
             response.writeHead(402, { 'X-Request-Id': 'package-limit' });
             return response.end(
@@ -241,7 +245,10 @@ ${
     assert.equal(error.requiredPlan, 'pro');
     assert.deepEqual(error.limitDetails, { code: 'limit_reached', limit: 'monitors.active', used: 20, max: 20, plan: 'free' });
     return true;
-});`
+});
+const changes = [];
+for await (const event of kivel.stream(['monitors'])) changes.push(event);
+assert.deepEqual(changes, [{ type: 'ready', cursor: 'package-cursor' }]);`
 }
 `,
     );

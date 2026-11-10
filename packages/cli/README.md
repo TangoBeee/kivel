@@ -39,8 +39,8 @@ requests time out after 90 seconds. Mutations are never automatically retried.
 
 `job`, `status-page`, `smtp`, `phone` and `event wait` use the same owned APIs. Operator-dependent services stay disabled until configured; phone sending and calls are not implemented. Run `kivel --help` for their current commands.
 
-`listen` streams webhook events and can forward them to a local server. It runs on
-your machine, and stops on Ctrl+C. The optional server SSH gateway supports bounded
+`listen` streams webhook events and can forward them to a local server. On older
+servers, it uses the webhook wait endpoint. It runs on your machine and stops on Ctrl+C. The optional server SSH gateway supports bounded
 commands; it does not provide this continuous listener or a shell/SCP/SFTP service.
 
 [Command reference](https://kivel.io/docs/cli/) ·

@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer';
+import { setTimeout as pause } from 'node:timers/promises';
 import { KivelError } from '@kivel.io/sdk';
 import type { CapturedRequest, Kivel } from '@kivel.io/sdk';
 
@@ -40,28 +41,12 @@ export async function listen(
 ) {
     if (options.forward) new URL(options.forward);
     let after: string | undefined;
-    if (!options.all) {
-        const existing = (await client.inspectInbox(inboxId, options.token)) as {
-            requests: CapturedRequest[];
-        };
-        after = existing.requests.at(-1)?.id;
-    }
+    if (!options.all)
+        after = (await client.inspectInbox(inboxId, options.token)).requests.at(-1)?.id;
     write({ event: 'listening', inboxId, forward: options.forward ?? null });
-    while (!signal?.aborted) {
-        let batch;
-        try {
-            batch = await client.waitForRequests(inboxId, {
-                ...(options.token ? { token: options.token } : {}),
-                ...(after ? { after } : {}),
-            });
-        } catch (error) {
-            if (error instanceof KivelError && error.status === 429) {
-                await new Promise((resolve) => setTimeout(resolve, (error.retryAfter ?? 2) * 1000));
-                continue;
-            }
-            throw error;
-        }
-        for (const request of batch.requests) {
+
+    async function report(requests: CapturedRequest[]) {
+        for (const request of requests) {
             after = request.id;
             write({ event: 'request', request });
             if (!options.forward) continue;
@@ -92,6 +77,45 @@ export async function listen(
                     error: error instanceof Error ? error.message : 'Forwarding failed.',
                 });
             }
+        }
+    }
+
+    let cursor: string | undefined;
+    while (!signal?.aborted) {
+        try {
+            for await (const change of client.stream([`webhook:${inboxId}`], {
+                ...(options.token ? { token: options.token } : {}),
+                ...(cursor ? { lastEventId: cursor } : {}),
+                ...(signal ? { signal } : {}),
+            })) {
+                cursor = change.cursor;
+                const { requests } = await client.waitForRequests(inboxId, {
+                    ...(options.token ? { token: options.token } : {}),
+                    ...(after ? { after } : {}),
+                    timeoutSeconds: 1,
+                });
+                await report(requests);
+            }
+            await pause(200, undefined, { signal });
+        } catch (error) {
+            if (signal?.aborted) return;
+            if (error instanceof KivelError && [404, 501, 503].includes(error.status)) break;
+            if (!(error instanceof KivelError) || error.status !== 429) throw error;
+            await pause((error.retryAfter ?? 2) * 1000, undefined, { signal }).catch(() => {});
+        }
+    }
+
+    while (!signal?.aborted) {
+        try {
+            const batch = await client.waitForRequests(inboxId, {
+                ...(options.token ? { token: options.token } : {}),
+                ...(after ? { after } : {}),
+            });
+            await report(batch.requests);
+        } catch (error) {
+            if (signal?.aborted) return;
+            if (!(error instanceof KivelError) || error.status !== 429) throw error;
+            await pause((error.retryAfter ?? 2) * 1000, undefined, { signal }).catch(() => {});
         }
     }
 }

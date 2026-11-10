@@ -1198,8 +1198,12 @@
   }
   .usage-plan {
     flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 12px;
   }
   .usage-plan p {
+    flex-basis: 100%;
+    order: 1;
     padding-left: 0;
     border-left: 0;
   }
@@ -1336,4 +1340,36 @@ button.resource-title {
   margin-top: 8px;
   color: var(--muted);
   font-size: 12px;
+}
+
+.tool-meter-note.is-near,
+.usage-page .usage-status-near {
+  color: var(--warning);
+}
+.usage-page .usage-status-full {
+  color: var(--danger);
+}
+.limit-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.limit-card strong {
+  display: block;
+  font-size: 0.875rem;
+  color: var(--ink);
+}
+.limit-card p {
+  margin: 4px 0 0;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.usage-groups .limit-card {
+  margin-top: 8px;
 }

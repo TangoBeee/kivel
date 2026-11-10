@@ -9,6 +9,9 @@ import type { DashboardPanel } from './dashboard-shell';
 import { resourceTool } from './dashboard-resources';
 import type { Resource } from './dashboard-resources';
 import { ToolWorkbench } from './tool-workbench';
+import { UsageMeter } from './app/usage-meter';
+import { LimitCard } from './app/limit-card';
+import type { UsageKey } from '@kivel.io/tools/plans';
 
 export type ToolPanel = Extract<
     DashboardPanel,
@@ -56,6 +59,7 @@ export function readings(panel: ToolPanel, usage: WorkspaceUsage): Reading[] {
     const active = usage.items?.find((item) => item.key === 'resources.active');
     const stored = usage.items?.find((item) => item.key === 'resources.storage');
     const inboxes = usage.items?.find((item) => item.key === 'email.inboxes');
+    const oauth = usage.items?.find((item) => item.key === 'mocks.oauth');
     const pool = active && {
         label: 'All resources',
         used: active.used,
@@ -98,10 +102,18 @@ export function readings(panel: ToolPanel, usage: WorkspaceUsage): Reading[] {
               : panel === 'payments'
                 ? [pool, storage]
                 : panel === 'mocks'
-                  ? [pool]
+                  ? [
+                        pool,
+                        oauth && {
+                            label: oauth.label,
+                            used: oauth.used,
+                            limit: oauth.max,
+                            show: `${oauth.used} / ${oauth.max}`,
+                        },
+                    ]
                   : panel === 'files'
                     ? [storage, pool]
-                    : panel === 'automation'
+                    : panel === 'automation' || panel === 'status'
                       ? [pool]
                       : panel === 'monitors'
                         ? [
@@ -141,28 +153,13 @@ export function readings(panel: ToolPanel, usage: WorkspaceUsage): Reading[] {
     return list.filter((item): item is Reading => !!item);
 }
 
-export function UsageBar({ used, limit }: { used: number; limit?: number }) {
-    const ratio = limit ? Math.min(1, used / limit) : 0;
-    return (
-        <span
-            className={`usage-bar ${ratio >= 1 ? 'is-full' : ratio >= 0.8 ? 'is-near' : ''}`}
-            role="meter"
-            aria-valuemin={0}
-            aria-valuemax={limit ?? 0}
-            aria-valuenow={limit ? Math.min(used, limit) : 0}
-            aria-valuetext={`${used} of ${limit ?? 0}`}
-        >
-            <i style={{ width: `${limit ? Math.max(ratio * 100, used > 0 ? 3 : 0) : 0}%` }} />
-        </span>
-    );
-}
-
 function Meters({ items, onPlans }: { items: Reading[]; onPlans: () => void }) {
     if (!items.length) return null;
     return (
         <div className="tool-meters">
             {items.map((item) => {
                 const full = !!item.limit && item.used >= item.limit;
+                const near = !!item.limit && item.used >= item.limit * 0.8;
                 return (
                     <div key={item.label}>
                         <span className="tool-meter-row">
@@ -170,7 +167,7 @@ function Meters({ items, onPlans }: { items: Reading[]; onPlans: () => void }) {
                             <strong>{item.show}</strong>
                         </span>
                         {item.limit !== undefined && (
-                            <UsageBar used={item.used} limit={item.limit} />
+                            <UsageMeter label={item.label} used={item.used} limit={item.limit} />
                         )}
                         {full ? (
                             <button
@@ -180,6 +177,8 @@ function Meters({ items, onPlans }: { items: Reading[]; onPlans: () => void }) {
                             >
                                 At your limit. See plans
                             </button>
+                        ) : near ? (
+                            <span className="tool-meter-note is-near">Near your limit</span>
                         ) : (
                             item.note && <span className="tool-meter-note">{item.note}</span>
                         )}
@@ -190,10 +189,49 @@ function Meters({ items, onPlans }: { items: Reading[]; onPlans: () => void }) {
     );
 }
 
+const productAllowances: Partial<Record<ToolPanel, UsageKey[]>> = {
+    email: ['email.inboxes', 'resources.active', 'resources.storage'],
+    webhooks: ['resources.active', 'resources.storage'],
+    mocks: ['resources.active', 'resources.storage', 'mocks.oauth'],
+    files: ['resources.storage', 'resources.active'],
+    monitors: ['monitors.active'],
+    memory: ['memory.bytes'],
+    payments: ['resources.active', 'resources.storage'],
+    vault: ['vault.entries'],
+    authenticators: ['authenticators.entries'],
+    automation: ['resources.active', 'resources.storage'],
+    status: ['resources.active', 'resources.storage'],
+};
+
+function fullAllowances(panel: ToolPanel, usage: WorkspaceUsage) {
+    return (usage.items ?? []).filter(
+        (item) =>
+            productAllowances[panel]?.includes(item.key) && item.max > 0 && item.used >= item.max,
+    );
+}
+
 /** The New button of a tool page: one tool, or a short menu when the page covers several. */
-export function ToolNew({ panel, onNew }: { panel: ToolPanel; onNew: (toolId: string) => void }) {
+export function ToolNew({
+    panel,
+    usage,
+    onNew,
+}: {
+    panel: ToolPanel;
+    usage: WorkspaceUsage;
+    onNew: (toolId: string) => void;
+}) {
+    const full = fullAllowances(panel, usage);
+    if (full.some(({ key }) => !['email.inboxes', 'mocks.oauth'].includes(key))) return null;
     const create = (panelInfo(panel).create ?? []) as string[];
     const tools = create
+        .filter(
+            (id) =>
+                !full.some(
+                    ({ key }) =>
+                        (key === 'email.inboxes' && id === 'email-temporary-email-inbox') ||
+                        (key === 'mocks.oauth' && id === 'mock-apis-mock-oauth-provider'),
+                ),
+        )
         .map((id) => catalog.find((tool) => tool.id === id))
         .filter((tool) => !!tool);
     if (!tools.length) return null;
@@ -278,6 +316,11 @@ export function ToolPage({
     return (
         <div className="tool-page">
             <Meters items={readings(panel, usage)} onPlans={onPlans} />
+            {!toolId &&
+                usage.plan &&
+                fullAllowances(panel, usage).map((item) => (
+                    <LimitCard key={item.key} item={item} plan={usage.plan!} onPlans={onPlans} />
+                ))}
             {toolId ? (
                 <EmbeddedTool
                     key={`${open.resource ?? ''}-${toolId}`}
@@ -346,7 +389,13 @@ export function ToolCards({
                                 {info.label}
                             </span>
                             <strong>{main?.show ?? '–'}</strong>
-                            <UsageBar used={main?.used ?? 0} limit={main?.limit} />
+                            {main?.limit !== undefined && (
+                                <UsageMeter
+                                    label={main.label}
+                                    used={main.used}
+                                    limit={main.limit}
+                                />
+                            )}
                             <small>{main?.label ?? ''}</small>
                         </button>
                     );

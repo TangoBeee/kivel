@@ -38,7 +38,7 @@ import { AgentOverview } from './agent-overview';
 import { MonitorsPanel } from './monitors-panel';
 import { refreshViewer } from '../lib/viewer';
 import type { DashboardPanel } from './dashboard-shell';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { PasswordRecovery, AccountSecurity } from './account-security';
 import { clearPrivateSession } from '../lib/private-session';
@@ -364,7 +364,9 @@ export function AccountDashboard({
     // Agents get their keys when approved; those are managed on the Agents page.
     const ownKeys = keys.filter((key) => !key.name.startsWith('Agent: '));
     const agentKeys = keys.length - ownKeys.length;
-    const workspaceUsage = useWorkspaceUsage(session?.account.id, resources);
+    const [usageRevision, setUsageRevision] = useState(0);
+    const updateUsage = useCallback(() => setUsageRevision((revision) => revision + 1), []);
+    const workspaceUsage = useWorkspaceUsage(session?.account.id, resources, usageRevision);
     const storedBytes =
         workspaceUsage.items?.find((item) => item.key === 'resources.storage')?.used ?? 0;
     const activeResources =
@@ -635,6 +637,7 @@ export function AccountDashboard({
                         ) : isToolPanel(panel) && !open.resource && !open.tool ? (
                             <ToolNew
                                 panel={panel}
+                                usage={workspaceUsage}
                                 onNew={(toolId) => navigate(panel, { tool: toolId })}
                             />
                         ) : panel === 'agents' ? (
@@ -712,16 +715,19 @@ export function AccountDashboard({
                             open={open}
                             onNew={(toolId) => navigate(panel, { tool: toolId })}
                             onBack={() => navigate(panel)}
-                            onPlans={() => changePanel('usage')}
+                            onPlans={() => changePanel('billing')}
                             list={
                                 panel === 'monitors' ? (
-                                    <MonitorsPanel verifiedEmail={!!recoveryEmail?.verifiedAt} />
+                                    <MonitorsPanel
+                                        verifiedEmail={!!recoveryEmail?.verifiedAt}
+                                        onUsageChange={updateUsage}
+                                    />
                                 ) : panel === 'payments' ? (
                                     <PaymentsPanel onChange={() => void reload()} />
                                 ) : panel === 'vault' ? (
                                     <VaultPanel onChange={() => void reload()} />
                                 ) : panel === 'authenticators' ? (
-                                    <AuthenticatorsPanel />
+                                    <AuthenticatorsPanel onUsageChange={updateUsage} />
                                 ) : panel === 'memory' ? (
                                     <EmbeddedTool toolId="databases-agent-state-store" />
                                 ) : (
@@ -739,12 +745,10 @@ export function AccountDashboard({
                                         onOpen={openResource}
                                         empty={
                                             <div className="home-empty-block">
-                                                <p>
-                                                    Nothing here yet. Create one yourself, or ask
-                                                    your agent to.
-                                                </p>
+                                                <p>Nothing here yet.</p>
                                                 <ToolNew
                                                     panel={panel}
+                                                    usage={workspaceUsage}
                                                     onNew={(toolId) =>
                                                         navigate(panel, { tool: toolId })
                                                     }

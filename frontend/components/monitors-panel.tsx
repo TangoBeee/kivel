@@ -42,9 +42,11 @@ const every = (seconds: number) =>
 export function MonitorsPanel({
     verifiedEmail,
     initialKind = 'http',
+    onUsageChange,
 }: {
     verifiedEmail: boolean;
     initialKind?: Monitor['kind'];
+    onUsageChange?: () => void;
 }) {
     const [monitors, setMonitors] = useState<Monitor[] | null>(null);
     const [limit, setLimit] = useState(0);
@@ -89,6 +91,10 @@ export function MonitorsPanel({
         return () => controller.abort();
     }, []);
     const live = useLiveStream('monitors', load, paused);
+    const count = monitors?.length;
+    useEffect(() => {
+        if (count !== undefined) onUsageChange?.();
+    }, [count, onUsageChange]);
 
     function start() {
         setKind(initialKind);

@@ -16,15 +16,15 @@ import { CopyPrompt } from '../components/home/copy-prompt';
 import { LiveWebhook } from '../components/home/live-webhook';
 import { catalog, categories, categoryHref } from '../lib/catalog';
 import { plans as limits } from '@kivel.io/tools/plans';
-import { money, paidPlansEnabled, pricing } from '../lib/pricing';
+import { earlyPriceNote, money, paidPlansEnabled, pricing } from '../lib/pricing';
 import { setupPrompt } from '../lib/setup-prompt';
 import { siteOrigin } from '../lib/site';
 import './home.css';
 
-// Brand first, so a search for "kivel" matches the page title and Google learns the name.
 const toolTotal = catalog.filter((tool) => tool.status === 'available').length;
-const title = `Kivel: email, webhooks and ${toolTotal} tools for AI agents`;
-const description = `Kivel gives AI coding agents email inboxes, webhook URLs, mock APIs, OAuth, monitors, memory, 2FA codes and ${toolTotal} tools over one MCP connection. Free to start.`;
+const title = 'Kivel: email, webhooks and mock APIs for AI agents';
+const description =
+    'Give Claude Code, Cursor and Codex email inboxes, webhook URLs and mock APIs over MCP. Use Kivel in development, CI and production.';
 
 export const metadata: Metadata = {
     metadataBase: new URL(siteOrigin),
@@ -46,7 +46,7 @@ export const metadata: Metadata = {
 const showcase = [
     {
         title: 'Email inboxes',
-        body: 'Real addresses that send and receive. Codes and links are pulled out for you.',
+        body: 'Send and receive email on socketspace.xyz. Extract one-time codes and verification links automatically.',
         href: '/catalog/email/',
         art: '/art/klee-castle-and-sun.webp',
         credit: 'Paul Klee, Castle and Sun, 1928',
@@ -54,7 +54,7 @@ const showcase = [
     },
     {
         title: 'Webhook inboxes',
-        body: 'A URL for Stripe, GitHub, Slack or your own app. Inspect, replay, forward.',
+        body: 'Capture webhooks from Stripe, GitHub, Slack or your own app. Inspect, replay and forward requests.',
         href: '/webhooks/',
         art: '/art/kandinsky-several-circles.webp',
         credit: 'Wassily Kandinsky, Several Circles, 1926',
@@ -62,7 +62,7 @@ const showcase = [
     },
     {
         title: 'Mock APIs',
-        body: 'REST, GraphQL and OAuth services with real routes, data and failures.',
+        body: 'Mock REST, GraphQL and OAuth endpoints. Set routes, responses, delays and errors.',
         href: '/catalog/mock-apis/',
         art: '/art/malevich-suprematist.webp',
         credit: 'Kazimir Malevich, Suprematist Composition, 1916',
@@ -266,8 +266,9 @@ export default function Home() {
                             </Link>
                         </div>
                         <p className="home-hero-facts">
-                            {paidPlansEnabled ? 'Free to start' : 'Free during the beta'} · Pro{' '}
-                            {money(pricing.pro.monthly)} a month · {toolTotal} tools
+                            Free to start
+                            {paidPlansEnabled && ` · Pro ${money(pricing.pro.monthly)}/mo`}
+                            {` · ${toolTotal} tools`}
                         </p>
                     </div>
                 </section>
@@ -355,17 +356,30 @@ export default function Home() {
                     <p>
                         {paidPlansEnabled
                             ? 'Start free. Upgrade when you need more agents.'
-                            : 'Free during the beta. Paid plans open after it.'}{' '}
-                        <Link href="/plans/" className="home-link">
+                            : 'Start free. The paid plans below are a preview.'}{' '}
+                        <Link href="/pricing/" className="home-link">
                             See every limit
                         </Link>
                     </p>
+                    {paidPlansEnabled && pricing.early && <p>{earlyPriceNote}</p>}
                 </div>
                 <div className="home-plans">
                     {plans.map((plan) => (
                         <div key={plan.name}>
-                            <span>{plan.name}</span>
-                            <strong>{plan.price}</strong>
+                            <span>
+                                {plan.name}
+                                {plan.name === 'Pro' &&
+                                    paidPlansEnabled &&
+                                    pricing.early &&
+                                    ' · Early pricing'}
+                            </span>
+                            <strong>
+                                {plan.name === 'Pro' && pricing.early && (
+                                    <del>{money(pricing.pro.listMonthly)}</del>
+                                )}
+                                {plan.price}
+                                {plan.name !== 'Free' && <small>/mo</small>}
+                            </strong>
                             <p>{plan.note}</p>
                         </div>
                     ))}

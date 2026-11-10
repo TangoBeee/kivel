@@ -8,7 +8,7 @@ import { comparisons } from '../lib/comparisons';
 import { docPages } from '../lib/docs';
 import { toolExample } from '../lib/tool-guides';
 import { siteOrigin } from '../lib/site';
-import { paidPlansEnabled } from '../lib/pricing';
+import { earlyPriceNote, money, paidPlansEnabled, pricing } from '../lib/pricing';
 const providerSource = await readFile('components/toolbox-provider.tsx', 'utf8');
 const providerBody = /<Context\.Provider\b[^>]*>([\s\S]*?)<\/Context\.Provider>/.exec(
     providerSource,
@@ -175,6 +175,17 @@ if (!paidPlansEnabled) {
     assert.ok(plansHtml.includes('Not available during beta'));
     assert.ok(!plansHtml.includes('Upgrade to Pro'));
 }
+const offers = [
+    ...plansHtml.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/gs),
+].flatMap((match) => JSON.parse(match[1]!).offers ?? []);
+assert.deepEqual(
+    offers.map((offer: { price: number }) => offer.price),
+    paidPlansEnabled ? [0, pricing.pro.monthly, pricing.team.monthly] : [0],
+    'Only enabled prices appear in structured offers',
+);
+assert.equal(plansHtml.includes(earlyPriceNote), paidPlansEnabled && pricing.early);
+for (const plan of ['pro', 'team'] as const)
+    assert.ok(plansHtml.includes(`<strong>${money(pricing[plan].monthly)}</strong>`));
 for (const path of ['contact', 'refunds', 'terms', 'privacy', 'beta']) {
     const html = await readFile(`out/${path}/index.html`, 'utf8');
     assert.ok(html.includes('mailto:support@kivel.io'), `${path}: public support route`);
@@ -220,6 +231,9 @@ for (const path of ['/', '/connect/', '/pricing/', '/docs/']) {
         assert.ok(text.toLowerCase().includes(term.toLowerCase()), `${path}: ${term}`);
 }
 const home = await readFile('out/index.html', 'utf8');
+assert.ok(home.includes('/art/klint-youth.webp'), 'Home preserves the Gallery hero');
+assert.ok(home.includes('href="/pricing/"'), 'Home links to the current pricing URL');
+assert.ok(home.includes('mailto:support@kivel.io'), 'Home preserves the support contact');
 for (const category of categories)
     assert.ok(home.includes(`/catalog/${category.id}/`), `Home links to ${category.name}`);
 console.log('Verified full product coverage and catalog-derived counts.');

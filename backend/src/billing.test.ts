@@ -5,6 +5,8 @@ import DodoPayments from 'dodopayments';
 import type { Subscription } from 'dodopayments/resources/subscriptions';
 import { buildApp } from './app.js';
 import { subscriptionState } from './billing.js';
+import { MemoryIdentityRepository } from './identity.js';
+import { MemoryRecoveryRepository } from './recovery-store.js';
 const products = { proProduct: 'pdt_pro', teamProduct: 'pdt_team' };
 const config = {
     apiKey: 'dodo_test_example',
@@ -166,7 +168,9 @@ test('Dodo checkout requires a verified recovery email before contacting the pro
     assert.equal(calls, 0);
 });
 test('Dodo prices use live product minor units and reject unsupported billing configurations', async (t) => {
-    let trial = 0;
+    let trial = 0,
+        pro = 200,
+        team = 600;
     const dodo = new DodoPayments({
         bearerToken: config.apiKey,
         maxRetries: 0,
@@ -176,7 +180,7 @@ test('Dodo prices use live product minor units and reject unsupported billing co
                 is_recurring: true,
                 price: {
                     type: 'recurring_price',
-                    price: String(url).includes('pdt_team') ? 600 : 200,
+                    price: String(url).includes('pdt_team') ? team : pro,
                     currency: 'USD',
                     payment_frequency_count: 1,
                     payment_frequency_interval: 'Month',
@@ -204,6 +208,74 @@ test('Dodo prices use live product minor units and reject unsupported billing co
     });
     t.after(() => bad.close());
     assert.equal((await bad.inject('/api/billing')).statusCode, 503);
+
+    trial = 0;
+    const identities = new MemoryIdentityRepository();
+    const recovery = Object.assign(new MemoryRecoveryRepository(identities), {
+        async status() {
+            return {
+                email: 'plan@example.test',
+                verifiedAt: new Date().toISOString(),
+                pendingEmail: null,
+            };
+        },
+    });
+    const early = buildApp({
+        identityStore: identities,
+        recoveryStore: recovery,
+        dodoClient: dodo,
+        billingRepository: {} as never,
+        billingConfig: { ...config, priceSchedule: 'early' },
+    });
+    t.after(() => early.close());
+    assert.equal(
+        (await early.inject('/api/billing')).statusCode,
+        503,
+        'Legacy products do not match early pricing',
+    );
+    pro = 500;
+    team = 2900;
+    const preview = await early.inject('/api/billing');
+    assert.equal(preview.statusCode, 200, preview.body);
+    assert.deepEqual(
+        preview.json().prices.map((value: { amount: number }) => value.amount),
+        [500, 2900],
+    );
+
+    const origin = 'http://localhost:3000';
+    const registered = await early.inject({
+        method: 'POST',
+        url: '/api/auth/register',
+        headers: { origin },
+        payload: {
+            username: 'price-check',
+            password: 'test fixture password',
+            email: 'plan@example.test',
+        },
+    });
+    assert.equal(registered.statusCode, 201, registered.body);
+    const cookie = String(registered.headers['set-cookie']).split(';')[0]!;
+    pro = 900;
+    assert.equal(
+        (
+            await early.inject({
+                method: 'POST',
+                url: '/api/billing/checkout',
+                headers: { origin, cookie },
+                payload: { plan: 'pro' },
+            })
+        ).statusCode,
+        503,
+        'Checkout validates the current provider price even when a quote is cached',
+    );
+
+    const standard = buildApp({
+        dodoClient: dodo,
+        billingRepository: {} as never,
+        billingConfig: { ...config, priceSchedule: 'standard' },
+    });
+    t.after(() => standard.close());
+    assert.equal((await standard.inject('/api/billing')).json().prices[0].amount, 900);
 });
 
 test('Dodo subscription ownership falls back to current customer metadata when checkout metadata is absent', async (t) => {

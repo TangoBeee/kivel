@@ -134,6 +134,17 @@ available to workspace owners. When replacing a Dodo product, add its old ID to
 `DODO_LEGACY_PRODUCT_IDS`, for example `{"pdt_oldpro":"pro"}`. Existing subscriptions
 keep their paid access and new checkout uses the current product IDs.
 
+The deploy workflow builds with the `legacy` pricing schedule by default. To
+launch early pricing, create fixed USD monthly products for Pro ($5) and Team
+($29) in Dodo. Configure their IDs on the server and map the retired IDs with
+`DODO_LEGACY_PRODUCT_IDS`. Set the GitHub repository variable
+`BILLING_PRICE_SCHEDULE` to `early` and deploy. The image uses the same schedule
+for the public pages and checkout. Checkout checks the Dodo product prices
+before creating a session. Test the matching products in Dodo test mode before
+switching live. To move to the $9 Pro price, use `standard` and add the $5
+product ID to the retired map. When rolling back pricing, restore the matching
+current product IDs with the earlier image.
+
 ## Account recovery
 
 Set `SMTP_HOST`, `SMTP_PORT` (587 by default), `SMTP_FROM` (an email address), and

@@ -294,11 +294,11 @@ export const comparisons: Comparison[] = [
         name: 'Beeceptor',
         focus: 'API mocking',
         description:
-            'Kivel mock APIs are private by default, log every call, generate fake data and proxy real APIs on Pro for $2; Beeceptor adds tunnels, gRPC and SOAP.',
+            'Kivel mock APIs are private by default, log every call, generate fake data and proxy real APIs on Pro. Beeceptor adds tunnels, gRPC and SOAP.',
         summary:
             'Both give you a hosted endpoint you can inspect and mock without writing a server. Kivel endpoints are private by default and expire on their own. Beeceptor endpoints are public by default and cover more protocols and behaviors.',
         kivelFit:
-            'Choose Kivel when you want mocks private by default, a live log of every call, fake data, random failures and proxy-and-record on Pro at $2 a month, all usable by an AI agent over MCP.',
+            'Choose Kivel when you want mocks private by default, a live log of every call, fake data, random failures and proxy-and-record on Pro, all usable by an AI agent over MCP.',
         otherFit:
             'Choose Beeceptor when a mock needs to expose a local service, use advanced CRUD filters, or speak gRPC or SOAP from a contract.',
         rows: [

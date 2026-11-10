@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { paidPlans } from '@kivel.io/tools/billing-plans';
+import { billingSchedules, type BillingPriceSchedule } from '@kivel.io/tools/billing-plans';
 import type { RecoveryRepository } from './recovery-store.js';
 import DodoPayments from 'dodopayments';
 import type { Subscription } from 'dodopayments/resources/subscriptions';
@@ -14,6 +14,7 @@ export interface BillingConfig {
     webhookSecret: string;
     proProduct: string;
     teamProduct: string;
+    priceSchedule?: BillingPriceSchedule;
     legacyProducts?: Readonly<Record<string, Exclude<AccountPlan, 'free'>>>;
     phoneAddonId?: string;
     phoneAddonEnabled?: boolean;
@@ -123,10 +124,12 @@ export class BillingRepository {
     }
     async checkout(
         accountId: string,
-        plan: string,
+        quote: { plan: 'pro' | 'team'; productId: string; amount: number; legacy: boolean },
         status: (id: string) => Promise<string | null | undefined>,
         create: () => Promise<{ id: string; url: string }>,
     ) {
+        const { plan, productId, amount, legacy } = quote;
+        const priceKey = `${plan}:${productId}:${amount}`;
         return transaction(this.pool, async (client) => {
             const row = (
                 await client.query(
@@ -138,10 +141,16 @@ export class BillingRepository {
             if (row.dodo_checkout_id) {
                 const current = await status(row.dodo_checkout_id);
                 if (!['failed', 'cancelled'].includes(current ?? '')) {
-                    if (row.dodo_checkout_plan !== plan)
+                    const saved = row.dodo_checkout_plan as string | null;
+                    if (saved?.split(':')[0] !== plan)
                         throw new HttpError(
                             409,
                             'A checkout for another plan is already open. Complete it before changing plans in the billing portal.',
+                        );
+                    if (saved !== priceKey && !(legacy && saved === plan))
+                        throw new HttpError(
+                            409,
+                            'A checkout with earlier pricing is still open. Wait for it to expire before opening a new checkout.',
                         );
                     return { url: row.dodo_checkout_url as string };
                 }
@@ -149,7 +158,7 @@ export class BillingRepository {
             const session = await create();
             await client.query(
                 'UPDATE accounts SET dodo_checkout_id = $1, dodo_checkout_url = $2, dodo_checkout_plan = $3 WHERE id = $4',
-                [session.id, session.url, plan, accountId],
+                [session.id, session.url, priceKey, accountId],
             );
             return { url: session.url };
         });
@@ -299,6 +308,7 @@ export function registerBilling(
     recovery?: RecoveryRepository,
 ) {
     const enabled = !!repository && !!config;
+    const schedule = billingSchedules[config?.priceSchedule ?? 'legacy'];
     const dodo = config
         ? (providedDodo ??
           new DodoPayments({
@@ -310,16 +320,16 @@ export function registerBilling(
           }))
         : undefined;
     let cached: { at: number; prices: unknown[] } | undefined;
-    async function prices() {
+    async function prices(fresh = false) {
         if (!enabled || !dodo || !config) return [];
-        if (cached && Date.now() - cached.at < 60000) return cached.prices;
+        if (!fresh && cached && Date.now() - cached.at < 60000) return cached.prices;
         const products = await Promise.all([
             dodo.products.retrieve(config.proProduct),
             dodo.products.retrieve(config.teamProduct),
         ]);
         const values = products.map((product, index) => {
             const price = product.price;
-            const published = index ? paidPlans.team : paidPlans.pro;
+            const published = index ? schedule.team : schedule.pro;
             if (
                 !product.is_recurring ||
                 price.type !== 'recurring_price' ||
@@ -368,7 +378,7 @@ export function registerBilling(
             );
         const plan = (request.body as { plan?: unknown } | null)?.plan;
         if (plan !== 'pro' && plan !== 'team') throw new HttpError(400, 'Choose Pro or Team.');
-        await prices();
+        await prices(true);
         const customer = await repository.customer(
             identity.account.id,
             async () =>
@@ -405,9 +415,15 @@ export function registerBilling(
                 'Subscription history needs review before another checkout can be opened.',
             );
         }
+        const productId = plan === 'pro' ? config.proProduct : config.teamProduct;
         return repository.checkout(
             identity.account.id,
-            plan,
+            {
+                plan,
+                productId,
+                amount: schedule[plan].amount,
+                legacy: !config.priceSchedule || config.priceSchedule === 'legacy',
+            },
             async (id) => {
                 const historical = await subscriptions();
                 const session = await dodo.checkoutSessions.retrieve(id);
@@ -427,7 +443,7 @@ export function registerBilling(
                     ...(coupon ? { discount_codes: [coupon] } : {}),
                     product_cart: [
                         {
-                            product_id: plan === 'pro' ? config.proProduct : config.teamProduct,
+                            product_id: productId,
                             quantity: 1,
                         },
                     ],

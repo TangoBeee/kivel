@@ -1166,6 +1166,17 @@ test('Dodo checkout is serialized, reused, owner-only and does not grant access 
     assert.deepEqual(checkoutPayload.metadata, { accountId: identity.account.id });
     assert.equal((await identities.account(identity.account.id))!.plan, 'free');
     assert.equal((await checkout('team')).statusCode, 409);
+    await pool.query("UPDATE accounts SET dodo_checkout_plan='pro' WHERE id=$1", [
+        identity.account.id,
+    ]);
+    assert.equal((await checkout()).json().url, 'https://checkout.dodopayments.com/session/1');
+    await pool.query("UPDATE accounts SET dodo_checkout_plan='pro:pdt_retired:200' WHERE id=$1", [
+        identity.account.id,
+    ]);
+    const replaced = await checkout();
+    assert.equal(replaced.statusCode, 409, replaced.body);
+    assert.match(replaced.body, /earlier pricing/);
+    assert.equal(checkoutCreates, 1);
     // An unpaid link older than Dodo keeps it open is replaced, not handed out again.
     checkoutCreatedAt = new Date(Date.now() - 31 * 60 * 1000).toISOString();
     const stale = await checkout();

@@ -3,6 +3,7 @@ import type { MailConfig } from './mail.js';
 import { isIP } from 'node:net';
 import { httpOrigin } from './security.js';
 import type { BillingConfig } from './billing.js';
+import { billingPriceSchedule } from '@kivel.io/tools/billing-plans';
 
 function legacyDodoProducts(
     raw: string | undefined,
@@ -97,6 +98,7 @@ export function readConfig(env: Record<string, string | undefined>) {
     if (Object.keys(env).some((key) => key.startsWith('STRIPE_') && env[key]))
         throw new Error('Stripe billing is no longer supported. Configure Dodo Payments instead.');
     const billingEnabled = env.BILLING_ENABLED === 'true';
+    const priceSchedule = billingPriceSchedule(env.BILLING_PRICE_SCHEDULE);
     if (env.BILLING_ENABLED && !['true', 'false'].includes(env.BILLING_ENABLED))
         throw new Error('BILLING_ENABLED must be true or false.');
     const billingKeys = [
@@ -123,6 +125,7 @@ export function readConfig(env: Record<string, string | undefined>) {
               webhookSecret: env.DODO_PAYMENTS_WEBHOOK_KEY!,
               proProduct: env.DODO_PRO_PRODUCT_ID!,
               teamProduct: env.DODO_TEAM_PRODUCT_ID!,
+              priceSchedule,
               ...(legacyProducts ? { legacyProducts } : {}),
               phoneAddonEnabled: env.PHONE_ENABLED === 'true',
               ...(env.DODO_PHONE_ADDON_ID ? { phoneAddonId: env.DODO_PHONE_ADDON_ID } : {}),

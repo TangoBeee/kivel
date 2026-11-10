@@ -106,6 +106,15 @@ test('public production requires recovery delivery and beta billing is explicitl
     );
     assert.ok(readConfig({ ...production, ...dodo, BILLING_ENABLED: 'true' }).billingConfig);
     const paid = { ...production, ...dodo, BILLING_ENABLED: 'true' };
+    assert.equal(readConfig(paid).billingConfig?.priceSchedule, 'legacy');
+    assert.equal(
+        readConfig({ ...paid, BILLING_PRICE_SCHEDULE: 'early' }).billingConfig?.priceSchedule,
+        'early',
+    );
+    assert.throws(
+        () => readConfig({ ...paid, BILLING_PRICE_SCHEDULE: 'invalid' }),
+        /BILLING_PRICE_SCHEDULE/,
+    );
     assert.deepEqual(
         readConfig({
             ...paid,

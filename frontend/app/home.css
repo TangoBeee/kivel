@@ -226,6 +226,15 @@
   line-height: 1;
   letter-spacing: -0.03em;
 }
+.home-plans :is(del, small) {
+  margin-inline-end: 4px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+.home-plans small {
+  margin-inline: 3px 0;
+}
 .home-plans p {
   font-size: 0.875rem;
   line-height: 1.375rem;

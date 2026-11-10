@@ -1503,8 +1503,22 @@ test('approvals are answered once and never after they expire', async () => {
     });
     const live = approval(Date.now() + 60000),
         stale = approval(Date.now() - 1000);
-    await store.create(live);
-    await store.create(stale);
+    await store.create(live, 'free');
+    await store.create(stale, 'free');
+    const unqueued = approval(Date.now() + 60000);
+    await assert.rejects(
+        store.create(unqueued, 'free', async (client) => {
+            assert.ok(client);
+            assert.equal(
+                (await client.query('SELECT 1 FROM approvals WHERE id = $1', [unqueued.id]))
+                    .rowCount,
+                1,
+            );
+            return false;
+        }),
+        { statusCode: 409 },
+    );
+    assert.equal(await store.get(accountId, unqueued.id), undefined);
     assert.equal((await store.get(accountId, stale.id))?.status, 'expired');
     assert.deepEqual(
         (await store.list(accountId, true)).map((item) => item.id),
@@ -3681,4 +3695,49 @@ test('live stream leases enforce the workspace cap across different sessions', a
     assert.equal(leases.filter(Boolean).length, 20);
     await first.release(leases.find((lease) => lease !== undefined)!);
     assert.ok(await second.reserve(crypto.randomUUID(), workspace));
+});
+
+test('approval requests across replicas respect the same workspace allowance', async (t) => {
+    const identities = new PostgresIdentityRepository(pool);
+    const options = {
+        identityStore: identities,
+        recoveryStore: new PostgresRecoveryRepository(pool),
+        approvalStore: new PostgresApprovals(pool),
+    };
+    const apps = [buildApp(options), buildApp(options)];
+    t.after(async () => {
+        await Promise.all(apps.map((app) => app.close()));
+    });
+    const origin = 'http://localhost:3000';
+    const registration = await apps[0]!.inject({
+        method: 'POST',
+        url: '/api/auth/register',
+        headers: { origin },
+        payload: {
+            username: 'approval-limit-owner',
+            email: 'approval-limit@example.test',
+            password: 'correct-horse-battery-staple',
+        },
+    });
+    assert.equal(registration.statusCode, 201, registration.body);
+    const headers = { origin, cookie: String(registration.headers['set-cookie']).split(';')[0]! };
+    const max = plans.free.approvalQuestionsPerDay;
+    const responses = await Promise.all(
+        Array.from({ length: max + 5 }, (_, index) =>
+            apps[index % 2]!.inject({
+                method: 'POST',
+                url: '/api/approvals',
+                headers,
+                payload: { question: `Approve fixture ${index}?` },
+            }),
+        ),
+    );
+    assert.equal(responses.filter(({ statusCode }) => statusCode === 201).length, max);
+    for (const response of responses.filter(({ statusCode }) => statusCode !== 201)) {
+        assert.equal(response.statusCode, 402, response.body);
+        assert.equal(response.json().limit, 'approvals.questions');
+        assert.equal(response.json().used, max);
+        assert.equal(response.json().requiredPlan, 'pro');
+    }
+    assert.equal((await pool.query('SELECT 1 FROM approvals')).rowCount, max);
 });

@@ -920,7 +920,7 @@ export function openApi(origin: string) {
             if (
                 operation.responses &&
                 ((method === 'post' &&
-                    /^\/api\/(inboxes|authenticators|credentials|email-inboxes|oauth-providers|mocks|mcp-servers|files|email-inboxes\/\{id\}\/send|tools\/\{[^}]+\}\/run)$/.test(
+                    /^\/api\/(inboxes|approvals|authenticators|credentials|email-inboxes|oauth-providers|mocks|mcp-servers|files|email-inboxes\/\{id\}\/send|tools\/\{[^}]+\}\/run)$/.test(
                         path,
                     )) ||
                     (method === 'put' && path === '/api/memory/{namespace}/{key}'))

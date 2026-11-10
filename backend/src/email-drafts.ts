@@ -1,3 +1,4 @@
+import type { PoolClient } from 'pg';
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { plans } from '@kivel.io/tools/plans';
@@ -135,7 +136,7 @@ export function registerEmailDrafts(
         return reply.code(204).send();
     });
     app.post<Inbox>('/api/email-drafts/:id/send', async (request, reply) => {
-        const { job, content } = await owned(request, request.params.id, true);
+        const { job, actor, content } = await owned(request, request.params.id, true);
         const input = (request.body ?? {}) as { approval?: boolean; sendAt?: string };
         if (
             typeof input !== 'object' ||
@@ -215,12 +216,14 @@ export function registerEmailDrafts(
                 ...(approval ? { approvalId: approval.id } : {}),
             },
         };
-        if (
-            (job.status === 'draft' || resubmit) &&
-            !(await jobs.queueDraft(queued, resubmit ? previousId : undefined))
-        )
+        const queue =
+            job.status === 'draft' || resubmit
+                ? (client?: PoolClient) =>
+                      jobs.queueDraft(queued, resubmit ? previousId : undefined, client)
+                : undefined;
+        if (approval) await review.submit(approval, actor.plan, queue);
+        else if (queue && !(await queue()))
             throw new HttpError(409, 'This draft was already submitted. Check its status.');
-        if (approval) await review.submit(approval);
         return reply.code(202).send(await view(queued, content));
     });
 

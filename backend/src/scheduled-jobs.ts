@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Pool } from 'pg';
+import type { Pool, PoolClient } from 'pg';
 import type { FastifyInstance } from 'fastify';
 import { HttpError, resourceToken } from './access.js';
 import type { Access } from './access.js';
@@ -38,7 +38,11 @@ export interface JobStore {
     claim(now: number): Promise<{ job: ScheduledJob; lease: string } | undefined>;
     finish(job: ScheduledJob, lease: string): Promise<void>;
     cancel(id: string): Promise<void>;
-    queueDraft(job: ScheduledJob, previousApprovalId?: string): Promise<boolean>;
+    queueDraft(
+        job: ScheduledJob,
+        previousApprovalId?: string,
+        client?: PoolClient,
+    ): Promise<boolean>;
     cancelDraft(id: string, ownerId: string): Promise<boolean>;
 }
 export class MemoryJobs implements JobStore {
@@ -150,8 +154,8 @@ export class PostgresJobs implements JobStore {
             [job.id, lease, job, job.nextRunAt],
         );
     }
-    async queueDraft(job: ScheduledJob, previousApprovalId?: string) {
-        const result = await this.pool.query(
+    async queueDraft(job: ScheduledJob, previousApprovalId?: string, client?: PoolClient) {
+        const result = await (client ?? this.pool).query(
             `UPDATE scheduled_jobs SET job=$2,next_run_at=$3,lease_id=NULL,lease_until=NULL
              WHERE id=$1 AND owner_id=$4 AND (lease_until IS NULL OR lease_until < clock_timestamp())
              AND CASE WHEN $5::text IS NULL THEN job->>'status'='draft'

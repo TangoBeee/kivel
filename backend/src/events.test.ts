@@ -112,17 +112,20 @@ test('event waits distinguish received mail from sent mail and preserve negative
         attachments: [],
     });
     const approvalId = randomUUID();
-    f.approvals.create({
-        id: approvalId,
-        accountId: f.identity.account.id,
-        agentName: 'Test',
-        question: 'May I deploy?',
-        options: ['Yes', 'No'],
-        status: 'answered',
-        answer: 'No',
-        createdAt: new Date().toISOString(),
-        expiresAt: new Date(Date.now() + 60000).toISOString(),
-    });
+    f.approvals.create(
+        {
+            id: approvalId,
+            accountId: f.identity.account.id,
+            agentName: 'Test',
+            question: 'May I deploy?',
+            options: ['Yes', 'No'],
+            status: 'answered',
+            answer: 'No',
+            createdAt: new Date().toISOString(),
+            expiresAt: new Date(Date.now() + 60000).toISOString(),
+        },
+        'free',
+    );
     const sources = [
         { kind: 'email', id: inbox.id },
         { kind: 'approval', id: approvalId },

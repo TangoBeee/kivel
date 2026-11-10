@@ -157,12 +157,20 @@
   line-height: 1.5rem;
   color: var(--muted);
 }
-.home-features > div {
+.home-features > a {
   display: grid;
   align-content: start;
   gap: 8px;
   padding-top: 18px;
   border-top: 1px solid var(--ink);
+  transition: border-color 160ms ease;
+}
+.home-features > a:hover {
+  border-top-color: var(--accent, var(--ink));
+}
+.home-features > a:hover h2 {
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }
 .home-features h2 {
   font-size: 1.0625rem;

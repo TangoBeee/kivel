@@ -48,21 +48,24 @@ const showcase = [
         title: 'Email inboxes',
         body: 'Real addresses that send and receive. Codes and links are pulled out for you.',
         href: '/catalog/email/',
-        art: '/art/blog/b01.webp',
+        art: '/art/klee-castle-and-sun.webp',
+        credit: 'Paul Klee, Castle and Sun, 1928',
         snippet: 'email',
     },
     {
         title: 'Webhook inboxes',
         body: 'A URL for Stripe, GitHub, Slack or your own app. Inspect, replay, forward.',
         href: '/webhooks/',
-        art: '/art/blog/b06.webp',
+        art: '/art/kandinsky-several-circles.webp',
+        credit: 'Wassily Kandinsky, Several Circles, 1926',
         snippet: 'webhook',
     },
     {
         title: 'Mock APIs',
         body: 'REST, GraphQL and OAuth services with real routes, data and failures.',
         href: '/catalog/mock-apis/',
-        art: '/art/blog/b11.webp',
+        art: '/art/malevich-suprematist.webp',
+        credit: 'Kazimir Malevich, Suprematist Composition, 1916',
         snippet: 'mock',
     },
 ] as const;
@@ -289,6 +292,7 @@ export default function Home() {
                             <div className="home-show-art">
                                 <img src={item.art} alt="" loading="lazy" />
                                 <Snippet kind={item.snippet} />
+                                <small>{item.credit}</small>
                             </div>
                             <h3>
                                 {item.title}
@@ -337,9 +341,10 @@ export default function Home() {
                         This is a real webhook inbox, the same one your agent gets. Send it a
                         request.
                     </p>
+                    <p className="home-credit">Robert Delaunay, Homage to Blériot, 1914</p>
                 </div>
                 <div className="home-try-art">
-                    <img src="/art/blog/b08.webp" alt="" loading="lazy" />
+                    <img src="/art/delaunay-bleriot.webp" alt="" loading="lazy" />
                     <LiveWebhook />
                 </div>
             </section>

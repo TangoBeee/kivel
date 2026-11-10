@@ -773,6 +773,22 @@
 .home-show:hover .home-show-art img {
   transform: scale(1.04);
 }
+.home-show-art small {
+  position: absolute;
+  left: 12px;
+  bottom: 10px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: rgb(255 255 255 / 0.85);
+  font-size: 0.6875rem;
+  color: var(--ink);
+  opacity: 0;
+  transition: opacity 300ms var(--home-ease);
+}
+.home-show:hover .home-show-art small,
+.home-show:focus-visible .home-show-art small {
+  opacity: 1;
+}
 .home-show h3 {
   display: flex;
   align-items: center;
@@ -944,4 +960,8 @@
     min-height: 0;
     padding: 20px;
   }
+}
+.home-split > div:first-child .home-credit {
+  margin-top: 24px;
+  font-size: 0.75rem;
 }

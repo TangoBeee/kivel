@@ -1,5 +1,11 @@
 # @kivel.io/sdk
 
+## 0.8.0
+
+### Minor Changes
+
+- 7290344: Add test wallets, x402 paywalls and mock checkouts with approval-aware payments, ledgers and test outcome controls.
+
 ## 0.7.0
 
 ### Minor Changes

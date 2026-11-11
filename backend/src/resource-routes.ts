@@ -10,6 +10,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { HttpError, resourceToken as token } from './access.js';
 import type { Actor } from './access.js';
+import { RateLimitError } from './errors.js';
 import { entitlement } from './entitlements.js';
 import { publicRequest, publicUrl } from './public-network.js';
 import type { Access } from './access.js';
@@ -470,10 +471,11 @@ export function registerResources(
                         return reply.code(404).send({ error: 'Mock API unavailable or expired.' });
                     const retry = await limits.consume(`mock:${request.params.id}`, 120);
                     if (retry)
-                        return reply
-                            .header('Retry-After', retry)
-                            .code(429)
-                            .send({ error: 'Mock request limit exceeded.' });
+                        throw new RateLimitError(
+                            'mocks.requests',
+                            'Mock request limit exceeded.',
+                            retry,
+                        );
                     const caller = await access.publicCredential(
                         request,
                         ['GET', 'HEAD', 'OPTIONS'].includes(request.method)
@@ -713,10 +715,11 @@ export function registerResources(
                             route.requestsPerMinute,
                         );
                         if (retry)
-                            return reply
-                                .header('Retry-After', String(retry))
-                                .code(429)
-                                .send({ error: 'Configured mock quota exceeded.' });
+                            throw new RateLimitError(
+                                'mocks.route',
+                                'Configured mock quota exceeded.',
+                                retry,
+                            );
                     }
                     if (route.stream && request.method !== 'HEAD') {
                         if (streams.size >= 16)

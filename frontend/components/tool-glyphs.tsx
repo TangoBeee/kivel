@@ -167,16 +167,10 @@ const byId: Record<string, PhosphorIcon> = {
     'files-temporary-binary-storage': P.Binary,
     'everyday-temporary-notes': P.NotePencil,
     'email-temporary-email-inbox': P.Tray,
-    'domains-temporary-subdomain': P.Globe,
-    'domains-temporary-redirects': P.ArrowBendDoubleUpRight,
-    'domains-temporary-static-hosting': P.HardDrives,
     'domains-temporary-callback-url': P.ArrowUDownLeft,
     'databases-temporary-key-value-store': P.Database,
-    'databases-temporary-sqlite': P.Feather,
-    'databases-temporary-postgresql': P.Rows,
     'automation-temporary-scheduled-jobs': P.CalendarCheck,
     'automation-temporary-cron-triggers': P.ArrowsCounterClockwise,
-    'automation-disposable-test-automation': P.Trash,
 };
 
 export function toolGlyphs(size = 18): Record<string, React.ReactNode> {

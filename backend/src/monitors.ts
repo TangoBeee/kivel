@@ -1,4 +1,4 @@
-import { checkLimit } from './errors.js';
+import { checkLimit, RateLimitError } from './errors.js';
 import { transaction } from './database.js';
 import type { PlanId } from '@kivel.io/tools/plans';
 import { plans } from '@kivel.io/tools/plans';
@@ -635,11 +635,7 @@ export function registerMonitors({
                 if (!/^[A-Za-z0-9_-]{32}$/.test(request.params.token))
                     return reply.code(404).send({ error: 'Unknown ping URL.' });
                 const retry = await limits.consume(`ping:${request.params.token}`, 60);
-                if (retry)
-                    return reply
-                        .header('Retry-After', retry)
-                        .code(429)
-                        .send({ error: 'Too many pings.' });
+                if (retry) throw new RateLimitError('monitors.pings', 'Too many pings.', retry);
                 const monitor = await monitors.byPing(hash(request.params.token));
                 if (!monitor) return reply.code(404).send({ error: 'Unknown ping URL.' });
                 const failed = request.url.split('?')[0]!.endsWith('/fail');

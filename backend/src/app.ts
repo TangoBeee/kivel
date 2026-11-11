@@ -301,7 +301,7 @@ export function buildApp({
                 return reply
                     .code(402)
                     .send({ ...expected.details(baseUrl.origin), requestId: request.id });
-            if (expected.statusCode === 429)
+            if (expected.statusCode === 429 && expected.retryAfter)
                 return reply.code(429).send({
                     error: expected.message,
                     code: 'rate_limited',

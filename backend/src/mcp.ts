@@ -2507,7 +2507,7 @@ export function registerMcp({
                         {
                             ...(error instanceof LimitError
                                 ? error.details(origin)
-                                : error.statusCode === 429
+                                : error.statusCode === 429 && error.retryAfter
                                   ? {
                                         error: error.message,
                                         code: 'rate_limited',

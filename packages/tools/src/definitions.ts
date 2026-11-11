@@ -37,14 +37,56 @@ const cardFields: readonly UtilityField[] = [
             ['unionpay', 'UnionPay'],
         ],
     },
-    { key: 'count', label: 'Number of cards', defaultValue: '1', type: 'number', min: 1, max: 50 },
+    {
+        key: 'count',
+        label: 'Number of cards',
+        defaultValue: '10',
+        type: 'number',
+        min: 1,
+        max: 500,
+    },
+    {
+        key: 'bin',
+        label: 'BIN or card prefix (optional)',
+        type: 'text',
+        defaultValue: '',
+        when: ['mode', 'generated'],
+    },
+    {
+        key: 'expiry',
+        label: 'Expiry MM/YY (optional)',
+        type: 'text',
+        defaultValue: '',
+        when: ['mode', 'generated'],
+    },
+    {
+        key: 'cvc',
+        label: 'CVV (optional)',
+        type: 'text',
+        defaultValue: '',
+        when: ['mode', 'generated'],
+    },
     {
         key: 'address',
-        label: 'Include sample billing address',
+        label: 'Include billing address',
         defaultValue: 'false',
         choices: [
             ['false', 'No'],
             ['true', 'Yes'],
+        ],
+    },
+    {
+        key: 'country',
+        label: 'Billing country',
+        defaultValue: 'US',
+        when: ['address', 'true'],
+        choices: [
+            ['US', 'United States'],
+            ['GB', 'United Kingdom'],
+            ['CA', 'Canada'],
+            ['AU', 'Australia'],
+            ['DE', 'Germany'],
+            ['FR', 'France'],
         ],
     },
 ];
@@ -142,4 +184,7 @@ export interface OperationOptions {
     disambiguation?: string;
     userAgent?: string;
     domain?: string;
+    bin?: string;
+    expiry?: string;
+    cvc?: string;
 }

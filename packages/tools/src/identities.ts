@@ -1,5 +1,4 @@
 import type { OperationOptions } from './definitions.js';
-import { passesLuhn } from './payment-cards.js';
 import {
     companyFields,
     companyNames,
@@ -13,6 +12,15 @@ import {
 } from './identity-data.js';
 
 export const identityLimit = 100;
+function passesLuhn(number: string) {
+    let sum = 0;
+    for (let i = 0; i < number.length; i++) {
+        let digit = Number(number[number.length - 1 - i]);
+        if (i % 2) digit = digit * 2 > 9 ? digit * 2 - 9 : digit * 2;
+        sum += digit;
+    }
+    return sum % 10 === 0;
+}
 type Random = () => number;
 
 // A seed makes a batch repeatable for snapshot tests; without one every run is fresh.

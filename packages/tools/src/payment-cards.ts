@@ -143,6 +143,7 @@ export interface GeneratedTestCard extends TestCardFixture {
     holder: string;
     billingAddress?: {
         line1: string;
+        line2?: string;
         city: string;
         region: string;
         postalCode: string;
@@ -157,85 +158,30 @@ export interface TestCardBatch {
     note: string;
     cards: GeneratedTestCard[];
 }
-const firstNames = [
-    'Aisha',
-    'Mateo',
-    'Priya',
-    'Oliver',
-    'Mei',
-    'Amara',
-    'Luca',
-    'Sofia',
-    'Arjun',
-    'Nora',
-    'Hana',
-    'Leo',
-    'Zara',
-    'Diego',
-    'Yuki',
-    'Maya',
-    'Ibrahim',
-    'Chloe',
-    'Leila',
-    'Kai',
-    'Anika',
-    'Noah',
-    'Elena',
-    'Ravi',
-    'Ada',
-    'Isabel',
-    'Omar',
-    'Eva',
-    'Rosa',
-    'Sana',
-];
-const lastNames = [
-    'Patel',
-    'Garcia',
-    'Chen',
-    'Okafor',
-    'Silva',
-    'Martin',
-    'Kim',
-    'Anderson',
-    'Khan',
-    'Rossi',
-    'Nguyen',
-    'Tanaka',
-    'Ali',
-    'Santos',
-    'Wilson',
-    'Singh',
-    'Lopez',
-    'Costa',
-    'Bennett',
-    'Dubois',
-];
-const addresses = [
-    { line1: 'Example Lane', city: 'Portland', region: 'OR', postalCode: '97205', country: 'US' },
-    {
-        line1: 'Sample Road',
-        city: 'London',
-        region: 'London',
-        postalCode: 'SW1A 1AA',
-        country: 'GB',
-    },
-    {
-        line1: 'Fixture Avenue',
-        city: 'Toronto',
-        region: 'ON',
-        postalCode: 'M5V 2T6',
-        country: 'CA',
-    },
-    { line1: 'Example Street', city: 'Sydney', region: 'NSW', postalCode: '2000', country: 'AU' },
-    {
-        line1: 'Sample Marg',
-        city: 'Pune',
-        region: 'Maharashtra',
-        postalCode: '411001',
-        country: 'IN',
-    },
-];
+import { generateIdentities } from './identities.js';
+// Billing country → identity locale, so holders and addresses match the country.
+export const billingCountries = {
+    US: 'en-US',
+    GB: 'en-GB',
+    CA: 'en-CA',
+    AU: 'en-AU',
+    DE: 'de-DE',
+    FR: 'fr-FR',
+} as const;
+export const generatedCardLimit = 500;
+// Issuer prefixes that identify each brand, longest first so 2221 wins over 2.
+export function brandForPrefix(prefix: string): CardBrand | undefined {
+    const n = (length: number) => Number(prefix.slice(0, length));
+    if (prefix.startsWith('4')) return 'visa';
+    if (/^3[47]/.test(prefix)) return 'amex';
+    if (/^5[1-5]/.test(prefix) || (prefix.length >= 4 && n(4) >= 2221 && n(4) <= 2720))
+        return 'mastercard';
+    if (/^(6011|65|64[4-9])/.test(prefix)) return 'discover';
+    if (prefix.length >= 4 && n(4) >= 3528 && n(4) <= 3589) return 'jcb';
+    if (/^(30[0-5]|36|38)/.test(prefix)) return 'diners';
+    if (prefix.startsWith('62')) return 'unionpay';
+    return undefined;
+}
 const random = (max: number) => crypto.getRandomValues(new Uint32Array(1))[0]! % max;
 function shuffled<T>(values: T[]): T[] {
     for (let i = values.length - 1; i > 0; i--) {
@@ -244,16 +190,18 @@ function shuffled<T>(values: T[]): T[] {
     }
     return values;
 }
-function cardNumber(brand: CardBrand): string {
-    const prefix = {
-        visa: '4',
-        mastercard: random(2) ? String(51 + random(5)) : String(2221 + random(500)),
-        amex: random(2) ? '34' : '37',
-        discover: random(2) ? '6011' : String(644 + random(6)),
-        jcb: String(3528 + random(62)),
-        diners: random(2) ? String(300 + random(6)) : '36',
-        unionpay: '62',
-    }[brand];
+function cardNumber(brand: CardBrand, bin?: string): string {
+    const prefix =
+        bin ||
+        {
+            visa: '4',
+            mastercard: random(2) ? String(51 + random(5)) : String(2221 + random(500)),
+            amex: random(2) ? '34' : '37',
+            discover: random(2) ? '6011' : String(644 + random(6)),
+            jcb: String(3528 + random(62)),
+            diners: random(2) ? String(300 + random(6)) : '36',
+            unionpay: '62',
+        }[brand];
     const length = brand === 'amex' ? 15 : brand === 'diners' ? 14 : 16;
     let body = prefix;
     while (body.length < length - 1) body += random(10);
@@ -268,16 +216,34 @@ export function generateTestCards(
         mode?: string;
         provider?: string;
         address?: string;
+        country?: string;
+        bin?: string;
+        expiry?: string;
+        cvc?: string;
     } = {},
     now = new Date(),
 ): TestCardBatch {
     const count = Number(options.count ?? '1');
-    if (!Number.isInteger(count) || count < 1 || count > 50)
-        throw new Error('Choose between 1 and 50 test cards.');
     const mode = options.mode ?? 'generated';
     if (!['generated', 'sandbox'].includes(mode))
         throw new Error('Choose generated or sandbox mode.');
-    const brand = options.brand ?? 'all';
+    const limit = mode === 'sandbox' ? 50 : generatedCardLimit;
+    if (!Number.isInteger(count) || count < 1 || count > limit)
+        throw new Error(`Choose between 1 and ${limit} test cards.`);
+    const bin = (options.bin ?? '').replace(/[\s-]/g, '');
+    if (bin && (!/^\d{1,12}$/.test(bin) || !brandForPrefix(bin)))
+        throw new Error(
+            'Enter a BIN of up to 12 digits that starts like a Visa, Mastercard, American Express, Discover, JCB, Diners Club or UnionPay card.',
+        );
+    const fixedExpiry = (options.expiry ?? '').trim();
+    const expiryMatch = /^(0[1-9]|1[0-2])\/(\d{2}|\d{4})$/.exec(fixedExpiry);
+    if (fixedExpiry && !expiryMatch) throw new Error('Enter the expiry as MM/YY or MM/YYYY.');
+    const fixedCvc = (options.cvc ?? '').trim();
+    if (fixedCvc && !/^\d{3,4}$/.test(fixedCvc)) throw new Error('Enter a CVV of 3 or 4 digits.');
+    const country = (options.country ?? 'US').toUpperCase();
+    if (!Object.hasOwn(billingCountries, country))
+        throw new Error(`Choose a billing country: ${Object.keys(billingCountries).join(', ')}.`);
+    const brand = bin && mode === 'generated' ? brandForPrefix(bin)! : (options.brand ?? 'all');
     const brands = Object.keys(cardBrandNames) as CardBrand[];
     if (brand !== 'all' && !brands.includes(brand as CardBrand))
         throw new Error('Choose a supported card brand.');
@@ -296,13 +262,21 @@ export function generateTestCards(
         throw new Error(
             `This selection has ${fixtures.length} distinct official numbers. Reduce the count or choose another provider or brand.`,
         );
-    const holders = shuffled(
-        firstNames.flatMap((first) => lastNames.map((last) => `${first} ${last}`)),
-    );
+    const people: ReturnType<typeof generateIdentities>['identities'] = [];
+    while (people.length < count)
+        people.push(
+            ...generateIdentities(
+                {
+                    locale: billingCountries[country as keyof typeof billingCountries],
+                    count: String(Math.min(100, count - people.length)),
+                },
+                now,
+            ).identities,
+        );
     const expiries = shuffled(
-        Array.from({ length: 60 }, (_, index) => ({
+        Array.from({ length: Math.max(60, count) }, (_, index) => ({
             expiryMonth: (index % 12) + 1,
-            expiryYear: now.getUTCFullYear() + 1 + Math.floor(index / 12),
+            expiryYear: now.getUTCFullYear() + 1 + (Math.floor(index / 12) % 5),
         })),
     );
     const cvcs = shuffled(
@@ -327,22 +301,47 @@ export function generateTestCards(
             const selectedBrand =
                 fixture?.brand ??
                 (brand === 'all' ? brands[index % brands.length]! : (brand as CardBrand));
-            let number = fixture?.number ?? cardNumber(selectedBrand);
+            let number = fixture?.number ?? cardNumber(selectedBrand, bin);
             for (let attempts = 0; numbers.has(number); attempts++) {
-                if (attempts > 100) throw new Error('Could not generate unique cards. Try again.');
-                number = cardNumber(selectedBrand);
+                if (attempts > 100)
+                    throw new Error(
+                        'Could not generate that many unique cards. Use a shorter BIN or fewer cards.',
+                    );
+                number = cardNumber(selectedBrand, bin);
             }
             numbers.add(number);
-            const address = addresses[index % addresses.length]!;
+            const person = people[index]!;
+            const expiry =
+                expiryMatch && !fixture
+                    ? {
+                          expiryMonth: Number(expiryMatch[1]),
+                          expiryYear: Number(
+                              expiryMatch[2]!.length === 2 ? `20${expiryMatch[2]}` : expiryMatch[2],
+                          ),
+                      }
+                    : expiries[index]!;
             return {
                 ...(fixture ?? { brand: selectedBrand, funding }),
                 number,
-                ...expiries[index]!,
+                ...expiry,
                 ...(provider === 'adyen' && fixture ? { expiryMonth: 3, expiryYear: 2030 } : {}),
-                cvc: fixture?.cvc ?? (selectedBrand === 'amex' ? '1' : '') + cvcs[index]!,
-                holder: holders[index]!,
+                cvc:
+                    fixture?.cvc ??
+                    (fixedCvc || (selectedBrand === 'amex' ? '1' : '') + cvcs[index % 1000]!),
+                holder: person.name,
                 ...(options.address === 'true'
-                    ? { billingAddress: { ...address, line1: `${100 + index} ${address.line1}` } }
+                    ? {
+                          billingAddress: {
+                              line1: person.address.line1,
+                              ...(person.address.line2 ? { line2: person.address.line2 } : {}),
+                              city: person.address.city,
+                              region: ['US', 'CA', 'AU'].includes(country)
+                                  ? person.address.regionCode
+                                  : person.address.region,
+                              postalCode: person.address.postalCode,
+                              country: person.address.country,
+                          },
+                      }
                     : {}),
             };
         }),

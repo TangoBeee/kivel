@@ -1,5 +1,17 @@
 # @kivel.io/cli
 
+## 0.10.0
+
+### Minor Changes
+
+- ad5805c: Add live event streams to the SDK and use them in the webhook listener.
+
+### Patch Changes
+
+- ad5805c: Reconnect webhook listeners after transient network failures with backoff and resume from the last processed event cursor.
+- Updated dependencies [ad5805c]
+    - @kivel.io/sdk@0.10.0
+
 ## 0.9.0
 
 ### Minor Changes

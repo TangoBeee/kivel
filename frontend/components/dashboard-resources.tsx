@@ -18,6 +18,7 @@ import {
 import type { Icon } from '@phosphor-icons/react';
 import { catalog, toolPageHref } from '../lib/catalog';
 import { timeLeft } from '../lib/activity-labels';
+import { siteOrigin } from '../lib/site';
 import { CopyButton } from './copy-button';
 import type { Visibility } from './sharing-control';
 
@@ -72,10 +73,9 @@ const formatBytes = (value: number) =>
 /** The address people copy most: the email address or the webhook URL. */
 function address(resource: Resource) {
     if (resource.kind === 'email' && resource.name?.includes('@')) return resource.name;
-    if (resource.kind === 'inbox' && typeof location !== 'undefined')
-        return `${location.origin}/hooks/${resource.id}`;
-    if (resource.toolId === 'mock-apis-mock-websocket-server' && typeof location !== 'undefined')
-        return `${location.origin.replace(/^http/, 'ws')}/ws/${resource.id}`;
+    if (resource.kind === 'inbox') return `${siteOrigin}/hooks/${resource.id}`;
+    if (resource.toolId === 'mock-apis-mock-websocket-server')
+        return `${siteOrigin.replace(/^http/, 'ws')}/ws/${resource.id}`;
     return '';
 }
 

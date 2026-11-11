@@ -8,6 +8,7 @@ import { parseJsonSafely } from '@kivel.io/tools/engine';
 import { validateMock } from '@kivel.io/tools/mock-config';
 import type { MockRoute } from '@kivel.io/tools/mock-config';
 import { api, resourceHeaders } from '../lib/api';
+import { siteOrigin } from '../lib/site';
 import { Icon } from './icons';
 import { downloadBlob } from './result-preview';
 import { CodeExample } from './code-example';
@@ -564,7 +565,7 @@ export function CrudRecords({ resource, version }: { resource: Credential; versi
                                 crudScenario(
                                     resource.id,
                                     path,
-                                    location.origin,
+                                    siteOrigin,
                                     resource.visibility === 'private',
                                 ),
                             );
@@ -590,7 +591,7 @@ export function CrudRecords({ resource, version }: { resource: Credential; versi
                                         crudScenario(
                                             resource.id,
                                             path,
-                                            location.origin,
+                                            siteOrigin,
                                             resource.visibility === 'private',
                                         ),
                                         null,

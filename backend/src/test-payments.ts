@@ -846,7 +846,7 @@ export function registerTestPayments({
                     status: transaction.status,
                     transaction: publicTransaction(transaction),
                     approvalId: transaction.approvalId,
-                    answerUrl: `${access.origin}/approve/?id=${transaction.approvalId}`,
+                    answerUrl: access.appUrl(`/approve/?id=${transaction.approvalId}`),
                 });
             }
             await recordActivity(owner, resource.id, transaction);

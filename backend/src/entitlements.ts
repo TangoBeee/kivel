@@ -10,7 +10,7 @@ export class PlanError extends HttpError {
         readonly requiredPlan: AccountPlan,
         origin: string,
     ) {
-        const upgradeUrl = new URL('/plans/', origin).href;
+        const upgradeUrl = new URL('/pricing/', origin).href;
         super(
             402,
             `This feature requires ${requiredPlan === 'free' ? 'a Free account' : requiredPlan === 'pro' ? 'Pro' : 'Team'}. Ask your human to open ${upgradeUrl}; do not retry without upgrading.`,

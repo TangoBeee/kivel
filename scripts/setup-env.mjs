@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { writeFile, readFile, appendFile, chmod } from 'node:fs/promises';
 const contents = `APP_PORT=8080
 PUBLIC_BASE_URL=http://localhost:8080
+APP_BASE_URL=http://127.0.0.1:8080
 POSTGRES_PASSWORD=${randomBytes(32).toString('hex')}
 APP_DATABASE_PASSWORD=${randomBytes(32).toString('hex')}
 DOMAIN=kivel.io

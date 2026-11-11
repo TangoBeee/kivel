@@ -64,7 +64,7 @@ export function openApi(origin: string) {
                 '- **Private callers:** a separate token in `X-Access-Token`, or authorized workspace access. Webhook receiving is public by default; inspection is always private. Other resources are private by default. Keep credentials out of URLs.',
                 '## Lifetimes and usage',
                 'Resources start with one hour. Renewal and persistent leases follow the plan. Read `GET /api/plans` and `GET /api/usage` for allowances. Delete temporary resources when finished.',
-                'Browser utilities run locally. Hosted execution sends input to the server without saving execution history. Account administration and billing require a browser session.',
+                'Browser utilities run locally. Hosted execution sends input to the server without saving execution history. Sign-in, registration and password recovery run in the workspace browser on app.kivel.io. Account administration and billing require a browser session.',
             ].join('\n\n'),
         },
         servers: [{ url: origin }],
@@ -805,9 +805,11 @@ export function openApi(origin: string) {
                 },
                 LimitError: {
                     type: 'object',
-                    required: ['error', 'message', 'limit', 'used', 'max', 'plan'],
+                    required: ['error', 'code', 'message', 'limit', 'used', 'max', 'plan'],
                     properties: {
-                        error: { const: 'limit_reached' },
+                        error: { type: 'string' },
+                        code: { const: 'limit_reached' },
+                        retryAfter: { type: 'integer', minimum: 1 },
                         message: { type: 'string' },
                         limit: { type: 'string' },
                         used: { type: 'integer' },
@@ -823,6 +825,7 @@ export function openApi(origin: string) {
                     required: ['error'],
                     properties: {
                         error: { type: 'string' },
+                        code: { enum: ['limit_reached', 'rate_limited'] },
                         message: { type: 'string' },
                         limit: { type: 'string' },
                         retryAfter: { type: 'integer', minimum: 1 },
@@ -858,10 +861,23 @@ export function openApi(origin: string) {
                     )) ||
                     (method === 'put' && path === '/api/memory/{namespace}/{key}'))
             )
-                operation.responses['402'] = json(
-                    { anyOf: [reference('LimitError'), reference('Error')] },
-                    'Plan allowance reached or feature requires a higher plan',
-                );
+                operation.responses['402'] = {
+                    ...json(
+                        { anyOf: [reference('LimitError'), reference('Error')] },
+                        'Plan allowance reached or feature requires a higher plan',
+                    ),
+                    ...(/^\/api\/(email-inboxes|tools)\/\{id\}\/(send|run)$/.test(path)
+                        ? {
+                              headers: {
+                                  'Retry-After': {
+                                      description:
+                                          'Seconds until the allowance resets, when the limit has a reset time.',
+                                      schema: { type: 'integer', minimum: 1 },
+                                  },
+                              },
+                          }
+                        : {}),
+                };
             if (
                 /^\/api\/(inboxes|mocks|files|mcp-servers|email-inboxes|status-pages|memory|monitors)(\/|$)/.test(
                     path,

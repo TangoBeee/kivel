@@ -60,7 +60,7 @@ try {
     else if (result !== undefined) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 } catch (error) {
     process.stderr.write(
-        `${JSON.stringify({ error: error instanceof Error ? error.message : 'Command failed.', ...(error instanceof KivelError ? { status: error.status, requestId: error.requestId, retryAfter: error.retryAfter, requiredPlan: error.requiredPlan, upgradeUrl: error.upgradeUrl, limitDetails: error.limitDetails } : {}) })}\n`,
+        `${JSON.stringify({ error: error instanceof Error ? error.message : 'Command failed.', ...(error instanceof KivelError ? { status: error.status, requestId: error.requestId, retryAfter: error.retryAfter, requiredPlan: error.requiredPlan, upgradeUrl: error.upgradeUrl, code: error.limitDetails?.code, limitDetails: error.limitDetails } : {}) })}\n`,
     );
     process.exitCode = 1;
 }

@@ -757,7 +757,7 @@ test('SSH verifies host identity, executes the shared engine, rejects shell comm
     assert.equal(paid.stdout, '');
     assert.equal(JSON.parse(paid.stderr).status, 402);
     assert.equal(JSON.parse(paid.stderr).requiredPlan, 'pro');
-    assert.equal(JSON.parse(paid.stderr).upgradeUrl, `${publicBaseUrl}/plans/`);
+    assert.equal(JSON.parse(paid.stderr).upgradeUrl, `${publicBaseUrl}/pricing/`);
     const email = await execute(client, 'kivel email create');
     assert.equal(email.code, 0, email.stderr);
     const emailId = JSON.parse(email.stdout).id;
@@ -1475,10 +1475,12 @@ test('agent trials resolve by token until they expire and count toward the netwo
     await store.createTrial(trial(crypto.randomUUID(), 'old-token', now - 1000));
     assert.equal((await store.trialByToken('live-token'))?.name, 'Trial bot');
     assert.equal(await store.trialByToken('old-token'), undefined);
-    assert.equal(await store.recentTrials('network-a'), 2);
-    assert.equal(await store.recentTrials('network-b'), 0);
+    assert.equal(await store.trialRetryAfter('network-a'), 0);
+    await store.createTrial(trial(crypto.randomUUID(), 'third-token', now + 3600000));
+    assert.ok((await store.trialRetryAfter('network-a')) > 86390);
+    assert.equal(await store.trialRetryAfter('network-b'), 0);
     await store.deleteExpired();
-    assert.equal(await store.recentTrials('network-a'), 2);
+    assert.ok((await store.trialRetryAfter('network-a')) > 86390);
 });
 
 test('approvals are answered once and never after they expire', async () => {
@@ -3495,8 +3497,11 @@ test('concurrent monitor creation across replicas stops at the plan allowance', 
     for (const response of results.filter((response) => response.statusCode !== 201)) {
         assert.equal(response.statusCode, 402, response.body);
         assert.equal(response.headers['retry-after'], undefined);
-        assert.deepEqual((({ requestId, message, ...details }) => details)(response.json()), {
-            error: 'limit_reached',
+        const { requestId, error, message, ...details } = response.json();
+        assert.equal(error, message);
+        assert.match(error, /allowance/);
+        assert.deepEqual(details, {
+            code: 'limit_reached',
             limit: 'monitors.active',
             used: 20,
             max: 20,

@@ -44,7 +44,7 @@ write a local credential file. Do not log responses that contain keys or tokens.
 
 [Method reference](https://kivel.io/docs/sdk/) ·
 [Agent workflows](https://kivel.io/docs/agent-workflows/) ·
-[Plan limits](https://kivel.io/plans/)
+[Plan limits](https://kivel.io/pricing/)
 
 Licensed under Apache-2.0. Support: support@kivel.io.
 

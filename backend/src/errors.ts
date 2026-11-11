@@ -16,6 +16,19 @@ export class HttpError extends Error {
     }
 }
 
+function allowanceRetryAfter(limit: UsageKey): number | undefined {
+    const now = new Date(Date.now());
+    if (limit === 'email.sent_month')
+        return Math.max(
+            1,
+            Math.ceil(
+                (Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1) - now.getTime()) / 1000,
+            ),
+        );
+    if (limit === 'tools.runs' || limit === 'email.sent_today')
+        return Math.ceil((86400000 - (now.getTime() % 86400000)) / 1000);
+}
+
 export class LimitError extends HttpError {
     readonly requiredPlan: AccountPlan | undefined;
     constructor(
@@ -31,6 +44,7 @@ export class LimitError extends HttpError {
             402,
             message ??
                 `Your plan's allowance for ${definition.label.toLowerCase()} has been reached.`,
+            allowanceRetryAfter(limit),
         );
         this.requiredPlan = (['free', 'pro', 'team'] as const).find(
             (candidate) =>
@@ -40,12 +54,16 @@ export class LimitError extends HttpError {
 
     details(origin: string) {
         const upgradeUrl = this.requiredPlan ? new URL('/pricing/', origin).href : undefined;
-        const message = upgradeUrl
-            ? `${this.message} Ask your human to upgrade at ${upgradeUrl}. Do not retry until capacity is available.`
-            : `${this.message} Do not retry until capacity is available.`;
+        const guidance = this.retryAfter
+            ? 'Retry after the allowance resets.'
+            : 'Do not retry until capacity is available.';
+        const upgrade = upgradeUrl ? ` Ask your human to upgrade at ${upgradeUrl}.` : '';
+        const message = `${this.message}${upgrade} ${guidance}`;
         return {
-            error: 'limit_reached',
+            error: message,
+            code: 'limit_reached',
             message,
+            ...(this.retryAfter ? { retryAfter: this.retryAfter } : {}),
             limit: this.limit,
             used: this.used,
             max: this.max,

@@ -1,5 +1,7 @@
 import { toolDetails } from '../../../lib/tool-details';
 import Link from 'next/link';
+import { Suspense } from 'react';
+import { OpenWorkspaceTool } from '../../../components/open-workspace-tool';
 import { appLink, workspaceHref, type WorkspacePanel } from '../../../lib/app-routes';
 import { resourceOperations } from '@kivel.io/tools/resource-definitions';
 import { ToolHeader } from '../../../components/tool-header';
@@ -103,12 +105,18 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
             {panel ? (
                 <div className="page-width work-page">
                     <ToolHeader toolId={tool.id} />
-                    <Link
-                        className="button button-primary"
-                        href={appLink(workspaceHref(panel, { tool: tool.id }))}
+                    <Suspense
+                        fallback={
+                            <Link
+                                className="button button-primary"
+                                href={appLink(workspaceHref(panel, { tool: tool.id }))}
+                            >
+                                Open in Kivel
+                            </Link>
+                        }
                     >
-                        Open in Kivel
-                    </Link>
+                        <OpenWorkspaceTool panel={panel} tool={tool.id} />
+                    </Suspense>
                 </div>
             ) : (
                 <ToolWorkbench toolId={tool.id} />

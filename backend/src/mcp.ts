@@ -2507,9 +2507,10 @@ export function registerMcp({
                         {
                             ...(error instanceof LimitError
                                 ? error.details(origin)
-                                : error.statusCode === 429 && error.retryAfter
+                                : error.statusCode === 429
                                   ? {
-                                        error: 'rate_limited',
+                                        error: error.message,
+                                        code: 'rate_limited',
                                         message: error.message,
                                         limit:
                                             error instanceof RateLimitError

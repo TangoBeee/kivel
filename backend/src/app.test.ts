@@ -455,7 +455,8 @@ test('an inbox is rate limited across multiple sender IPs', async (t) => {
     }
     const limited = await app.inject({ method: 'POST', url: hook, remoteAddress: '192.0.2.200' });
     assert.equal(limited.statusCode, 429);
-    assert.equal(limited.json().error, 'rate_limited');
+    assert.equal(limited.json().code, 'rate_limited');
+    assert.equal(limited.json().error, limited.json().message);
     assert.match(limited.json().message, /rate limit/);
     assert.ok(Number(limited.headers['retry-after']) > 0);
 });
@@ -629,6 +630,8 @@ test('OpenAPI exposes the configured origin and all resource operations', async 
     assert.ok(spec.paths['/api/inboxes'].post);
     assert.ok(spec.paths['/api/inboxes/{id}'].delete);
     assert.ok(spec.paths['/api/inboxes/{id}/requests'].get.security);
+    assert.ok(Object.keys(spec.paths).every((path) => !path.startsWith('/api/auth/')));
+    assert.ok(spec.paths['/api/tools/{id}/run'].post.responses['402'].headers['Retry-After']);
 });
 
 test('each static page permits only its own inline scripts and missing pages use the 404 policy', async (t) => {

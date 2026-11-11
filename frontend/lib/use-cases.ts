@@ -63,6 +63,74 @@ curl "https://kivel.io/api/inboxes/$INBOX_ID/wait?timeoutSeconds=20" \\
         ],
     },
     {
+        slug: 'email-for-ai-agents',
+        title: 'Email for AI agents: inboxes your agent can read, wait on and reply from',
+        description:
+            'Give Claude Code, Cursor, Codex or your own agent its own email address. Create inboxes over MCP, HTTP, SDK or CLI, wait for new mail, get one-time codes and links extracted, read threads and attachments, and send or draft replies for a human to approve.',
+        sections: [
+            {
+                id: 'what',
+                title: 'What an agent email inbox is',
+                paragraphs: [
+                    'An agent email inbox is an address that software, not a person, reads. Kivel creates the address on socketspace.xyz and gives your agent tools to wait for the next message, read it as structured data and act on it. The agent never needs access to your personal mailbox.',
+                    'Typical uses are signing up to a service and confirming the email, receiving password reset and magic link emails during tests, reading invoices or reports that arrive by email, and answering simple messages with a human approving each reply.',
+                ],
+            },
+            {
+                id: 'tools',
+                title: 'The tools your agent gets',
+                paragraphs: [
+                    'Over MCP the agent calls create_email_inbox for a new address, wait_for_email to block until mail arrives, list_emails and list_email_threads to read history, get_email_thread for a whole conversation and get_email_attachment to download a file. Every message comes back with its one-time codes and links already extracted, verification links first, so the agent does not parse HTML.',
+                    'send_email sends from the inbox’s own address. email_draft creates a draft and can submit it for human approval with an optional scheduled send time; inboxes with approval required reject direct sends. email_inbox_rules sets allow and block lists for senders. The same operations are available over the HTTP API, the @kivel.io/sdk TypeScript SDK and the kivel CLI.',
+                ],
+                code: {
+                    title: 'Wait for a verification email with the SDK',
+                    value: `const inbox = await kivel.createEmailInbox({ activeDays: 3 });
+// Use inbox.address in the signup form, then:
+const result = await kivel.waitForEmail(inbox.id, { timeoutSeconds: 20 });
+const message = result.messages?.[0];
+console.log(message?.codes[0], message?.links[0]?.url);`,
+                },
+            },
+            {
+                id: 'approval',
+                title: 'Keep a human in the loop for outgoing mail',
+                paragraphs: [
+                    'Turn on approval for an inbox and the agent can only send through drafts. Each draft goes to you for review, and the agent waits for your decision before anything is delivered. Reviews expire after at most 24 hours.',
+                    'Sending also requires a verified owner email on the Free plan and is capped per day and per month, so a looping agent cannot send unlimited mail.',
+                ],
+            },
+            {
+                id: 'plans',
+                title: 'Plans and limits',
+                paragraphs: [
+                    'Free includes one inbox that stays active for one to seven days and 30 outgoing deliveries a month. Pro includes 10 inboxes and 500 deliveries a month, and Team includes 50 inboxes and 3,000 deliveries a month. Paid inboxes stay active while the plan is active. Each inbox keeps its latest 100 messages.',
+                    'Addresses use the socketspace.xyz domain. Custom domains, IMAP and SMTP access are not available yet.',
+                ],
+            },
+            {
+                id: 'faq-agentmail',
+                title: 'How does Kivel compare with AgentMail?',
+                paragraphs: [
+                    'Both give agents inboxes over an API. AgentMail focuses on email alone and supports custom domains. Kivel puts email next to webhook inboxes, mock APIs, monitors, memory and human approvals behind one MCP server, extracts codes and links for you and requires approval for outgoing mail when you ask it to.',
+                ],
+            },
+            {
+                id: 'faq-setup',
+                title: 'How do I connect my agent?',
+                paragraphs: [
+                    'Add the Kivel MCP server to Claude Code, Cursor, Codex or another MCP client, approve the login in your browser, then ask the agent to create an email inbox. The setup page has the exact command for each client.',
+                ],
+            },
+        ],
+        related: [
+            { title: 'Connect your agent', href: '/connect/' },
+            { title: 'Agent email inbox tool', href: '/tools/temporary-email-inbox/' },
+            { title: 'Kivel vs AgentMail', href: '/compare/agentmail/' },
+            { title: 'Email verification testing', href: '/use-cases/email-verification-testing/' },
+        ],
+    },
+    {
         slug: 'email-verification-testing',
         title: 'Email verification testing for coding agents',
         description:
@@ -99,7 +167,7 @@ await kivel.remove('email-inboxes', inbox.id);`,
                 title: 'A separate address with protected reading',
                 paragraphs: [
                     'The address accepts incoming email; reading requires the anonymous inbox management token or an authorized workspace credential. Put each test in a separate inbox to avoid mixing signup, recovery and invitation messages. Delete it when the scenario ends.',
-                    'Messages include attachment names, media types and sizes. Attachment bytes are not stored for download. The inbox cannot send email to arbitrary recipients, impersonate a sender or replace your application’s transactional email provider.',
+                    'Messages include attachment names, media types and sizes, and get_email_attachment downloads the file. Sending is limited to the inbox’s own address with monthly and daily caps per plan, so the inbox cannot impersonate another sender or replace your application’s transactional email provider.',
                 ],
             },
             {

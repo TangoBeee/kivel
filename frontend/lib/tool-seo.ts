@@ -8,6 +8,8 @@ export interface ToolSeo {
     faq: readonly (readonly [string, string])[];
     // Tools a visitor to this page is likely to need next, across categories.
     related?: readonly string[];
+    // A longer guide for the same search intent, linked from the tool page.
+    guide?: { title: string; href: string };
 }
 export const toolSeo: Record<string, ToolSeo> = {
     'developer-fake-identity-generator': {
@@ -112,6 +114,10 @@ export const toolSeo: Record<string, ToolSeo> = {
         ],
     },
     webhooks: {
+        guide: {
+            title: 'Webhook testing for AI coding agents',
+            href: '/use-cases/webhook-testing/',
+        },
         updatedAt: '2026-11-12',
         title: 'Webhook tester: free webhook URL to inspect requests',
         description:
@@ -145,6 +151,10 @@ export const toolSeo: Record<string, ToolSeo> = {
         ],
     },
     'email-temporary-email-inbox': {
+        guide: {
+            title: 'Email for AI agents: the full guide',
+            href: '/use-cases/email-for-ai-agents/',
+        },
         updatedAt: '2026-11-12',
         title: 'Email inbox for AI agents and signup tests: receive codes and links',
         description:

@@ -252,6 +252,13 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
                         ))}
                     </section>
                 )}
+                {seo?.guide && (
+                    <p>
+                        <Link className="text-link" href={seo.guide.href}>
+                            {seo.guide.title} →
+                        </Link>
+                    </p>
+                )}
                 {related.length > 0 && (
                     <nav className="related-tools" aria-label="Related tools">
                         <h3>Related tools</h3>

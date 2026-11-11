@@ -35,14 +35,6 @@ assert.doesNotMatch(
 );
 const billing = await (await request('/api/billing')).json();
 assert.equal(billing.enabled, true, 'Paid plans must be open for checkout');
-assert.deepEqual(
-    billing.prices.map((price) => [price.plan, price.amount]),
-    [
-        ['pro', 200],
-        ['team', 600],
-    ],
-    'Pro is $2 and Team is $6 a month',
-);
 assert.equal(
     (await (await request('/api/auth/recovery')).json()).enabled,
     true,
@@ -53,7 +45,17 @@ for (const path of ['/contact/', '/refunds/', '/terms/', '/privacy/', '/beta/'])
     assert.ok(html.includes('support@kivel.io'), `${path}: support contact`);
 }
 const plans = await (await request('/pricing/')).text();
-assert.ok(plans.includes('$2') && plans.includes('$6'), '/pricing/: prices');
+const offers = [
+    ...plans.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/gs),
+].flatMap((entry) => JSON.parse(entry[1]).offers ?? []);
+for (const plan of ['pro', 'team']) {
+    const price = billing.prices.find((value) => value.plan === plan);
+    const name = `${plan[0].toUpperCase()}${plan.slice(1)} (monthly)`;
+    const offer = offers.find((value) => value.name === name);
+    assert.ok(price && offer, `${plan}: checkout and pricing offer`);
+    assert.equal(offer.price * 100, price.amount, `${plan}: published price matches checkout`);
+    assert.equal(offer.priceCurrency.toLowerCase(), price.currency, `${plan}: currency`);
+}
 const robots = await (await request('/robots.txt')).text();
 assert.ok(robots.includes(`${origin.origin}/sitemap.xml`), 'Build SEO URLs for this domain');
 console.log(

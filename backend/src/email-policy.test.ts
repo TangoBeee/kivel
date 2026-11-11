@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { plans } from '@kivel.io/tools/plans';
 import { createHmac, randomBytes, randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import { buildApp } from './app.js';
@@ -319,4 +320,31 @@ test('draft review deadlines respect scheduled time and draft expiry and reserve
     await f.app.runScheduledJobs(Date.now() + 10);
     assert.equal((await f.inspect(draft.id)).status, 'completed');
     assert.equal(f.sent.length, 2);
+});
+
+test('an exhausted approval allowance leaves a draft available to submit later', async (t) => {
+    const f = await fixture(t);
+    const draft = await f.create();
+    const original = f.approvals.create.bind(f.approvals);
+    const filler = () => ({
+        id: randomUUID(),
+        accountId: f.ownerId,
+        agentName: 'Fixture',
+        question: 'Approve?',
+        options: ['Approve', 'Reject'],
+        status: 'pending' as const,
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 60000).toISOString(),
+    });
+    for (let i = 1; i < plans.team.approvalQuestionsPerDay; i++) original(filler(), 'team');
+    f.approvals.create = (approval, plan, queueDraft) => {
+        if (approval.emailDraft) original(filler(), plan);
+        return original(approval, plan, queueDraft);
+    };
+    const response = await f.submit(draft.id, { approval: true });
+    assert.equal(response.statusCode, 402, response.body);
+    assert.equal(response.json().limit, 'approvals.questions');
+    assert.equal((await f.inspect(draft.id)).status, 'draft');
+    assert.equal((await f.jobs.get(draft.id))?.nextRunAt, null);
+    assert.equal(f.sent.length, 0);
 });

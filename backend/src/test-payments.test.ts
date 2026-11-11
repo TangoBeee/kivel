@@ -573,3 +573,38 @@ test('wallet daily limits, rejection, expired holds and rate limits cannot be by
     );
     assert.equal(topups.filter((response) => response.statusCode === 429).length, 1);
 });
+
+test('a payment refused by the approval allowance leaves a ledger entry and no debit', async (t) => {
+    const f = await fixture(t);
+    const wallet = await f.create(
+        'wallets',
+        { name: 'Approval fixture', balance: 50, approvalThreshold: 5 },
+        f.human,
+    );
+    const original = f.approvals.create.bind(f.approvals);
+    const filler = () => ({
+        id: randomUUID(),
+        accountId: f.owner,
+        agentName: 'Fixture',
+        question: 'Approve?',
+        options: ['Approve', 'Reject'],
+        status: 'pending' as const,
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 60000).toISOString(),
+    });
+    for (let i = 1; i < plans.team.approvalQuestionsPerDay; i++) original(filler(), 'team');
+    f.approvals.create = (approval, plan, queueDraft) => {
+        if (approval.walletPayment) original(filler(), plan);
+        return original(approval, plan, queueDraft);
+    };
+    const response = await f.post(`/api/test-wallets/${wallet.id}/pay`, {
+        amount: 7,
+        payee: 'Fixture',
+        idempotencyKey: randomUUID(),
+    });
+    assert.equal(response.statusCode, 402, response.body);
+    assert.equal(response.json().limit, 'approvals.questions');
+    assert.equal((await f.get(`/api/test-wallets/${wallet.id}`)).json().balance, 50);
+    const ledger = (await f.get(`/api/test-wallets/${wallet.id}/transactions`)).json().transactions;
+    assert.equal(ledger[0].status, 'refused');
+});

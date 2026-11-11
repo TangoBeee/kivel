@@ -132,8 +132,9 @@ test('denied requests tell the agent, and a full workspace must replace or upgra
         headers: session,
         payload: {},
     });
-    assert.equal(blocked.statusCode, 409);
-    assert.match(blocked.json().error, /includes 3 agents/);
+    assert.equal(blocked.statusCode, 402);
+    assert.equal(blocked.json().limit, 'agents.connected');
+    assert.equal(blocked.json().max, 3);
     const agents = (await app.inject({ url: '/api/agents', headers: session })).json().agents;
     const oldest = agents.find((agent: { name: string }) => agent.name === 'One');
     const replaced = await app.inject({

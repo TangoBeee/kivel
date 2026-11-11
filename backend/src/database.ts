@@ -1,3 +1,4 @@
+import { liveEventSchema } from './live-event-schema.js';
 import { Pool } from 'pg';
 import { recoverySchema, contactEmailSchema } from './recovery-store.js';
 import { identitySchema, quotaFunction } from './identity-schema.js';
@@ -322,6 +323,10 @@ export async function migrate(pool: Pool): Promise<void> {
                 UPDATE principal_usage p SET stored_bytes=p.stored_bytes + sizes.bytes FROM (SELECT r.quota_key,sum(m.stored_bytes) AS bytes FROM temporary_resources r JOIN email_messages m ON m.resource_id=r.id WHERE r.quota_key IS NOT NULL GROUP BY r.quota_key) sizes WHERE p.key_hash=sizes.quota_key;
                 ALTER TABLE temporary_resources ENABLE TRIGGER temporary_resource_quota;
                 INSERT INTO schema_migrations(version) VALUES(19);`);
+        }
+        if (version < 20) {
+            await client.query(liveEventSchema);
+            await client.query('INSERT INTO schema_migrations (version) VALUES (20)');
         }
         // The function adds error details without changing the schema used by older releases.
         if (version >= 5) await client.query(quotaFunction);

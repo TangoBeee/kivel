@@ -1,3 +1,4 @@
+import { LimitError } from './errors.js';
 import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { plans } from '@kivel.io/tools/plans';
@@ -826,20 +827,40 @@ export function registerTestPayments({
             });
             if (transaction.status === 'awaitingApproval') {
                 if (!approval) {
-                    prepared ??= await review.prepare(request, {
-                        question: `Your agent wants to pay $${transaction.amount.toFixed(2)} to ${transaction.payee.slice(0, 150)} for ${transaction.memo || 'a test payment'}. Approve?`,
-                        details: 'Test mode. No real money.',
-                        options: ['Approve', 'Reject'],
-                    });
-                    prepared.id = transaction.approvalId!;
-                    prepared.expiresAt = transaction.expiresAt;
-                    prepared.walletPayment = {
-                        walletId: resource.id,
-                        transactionId: transaction.id,
-                        version: transaction.version,
-                        requesterId: transaction.requesterId,
-                    };
-                    await review.submit(prepared);
+                    try {
+                        prepared ??= await review.prepare(request, {
+                            question: `Your agent wants to pay $${transaction.amount.toFixed(2)} to ${transaction.payee.slice(0, 150)} for ${transaction.memo || 'a test payment'}. Approve?`,
+                            details: 'Test mode. No real money.',
+                            options: ['Approve', 'Reject'],
+                        });
+                        prepared.id = transaction.approvalId!;
+                        prepared.expiresAt = transaction.expiresAt;
+                        prepared.walletPayment = {
+                            walletId: resource.id,
+                            transactionId: transaction.id,
+                            version: transaction.version,
+                            requesterId: transaction.requesterId,
+                        };
+                        await review.submit(prepared, actor.plan);
+                    } catch (error) {
+                        if (error instanceof LimitError) {
+                            const refused = await mutate(
+                                resource.id,
+                                owner,
+                                'wallet',
+                                (_config, state) => {
+                                    const entry = state.transactions.find(
+                                        (item) => item.id === transaction.id,
+                                    );
+                                    if (entry?.status !== 'awaitingApproval') return;
+                                    transition(entry, 'refused', error.message);
+                                    return entry;
+                                },
+                            );
+                            if (refused) await recordActivity(owner, resource.id, refused);
+                        }
+                        throw error;
+                    }
                 }
                 return reply.code(202).send({
                     testMode: true,

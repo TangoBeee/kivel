@@ -46,11 +46,8 @@ const glyphs: [PhosphorIcon, string[]][] = [
     [P.Planet, ['Agent test environments']],
     [P.Plug, ['Kivel MCP']],
     [P.SquaresFour, ['Socket Spaces']],
-    [P.ArrowsLeftRight, ['Temporary file transfer']],
     [P.Ticket, ['One-time download links']],
     [P.LockSimple, ['Private file sharing']],
-    [P.FloppyDisk, ['Temporary JSON storage']],
-    [P.Binary, ['Temporary binary storage']],
     [P.Clipboard, ['Text & code sharing']],
     [P.FileMagnifyingGlass, ['File metadata inspector']],
     [P.TerminalWindow, ['SSH file transfer']],
@@ -95,8 +92,6 @@ const glyphs: [PhosphorIcon, string[]][] = [
     [P.Password, ['Password generator']],
     [P.DiceFive, ['Random generator']],
     [P.SealCheck, ['File checksums']],
-    [P.NotePencil, ['Temporary notes']],
-    [P.Tray, ['Temporary email inbox']],
     [P.EnvelopeOpen, ['Email inspector']],
     [P.Paperclip, ['Attachment inspector']],
     [P.Browser, ['Email HTML preview']],
@@ -104,11 +99,7 @@ const glyphs: [PhosphorIcon, string[]][] = [
     [P.Layout, ['Email template tester']],
     [P.PaperPlaneRight, ['Mock SMTP']],
     [P.At, ['Email webhook forwarding']],
-    [P.Globe, ['Temporary subdomain']],
-    [P.ArrowBendDoubleUpRight, ['Temporary redirects']],
-    [P.HardDrives, ['Temporary static hosting']],
     [P.FileHtml, ['HTML sharing']],
-    [P.ArrowUDownLeft, ['Temporary callback URL']],
     [P.Path, ['Localhost tunnel']],
     [P.Certificate, ['Domain validation']],
     [P.Pulse, ['Uptime monitor']],
@@ -121,10 +112,7 @@ const glyphs: [PhosphorIcon, string[]][] = [
     [P.Bell, ['Monitoring notifications']],
     [P.ChartLine, ['API monitor']],
     [P.Medal, ['Service health badges']],
-    [P.Database, ['Temporary key-value store']],
     [P.Archive, ['JSON data store']],
-    [P.Feather, ['Temporary SQLite']],
-    [P.Rows, ['Temporary PostgreSQL']],
     [P.PushPin, ['Test fixtures']],
     [P.Plant, ['Seed data generator']],
     [P.Memory, ['Agent state store']],
@@ -164,22 +152,31 @@ const glyphs: [PhosphorIcon, string[]][] = [
     [P.Gear, ['Environment variable formatter']],
     [P.Sparkle, ['API response formatter']],
     [P.ClipboardText, ['Code paste sharing']],
-    [P.CalendarCheck, ['Temporary scheduled jobs']],
     [P.ClockCountdown, ['Delayed webhooks']],
-    [P.ArrowsCounterClockwise, ['Temporary cron triggers']],
     [P.ArrowsDownUp, ['HTTP polling']],
     [P.FlowArrow, ['Workflow chaining']],
     [P.CalendarPlus, ['Scheduled mock events']],
     [P.HandTap, ['Event-triggered actions']],
-    [P.Trash, ['Disposable test automation']],
 ];
 
 const byName = new Map(glyphs.flatMap(([icon, names]) => names.map((name) => [name, icon])));
 
+const byId: Record<string, PhosphorIcon> = {
+    'files-temporary-file-transfer': P.ArrowsLeftRight,
+    'files-temporary-json-storage': P.FloppyDisk,
+    'files-temporary-binary-storage': P.Binary,
+    'everyday-temporary-notes': P.NotePencil,
+    'email-temporary-email-inbox': P.Tray,
+    'domains-temporary-callback-url': P.ArrowUDownLeft,
+    'databases-temporary-key-value-store': P.Database,
+    'automation-temporary-scheduled-jobs': P.CalendarCheck,
+    'automation-temporary-cron-triggers': P.ArrowsCounterClockwise,
+};
+
 export function toolGlyphs(size = 18): Record<string, React.ReactNode> {
     return Object.fromEntries(
         catalog.map((tool) => {
-            const Glyph = byName.get(tool.name) ?? P.Cube;
+            const Glyph = byId[tool.id] ?? byName.get(tool.name) ?? P.Cube;
             return [tool.id, <Glyph key={tool.id} size={size} aria-hidden="true" />];
         }),
     );

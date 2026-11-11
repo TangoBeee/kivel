@@ -95,6 +95,16 @@ export interface KivelLimitDetails {
     plan?: KivelUsage['plan'];
 }
 
+export interface StreamOptions {
+    token?: string;
+    lastEventId?: string;
+    signal?: AbortSignal;
+}
+
+export type KivelLiveEvent =
+    | { type: 'ready'; cursor: string }
+    | { type: 'change'; cursor: string; topic: string; scopeId: string; id: string; event: string };
+
 export class KivelError extends Error {
     constructor(
         message: string,
@@ -108,6 +118,35 @@ export class KivelError extends Error {
         super(message);
         this.name = 'KivelError';
     }
+}
+function apiFailure(response: Response, value: unknown) {
+    const error = value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+    const code = error.code ?? error.error;
+    const details: KivelLimitDetails | undefined =
+        (code === 'limit_reached' || code === 'rate_limited') && typeof error.limit === 'string'
+            ? {
+                  code,
+                  limit: error.limit,
+                  ...(typeof error.used === 'number' ? { used: error.used } : {}),
+                  ...(typeof error.max === 'number' ? { max: error.max } : {}),
+                  ...(['anonymous', 'free', 'pro', 'team'].some((plan) => plan === error.plan)
+                      ? { plan: error.plan as KivelUsage['plan'] }
+                      : {}),
+              }
+            : undefined;
+    return new KivelError(
+        typeof error.message === 'string'
+            ? error.message
+            : typeof error.error === 'string'
+              ? error.error
+              : `Request failed (${response.status}).`,
+        response.status,
+        response.headers.get('x-request-id') ?? undefined,
+        Number(response.headers.get('retry-after')) || undefined,
+        typeof error.requiredPlan === 'string' ? error.requiredPlan : undefined,
+        typeof error.upgradeUrl === 'string' ? error.upgradeUrl : undefined,
+        details,
+    );
 }
 export class Kivel {
     readonly baseUrl: string;
@@ -197,41 +236,89 @@ export class Kivel {
                 response.headers.get('x-request-id') ?? undefined,
             );
         }
-        if (!response.ok) {
-            const error =
-                value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
-            const code = error.code ?? error.error;
-            const details: KivelLimitDetails | undefined =
-                (code === 'limit_reached' || code === 'rate_limited') &&
-                typeof error.limit === 'string'
-                    ? {
-                          code,
-                          limit: error.limit,
-                          ...(typeof error.used === 'number' ? { used: error.used } : {}),
-                          ...(typeof error.max === 'number' ? { max: error.max } : {}),
-                          ...(['anonymous', 'free', 'pro', 'team'].some(
-                              (plan) => plan === error.plan,
-                          )
-                              ? { plan: error.plan as KivelUsage['plan'] }
-                              : {}),
-                      }
-                    : undefined;
-            throw new KivelError(
-                typeof error.message === 'string'
-                    ? error.message
-                    : typeof error.error === 'string'
-                      ? error.error
-                      : `Request failed (${response.status}).`,
-                response.status,
-                response.headers.get('x-request-id') ?? undefined,
-                Number(response.headers.get('retry-after')) || undefined,
-                typeof error.requiredPlan === 'string' ? error.requiredPlan : undefined,
-                typeof error.upgradeUrl === 'string' ? error.upgradeUrl : undefined,
-                details,
-            );
-        }
+        if (!response.ok) throw apiFailure(response, value);
         return value as T;
     }
+    async *stream(topics: string[], options: StreamOptions = {}): AsyncGenerator<KivelLiveEvent> {
+        if (
+            !topics.length ||
+            topics.length > 10 ||
+            topics.some((topic) => !topic || /[,\s]/.test(topic))
+        )
+            throw new Error('Choose 1 to 10 live topics.');
+        const query = new URLSearchParams({ topics: topics.join(',') });
+        const headers = new Headers({ Accept: 'text/event-stream' });
+        if (this.options.apiKey) headers.set('Authorization', `Bearer ${this.options.apiKey}`);
+        if (options.token) headers.set('X-Resource-Token', options.token);
+        if (options.lastEventId) headers.set('Last-Event-ID', options.lastEventId);
+        const timeout = AbortSignal.timeout(60_000);
+        const response = await this.fetcher(`${this.baseUrl}/api/stream?${query}`, {
+            headers,
+            redirect: 'error',
+            credentials: 'omit',
+            signal: options.signal ? AbortSignal.any([timeout, options.signal]) : timeout,
+        });
+        if (!response.ok) throw apiFailure(response, await response.json().catch(() => undefined));
+        const invalid = () =>
+            new KivelError('The server returned an invalid event stream.', response.status);
+        if (
+            !response.body ||
+            !response.headers.get('content-type')?.startsWith('text/event-stream')
+        )
+            throw invalid();
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let pending = '';
+        try {
+            for (;;) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                pending += decoder.decode(value, { stream: true });
+                for (let end = /\r?\n\r?\n/.exec(pending); end; end = /\r?\n\r?\n/.exec(pending)) {
+                    if (end.index > 16_384) throw invalid();
+                    const lines = pending.slice(0, end.index).split(/\r?\n/);
+                    pending = pending.slice(end.index + end[0].length);
+                    const cursor = lines.find((line) => line.startsWith('id: '))?.slice(4);
+                    const type = lines.find((line) => line.startsWith('event: '))?.slice(7);
+                    if (!cursor || (type !== 'ready' && type !== 'change')) continue;
+                    if (type === 'ready') {
+                        yield { type, cursor };
+                        continue;
+                    }
+                    const json = lines
+                        .filter((line) => line.startsWith('data: '))
+                        .map((line) => line.slice(6))
+                        .join('\n');
+                    let data;
+                    try {
+                        data = JSON.parse(json);
+                    } catch {
+                        throw invalid();
+                    }
+                    if (
+                        !data ||
+                        ['topic', 'scopeId', 'id', 'event'].some(
+                            (key) => typeof data[key] !== 'string',
+                        )
+                    )
+                        throw invalid();
+                    yield {
+                        type,
+                        cursor,
+                        topic: data.topic,
+                        scopeId: data.scopeId,
+                        id: data.id,
+                        event: data.event,
+                    };
+                }
+                if (pending.length > 16_384) throw invalid();
+            }
+        } finally {
+            await reader.cancel().catch(() => {});
+            reader.releaseLock();
+        }
+    }
+
     tools() {
         return this.request<{
             tools: {
@@ -849,7 +936,7 @@ export class Kivel {
         );
     }
     inspectInbox(id: string, token?: string) {
-        return this.request(
+        return this.request<{ requests: CapturedRequest[] }>(
             'GET',
             `/api/inboxes/${encodeURIComponent(id)}/requests`,
             undefined,

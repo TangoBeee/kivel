@@ -1,6 +1,6 @@
 {
   "network": [
-    "Temporary webhook endpoints",
+    "Webhook endpoints",
     "HTTP request inspection",
     "Request headers, query parameters, body, cookies, and metadata inspection",
     "HTTP echo endpoints",
@@ -47,7 +47,7 @@
     "Reusable API testing scenarios"
   ],
   "agents": [
-    "Temporary mock MCP servers",
+    "Mock MCP servers",
     "Configurable MCP tools and responses",
     "MCP tool-call inspection",
     "MCP request/response history",
@@ -58,22 +58,22 @@
     "Tool latency simulation",
     "Agent integration testing",
     "Reusable agent testing environments",
-    "Agent-accessible temporary files",
+    "Agent-accessible files",
     "Agent-accessible webhooks",
-    "Disposable agent testing resources",
+    "Resources for agent integration workflows",
     "MCP server inspection",
     "Remote MCP endpoint for controlling Kivel resources"
   ],
   "files": [
-    "Browser-based temporary uploads",
+    "Browser uploads",
     "File uploads through `curl`",
     "File downloads through browser and CLI",
     "Expiring download links",
     "One-time downloads",
-    "Temporary public and private files",
-    "Temporary text and code sharing",
-    "Temporary JSON storage",
-    "Temporary binary storage",
+    "Public and private file sharing",
+    "Text and code sharing",
+    "JSON storage",
+    "Binary storage",
     "Transfer files between machines",
     "Download passwords or access tokens",
     "Configurable expiration",
@@ -83,33 +83,33 @@
     "Eventually support SSH/SFTP/SCP-compatible workflows where justified"
   ],
   "email": [
-    "Disposable email addresses",
-    "Temporary email inboxes",
+    "Email addresses for agents",
+    "Email inboxes",
     "Receive and inspect email messages",
     "Email headers and MIME inspection",
     "Attachment inspection",
     "Email HTML preview",
-    "Temporary inbox expiration",
+    "Inbox retention controls",
     "Email verification testing",
     "Test email templates",
     "Mock SMTP delivery",
     "Email webhook forwarding",
     "API-based inbox retrieval",
-    "Temporary email testing for applications"
+    "Email verification workflows for applications"
   ],
   "domains": [
-    "Temporary subdomains such as `example.kivel.io`",
+    "On-demand subdomains such as `example.kivel.io`",
     "Configurable subdomain expiration",
-    "Temporary redirects",
-    "Temporary static website hosting",
+    "Configurable redirects",
+    "Static website hosting",
     "Share small HTML pages",
-    "Temporary callback URLs",
+    "Callback URLs",
     "Local development tunnels",
     "Public localhost exposure",
     "HTTPS endpoints",
     "Domain and DNS validation tools",
     "Preview environments",
-    "API-driven temporary domain creation"
+    "Domain creation through the API"
   ],
   "monitoring": [
     "Website uptime monitoring",
@@ -127,14 +127,14 @@
     "Custom domains for paid users eventually"
   ],
   "databases": [
-    "Temporary key-value stores",
+    "Key-value stores",
     "Store/retrieve JSON via HTTP",
-    "Temporary SQLite database environments",
-    "Temporary PostgreSQL databases when infrastructure permits",
+    "SQLite database environments",
+    "PostgreSQL databases when infrastructure permits",
     "Expiring database resources",
     "Test fixtures",
     "Seed data generation",
-    "Disposable state for testing",
+    "Isolated state for integration workflows",
     "Small ephemeral data stores for AI agents",
     "Database connection testing"
   ],
@@ -201,7 +201,7 @@
     "Random generators",
     "File checksums",
     "Hash generation",
-    "Temporary notes and pastes"
+    "Notes and pastes"
   ],
   "developer": [
     "JSON formatter and validator",
@@ -223,13 +223,13 @@
     "Code snippets and paste sharing"
   ],
   "automation": [
-    "Temporary scheduled jobs",
+    "Scheduled jobs",
     "Delayed webhook delivery",
-    "Temporary cron triggers",
+    "Cron triggers",
     "HTTP polling",
     "Lightweight workflow chaining",
     "Scheduled mock events",
     "Event-triggered actions",
-    "Disposable test automations"
+    "Isolated automation runs"
   ]
 }

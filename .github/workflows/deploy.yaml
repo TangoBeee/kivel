@@ -55,6 +55,7 @@ jobs:
           build-args: |
             PACKAGES_DAY=${{ steps.packages.outputs.day }}
             BILLING_ENABLED=true
+            BILLING_PRICE_SCHEDULE=${{ vars.BILLING_PRICE_SCHEDULE || 'legacy' }}
             SITE_URL=https://${{ env.DOMAIN }}
             APP_URL=https://app.${{ env.DOMAIN }}
           tags: ${{ env.REPOSITORY }}:app-${{ steps.release.outputs.tag }}

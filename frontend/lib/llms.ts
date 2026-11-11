@@ -13,8 +13,12 @@ import { paidPlansEnabled, pricing } from './pricing';
 const url = (path: string) => `${siteOrigin}${path}`;
 const clean = (text: string) => text.replace(/\s+/g, ' ').trim();
 const available = catalog.filter((tool) => tool.status === 'available');
+const paidPrices = `Pro is $${pricing.pro.monthly}/month and Team is $${pricing.team.monthly}/month.`;
+const billingSummary = paidPlansEnabled
+    ? paidPrices
+    : `Paid checkout is closed during open beta. Planned pricing: ${paidPrices}`;
 
-const SUMMARY = `Kivel gives coding agents ${available.length} tools across ${categories.length} categories: HTTP and webhooks, email, mock APIs and OAuth, files, monitors, memory, authenticators and vaults, test wallets, x402 paywalls and checkouts, scheduled jobs and status pages, test data and media, developer utilities, DNS and network. Use search_tools for the complete catalog, describe_tool for inputs and run_tool for utilities. Resources have dedicated MCP tools and lifecycle routes. Connect over MCP, HTTP, @kivel.io/sdk@beta, @kivel.io/cli@beta or an operator-enabled SSH gateway. Browser utilities run locally for free. Workspace email, memory, authenticators, monitors and human questions require an account; use start_login/finish_login for human approval. Use authenticators only for accounts the human authorized. Keep credentials private. Check /api/capabilities and /pricing/ for availability, retention and allowances. ${paidPlansEnabled ? 'Paid checkout is enabled.' : 'Paid checkout is disabled during this installation’s free beta.'} Pro is $${pricing.pro.monthly}/month and Team $${pricing.team.monthly}/month when enabled. Setup: ${url('/connect/')}.`;
+const SUMMARY = `Kivel gives coding agents ${available.length} tools across ${categories.length} categories: HTTP and webhooks, email, mock APIs and OAuth, files, monitors, memory, authenticators and vaults, test wallets, x402 paywalls and checkouts, scheduled jobs and status pages, test data and media, developer utilities, DNS and network. Use search_tools for the complete catalog, describe_tool for inputs and run_tool for utilities. Resources have dedicated MCP tools and lifecycle routes. Connect over MCP, HTTP, @kivel.io/sdk@beta, @kivel.io/cli@beta or an operator-enabled SSH gateway. Browser utilities run locally for free. Workspace email, memory, authenticators, monitors and human questions require an account; use start_login/finish_login for human approval. Use authenticators only for accounts the human authorized. Keep credentials private. Check /api/capabilities and /pricing/ for availability, retention and allowances. ${billingSummary} Setup: ${url('/connect/')}.`;
 
 export function llmsIndex() {
     const lines = [`# Kivel`, '', `> ${SUMMARY}`, ''];

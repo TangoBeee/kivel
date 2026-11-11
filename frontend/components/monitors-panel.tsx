@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Badge, Button, Dialog, DropdownMenu, IconButton, Select } from '@radix-ui/themes';
 import { DotsThree, Plus, Pulse } from '@phosphor-icons/react';
 import { api } from '../lib/api';
+import { useLiveStream } from '../lib/use-live-stream';
 import { CopyButton } from './copy-button';
 
 interface Monitor {
@@ -41,14 +42,17 @@ const every = (seconds: number) =>
 export function MonitorsPanel({
     verifiedEmail,
     initialKind = 'http',
+    onUsageChange,
 }: {
     verifiedEmail: boolean;
     initialKind?: Monitor['kind'];
+    onUsageChange?: () => void;
 }) {
     const [monitors, setMonitors] = useState<Monitor[] | null>(null);
     const [limit, setLimit] = useState(0);
     const [minInterval, setMinInterval] = useState(300);
     const [open, setOpen] = useState(false);
+    const [paused, setPaused] = useState(false);
     const [kind, setKind] = useState<Monitor['kind']>('http');
     const [name, setName] = useState('');
     const [target, setTarget] = useState('');
@@ -68,22 +72,29 @@ export function MonitorsPanel({
         | null
     >(null);
 
-    async function load() {
+    async function load(signal?: AbortSignal) {
         try {
-            const value = await (await api('/api/monitors')).json();
+            const value = await (await api('/api/monitors', signal ? { signal } : {})).json();
+            if (signal?.aborted) return;
             setMonitors(value.monitors);
             setLimit(value.limit);
             setMinInterval(value.minIntervalSeconds);
         } catch (failure) {
+            if (signal?.aborted) return;
             setError(failure instanceof Error ? failure.message : 'Unable to load monitors.');
             setMonitors((current) => current ?? []);
         }
     }
     useEffect(() => {
-        void load();
-        const timer = setInterval(() => void load(), 15000);
-        return () => clearInterval(timer);
+        const controller = new AbortController();
+        void load(controller.signal);
+        return () => controller.abort();
     }, []);
+    const live = useLiveStream('monitors', load, paused);
+    const count = monitors?.length;
+    useEffect(() => {
+        if (count !== undefined) onUsageChange?.();
+    }, [count, onUsageChange]);
 
     function start() {
         setKind(initialKind);
@@ -155,6 +166,20 @@ export function MonitorsPanel({
                     <p>
                         We check on a schedule and email you when something goes down or comes back.
                     </p>
+                    <div className="monitor-live-controls">
+                        <span role="status">
+                            {paused ? 'Paused' : live ? 'Live' : 'Updates every 5 seconds'}
+                        </span>
+                        <Button
+                            type="button"
+                            size="1"
+                            variant="soft"
+                            color="gray"
+                            onClick={() => setPaused((value) => !value)}
+                        >
+                            {paused ? 'Resume updates' : 'Pause updates'}
+                        </Button>
+                    </div>
                 </div>
                 <Button color="green" disabled={full} onClick={start}>
                     <Plus size={16} /> Add monitor

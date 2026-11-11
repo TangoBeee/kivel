@@ -1,6 +1,7 @@
 'use client';
 
 import { workspaceResource } from '../lib/app-routes';
+import { siteOrigin } from '../lib/site';
 import Link from 'next/link';
 import { EchoWorkbench } from './echo-workbench';
 import { StreamEventsPreview, renderToolResult } from './tool-result';
@@ -801,14 +802,13 @@ export function ResourceWorkbench({
                             <div className="upsell">
                                 <p>
                                     Point the mock at your real API: unmatched calls pass through
-                                    and real answers are saved as routes. Beeceptor charges $10 a
-                                    month for its paid plans; this is part of Kivel Pro.
+                                    and responses are saved as routes on Pro.
                                 </p>
                                 <Link
                                     className="button button-primary button-small"
-                                    href="/pricing/"
+                                    href={`${siteOrigin}/pricing/`}
                                 >
-                                    Get Pro for $2 a month
+                                    See Pro pricing
                                 </Link>
                             </div>
                         )}

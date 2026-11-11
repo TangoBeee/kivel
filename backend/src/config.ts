@@ -2,6 +2,32 @@ import { emailAddress } from './recovery.js';
 import type { MailConfig } from './mail.js';
 import { isIP } from 'node:net';
 import { httpOrigin } from './security.js';
+import type { BillingConfig } from './billing.js';
+import { billingPriceSchedule } from '@kivel.io/tools/billing-plans';
+
+function legacyDodoProducts(
+    raw: string | undefined,
+    current: readonly (string | undefined)[],
+): BillingConfig['legacyProducts'] {
+    if (!raw) return undefined;
+    let value: unknown;
+    try {
+        value = JSON.parse(raw);
+    } catch {}
+    if (
+        !value ||
+        typeof value !== 'object' ||
+        Array.isArray(value) ||
+        Object.entries(value).some(
+            ([id, plan]) =>
+                !/^pdt_[A-Za-z0-9]+$/.test(id) ||
+                current.includes(id) ||
+                (plan !== 'pro' && plan !== 'team'),
+        )
+    )
+        throw new Error('DODO_LEGACY_PRODUCT_IDS must map retired product IDs to pro or team.');
+    return value as BillingConfig['legacyProducts'];
+}
 
 export function readConfig(env: Record<string, string | undefined>) {
     const production = env.NODE_ENV === 'production';
@@ -72,6 +98,7 @@ export function readConfig(env: Record<string, string | undefined>) {
     if (Object.keys(env).some((key) => key.startsWith('STRIPE_') && env[key]))
         throw new Error('Stripe billing is no longer supported. Configure Dodo Payments instead.');
     const billingEnabled = env.BILLING_ENABLED === 'true';
+    const priceSchedule = billingPriceSchedule(env.BILLING_PRICE_SCHEDULE);
     if (env.BILLING_ENABLED && !['true', 'false'].includes(env.BILLING_ENABLED))
         throw new Error('BILLING_ENABLED must be true or false.');
     const billingKeys = [
@@ -88,12 +115,22 @@ export function readConfig(env: Record<string, string | undefined>) {
     const environment = env.DODO_PAYMENTS_ENVIRONMENT || 'test_mode';
     if (!['test_mode', 'live_mode'].includes(environment))
         throw new Error('DODO_PAYMENTS_ENVIRONMENT must be test_mode or live_mode.');
+    const legacyProducts = legacyDodoProducts(env.DODO_LEGACY_PRODUCT_IDS, [
+        env.DODO_PRO_PRODUCT_ID,
+        env.DODO_TEAM_PRODUCT_ID,
+    ]);
+    if (priceSchedule !== 'legacy' && !Object.keys(legacyProducts ?? {}).length)
+        throw new Error(
+            'DODO_LEGACY_PRODUCT_IDS is required when BILLING_PRICE_SCHEDULE is not legacy.',
+        );
     const dodoConfig = configured.length
         ? {
               apiKey: env.DODO_PAYMENTS_API_KEY!,
               webhookSecret: env.DODO_PAYMENTS_WEBHOOK_KEY!,
               proProduct: env.DODO_PRO_PRODUCT_ID!,
               teamProduct: env.DODO_TEAM_PRODUCT_ID!,
+              priceSchedule,
+              ...(legacyProducts ? { legacyProducts } : {}),
               phoneAddonEnabled: env.PHONE_ENABLED === 'true',
               ...(env.DODO_PHONE_ADDON_ID ? { phoneAddonId: env.DODO_PHONE_ADDON_ID } : {}),
               environment: environment as 'test_mode' | 'live_mode',

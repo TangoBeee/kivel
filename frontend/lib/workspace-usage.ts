@@ -5,6 +5,7 @@ import type { UsageItem, UsageKey, UsageResponse } from '@kivel.io/tools/plans';
 
 /** Everything the dashboard shows next to a limit. Each part may be missing if its request fails. */
 export interface WorkspaceUsage {
+    plan?: UsageResponse['plan'];
     runsToday?: number;
     items?: UsageItem[];
     error?: string;
@@ -27,7 +28,11 @@ export interface WorkspaceUsage {
     memory?: { used: number; limit: number };
 }
 
-export function useWorkspaceUsage(workspaceId: string | undefined, refreshKey: unknown) {
+export function useWorkspaceUsage(
+    workspaceId: string | undefined,
+    refreshKey: unknown,
+    revision: number,
+) {
     const [snapshot, setSnapshot] = useState<{ workspaceId: string; usage: WorkspaceUsage }>();
     useEffect(() => {
         if (!workspaceId) return;
@@ -46,6 +51,7 @@ export function useWorkspaceUsage(workspaceId: string | undefined, refreshKey: u
                 setSnapshot({
                     workspaceId,
                     usage: {
+                        plan: response.plan,
                         runsToday: response.runsToday,
                         limits: response.limits,
                         items: response.items,
@@ -72,7 +78,7 @@ export function useWorkspaceUsage(workspaceId: string | undefined, refreshKey: u
                     });
             });
         return () => controller.abort();
-    }, [workspaceId, refreshKey]);
+    }, [workspaceId, refreshKey, revision]);
     return snapshot?.workspaceId === workspaceId ? (snapshot?.usage ?? {}) : {};
 }
 

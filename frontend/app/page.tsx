@@ -119,7 +119,6 @@ function Snippet({ kind }: { kind: (typeof showcase)[number]['snippet'] }) {
                 <div className="home-snip-row">
                     <div>
                         <strong>Your verification code</strong>
-                        <small>Northwind · 09:41</small>
                     </div>
                     <code className="home-snip-code">482 901</code>
                 </div>

@@ -36,6 +36,14 @@ export function PaymentCardPreview({ text }: { text: string }) {
     ]
         .map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(','))
         .join('\r\n');
+    // The format most card generators export: number|MM|YYYY|CVV, one card per line.
+    const pipe = batch.cards
+        .map(
+            (card) =>
+                `${card.number}|${String(card.expiryMonth).padStart(2, '0')}|${card.expiryYear}|${card.cvc}`,
+        )
+        .join('\n');
+    const shown = batch.cards.slice(0, 50);
     return (
         <section className="payment-card-results" aria-label="Generated test cards">
             <div className="payment-export-row">
@@ -65,10 +73,22 @@ export function PaymentCardPreview({ text }: { text: string }) {
                     >
                         Export CSV
                     </button>
+                    <button
+                        className="button button-small"
+                        onClick={() =>
+                            downloadBlob(
+                                new Blob([pipe], { type: 'text/plain;charset=utf-8' }),
+                                'test-cards.txt',
+                            )
+                        }
+                    >
+                        Export pipe format
+                    </button>
+                    <CopyButton text={pipe} label="Copy all as number|MM|YYYY|CVV" />
                 </div>
             </div>
             <div className="payment-card-grid">
-                {batch.cards.map((card, index) => {
+                {shown.map((card, index) => {
                     const displayNumber =
                         card.brand === 'amex' || card.brand === 'diners'
                             ? `${card.number.slice(0, 4)} ${card.number.slice(4, 10)} ${card.number.slice(10)}`
@@ -143,6 +163,11 @@ export function PaymentCardPreview({ text }: { text: string }) {
                     );
                 })}
             </div>
+            {batch.cards.length > shown.length && (
+                <p className="tool-notice">
+                    Showing {shown.length} of {batch.cards.length} cards. Export to get all of them.
+                </p>
+            )}
             <p className="tool-notice">
                 {batch.note}{' '}
                 {batch.source && (

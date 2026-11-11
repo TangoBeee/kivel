@@ -1,14 +1,19 @@
 // Search copy for the tools people look for by name. Titles lead with the words searchers type;
 // FAQs answer the questions those searches ask and are also published as FAQPage data.
 export interface ToolSeo {
+    // When this page's tool or copy last changed in a way searchers would notice.
+    updatedAt: string;
     title?: string;
     description: string;
     faq: readonly (readonly [string, string])[];
     // Tools a visitor to this page is likely to need next, across categories.
     related?: readonly string[];
+    // A longer guide for the same search intent, linked from the tool page.
+    guide?: { title: string; href: string };
 }
 export const toolSeo: Record<string, ToolSeo> = {
     'developer-fake-identity-generator': {
+        updatedAt: '2026-11-12',
         description:
             'Generate realistic fake identities online: names, birthdays, addresses with real postal codes, phone numbers, emails, usernames, passwords, jobs and test card numbers for the US, UK, Canada, Australia, Germany and France. Free, no signup, JSON and CSV.',
         faq: [
@@ -45,9 +50,10 @@ export const toolSeo: Record<string, ToolSeo> = {
         ],
     },
     'developer-credit-card-generator': {
+        updatedAt: '2026-11-12',
         title: 'Credit card generator: valid test card numbers with CVV and expiry',
         description:
-            'Generate Luhn valid credit card numbers for Visa, Mastercard, American Express, Discover, JCB, Diners and UnionPay with CVV, expiry, holder name and billing address, or official Stripe, Adyen, Braintree and PayPal sandbox cards. Free, no signup.',
+            'Generate up to 500 Luhn valid credit card numbers for Visa, Mastercard, American Express, Discover, JCB, Diners and UnionPay with CVV, expiry, holder name and billing address. Use your own BIN, export JSON, CSV or number|MM|YYYY|CVV, or get official Stripe, Adyen, Braintree and PayPal sandbox cards. Free, no signup.',
         faq: [
             [
                 'Are these real credit card numbers?',
@@ -62,8 +68,16 @@ export const toolSeo: Record<string, ToolSeo> = {
                 'Yes. Every card has a future expiry date, a CVV of the right length for its brand (four digits for American Express) and a holder name, with an optional billing address.',
             ],
             [
+                'Can I generate cards from my own BIN?',
+                'Yes. Enter a BIN or card prefix of up to 12 digits and every card starts with it. The brand and card length follow from the prefix, and the last digit is calculated so the number passes the Luhn check.',
+            ],
+            [
                 'Can I export many cards at once?',
-                'Yes. Generate a batch and download it as JSON or CSV, or call the same generator from the API, CLI or MCP server.',
+                'Yes. Generate up to 500 cards and download them as JSON, CSV or the number|MM|YYYY|CVV pipe format, or call the same generator from the API, CLI or MCP server.',
+            ],
+            [
+                'Can I set the expiry date and CVV?',
+                'Yes. Leave them empty for a random future expiry and CVV, or enter a fixed MM/YY and CVV to use the same values on every card.',
             ],
             [
                 'Is it legal to use a credit card generator?',
@@ -71,6 +85,7 @@ export const toolSeo: Record<string, ToolSeo> = {
             ],
         ],
         related: [
+            'developer-card-number-validator',
             'developer-debit-card-generator',
             'developer-prepaid-card-generator',
             'developer-fake-identity-generator',
@@ -78,6 +93,7 @@ export const toolSeo: Record<string, ToolSeo> = {
         ],
     },
     'developer-debit-card-generator': {
+        updatedAt: '2026-11-12',
         title: 'Debit card generator: valid test debit card numbers',
         description:
             'Generate Luhn valid Visa, Mastercard and other debit card numbers with CVV, expiry and billing address, or official sandbox debit cards for Stripe, Adyen, Braintree and PayPal. Free, no signup, JSON and CSV.',
@@ -98,17 +114,26 @@ export const toolSeo: Record<string, ToolSeo> = {
         ],
     },
     webhooks: {
+        guide: {
+            title: 'Webhook testing for AI coding agents',
+            href: '/use-cases/webhook-testing/',
+        },
+        updatedAt: '2026-11-12',
         title: 'Webhook tester: free webhook URL to inspect requests',
         description:
             'Get a free webhook URL and inspect every request live: headers, query, JSON body and signatures for Stripe, GitHub, Shopify, Slack, Twilio and more. Set a custom response and let your coding agent read the captures.',
         faq: [
             [
                 'How do I get a free webhook URL?',
-                'Open the webhook tester and Kivel creates an inbox with its own URL. Paste it into the service that sends webhooks and each request appears with its method, headers, query and body.',
+                'Click Create a webhook URL on this page. You get a working URL straight away, with no account. Paste it into the service that sends webhooks and each request appears below it with its method, path, headers, query and body. The URL lasts one hour; a free account keeps inboxes longer.',
             ],
             [
                 'Can I verify webhook signatures?',
                 'Yes. Choose the provider preset, add the signing secret and Kivel checks the signature on every captured request, including Stripe, GitHub, Shopify, Slack, Twilio, Paddle, Linear and Standard Webhooks.',
+            ],
+            [
+                'Can I send a test webhook without setting up a provider?',
+                "Yes. The Stripe, GitHub, Shopify and Slack buttons send a sample event with that provider's headers and payload shape, and the Copy cURL button gives you a command for your terminal.",
             ],
             [
                 'Can I control the response?',
@@ -126,6 +151,11 @@ export const toolSeo: Record<string, ToolSeo> = {
         ],
     },
     'email-temporary-email-inbox': {
+        guide: {
+            title: 'Email for AI agents: the full guide',
+            href: '/use-cases/email-for-ai-agents/',
+        },
+        updatedAt: '2026-11-12',
         title: 'Email inbox for AI agents and signup tests: receive codes and links',
         description:
             'Create an email inbox your agent or test suite can read: receive signup emails, extract verification codes and magic links automatically, wait for the next message over the API and keep threads, attachments and rules in one place.',

@@ -20,19 +20,24 @@ const retention = (seconds: number) =>
 const number = (value: number) => value.toLocaleString('en-US');
 const descriptions = {
     anonymous: 'Try it from an agent or the browser. No sign-up.',
-    free: 'A workspace for you and up to 3 agents.',
-    pro: 'For agents you use every day: 25 agents, forwarding and 30-day history.',
+    free: `A workspace for you and up to ${plans.free.agents} agents.`,
+    pro: `For agents you use every day: ${plans.pro.agents} agents, forwarding and ${plans.pro.maxRetentionSeconds / 86400}-day history.`,
     team: 'One shared workspace for the whole team and its agents.',
 };
 const agents = (id: PlanId) =>
     plans[id].agents ? `${number(plans[id].agents)} connected agents` : '72 hour agent trials';
-const questions = { anonymous: 'Not included', free: '20', pro: '200', team: '1,000' } as const;
 const rows: { name: string; value: (id: PlanId) => string }[] = [
     {
         name: 'Connected agents',
         value: (id) => (plans[id].agents ? number(plans[id].agents) : 'Trials only'),
     },
-    { name: 'Questions to you (ask_human) / day', value: (id) => questions[id] },
+    {
+        name: 'Questions to you (ask_human) / day',
+        value: (id) =>
+            plans[id].approvalQuestionsPerDay
+                ? number(plans[id].approvalQuestionsPerDay)
+                : 'Not included',
+    },
     { name: 'Active resources', value: (id) => number(plans[id].maxResources) },
     {
         name: 'Total storage',
@@ -62,13 +67,12 @@ const rows: { name: string; value: (id: PlanId) => string }[] = [
     },
     {
         name: 'Monitors',
-        value: (id) =>
-            ({
-                anonymous: 'Not included',
-                free: '20, every 5 min',
-                pro: '100, every minute',
-                team: '500, every minute',
-            })[id],
+        value: (id) => {
+            const { count, minInterval } = plans[id].monitors;
+            if (!count) return 'Not included';
+            const interval = minInterval % 60 ? `${minInterval} sec` : `${minInterval / 60} min`;
+            return `${number(count)}, every ${interval}`;
+        },
     },
     {
         name: 'Agent memory',
@@ -163,7 +167,7 @@ export default function Plans() {
                 }}
             />
             <PageIntro
-                title="Start with 3 agents free. $2 when you need more."
+                title={`Start with ${plans.free.agents} agents free. ${money(pricing.pro.monthly)} when you need more.`}
                 description={
                     paidPlansEnabled
                         ? 'Every limit is listed below. Nothing is charged or blocked silently, and you can cancel anytime.'
@@ -295,10 +299,14 @@ export default function Plans() {
                     <div>
                         <h3>Tool limits still apply</h3>
                         <p>
-                            Files are limited to 10 MiB each. Inboxes hold 100 requests or 1 MiB
-                            anonymously, and 1,000 requests or 10 MiB with an account. Public
-                            endpoints have their own rate limits. Installation capacity can also
-                            limit new allocations.
+                            Free uploads are limited to {plans.free.fileBytes / 1048576} MiB per
+                            file. Anonymous webhook URLs hold up to{' '}
+                            {number(plans.anonymous.captureRequests)} requests or{' '}
+                            {plans.anonymous.captureBytes / 1048576} MiB. Free accounts hold up to{' '}
+                            {number(plans.free.captureRequests)} requests or{' '}
+                            {plans.free.captureBytes / 1048576} MiB per URL. Public endpoints have
+                            their own rate limits. Installation capacity can also limit new
+                            allocations.
                         </p>
                     </div>
                     <div>

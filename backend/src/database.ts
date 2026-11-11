@@ -323,5 +323,7 @@ export async function migrate(pool: Pool): Promise<void> {
                 ALTER TABLE temporary_resources ENABLE TRIGGER temporary_resource_quota;
                 INSERT INTO schema_migrations(version) VALUES(19);`);
         }
+        // The function adds error details without changing the schema used by older releases.
+        if (version >= 5) await client.query(quotaFunction);
     });
 }

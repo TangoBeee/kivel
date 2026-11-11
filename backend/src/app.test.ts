@@ -404,6 +404,8 @@ test('creation rate limits reset with Retry-After and forwarded headers cannot b
     });
     assert.equal(limited.statusCode, 429);
     assert.equal(limited.headers['retry-after'], '60');
+    assert.equal(limited.json().limit, 'resources.creations');
+    assert.equal(limited.json().retryAfter, 60);
     assert.equal(
         (
             await app.inject({
@@ -453,7 +455,8 @@ test('an inbox is rate limited across multiple sender IPs', async (t) => {
     }
     const limited = await app.inject({ method: 'POST', url: hook, remoteAddress: '192.0.2.200' });
     assert.equal(limited.statusCode, 429);
-    assert.match(limited.json().error, /rate limit/);
+    assert.equal(limited.json().error, 'rate_limited');
+    assert.match(limited.json().message, /rate limit/);
     assert.ok(Number(limited.headers['retry-after']) > 0);
 });
 

@@ -1,4 +1,5 @@
 import DodoPayments from 'dodopayments';
+import { plans } from '@kivel.io/tools/plans';
 import assert from 'node:assert/strict';
 import { after, before, beforeEach, test } from 'node:test';
 import { randomBytes, createHash, createHmac } from 'node:crypto';
@@ -1350,21 +1351,23 @@ test('agent memory enforces the account allowance, expires values and lists by p
         bytes,
         ...(expiresAt ? { expiresAt } : {}),
     });
-    assert.equal(await kv.set(account, entry('a/1', 60), 100), 'stored');
-    assert.equal(await kv.set(account, entry('a/2', 50), 100), 'full');
-    assert.equal(await kv.set(account, entry('a/1', 90), 100), 'stored');
-    assert.equal(await kv.usage(account), 90);
-    assert.equal(
-        await kv.set(account, entry('b/old', 5, new Date(Date.now() - 1000).toISOString()), 100),
-        'stored',
-    );
+    const max = plans.free.memoryBytes;
+    await kv.set(account, entry('a/1', max - 40), 'free');
+    await assert.rejects(kv.set(account, entry('a/2', 50), 'free'), {
+        limit: 'memory.bytes',
+        statusCode: 402,
+        used: max - 40,
+    });
+    await kv.set(account, entry('a/1', max - 10), 'free');
+    assert.equal(await kv.usage(account), max - 10);
+    await kv.set(account, entry('b/old', 5, new Date(Date.now() - 1000).toISOString()), 'free');
     assert.equal(await kv.get(account, 'ns', 'b/old'), undefined);
     assert.deepEqual(
         (await kv.list(account, 'ns', 'a/')).map((item) => item.key),
         ['a/1'],
     );
     await kv.deleteExpired();
-    assert.equal(await kv.usage(account), 90);
+    assert.equal(await kv.usage(account), max - 10);
     assert.equal(await kv.delete(account, 'ns', 'a/1'), true);
     assert.equal(await kv.usage(account), 0);
 });
@@ -1390,7 +1393,7 @@ test('monitors are claimed once when due, found by ping hash and keep 50 events'
         nextRunAt: new Date(Date.now() - 1000).toISOString(),
     };
     const id = crypto.randomUUID();
-    await store.create({ ...base, id }, 'ping-hash');
+    await store.create({ ...base, id }, 'free', 'ping-hash');
     const [first, second] = await Promise.all([store.claimDue(10), store.claimDue(10)]);
     assert.equal(first.length + second.length, 1);
     assert.equal((await store.claimDue(10)).length, 0);
@@ -2351,7 +2354,7 @@ test('authenticators encrypt durable secrets, enforce concurrent plan caps and r
         2,
         added.map((response) => response.body).join('\n'),
     );
-    assert.equal(added.filter((response) => response.statusCode === 429).length, 4);
+    assert.equal(added.filter((response) => response.statusCode === 402).length, 4);
     const id = added.find((response) => response.statusCode === 201)!.json().id;
     const stored = await pool.query(
         "SELECT value::text AS value FROM kv_entries WHERE account_id=$1 AND namespace='$authenticators'",
@@ -2647,7 +2650,7 @@ test('OAuth providers share durable grants, signing keys and atomic plan limits 
             app.inject({ method: 'POST', url: '/api/oauth-providers', headers, payload: config }),
         ),
     );
-    assert.deepEqual(created.map((r) => r.statusCode).sort(), [201, 429]);
+    assert.deepEqual(created.map((r) => r.statusCode).sort(), [201, 402]);
     const provider = created.find((r) => r.statusCode === 201)!.json(),
         path = `/oauth/${provider.id}`;
     const jwks = await a.inject(`${path}/jwks`);
@@ -3135,7 +3138,7 @@ test('vault encryption, limits, human settings and single-use reveals persist ac
         ),
     );
     assert.equal(created.filter((response) => response.statusCode === 201).length, 10);
-    assert.equal(created.filter((response) => response.statusCode === 429).length, 2);
+    assert.equal(created.filter((response) => response.statusCode === 402).length, 2);
     const id = created.find((response) => response.statusCode === 201)!.json().credential.id;
     const persisted = await pool.query(
         "SELECT value FROM kv_entries WHERE account_id=$1 AND namespace='$credentials'",
@@ -3369,4 +3372,177 @@ test('test wallet approvals, atomic debits, token replay and checkout expiry wor
                     resource.id === id && resource.toolId === 'agents-test-wallet',
             ),
     );
+});
+
+test('workspace usage reads durable counters and keeps totals behind account read scope', async (t) => {
+    const identities = new PostgresIdentityRepository(pool);
+    const inboxes = new PostgresInboxStore(pool);
+    const resources = new PostgresResourceStore(pool);
+    const memory = new PostgresKv(pool);
+    const sending = new PostgresEmailSending(pool);
+    const approvals = new PostgresApprovals(pool);
+    const app = buildApp({
+        identityStore: identities,
+        recoveryStore: new PostgresRecoveryRepository(pool),
+        inboxStore: inboxes,
+        resourceStore: resources,
+        memory,
+        emailSending: sending,
+        approvalStore: approvals,
+        usagePool: pool,
+    });
+    t.after(() => app.close());
+    async function workspace(name: string) {
+        const user = (await identities.register(name, 'unused'))!;
+        const owner = user.personalAccountId;
+        const token = randomBytes(32).toString('base64url');
+        await identities.createSession(user.id, owner, token);
+        const identity = (await identities.authenticateSession(token))!;
+        const expires = new Date(Date.now() + 60000).toISOString();
+        const key = await identities.createKey(
+            identity,
+            'Workspace key',
+            ['account:read', 'resources:write'],
+            expires,
+        );
+        const runner = await identities.createKey(identity, 'Run only', ['tools:run'], expires);
+        return {
+            owner,
+            headers: { authorization: `Bearer ${key.key}` },
+            runner: { authorization: `Bearer ${runner.key}` },
+        };
+    }
+    const first = await workspace('usage-first');
+    const second = await workspace('usage-second');
+    const created = await app.inject({
+        method: 'POST',
+        url: '/api/inboxes',
+        headers: first.headers,
+    });
+    assert.equal(created.statusCode, 201, created.body);
+    const saved = await app.inject({
+        method: 'PUT',
+        url: '/api/memory/default/fixture',
+        headers: first.headers,
+        payload: { value: 'hello' },
+    });
+    assert.equal(saved.statusCode, 200, saved.body);
+    const asked = await app.inject({
+        method: 'POST',
+        url: '/api/approvals',
+        headers: first.headers,
+        payload: { question: 'Continue the fixture?' },
+    });
+    assert.equal(asked.statusCode, 201, asked.body);
+    const usage = async (headers?: Record<string, string>) => {
+        const response = await app.inject({ url: '/api/usage', ...(headers ? { headers } : {}) });
+        assert.equal(response.statusCode, 200, response.body);
+        return response.json();
+    };
+    const firstUsage = await usage(first.headers);
+    const counters = Object.fromEntries(
+        firstUsage.items.map((item: { key: string; used: number }) => [item.key, item.used]),
+    );
+    assert.equal(counters['resources.active'], 1);
+    assert.equal(counters['memory.bytes'], 7);
+    assert.equal(counters['approvals.questions'], 1);
+    assert.equal(firstUsage.period.end, firstUsage.resetsAt);
+    assert.equal(Date.parse(firstUsage.period.end) - Date.parse(firstUsage.period.start), 86400000);
+    const secondUsage = await usage(second.headers);
+    assert.ok(secondUsage.items.every((item: { used: number }) => item.used === 0));
+    for (const headers of [first.runner, undefined]) {
+        const scoped = await usage(headers);
+        assert.deepEqual(
+            scoped.items.map((item: { key: string }) => item.key),
+            ['tools.runs'],
+        );
+    }
+});
+
+test('concurrent monitor creation across replicas stops at the plan allowance', async (t) => {
+    const identities = new PostgresIdentityRepository(pool);
+    const options = {
+        identityStore: identities,
+        recoveryStore: new PostgresRecoveryRepository(pool),
+        monitorStore: new PostgresMonitors(pool),
+    };
+    const apps = [buildApp(options), buildApp(options)];
+    t.after(async () => {
+        await Promise.all(apps.map((app) => app.close()));
+    });
+    const origin = 'http://localhost:3000';
+    const registered = await apps[0]!.inject({
+        method: 'POST',
+        url: '/api/auth/register',
+        headers: { origin },
+        payload: {
+            username: 'monitor-quota-owner',
+            email: 'monitor-quota@example.test',
+            password: 'correct-horse-battery-staple',
+        },
+    });
+    assert.equal(registered.statusCode, 201, registered.body);
+    const headers = { origin, cookie: String(registered.headers['set-cookie']).split(';')[0]! };
+    const post = (index: number) =>
+        apps[index % 2]!.inject({
+            method: 'POST',
+            url: '/api/monitors',
+            headers,
+            payload: { kind: 'heartbeat', name: `Monitor ${index}`, intervalSeconds: 300 },
+        });
+    const results = await Promise.all(Array.from({ length: 25 }, (_, index) => post(index)));
+    assert.equal(results.filter((response) => response.statusCode === 201).length, 20);
+    for (const response of results.filter((response) => response.statusCode !== 201)) {
+        assert.equal(response.statusCode, 402, response.body);
+        assert.equal(response.headers['retry-after'], undefined);
+        assert.deepEqual((({ requestId, message, ...details }) => details)(response.json()), {
+            error: 'limit_reached',
+            limit: 'monitors.active',
+            used: 20,
+            max: 20,
+            plan: 'free',
+            requiredPlan: 'pro',
+            upgradeUrl: 'http://localhost:3000/pricing/',
+        });
+    }
+});
+
+test('PostgreSQL resource and storage rejections report the checked limits', async (t) => {
+    const app = buildApp({
+        inboxStore: new PostgresInboxStore(pool, {}, true),
+        resourceStore: new PostgresResourceStore(pool, undefined, undefined, true),
+    });
+    t.after(() => app.close());
+    const caps = plans.anonymous;
+    for (let i = 0; i < caps.maxResources; i++) {
+        const response = await app.inject({ method: 'POST', url: '/api/inboxes' });
+        assert.equal(response.statusCode, 201, response.body);
+    }
+    const count = await app.inject({ method: 'POST', url: '/api/inboxes' });
+    assert.equal(count.statusCode, 402, count.body);
+    assert.equal(count.json().limit, 'resources.active');
+    assert.equal(count.json().used, caps.maxResources);
+    assert.equal(count.json().max, caps.maxResources);
+    assert.equal(count.json().plan, 'anonymous');
+    const original = (await pool.query("SELECT settings FROM usage_plans WHERE id='anonymous'"))
+        .rows[0].settings;
+    try {
+        await pool.query(
+            "UPDATE usage_plans SET settings=jsonb_set(settings,'{storageBytes}','64') WHERE id='anonymous'",
+        );
+        const storage = await app.inject({
+            method: 'POST',
+            url: '/api/files',
+            remoteAddress: '192.0.2.30',
+            headers: { 'content-type': 'application/octet-stream', 'x-file-name': 'fixture.txt' },
+            payload: 'a'.repeat(128),
+        });
+        assert.equal(storage.statusCode, 402, storage.body);
+        assert.equal(storage.json().limit, 'resources.storage');
+        assert.equal(storage.json().used, 0);
+        assert.equal(storage.json().max, 64);
+        assert.equal(storage.json().plan, 'anonymous');
+    } finally {
+        await pool.query("UPDATE usage_plans SET settings=$1 WHERE id='anonymous'", [original]);
+    }
 });

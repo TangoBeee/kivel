@@ -1,3 +1,4 @@
+import { LimitError, RateLimitError } from './errors.js';
 import { registerTestPayments } from './test-payments.js';
 import { MemoryCredentials, registerCredentials } from './credentials.js';
 import type { CredentialRepository } from './credentials.js';
@@ -63,7 +64,7 @@ import { Forwarder } from './forwarding.js';
 import type { ForwardSend } from './forwarding.js';
 import { publicRequest, publicUrl } from './public-network.js';
 import type { MockCallRepository } from './mock-calls.js';
-import { MemoryAllocations, QuotaError } from './allocations.js';
+import { MemoryAllocations, allocationError } from './allocations.js';
 import { Access, HttpError, resourceToken } from './access.js';
 import { registerStatusPages } from './status-pages.js';
 import { registerEvents } from './events.js';
@@ -72,6 +73,8 @@ import { effectivePlan, MemoryIdentityRepository } from './identity.js';
 import type { IdentityRepository } from './identity.js';
 import { registerAccounts } from './account-routes.js';
 import { ToolService, registerTools } from './tool-routes.js';
+import type { Pool } from 'pg';
+import { registerWorkspaceUsage } from './workspace-usage.js';
 import { registerLifecycle } from './lifecycle-routes.js';
 import { registerBilling } from './billing.js';
 import type { BillingRepository, BillingConfig } from './billing.js';
@@ -82,6 +85,7 @@ interface AppOptions {
     publicBaseUrl?: string;
     appBaseUrl?: string;
     dashboardDir?: string;
+    usagePool?: Pool;
     inboxStore?: InboxRepository;
     resourceStore?: ResourceRepository;
     rateLimiter?: RateLimitRepository;
@@ -149,6 +153,7 @@ export function buildApp({
     publicBaseUrl = 'http://localhost:3000',
     appBaseUrl = publicBaseUrl,
     dashboardDir,
+    usagePool,
     inboxStore: providedInboxes,
     resourceStore: providedResources,
     rateLimiter = new RateLimiter(),
@@ -283,19 +288,30 @@ export function buildApp({
     });
 
     app.setErrorHandler((error, request, reply) => {
-        const failure = error as { statusCode?: number; code?: string; message?: string };
-        if (
-            failure.message === 'account_resource_limit' ||
-            failure.message === 'account_storage_limit'
-        )
-            error = new QuotaError(
-                failure.message === 'account_resource_limit' ? 'resources' : 'storage',
-            );
-        const expected =
-            error instanceof HttpError || error instanceof QuotaError ? error : undefined;
+        const failure = error as {
+            statusCode?: number;
+            code?: string;
+            message?: string;
+            detail?: string;
+        };
+        const expected = error instanceof HttpError ? error : allocationError(failure);
         if (expected) {
-            if (expected instanceof HttpError && expected.retryAfter)
-                reply.header('Retry-After', expected.retryAfter);
+            if (expected instanceof LimitError)
+                return reply
+                    .code(402)
+                    .send({ ...expected.details(baseUrl.origin), requestId: request.id });
+            if (expected.retryAfter) reply.header('Retry-After', expected.retryAfter);
+            if (expected.statusCode === 429 && expected.retryAfter)
+                return reply.code(429).send({
+                    error: 'rate_limited',
+                    message: expected.message,
+                    limit:
+                        expected instanceof RateLimitError
+                            ? expected.limit
+                            : (request.routeOptions.url ?? 'requests'),
+                    retryAfter: expected.retryAfter,
+                    requestId: request.id,
+                });
             return reply.code(expected.statusCode).send({
                 error: expected.message,
                 requestId: request.id,
@@ -441,10 +457,11 @@ export function buildApp({
         ) {
             const retry = await rateLimiter.consume(`catalog:${clientKey(request.ip)}`, 600);
             if (retry)
-                return reply
-                    .header('Retry-After', retry)
-                    .code(429)
-                    .send({ error: 'Catalog request rate limit exceeded.' });
+                throw new RateLimitError(
+                    'catalog.requests',
+                    'Catalog request rate limit exceeded.',
+                    retry,
+                );
             return;
         }
         if (request.url.startsWith('/api/') || request.url.split('?')[0] === '/mcp') {
@@ -464,12 +481,8 @@ export function buildApp({
             `ip:${clientKey(request.ip)}`,
             REQUESTS_PER_MINUTE,
         );
-        if (retryAfter) {
-            return reply
-                .header('Retry-After', retryAfter)
-                .code(429)
-                .send({ error: 'Request rate limit exceeded.' });
-        }
+        if (retryAfter)
+            throw new RateLimitError('public.requests', 'Request rate limit exceeded.', retryAfter);
     });
 
     const capabilities = {
@@ -545,12 +558,12 @@ export function buildApp({
                         `hook:${request.params.id}`,
                         REQUESTS_PER_MINUTE,
                     );
-                    if (retryAfter) {
-                        return reply
-                            .header('Retry-After', retryAfter)
-                            .code(429)
-                            .send({ error: 'Webhook rate limit exceeded.' });
-                    }
+                    if (retryAfter)
+                        throw new RateLimitError(
+                            'webhooks.requests',
+                            'Webhook rate limit exceeded.',
+                            retryAfter,
+                        );
                 },
                 handler: async (request, reply) => {
                     const body = Buffer.isBuffer(request.body) ? request.body : Buffer.alloc(0);
@@ -816,6 +829,23 @@ export function buildApp({
         agentStore,
     );
     registerTools(app, access, tools, capabilities);
+    registerWorkspaceUsage(
+        app,
+        access,
+        {
+            agents: agentStore,
+            approvals: approvalStore,
+            authenticators: authenticatorStore,
+            credentials: credentialStore,
+            addresses: emailAddresses,
+            sending: emailSending,
+            inboxes: inboxStore,
+            memory,
+            monitors: monitorStore,
+            resources: resourceStore,
+        },
+        usagePool,
+    );
     registerMusic(app, frontendDir);
     if (authSecret) setAgentPepper(authSecret);
     registerAgents({

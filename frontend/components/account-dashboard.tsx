@@ -114,11 +114,7 @@ export function AccountDashboard({
     const [mode, setMode] = useState<'login' | 'register'>('login'),
         [keys, setKeys] = useState<Key[]>([]),
         [secret, setSecret] = useState(''),
-        [resources, setResources] = useState<Resource[]>([]),
-        [usage, setUsage] = useState<{
-            runsToday: number;
-            limits: { runsPerDay: number; maxResources: number; storageBytes: number };
-        } | null>(null);
+        [resources, setResources] = useState<Resource[]>([]);
     const [billing, setBilling] = useState<{
             enabled: boolean;
             prices: {
@@ -142,21 +138,18 @@ export function AccountDashboard({
         try {
             const account = await json('/api/account');
             setSession(account);
-            const [keyData, resourceData, meter, bill, spaces, people, recovery] =
-                await Promise.all([
-                    json('/api/account/keys'),
-                    account.scopes.includes('resources:read')
-                        ? json('/api/account/resources')
-                        : Promise.resolve({ resources: [] }),
-                    json('/api/usage'),
-                    json('/api/billing').catch(() => ({ enabled: false, prices: [] })),
-                    json('/api/account/workspaces'),
-                    json('/api/account/members'),
-                    json('/api/account/recovery'),
-                ]);
+            const [keyData, resourceData, bill, spaces, people, recovery] = await Promise.all([
+                json('/api/account/keys'),
+                account.scopes.includes('resources:read')
+                    ? json('/api/account/resources')
+                    : Promise.resolve({ resources: [] }),
+                json('/api/billing').catch(() => ({ enabled: false, prices: [] })),
+                json('/api/account/workspaces'),
+                json('/api/account/members'),
+                json('/api/account/recovery'),
+            ]);
             setKeys(keyData.keys);
             setResources(resourceData.resources);
-            setUsage(meter);
             setBilling(bill);
             setWorkspaces(spaces.workspaces);
             setMembers(people.members);
@@ -368,11 +361,14 @@ export function AccountDashboard({
             refreshViewer();
         });
     }
-    const storedBytes = resources.reduce((sum, item) => sum + item.storedBytes, 0);
     // Agents get their keys when approved; those are managed on the Agents page.
     const ownKeys = keys.filter((key) => !key.name.startsWith('Agent: '));
     const agentKeys = keys.length - ownKeys.length;
-    const workspaceUsage = useWorkspaceUsage(resources);
+    const workspaceUsage = useWorkspaceUsage(session?.account.id, resources);
+    const storedBytes =
+        workspaceUsage.items?.find((item) => item.key === 'resources.storage')?.used ?? 0;
+    const activeResources =
+        workspaceUsage.items?.find((item) => item.key === 'resources.active')?.used ?? 0;
     const count = (item: ToolPanel) => panelResources(item, resources).length;
     const ratio = (used?: number, limit?: number) =>
         used !== undefined && limit ? { text: `${used}/${limit}`, full: used >= limit } : undefined;
@@ -690,8 +686,8 @@ export function AccountDashboard({
                     {panel === 'usage' && (
                         <UsagePanel
                             plan={plan}
-                            resources={resources}
                             usage={workspaceUsage}
+                            validUntil={session.account.planValidUntil}
                             onPlans={() => changePanel('billing')}
                             onUpgrade={
                                 billing.enabled && session.role === 'owner'
@@ -1309,21 +1305,21 @@ export function AccountDashboard({
                                 <div className="plan-hero-meters">
                                     <Meter
                                         label="Active resources"
-                                        value={resources.length}
-                                        max={usage?.limits.maxResources ?? 0}
-                                        display={`${resources.length} / ${usage?.limits.maxResources ?? '-'}`}
+                                        value={activeResources}
+                                        max={workspaceUsage.limits?.maxResources ?? 0}
+                                        display={`${activeResources} / ${workspaceUsage.limits?.maxResources ?? '-'}`}
                                     />
                                     <Meter
                                         label="Storage"
                                         value={storedBytes}
-                                        max={usage?.limits.storageBytes ?? 0}
-                                        display={`${formatBytes(storedBytes)} of ${formatBytes(usage?.limits.storageBytes ?? 0)}`}
+                                        max={workspaceUsage.limits?.storageBytes ?? 0}
+                                        display={`${formatBytes(storedBytes)} of ${formatBytes(workspaceUsage.limits?.storageBytes ?? 0)}`}
                                     />
                                     <Meter
                                         label="Hosted runs today"
-                                        value={usage?.runsToday ?? 0}
-                                        max={usage?.limits.runsPerDay ?? 0}
-                                        display={`${(usage?.runsToday ?? 0).toLocaleString()} / ${usage?.limits.runsPerDay.toLocaleString() ?? '-'}`}
+                                        value={workspaceUsage.runsToday ?? 0}
+                                        max={workspaceUsage.limits?.runsPerDay ?? 0}
+                                        display={`${(workspaceUsage.runsToday ?? 0).toLocaleString()} / ${workspaceUsage.limits?.runsPerDay.toLocaleString() ?? '-'}`}
                                     />
                                 </div>
                             </section>

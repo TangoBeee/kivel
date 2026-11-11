@@ -1,5 +1,6 @@
 import { plans } from '@kivel.io/tools/plans';
 import type { PlanId } from '@kivel.io/tools/plans';
+import { checkLimit, HttpError, LimitError } from './errors.js';
 export interface AllocationContext {
     visibility?: 'public' | 'private';
     quotaKey: string;
@@ -11,16 +12,39 @@ export interface AllocationContext {
     byteLimit?: number;
     maxUses?: number;
 }
-export class QuotaError extends Error {
-    statusCode = 429;
-    constructor(public reason: 'resources' | 'storage') {
-        super(
-            reason === 'resources'
-                ? 'Your plan’s active resource limit has been reached.'
-                : 'Your plan’s storage allowance has been reached.',
-        );
+export function allocationError(error: { code?: string; message?: string; detail?: string }) {
+    if (error.code !== 'P0001') return;
+    const limit =
+        error.message === 'account_resource_limit'
+            ? 'resources.active'
+            : error.message === 'account_storage_limit'
+              ? 'resources.storage'
+              : undefined;
+    if (!limit) return;
+    if (error.detail) {
+        try {
+            const data = JSON.parse(error.detail);
+            if (
+                data &&
+                Object.hasOwn(plans, data.plan) &&
+                [data.used, data.max, data.adding].every(Number.isSafeInteger) &&
+                data.used >= 0 &&
+                data.max >= 0 &&
+                data.adding > 0
+            )
+                return new LimitError(
+                    limit,
+                    data.used,
+                    data.plan as PlanId,
+                    data.adding,
+                    undefined,
+                    data.max,
+                );
+        } catch {}
     }
+    return new HttpError(402, 'Your workspace has reached its resource or storage allowance.');
 }
+
 export class MemoryAllocations {
     private usage = new Map<string, { count: number; bytes: number; plan: PlanId }>();
     reserve(context: AllocationContext | undefined, count: number, bytes: number) {
@@ -31,10 +55,8 @@ export class MemoryAllocations {
             plan: context.plan,
         };
         usage.plan = context.plan;
-        if (count > 0 && usage.count + count > plans[context.plan].maxResources)
-            throw new QuotaError('resources');
-        if (bytes > 0 && usage.bytes + bytes > plans[context.plan].storageBytes)
-            throw new QuotaError('storage');
+        if (count > 0) checkLimit(context.plan, 'resources.active', usage.count, count);
+        if (bytes > 0) checkLimit(context.plan, 'resources.storage', usage.bytes, bytes);
         usage.count += count;
         usage.bytes += bytes;
         if (usage.count === 0 && usage.bytes === 0) this.usage.delete(context.quotaKey);

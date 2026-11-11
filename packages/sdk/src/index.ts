@@ -71,6 +71,30 @@ export interface Execution {
     output: string;
     usage: { used: number; limit: number; resetsAt: string };
 }
+export interface KivelUsage {
+    plan: 'anonymous' | 'free' | 'pro' | 'team';
+    limits: Record<string, unknown>;
+    runsToday: number;
+    resetsAt: string;
+    period?: { start: string; end: string };
+    items?: {
+        key: string;
+        label: string;
+        unit: 'count' | 'bytes';
+        used: number;
+        max: number;
+        resetsAt?: string;
+    }[];
+}
+
+export interface KivelLimitDetails {
+    code: 'limit_reached' | 'rate_limited';
+    limit: string;
+    used?: number;
+    max?: number;
+    plan?: KivelUsage['plan'];
+}
+
 export class KivelError extends Error {
     constructor(
         message: string,
@@ -79,6 +103,7 @@ export class KivelError extends Error {
         readonly retryAfter?: number,
         readonly requiredPlan?: string,
         readonly upgradeUrl?: string,
+        readonly limitDetails?: KivelLimitDetails,
     ) {
         super(message);
         this.name = 'KivelError';
@@ -173,30 +198,36 @@ export class Kivel {
             );
         }
         if (!response.ok) {
-            const message =
-                value &&
-                typeof value === 'object' &&
-                'error' in value &&
-                typeof value.error === 'string'
-                    ? value.error
-                    : `Request failed (${response.status}).`;
+            const error =
+                value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+            const code = error.error;
+            const details: KivelLimitDetails | undefined =
+                (code === 'limit_reached' || code === 'rate_limited') &&
+                typeof error.limit === 'string'
+                    ? {
+                          code,
+                          limit: error.limit,
+                          ...(typeof error.used === 'number' ? { used: error.used } : {}),
+                          ...(typeof error.max === 'number' ? { max: error.max } : {}),
+                          ...(['anonymous', 'free', 'pro', 'team'].some(
+                              (plan) => plan === error.plan,
+                          )
+                              ? { plan: error.plan as KivelUsage['plan'] }
+                              : {}),
+                      }
+                    : undefined;
             throw new KivelError(
-                message,
+                typeof error.message === 'string'
+                    ? error.message
+                    : typeof code === 'string'
+                      ? code
+                      : `Request failed (${response.status}).`,
                 response.status,
                 response.headers.get('x-request-id') ?? undefined,
                 Number(response.headers.get('retry-after')) || undefined,
-                value &&
-                    typeof value === 'object' &&
-                    'requiredPlan' in value &&
-                    typeof value.requiredPlan === 'string'
-                    ? value.requiredPlan
-                    : undefined,
-                value &&
-                    typeof value === 'object' &&
-                    'upgradeUrl' in value &&
-                    typeof value.upgradeUrl === 'string'
-                    ? value.upgradeUrl
-                    : undefined,
+                typeof error.requiredPlan === 'string' ? error.requiredPlan : undefined,
+                typeof error.upgradeUrl === 'string' ? error.upgradeUrl : undefined,
+                details,
             );
         }
         return value as T;
@@ -804,7 +835,7 @@ export class Kivel {
         });
     }
     usage() {
-        return this.request('GET', '/api/usage');
+        return this.request<KivelUsage>('GET', '/api/usage');
     }
     resources() {
         return this.request('GET', '/api/account/resources');

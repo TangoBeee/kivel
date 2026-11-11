@@ -9,7 +9,7 @@ import type {
     TestPaymentResource,
     TestTransaction,
 } from '@kivel.io/tools/test-payments';
-import { testPaymentLimits } from '@kivel.io/tools/billing-plans';
+import { plans, type PlanId } from '@kivel.io/tools/plans';
 import { useViewer } from '../lib/viewer';
 import { api } from '../lib/api';
 import { CopyButton } from './copy-button';
@@ -51,8 +51,7 @@ function PaymentForm({
     onSave(input: object): Promise<void>;
     onCancel(): void;
 }) {
-    const defaults =
-        testPaymentLimits[plan as keyof typeof testPaymentLimits] ?? testPaymentLimits.free;
+    const defaults = plans[plan as PlanId]?.testPayments ?? plans.free.testPayments;
     const [name, setName] = useState(entry?.name ?? '');
     const [amount, setAmount] = useState(String(entry?.amount ?? 1));
     const [balance, setBalance] = useState('100');

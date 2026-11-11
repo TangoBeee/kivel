@@ -51,6 +51,7 @@ try {
     const limits = pool ? new PostgresRateLimiter(pool) : new RateLimiter();
     const app = buildApp({
         identityStore: identities,
+        ...(pool ? { usagePool: pool } : {}),
         ...(pool ? { recoveryStore: new PostgresRecoveryRepository(pool) } : {}),
         ...(config.mailConfig ? { mailSender: smtpSender(config.mailConfig) } : {}),
         rateLimiter: limits,

@@ -6,7 +6,7 @@ import { ResourceStore } from './resources.js';
 import { MemoryIdentityRepository } from './identity.js';
 import { MemoryApprovals } from './approvals.js';
 import { checkoutCards } from '@kivel.io/tools/test-payments';
-import { testPaymentLimits } from '@kivel.io/tools/billing-plans';
+import { plans } from '@kivel.io/tools/plans';
 
 async function fixture(t: { after(fn: () => Promise<unknown>): void }) {
     const identities = new MemoryIdentityRepository(),
@@ -97,7 +97,7 @@ test('test wallets enforce human-only controls, permissions, isolation and exist
         403,
     );
     const wallet = await f.create('wallets', { name: 'Agent wallet', balance: 100 });
-    assert.equal(wallet.perPaymentLimit, testPaymentLimits.team.perPayment);
+    assert.equal(wallet.perPaymentLimit, plans.team.testPayments.perPayment);
     assert.equal(wallet.testMode, true);
     for (const headers of [f.agent, f.read, await f.member('viewer'), await f.member('member')]) {
         assert.equal(

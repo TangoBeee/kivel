@@ -1,10 +1,13 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { api } from './api';
+import type { UsageItem, UsageKey, UsageResponse } from '@kivel.io/tools/plans';
 
 /** Everything the dashboard shows next to a limit. Each part may be missing if its request fails. */
 export interface WorkspaceUsage {
     runsToday?: number;
+    items?: UsageItem[];
+    error?: string;
     limits?: {
         runsPerDay: number;
         maxResources: number;
@@ -24,44 +27,53 @@ export interface WorkspaceUsage {
     memory?: { used: number; limit: number };
 }
 
-const get = (path: string) =>
-    api(path)
-        .then((response) => response.json())
-        .catch(() => undefined);
-
-export function useWorkspaceUsage(refreshKey: unknown) {
-    const [usage, setUsage] = useState<WorkspaceUsage>({});
+export function useWorkspaceUsage(workspaceId: string | undefined, refreshKey: unknown) {
+    const [snapshot, setSnapshot] = useState<{ workspaceId: string; usage: WorkspaceUsage }>();
     useEffect(() => {
-        let live = true;
-        void Promise.all([
-            get('/api/usage'),
-            get('/api/agents'),
-            get('/api/monitors'),
-            get('/api/authenticators'),
-            get('/api/email-sending/usage'),
-            get('/api/memory/default'),
-            get('/api/credentials'),
-        ]).then(([plan, agents, monitors, authenticators, email, memory, vault]) => {
-            if (!live) return;
-            setUsage({
-                runsToday: plan?.runsToday,
-                limits: plan?.limits,
-                agents: agents && { used: agents.agents.length, limit: agents.limit },
-                monitors: monitors && { used: monitors.monitors.length, limit: monitors.limit },
-                authenticators: authenticators && {
-                    used: authenticators.authenticators.length,
-                    limit: authenticators.limit,
-                },
-                vault: vault && { used: vault.credentials.length, limit: vault.limit },
-                email: email?.perMonth !== undefined ? email : undefined,
-                memory: memory && { used: memory.usedBytes, limit: memory.limitBytes },
+        if (!workspaceId) return;
+        const controller = new AbortController();
+        void api('/api/usage', { signal: controller.signal })
+            .then((response) => response.json() as Promise<UsageResponse>)
+            .then((response) => {
+                if (controller.signal.aborted) return;
+                const items = new Map(response.items.map((item) => [item.key, item]));
+                const meter = (key: UsageKey) => {
+                    const item = items.get(key);
+                    return item && { used: item.used, limit: item.max };
+                };
+                const day = items.get('email.sent_today');
+                const month = items.get('email.sent_month');
+                setSnapshot({
+                    workspaceId,
+                    usage: {
+                        runsToday: response.runsToday,
+                        limits: response.limits,
+                        items: response.items,
+                        agents: meter('agents.connected'),
+                        monitors: meter('monitors.active'),
+                        authenticators: meter('authenticators.entries'),
+                        vault: meter('vault.entries'),
+                        email: day &&
+                            month && {
+                                day: day.used,
+                                month: month.used,
+                                perDay: day.max,
+                                perMonth: month.max,
+                            },
+                        memory: meter('memory.bytes'),
+                    },
+                });
+            })
+            .catch(() => {
+                if (!controller.signal.aborted)
+                    setSnapshot({
+                        workspaceId,
+                        usage: { error: 'Usage is unavailable. Refresh to try again.' },
+                    });
             });
-        });
-        return () => {
-            live = false;
-        };
-    }, [refreshKey]);
-    return usage;
+        return () => controller.abort();
+    }, [workspaceId, refreshKey]);
+    return snapshot?.workspaceId === workspaceId ? (snapshot?.usage ?? {}) : {};
 }
 
 export const formatBytes = (value: number) =>

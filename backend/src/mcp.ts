@@ -1,3 +1,4 @@
+import { LimitError, RateLimitError } from './errors.js';
 import { oauthSchema } from '@kivel.io/tools/oauth';
 import { publicMockPayload } from './oauth.js';
 import { catalog, categories, toolAvailability } from '@kivel.io/tools/catalog';
@@ -2269,10 +2270,11 @@ export function registerMcp({
                 return reply.code(404).send({ error: 'MCP server unavailable or expired.' });
             const retry = await limits.consume(`mcp:${customId}`, 120);
             if (retry)
-                return reply
-                    .header('Retry-After', retry)
-                    .code(429)
-                    .send({ error: 'MCP server request limit exceeded.' });
+                throw new RateLimitError(
+                    'mocks.mcp_requests',
+                    'MCP server request limit exceeded.',
+                    retry,
+                );
             const server = await resources.use(
                 customId,
                 'mcp',
@@ -2503,7 +2505,19 @@ export function registerMcp({
                     id: body.id,
                     result: result(
                         {
-                            error: error.message,
+                            ...(error instanceof LimitError
+                                ? error.details(origin)
+                                : error.statusCode === 429 && error.retryAfter
+                                  ? {
+                                        error: 'rate_limited',
+                                        message: error.message,
+                                        limit:
+                                            error instanceof RateLimitError
+                                                ? error.limit
+                                                : 'mcp.tools',
+                                        retryAfter: error.retryAfter,
+                                    }
+                                  : { error: error.message }),
                             status: error.statusCode,
                             ...(error instanceof PlanError
                                 ? { requiredPlan: error.requiredPlan, upgradeUrl: error.upgradeUrl }

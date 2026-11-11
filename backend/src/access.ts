@@ -7,7 +7,7 @@ import type { Scope, Identity, IdentityRepository } from './identity.js';
 import { effectivePlan } from './identity.js';
 import type { AllocationContext } from './allocations.js';
 import type { RateLimitRepository } from './rate-limit.js';
-import { HttpError } from './errors.js';
+import { HttpError, RateLimitError } from './errors.js';
 export { HttpError } from './errors.js';
 import { entitlement } from './entitlements.js';
 export interface Actor {
@@ -173,8 +173,8 @@ export class Access {
             creation ? plan.creationsPerMinute : plan.requestsPerMinute,
         );
         if (retry)
-            throw new HttpError(
-                429,
+            throw new RateLimitError(
+                creation ? 'resources.creations' : 'api.requests',
                 creation
                     ? 'Resource creation rate limit exceeded.'
                     : 'Request rate limit exceeded.',
@@ -195,7 +195,7 @@ export class Access {
         )
             throw new HttpError(400, 'visibility must be public or private.');
         const visibility = input.visibility === 'public' ? 'public' : 'private';
-        const downloadCap = actor.plan === 'anonymous' ? 100 : 1000;
+        const downloadCap = plan.fileDownloads;
         const maxDownloads =
             input.maxDownloads === undefined ? downloadCap : Number(input.maxDownloads);
         if (!Number.isInteger(maxDownloads) || maxDownloads < 1 || maxDownloads > downloadCap)
@@ -226,8 +226,8 @@ export class Access {
             ...(actor.identity ? { ownerId: actor.identity.account.id } : {}),
             ...(persistent || input.ttlSeconds !== undefined ? { expiresAt } : {}),
             persistent,
-            requestLimit: actor.plan === 'anonymous' ? 100 : 1000,
-            byteLimit: actor.plan === 'anonymous' ? 1048576 : 10 * 1048576,
+            requestLimit: plan.captureRequests,
+            byteLimit: plan.captureBytes,
             maxUses: maxDownloads,
         };
     }

@@ -1,3 +1,5 @@
+import { checkLimit } from './errors.js';
+import type { PlanId } from '@kivel.io/tools/plans';
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import type { FastifyInstance } from 'fastify';
@@ -26,7 +28,7 @@ interface StoredAuthenticator extends Authenticator {
 }
 export interface AuthenticatorRepository {
     list(owner: string): Promise<StoredAuthenticator[]>;
-    add(owner: string, entry: StoredAuthenticator, limit: number): Promise<boolean>;
+    add(owner: string, entry: StoredAuthenticator, plan: PlanId): Promise<void>;
     rename(owner: string, id: string, name: string): Promise<boolean>;
     delete(owner: string, id: string): Promise<boolean>;
 }
@@ -35,12 +37,11 @@ export class MemoryAuthenticators implements AuthenticatorRepository {
     async list(owner: string) {
         return structuredClone([...(this.entries.get(owner)?.values() ?? [])]);
     }
-    async add(owner: string, entry: StoredAuthenticator, limit: number) {
+    async add(owner: string, entry: StoredAuthenticator, plan: PlanId) {
         const map = this.entries.get(owner) ?? new Map();
-        if (map.size >= limit) return false;
+        checkLimit(plan, 'authenticators.entries', map.size);
         map.set(entry.id, structuredClone(entry));
         this.entries.set(owner, map);
-        return true;
     }
     async rename(owner: string, id: string, name: string) {
         const entry = this.entries.get(owner)?.get(id);
@@ -64,7 +65,7 @@ export class PostgresAuthenticators implements AuthenticatorRepository {
             )
         ).rows.map((row) => row.value as StoredAuthenticator);
     }
-    async add(owner: string, entry: StoredAuthenticator, limit: number) {
+    async add(owner: string, entry: StoredAuthenticator, plan: PlanId) {
         return transaction(this.pool, async (client) => {
             await client.query('SELECT id FROM accounts WHERE id=$1 FOR UPDATE', [owner]);
             const count = Number(
@@ -75,13 +76,12 @@ export class PostgresAuthenticators implements AuthenticatorRepository {
                     )
                 ).rows[0].count,
             );
-            if (count >= limit) return false;
+            checkLimit(plan, 'authenticators.entries', count);
             const value = JSON.stringify(entry);
             await client.query(
                 'INSERT INTO kv_entries(account_id,namespace,key,value,bytes) VALUES($1,$2,$3,$4,$5)',
                 [owner, namespace, entry.id, value, Buffer.byteLength(value)],
             );
-            return true;
         });
     }
     async rename(owner: string, id: string, name: string) {
@@ -207,11 +207,7 @@ export function registerAuthenticators(
                 createdAt: new Date().toISOString(),
                 encrypted: vault.encrypt(parsed.config, owner, id),
             };
-            if (!(await store.add(owner, entry, plans[actor.plan].authenticators)))
-                throw new HttpError(
-                    429,
-                    `Your plan allows ${plans[actor.plan].authenticators} authenticators. Delete one or upgrade.`,
-                );
+            await store.add(owner, entry, actor.plan);
             return reply.code(201).send(publicEntry(entry));
         },
     );

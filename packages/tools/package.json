@@ -37,7 +37,8 @@
     "./webhooks": "./dist/webhooks.js",
     "./oauth": "./dist/oauth.js",
     "./network-parsers": "./dist/network-parsers.js",
-    "./test-payments": "./dist/test-payments.js"
+    "./test-payments": "./dist/test-payments.js",
+        "./identities": "./dist/identities.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

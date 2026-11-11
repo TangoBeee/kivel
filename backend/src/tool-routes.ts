@@ -91,6 +91,7 @@ const optionKeys = [
     'selector',
     'disambiguation',
     'userAgent',
+    'domain',
 ];
 export function executionGuide(id: string) {
     const definition = (

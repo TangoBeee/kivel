@@ -17,24 +17,49 @@ function remainder(value: string) {
             rest = (rest * 10 + Number(digit)) % 97;
     return rest;
 }
-test('test identities are unique and localized with reserved email domains', async () => {
-    for (const locale of ['en-US', 'en-GB', 'de-DE', 'fr-FR']) {
+test('test identities are unique, localized and use reserved email domains', async () => {
+    for (const locale of ['en-US', 'en-GB', 'en-CA', 'en-AU', 'de-DE', 'fr-FR']) {
         const value = await result('developer-fake-identity-generator', '', {
             locale,
-            count: '50',
+            count: '100',
         });
-        assert.equal(value.identities.length, 50);
-        for (const field of ['name', 'email', 'phone', 'company'])
-            assert.equal(new Set(value.identities.map((row: any) => row[field])).size, 50, field);
-        assert.ok(
-            value.identities.every(
-                (row: any) =>
-                    row.email.endsWith('@example.test') && row.address.country.length === 2,
-            ),
-        );
+        assert.equal(value.identities.length, 100);
+        for (const field of ['name', 'email', 'phoneE164', 'id'])
+            assert.equal(new Set(value.identities.map((row: any) => row[field])).size, 100, field);
+        for (const row of value.identities) {
+            assert.match(row.email, /@example\.(com|net|org)$/);
+            assert.equal(row.address.country, locale.slice(3));
+            assert.ok(row.age >= 18 && row.age <= 75, `${row.age}`);
+            assert.match(row.creditCard.number, /^\d{15,16}$/);
+            assert.match(row.ipv4, /^(192\.0\.2|198\.51\.100|203\.0\.113)\.\d+$/);
+            assert.ok(row.address.formatted.includes(row.address.postalCode));
+        }
     }
-    await assert.rejects(result('developer-fake-identity-generator', '', { count: '51' }));
+    const custom = await result('developer-fake-identity-generator', '', {
+        count: '20',
+        mode: 'female',
+        min: '30',
+        max: '40',
+        domain: 'acme.dev',
+    });
+    assert.ok(
+        custom.identities.every(
+            (row: any) =>
+                row.gender === 'female' &&
+                row.age >= 30 &&
+                row.age <= 40 &&
+                row.email.endsWith('@acme.dev'),
+        ),
+    );
+    const seeded = { count: '5', seed: 'fixtures', locale: 'en-GB' };
+    assert.deepEqual(
+        await result('developer-fake-identity-generator', '', seeded),
+        await result('developer-fake-identity-generator', '', seeded),
+    );
+    await assert.rejects(result('developer-fake-identity-generator', '', { count: '101' }));
     await assert.rejects(result('developer-fake-identity-generator', '', { locale: 'xx' }));
+    await assert.rejects(result('developer-fake-identity-generator', '', { min: '50', max: '20' }));
+    await assert.rejects(result('developer-fake-identity-generator', '', { domain: 'not a domain' }));
 });
 test('test IBANs have country lengths and valid checksums and US routing checksums are valid', async () => {
     const lengths = { DE: 22, GB: 22, NL: 18, FR: 27, ES: 24, BE: 16 };
@@ -458,19 +483,22 @@ test('timezone offsets and annotations select the correct instant or reject a co
     );
 });
 test('generated phone numbers stay in reserved fiction ranges for every locale', async () => {
+    // Ofcom, Bundesnetzagentur, ARCEP, ACMA and NANPA drama and example ranges.
     const ranges = {
-        'en-US': /^\+120255501\d{2}$/,
-        'en-GB': /^\+441632960\d{3}$/,
-        'de-DE': /^\+493023125\d{3}$/,
-        'fr-FR': /^\+3319900\d{4}$/,
+        'en-US': /^\+1\d{3}55501\d{2}$/,
+        'en-CA': /^\+1\d{3}55501\d{2}$/,
+        'en-GB':
+            /^\+44(7700900|2079460|1(1[3-8]|21|31|41|51|61)4960|1914980|2920180|2896496)\d{3}$/,
+        'de-DE': /^\+49(3023125|4066969|6990009|8999998|2214710)\d{3}$/,
+        'fr-FR': /^\+33(19900|26191|35301|46571|53649)\d{4}$/,
+        'en-AU': /^\+61[2378]5550\d{4}$/,
     };
     for (const [locale, range] of Object.entries(ranges)) {
         const { identities } = await result('developer-fake-identity-generator', '', {
             locale,
-            count: '50',
+            count: '100',
         });
-        for (const identity of identities) assert.match(identity.phone, range);
-        assert.equal(new Set(identities.map((identity: any) => identity.phone)).size, 50);
+        for (const identity of identities) assert.match(identity.phoneE164, range);
     }
 });
 test('IBAN fixtures satisfy national checksum rules and country structures', async () => {

@@ -6,6 +6,7 @@ import { csvPreview } from '@kivel.io/tools/csv-preview';
 import { parseSse } from '@kivel.io/tools/sse';
 import { MarkdownPreview } from './generated-preview';
 import { ResultPreview } from './result-preview';
+import { identitiesCsv } from '@kivel.io/tools/identities';
 import { CodeExample } from './code-example';
 import { CopyButton } from './copy-button';
 import { Icon } from './icons';
@@ -357,12 +358,17 @@ export function renderToolResult(toolId: string, text: string, input?: string): 
         const result = JSON.parse(text);
         if (toolId === 'developer-fake-identity-generator')
             return (
-                <Panel title="Test identities" detail={`${result.count} records`}>
+                <Panel title="Fake identities" detail={`${result.count} people`}>
                     <p className="tool-notice">{result.notice}</p>
                     {result.identities.map((row: any) => (
-                        <section className="result-group" key={row.email}>
+                        <section className="result-group" key={row.id}>
                             <div className="result-group-heading">
-                                <h3>{row.name}</h3>
+                                <h3>
+                                    {row.name}
+                                    <span className="result-count">
+                                        {` ${row.gender === 'female' ? 'Female' : 'Male'}, ${row.age} · ${row.jobTitle}`}
+                                    </span>
+                                </h3>
                                 <CopyButton
                                     text={JSON.stringify(row, null, 2)}
                                     label={`Copy ${row.name}`}
@@ -371,15 +377,33 @@ export function renderToolResult(toolId: string, text: string, input?: string): 
                             </div>
                             <Facts
                                 value={{
+                                    birthday: `${row.dateOfBirth} (${row.zodiac})`,
                                     email: row.email,
-                                    phone: row.phone,
+                                    phone: `${row.phone} · ${row.phoneE164}`,
+                                    address: row.address.formatted,
+                                    username: row.username,
+                                    password: row.password,
                                     company: row.company,
-                                    address: `${row.address.line1}, ${row.address.city} ${row.address.postalCode}`,
-                                    country: row.address.country,
+                                    height: row.height,
+                                    weight: row.weight,
+                                    bloodType: row.bloodType,
+                                    eyeColor: row.eyeColor,
+                                    card: `${row.creditCard.brand} ${row.creditCard.number} · ${row.creditCard.expiry} · ${row.creditCard.cvc}`,
+                                    ipAddress: row.ipv4,
                                 }}
                             />
                         </section>
                     ))}
+                    <ResultPreview
+                        text={identitiesCsv(result.identities)}
+                        title="CSV"
+                        filename="fake-identities.csv"
+                    />
+                    <ResultPreview
+                        text={JSON.stringify(result.identities, null, 2)}
+                        title="JSON"
+                        filename="fake-identities.json"
+                    />
                 </Panel>
             );
         if (toolId === 'developer-test-bank-account-generator')

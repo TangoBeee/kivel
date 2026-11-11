@@ -7,9 +7,9 @@ export const agentComparisons: Comparison[] = [
         name: 'AgentMail',
         focus: 'Email for AI agents',
         description:
-            'A cheaper AgentMail alternative: Kivel gives your agent an email inbox with codes and links extracted, plus webhooks, mocks, 2FA codes and approvals in one MCP server. Pro is $2 a month.',
+            'An AgentMail alternative: Kivel gives your agent an email inbox with codes and links extracted, plus webhooks, mocks, 2FA codes and approvals in one MCP server.',
         summary:
-            'Both give AI agents real email inboxes over an API and a hosted MCP server. Kivel puts that inbox next to everything else an agent needs to finish a sign-up or an integration test: webhook URLs, mock APIs and OAuth, 2FA codes, monitors, memory and human approval, for $2 a month on Pro.',
+            'Both give AI agents real email inboxes over an API and a hosted MCP server. Kivel puts that inbox next to everything else an agent needs to finish a sign-up or an integration test: webhook URLs, mock APIs and OAuth, 2FA codes, monitors, memory and human approval, with workspace plan limits.',
         kivelFit:
             'Pick Kivel when email is one step in a bigger job: sign up, read the code, pass 2FA, catch the webhook that follows and ask you before anything risky, all through one MCP connection.',
         otherFit:
@@ -17,7 +17,7 @@ export const agentComparisons: Comparison[] = [
         rows: [
             {
                 topic: 'What you get',
-                kivel: 'Email inboxes plus webhook URLs, mock APIs and OAuth, 2FA authenticators, monitors, memory, human approval and 170 tools.',
+                kivel: 'Email inboxes plus webhook URLs, mock APIs and OAuth, 2FA authenticators, monitors, memory, human approval and developer utilities.',
                 other: 'Email inboxes, threads, drafts and a calendar API.',
             },
             {
@@ -32,7 +32,7 @@ export const agentComparisons: Comparison[] = [
             },
             {
                 topic: 'Price of the first paid plan',
-                kivel: 'Pro is $2 a month: 10 inboxes, 500 emails a month, plus every other tool.',
+                kivel: 'Pro raises inbox and sending limits. See Kivel pricing for the monthly rate.',
                 other: 'Developer is $20 a month: 10 inboxes and 10,000 emails a month.',
             },
             {
@@ -42,7 +42,7 @@ export const agentComparisons: Comparison[] = [
             },
         ],
         limitations:
-            'Kivel addresses use a shared Kivel domain; custom domains are planned. The Free plan is sized for testing, and Pro raises email limits for $2 a month.',
+            'Kivel addresses use a shared Kivel domain; custom domains are planned. The Free plan has smaller email allowances. Pro raises inbox and sending limits.',
         sources: [
             { title: 'AgentMail pricing', url: 'https://www.agentmail.to/pricing' },
             { title: 'AgentMail documentation', url: 'https://docs.agentmail.to/' },
@@ -67,14 +67,14 @@ export const agentComparisons: Comparison[] = [
                 'Your agent signs up for services and needs the code, the 2FA and the webhook',
                 'You want one MCP server instead of one per capability',
                 'You want approval before risky steps, built in',
-                'You want to pay $2 a month, not $20',
+                'You want to start with a free workspace',
             ],
             other: ['You send thousands of emails a month', 'You need your own domain today'],
         },
         faqs: [
             {
-                question: 'What is a cheaper alternative to AgentMail?',
-                answer: 'Kivel gives AI agents email inboxes with extracted codes and links on its Pro plan for $2 a month, compared with $20 for AgentMail Developer. The same plan includes webhook URLs, mock APIs, 2FA codes and approvals.',
+                question: 'What is an alternative to AgentMail for coding agents?',
+                answer: 'Kivel gives AI agents email inboxes with extracted codes and links. Its workspace tools include webhook URLs, mock APIs, 2FA codes and approvals.',
             },
             {
                 question: 'Is AgentMail free?',
@@ -99,7 +99,7 @@ export const agentComparisons: Comparison[] = [
         name: 'Mailtrap',
         focus: 'Email testing',
         description:
-            'A Mailtrap alternative for AI agents: Kivel inboxes receive real email from any service, extract codes and links, and come with webhooks, mocks and 2FA. Pro is $2 a month.',
+            'A Mailtrap alternative for AI agents: Kivel inboxes receive real email from any service, extract codes and links, and come with webhooks, mocks and 2FA.',
         summary:
             'Mailtrap Email Sandbox catches the email your own app sends from staging. Kivel gives you and your agents real inboxes that receive email from any service, which is what an end-to-end sign-up test or an agent that registers for tools actually needs.',
         kivelFit:
@@ -124,7 +124,7 @@ export const agentComparisons: Comparison[] = [
             },
             {
                 topic: 'Price of the first paid plan',
-                kivel: 'Pro is $2 a month with 10 inboxes and every tool.',
+                kivel: 'Pro raises email allowances. See Kivel pricing for the monthly rate.',
                 other: 'Sandbox Basic is $17 a month for 500 test emails and 1 sandbox.',
             },
             {
@@ -182,7 +182,7 @@ export const agentComparisons: Comparison[] = [
         name: 'Mailinator',
         focus: 'Disposable email',
         description:
-            'A private Mailinator alternative: Kivel inboxes are private to your workspace, can send and reply, extract codes and links, and include webhooks and mocks. Pro is $2 a month.',
+            'A private Mailinator alternative: Kivel inboxes are private to your workspace, can send and reply, extract codes and links, and include webhooks and mocks.',
         summary:
             'Mailinator public inboxes are free and need no sign-up, but anyone can read them and they cannot send. Kivel inboxes are private to your workspace, send and reply, extract codes for your agent, and sit next to webhooks, mocks and approvals.',
         kivelFit:
@@ -211,7 +211,7 @@ export const agentComparisons: Comparison[] = [
             },
             {
                 topic: 'Price of the first paid plan',
-                kivel: 'Pro is $2 a month.',
+                kivel: 'Free to start. See Kivel pricing for paid plans.',
                 other: 'Business is $79 a month, billed yearly.',
             },
         ],
@@ -251,7 +251,7 @@ export const agentComparisons: Comparison[] = [
             },
             {
                 question: 'What is a private alternative to Mailinator?',
-                answer: 'Kivel email inboxes are private to your workspace, send and reply, and return extracted codes and links. Pro is $2 a month.',
+                answer: 'Kivel email inboxes are private to your workspace, send and reply, and return extracted codes and links.',
             },
             {
                 question: 'Can Mailinator send email?',
@@ -297,7 +297,7 @@ export const agentComparisons: Comparison[] = [
             },
             {
                 topic: 'Future',
-                kivel: 'Actively developed, free to start, Pro is $2 a month.',
+                kivel: 'Actively developed, free to start,',
                 other: 'Pipedream Workflows shuts down on March 31, 2027.',
             },
         ],
@@ -353,7 +353,7 @@ export const agentComparisons: Comparison[] = [
         name: 'Mailosaur',
         focus: 'Email testing',
         description:
-            'A free Mailosaur alternative: Kivel gives you and your AI agents real inboxes with codes and links extracted, a hosted MCP server, webhooks and mocks. Free to start, Pro is $2 a month.',
+            'A free Mailosaur alternative: Kivel gives you and your AI agents real inboxes with codes and links extracted, a hosted MCP server, webhooks and mocks. Free to start,',
         summary:
             'Mailosaur is a paid email and SMS testing service with a 14-day trial. Kivel is free to start and gives AI agents real inboxes over a hosted MCP server, with one-time codes and links extracted, plus webhook URLs, mock APIs, 2FA codes and approvals.',
         kivelFit:
@@ -368,7 +368,7 @@ export const agentComparisons: Comparison[] = [
             },
             {
                 topic: 'Price',
-                kivel: 'Pro is $2 a month.',
+                kivel: 'Free to start. See Kivel pricing for paid plans.',
                 other: 'Personal is from $20 a month and Core from $50 a month, billed annually.',
             },
             {
@@ -411,7 +411,7 @@ export const agentComparisons: Comparison[] = [
         faqs: [
             {
                 question: 'Is Mailosaur free?',
-                answer: 'No. Mailosaur offers a 14-day trial, then plans from $20 a month billed annually. Kivel has a free plan, and Pro is $2 a month.',
+                answer: 'No. Mailosaur offers a 14-day trial, then plans from $20 a month billed annually. Kivel has a free plan, and',
             },
             {
                 question: 'Does Mailosaur have an MCP server?',
@@ -419,7 +419,7 @@ export const agentComparisons: Comparison[] = [
             },
             {
                 question: 'What is a cheaper alternative to Mailosaur?',
-                answer: 'Kivel gives you real email inboxes with extracted codes and links, TOTP authenticators and webhook inboxes, free to start and $2 a month on Pro.',
+                answer: 'Kivel gives you real email inboxes with extracted codes and links, TOTP authenticators and webhook inboxes, with a free plan to get started.',
             },
         ],
     },

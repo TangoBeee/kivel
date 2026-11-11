@@ -8,8 +8,8 @@ import { docGroups, docPages } from '../../lib/docs';
 import { pageMetadata, breadcrumbs } from '../../lib/seo';
 
 export const metadata = pageMetadata(
-    'Developer docs & API quickstart',
-    'Use the complete Kivel toolkit over MCP, HTTP, SDK, CLI or SSH: network checks, email, mocks, files, memory, authenticators, jobs, test data and media.',
+    'Developer docs for MCP, API and SDK',
+    'Connect an agent over MCP or call the HTTP API. Follow quickstarts for email inboxes, webhook captures, mock APIs, the TypeScript SDK and CLI.',
     '/docs/',
 );
 const quickstart = `curl https://kivel.io/api/tools/json/run \\
@@ -21,7 +21,7 @@ const mcpSetup = `claude mcp add --transport http kivel https://kivel.io/mcp`;
 const faqs = [
     {
         question: 'Do I need an account to use the Kivel API?',
-        answer: 'No. Browser utilities and anonymous temporary resources work without an account. An account adds a workspace, longer retention within plan limits, and scoped API keys.',
+        answer: 'No. Browser utilities and anonymous webhook URLs and mock endpoints work without an account. An account adds a workspace, longer retention within plan limits, and scoped API keys.',
     },
     {
         question: 'Where is the OpenAPI specification?',

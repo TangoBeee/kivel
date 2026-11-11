@@ -24,6 +24,11 @@ await kivel.remove('inboxes', inbox.id);
 
 `createInbox()` returns a `webhookUrl` that accepts senders without credentials. Reading and waiting still require your workspace key or the private `inspectionToken`. For token-required receiving, pass `{ visibility: 'private' }` and give the sender the returned `accessToken` for its `X-Access-Token` header.
 
+
+Use `stream(['webhook:' + inbox.id], { token, signal })` to receive change notices
+when live updates are available. Fetch the request bodies with the normal inbox
+methods. Pass the last notice's `cursor` as `lastEventId` when reconnecting.
+
 `baseUrl` defaults to `https://kivel.io`; set it to your self-hosted origin.
 Remote origins require HTTPS. The default request timeout is 25 seconds. Requests
 are not automatically retried and redirects are refused.

@@ -99,6 +99,10 @@ try {
     if (smoke.error) throw smoke.error;
     assert.equal(smoke.status, 0, 'HTTPS smoke test');
     const ca = await readFile(certificate);
+    const lookup = (_host, options, callback) =>
+        options.all
+            ? callback(null, [{ address: '127.0.0.1', family: 4 }])
+            : callback(null, '127.0.0.1', 4);
     function call(path, method = 'GET', headers = {}, body, timeout = 15000, host = 'localhost') {
         return new Promise((resolve, reject) => {
             const req = request(
@@ -108,10 +112,7 @@ try {
                     ca,
                     headers,
                     timeout,
-                    lookup: (_host, options, callback) =>
-                        options.all
-                            ? callback(null, [{ address: '127.0.0.1', family: 4 }])
-                            : callback(null, '127.0.0.1', 4),
+                    lookup,
                 },
                 (response) => {
                     let text = '';
@@ -168,6 +169,47 @@ try {
         ).status,
         200,
     );
+    const streamHeaders = await new Promise((resolve, reject) => {
+        const stream = request(
+            `${appOrigin}/api/stream?topics=monitors`,
+            {
+                ca,
+                lookup,
+                headers: {
+                    Cookie: cookie.split(';')[0],
+                    Accept: 'text/event-stream',
+                    'Accept-Encoding': 'gzip',
+                },
+                timeout: 3000,
+            },
+            (response) => {
+                if (response.statusCode !== 200) {
+                    response.resume();
+                    reject(new Error(`Workspace stream returned ${response.statusCode}.`));
+                    return;
+                }
+                let frame = '';
+                response.setEncoding('utf8');
+                response.on('data', (chunk) => {
+                    frame += chunk;
+                    if (!frame.includes('event: ready\n')) return;
+                    resolve(response.headers);
+                    response.destroy();
+                });
+                response.once('end', () =>
+                    reject(new Error('Workspace stream closed before ready.')),
+                );
+                response.once('error', reject);
+            },
+        );
+        stream.once('timeout', () => stream.destroy(new Error('Workspace stream was buffered.')));
+        stream.once('error', reject);
+        stream.end();
+    });
+    assert.match(streamHeaders['content-type'], /text\/event-stream/);
+    assert.match(streamHeaders['cache-control'], /no-transform/);
+    assert.equal(streamHeaders['content-encoding'], undefined);
+    console.log('Workspace live stream opens immediately over HTTPS.');
     assert.equal((await call('/plans/')).headers.location, '/pricing/');
     const payload = Buffer.alloc(10 * 1024 * 1024, 90);
     payload[payload.length - 1] = 1;

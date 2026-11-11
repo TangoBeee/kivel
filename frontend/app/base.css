@@ -100,6 +100,33 @@ summary:focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 3px;
 }
+input:where(
+    :not(
+      [type='button'],
+      [type='checkbox'],
+      [type='color'],
+      [type='file'],
+      [type='image'],
+      [type='radio'],
+      [type='range'],
+      [type='reset'],
+      [type='submit']
+    )
+  ):enabled:focus,
+textarea:enabled:focus {
+  outline: 2px solid transparent;
+  outline-offset: -2px;
+  background-color: var(--accent-soft);
+}
+input.rt-TextFieldInput:focus,
+textarea.rt-TextAreaInput:focus {
+  background-color: transparent;
+}
+.rt-TextFieldRoot:has(.rt-TextFieldInput:focus),
+.rt-TextAreaRoot:has(.rt-TextAreaInput:focus) {
+  outline: none;
+  background-color: var(--accent-soft);
+}
 ::selection {
   background: var(--accent-line);
   color: var(--ink);
@@ -204,14 +231,9 @@ textarea::placeholder {
   padding: 0 17px;
   color: var(--muted);
 }
-.search-field:focus-within {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
-}
 .search-field input {
   height: 54px;
   background: none;
-  outline: none !important;
   border: 0;
   width: 100%;
   min-width: 0;

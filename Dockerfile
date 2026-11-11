@@ -3,7 +3,8 @@ WORKDIR /app
 ARG SITE_URL=https://kivel.io
 ARG APP_URL=https://app.kivel.io
 ARG BILLING_ENABLED=false
-ENV NEXT_TELEMETRY_DISABLED=1 SITE_URL=$SITE_URL APP_URL=$APP_URL BILLING_ENABLED=$BILLING_ENABLED
+ARG BILLING_PRICE_SCHEDULE
+ENV NEXT_TELEMETRY_DISABLED=1 SITE_URL=$SITE_URL APP_URL=$APP_URL BILLING_ENABLED=$BILLING_ENABLED BILLING_PRICE_SCHEDULE=$BILLING_PRICE_SCHEDULE
 RUN corepack enable && corepack prepare pnpm@10.30.3 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY backend/package.json backend/package.json
@@ -28,7 +29,8 @@ RUN mkdir -p /app/state && chown node:node /app/state
 RUN rm -rf /usr/local/lib/node_modules /opt/yarn-* \
     /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
     /usr/local/bin/yarn /usr/local/bin/yarnpkg
-ENV NODE_ENV=production HOST=0.0.0.0 PORT=3000
+ARG BILLING_PRICE_SCHEDULE
+ENV NODE_ENV=production HOST=0.0.0.0 PORT=3000 BILLING_PRICE_SCHEDULE=$BILLING_PRICE_SCHEDULE
 WORKDIR /app
 COPY --from=build --chown=node:node /release/backend ./backend
 COPY --from=build --chown=node:node /app/frontend/out ./frontend/out

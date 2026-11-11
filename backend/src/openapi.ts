@@ -55,7 +55,7 @@ export function openApi(origin: string) {
             title: 'Kivel API',
             version: API_VERSION,
             description: [
-                'Run utilities and create temporary webhook inboxes, mock APIs, files, and MCP servers.',
+                'Run utilities and create webhook inboxes, mock APIs, files, and MCP servers.',
                 '## Start here',
                 'Use the [quickstart](/docs/) for a first request or [integrations](/integrations/) for SDK, CLI, SSH, and MCP setup. SDK and CLI packages currently ship in the repository.',
                 '## Credentials',
@@ -63,7 +63,7 @@ export function openApi(origin: string) {
                 '- **Anonymous management:** the returned inspection or management token, sent as Bearer or `X-Resource-Token` when an account key occupies Authorization.',
                 '- **Private callers:** a separate token in `X-Access-Token`, or authorized workspace access. Webhook receiving is public by default; inspection is always private. Other resources are private by default. Keep credentials out of URLs.',
                 '## Lifetimes and usage',
-                'Resources start with one hour. Renewal and persistent leases follow the plan. Read `GET /api/plans` and `GET /api/usage` for allowances. Delete temporary resources when finished.',
+                'Resources start with one hour. Renewal and persistent leases follow the plan. Read `GET /api/plans` and `GET /api/usage` for allowances. Delete resources when finished.',
                 'Browser utilities run locally. Hosted execution sends input to the server without saving execution history. Sign-in, registration and password recovery run in the workspace browser on app.kivel.io. Account administration and billing require a browser session.',
             ].join('\n\n'),
         },
@@ -75,14 +75,14 @@ export function openApi(origin: string) {
                 description: 'Original CC0 instrumental tracks and byte-range audio playback.',
             },
             { name: 'Webhook inboxes', description: 'Capture and inspect callbacks.' },
-            { name: 'Mock APIs', description: 'Manage temporary API configurations.' },
+            { name: 'Mock APIs', description: 'Manage mock API configurations.' },
             {
                 name: 'OAuth test providers',
                 description:
                     'Test OAuth and OpenID Connect with synthetic users and controlled failures.',
             },
             { name: 'Mock endpoints', description: 'Call your configured routes.' },
-            { name: 'Files', description: 'Share temporary attachments.' },
+            { name: 'Files', description: 'Share files with public or private access.' },
             { name: 'Platform', description: 'Service health.' },
             {
                 name: 'MCP',
@@ -149,7 +149,7 @@ export function openApi(origin: string) {
                 post: {
                     operationId: 'createInbox',
                     tags: ['Webhook inboxes'],
-                    summary: 'Create a temporary webhook inbox',
+                    summary: 'Create a webhook inbox',
                     description:
                         'Returns webhookUrl. Senders can POST without credentials by default. Reading, inspecting and waiting always require workspace credentials or the private inspectionToken. Set visibility=private only to require X-Access-Token from senders.',
                     parameters: [
@@ -415,6 +415,73 @@ export function openApi(origin: string) {
                     summary: 'List the workspace’s agents and the plan limit',
                     security: secured,
                     responses: { '200': { description: 'Agents with last use' }, ...limited },
+                },
+            },
+            '/api/stream': {
+                get: {
+                    operationId: 'streamWorkspaceEvents',
+                    tags: ['Workspace'],
+                    summary: 'Follow live changes',
+                    description:
+                        'Streams change notices without resource content. Supply a workspace session, read key, resource token or short-lived ticket. Clients can resume with the last event ID.',
+                    security: [...secured, {}],
+                    parameters: [
+                        {
+                            in: 'query',
+                            name: 'topics',
+                            required: true,
+                            schema: { type: 'string' },
+                            example: 'approvals,monitors',
+                        },
+                        {
+                            in: 'query',
+                            name: 'ticket',
+                            schema: { type: 'string' },
+                            description:
+                                'Short-lived ticket from POST /api/stream/ticket. Use this only for one anonymous topic.',
+                        },
+                        { in: 'header', name: 'Last-Event-ID', schema: { type: 'string' } },
+                    ],
+                    responses: {
+                        '200': {
+                            description: 'Server-sent events',
+                            content: { 'text/event-stream': { schema: { type: 'string' } } },
+                        },
+                        ...unavailable,
+                        ...limited,
+                    },
+                },
+            },
+            '/api/stream/ticket': {
+                post: {
+                    operationId: 'createLiveStreamTicket',
+                    tags: ['Workspace'],
+                    summary: 'Get a 30-second ticket for one anonymous topic',
+                    security: [{ resourceToken: [] }],
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    required: ['topics'],
+                                    properties: { topics: { type: 'string' } },
+                                },
+                            },
+                        },
+                    },
+                    responses: {
+                        '200': json({
+                            type: 'object',
+                            required: ['ticket', 'expiresAt'],
+                            properties: {
+                                ticket: { type: 'string' },
+                                expiresAt: { type: 'string', format: 'date-time' },
+                            },
+                        }),
+                        ...unavailable,
+                        ...limited,
+                    },
                 },
             },
             '/api/monitors': {
@@ -856,7 +923,7 @@ export function openApi(origin: string) {
             if (
                 operation.responses &&
                 ((method === 'post' &&
-                    /^\/api\/(inboxes|authenticators|credentials|email-inboxes|oauth-providers|mocks|mcp-servers|files|email-inboxes\/\{id\}\/send|tools\/\{[^}]+\}\/run)$/.test(
+                    /^\/api\/(inboxes|approvals|authenticators|credentials|email-inboxes|oauth-providers|mocks|mcp-servers|files|email-inboxes\/\{id\}\/send|tools\/\{[^}]+\}\/run)$/.test(
                         path,
                     )) ||
                     (method === 'put' && path === '/api/memory/{namespace}/{key}'))

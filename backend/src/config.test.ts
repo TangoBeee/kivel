@@ -105,6 +105,50 @@ test('public production requires recovery delivery and beta billing is explicitl
         undefined,
     );
     assert.ok(readConfig({ ...production, ...dodo, BILLING_ENABLED: 'true' }).billingConfig);
+    const paid = { ...production, ...dodo, BILLING_ENABLED: 'true' };
+    assert.equal(readConfig(paid).billingConfig?.priceSchedule, 'legacy');
+    for (const schedule of ['early', 'standard']) {
+        for (const legacy of [undefined, '{}'])
+            assert.throws(
+                () =>
+                    readConfig({
+                        ...paid,
+                        BILLING_PRICE_SCHEDULE: schedule,
+                        DODO_LEGACY_PRODUCT_IDS: legacy,
+                    }),
+                /DODO_LEGACY_PRODUCT_IDS is required/,
+            );
+        assert.equal(
+            readConfig({
+                ...paid,
+                BILLING_PRICE_SCHEDULE: schedule,
+                DODO_LEGACY_PRODUCT_IDS: '{"pdt_oldpro":"pro","pdt_oldteam":"team"}',
+            }).billingConfig?.priceSchedule,
+            schedule,
+        );
+    }
+    assert.throws(
+        () => readConfig({ ...paid, BILLING_PRICE_SCHEDULE: 'invalid' }),
+        /BILLING_PRICE_SCHEDULE/,
+    );
+    assert.deepEqual(
+        readConfig({
+            ...paid,
+            DODO_LEGACY_PRODUCT_IDS: '{"pdt_oldpro":"pro","pdt_oldteam":"team"}',
+        }).billingConfig?.legacyProducts,
+        { pdt_oldpro: 'pro', pdt_oldteam: 'team' },
+    );
+    for (const raw of [
+        'bad JSON',
+        '[]',
+        '{"pdt_pro":"team"}',
+        '{"pdt_old":"free"}',
+        '{"bad":"pro"}',
+    ])
+        assert.throws(
+            () => readConfig({ ...paid, DODO_LEGACY_PRODUCT_IDS: raw }),
+            /DODO_LEGACY_PRODUCT_IDS/,
+        );
     assert.throws(() => readConfig({ ...production, BILLING_ENABLED: 'true' }), /all four/);
     assert.throws(() => readConfig({ ...production, BILLING_ENABLED: 'yes' }), /true or false/);
 });

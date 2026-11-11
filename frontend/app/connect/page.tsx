@@ -10,8 +10,8 @@ import { setupPrompt } from '../../lib/setup-prompt';
 import { siteOrigin } from '../../lib/site';
 
 export const metadata = pageMetadata(
-    'Connect your AI agent',
-    `Connect Kivel to your MCP client. Discover ${toolCount} tools for HTTP, email, mocks, OAuth, files, monitors, memory, authenticators, jobs, test data, media, utilities and DNS.`,
+    'MCP setup for Claude Code, Cursor and Codex',
+    'Add the hosted Kivel MCP server to Claude Code, Cursor or Codex. Copy a setup prompt or connect with an API key.',
     '/connect/',
 );
 

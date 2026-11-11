@@ -49,7 +49,7 @@ export default async function Image() {
                     <span>for your coding agent.</span>
                 </div>
                 <div style={{ display: 'flex', fontSize: 28, fontWeight: 500, color: '#5b5b5b' }}>
-                    Free to start · Pro $2 a month · Claude Code, Cursor and Codex
+                    Email inboxes, webhooks and mock APIs · MCP
                 </div>
             </div>
         </div>,

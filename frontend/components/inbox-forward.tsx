@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Button } from '@radix-ui/themes';
 import { api, resourceHeaders } from '../lib/api';
+import { siteOrigin } from '../lib/site';
 import type { Inbox } from '../lib/api';
 import { useViewer } from '../lib/viewer';
 
@@ -149,11 +150,13 @@ export function InboxForwardSettings({
                 <div className="upsell">
                     <p>
                         Relay every webhook to your own server as it arrives, with retries and a
-                        delivery log. Other webhook tools charge more for this; on Kivel it’s part
-                        of Pro.
+                        delivery log on Pro.
                     </p>
-                    <Link className="button button-primary button-small" href="/pricing/">
-                        Get Pro for $2 a month
+                    <Link
+                        className="button button-primary button-small"
+                        href={`${siteOrigin}/pricing/`}
+                    >
+                        See Pro pricing
                     </Link>
                 </div>
             )}

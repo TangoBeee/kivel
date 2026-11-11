@@ -1,4 +1,4 @@
-import { testPaymentLimits } from '@kivel.io/tools/billing-plans';
+import { plans } from '@kivel.io/tools/plans';
 import type { DocPage } from './docs';
 import type { ToolDetail } from './tool-details';
 export const paymentTestingDoc: DocPage = {
@@ -57,7 +57,7 @@ export const paymentTestingDoc: DocPage = {
                     'Top-ups per minute',
                 ],
                 rows: (['free', 'pro', 'team'] as const).map((plan) => {
-                    const value = testPaymentLimits[plan];
+                    const value = plans[plan].testPayments;
                     return [
                         plan[0]!.toUpperCase() + plan.slice(1),
                         String(value.perPayment),

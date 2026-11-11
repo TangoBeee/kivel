@@ -3,9 +3,10 @@ import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { LiveLogo } from './live-logo';
-import { SearchLaunch } from './toolbox-provider';
-import { rememberReturn } from '../lib/return-path';
-import { Button, DropdownMenu, IconButton } from '@radix-ui/themes';
+import { siteOrigin } from '../lib/site';
+import { setupPrompt } from '../lib/setup-prompt';
+import { CopyButton } from './copy-button';
+import { Button, Dialog, DropdownMenu, IconButton } from '@radix-ui/themes';
 import {
     Toolbox,
     Key,
@@ -33,11 +34,10 @@ import {
     Database,
     Lightning,
     ChartBar,
+    SidebarSimple,
+    ChatCircleDots,
 } from '@phosphor-icons/react';
 import { categoryTints } from '../lib/catalog';
-import { useSavedTools } from '../lib/saved-tools';
-import { Icon as ToolIcon } from './icons';
-import { NavCustomize, useHiddenNav } from './nav-customize';
 import type { Icon } from '@phosphor-icons/react';
 
 type Section = {
@@ -58,21 +58,21 @@ export const dashboardPanels = [
     {
         id: 'overview',
         group: 'main',
-        label: 'Overview',
+        label: 'Home',
         description: 'What needs you, and how your tools are doing.',
         icon: House,
     },
     {
         id: 'agents',
         group: 'main',
-        label: 'Agents',
+        label: 'Agents & keys',
         description: 'Who is connected, what they asked you and what they did.',
         icon: Robot,
     },
     {
         id: 'email',
         group: 'tools',
-        label: 'Email inboxes',
+        label: 'Email',
         description: 'Real addresses your agents use to sign up, get codes and send mail.',
         icon: EnvelopeSimple,
         category: 'email',
@@ -145,7 +145,7 @@ export const dashboardPanels = [
     {
         id: 'vault',
         group: 'tools',
-        label: 'Vault',
+        label: 'Credentials',
         create: ['agents-password-vault'],
         description: 'Account credentials, with a human approval before agents reveal passwords.',
         icon: Key,
@@ -160,14 +160,31 @@ export const dashboardPanels = [
         category: 'agents',
     },
     {
+        id: 'approvals',
+        group: 'tools',
+        label: 'Approvals',
+        description: 'Review questions and actions that need your answer.',
+        icon: ChatCircleDots,
+    },
+    {
         id: 'automation',
         group: 'tools',
-        label: 'Jobs & status pages',
-        description: 'Scheduled jobs and public status pages.',
+        label: 'Scheduled jobs',
+        description: 'Send scheduled requests and check their delivery history.',
         icon: Lightning,
         category: 'automation',
-        kinds: ['job', 'status'],
-        create: ['automation-temporary-scheduled-jobs', 'monitoring-public-status-page'],
+        kinds: ['job'],
+        create: ['automation-temporary-scheduled-jobs'],
+    },
+    {
+        id: 'status',
+        group: 'tools',
+        label: 'Status pages',
+        description: 'Publish the current status of your services.',
+        icon: Pulse,
+        category: 'monitoring',
+        kinds: ['status'],
+        create: ['monitoring-public-status-page'],
     },
     {
         id: 'tools',
@@ -179,7 +196,7 @@ export const dashboardPanels = [
     {
         id: 'usage',
         group: 'more',
-        label: 'Usage & plan',
+        label: 'Usage & billing',
         description: 'What your plan includes and how much of it you used.',
         icon: ChartBar,
     },
@@ -215,7 +232,7 @@ export const dashboardPanels = [
 export type DashboardPanel = (typeof dashboardPanels)[number]['id'];
 export const panelInfo = (panel: DashboardPanel): Section =>
     dashboardPanels.find((item) => item.id === panel)!;
-const settingsTabs: DashboardPanel[] = ['workspace', 'keys', 'billing', 'security'];
+const settingsTabs: DashboardPanel[] = ['workspace', 'security'];
 // Old links (#resources) land on the overview.
 export const isDashboardPanel = (value: string): value is DashboardPanel =>
     dashboardPanels.some((item) => item.id === value);
@@ -327,7 +344,7 @@ export function Meter({
     );
 }
 
-export function DashboardShell({
+export function AppShell({
     panel,
     onPanelChange,
     workspace,
@@ -340,8 +357,6 @@ export function DashboardShell({
     busy,
     badges,
     search,
-    activeTool,
-    onTool,
     title,
     actions,
     children,
@@ -359,17 +374,24 @@ export function DashboardShell({
     /** Usage next to each sidebar item, such as "1/1"; full ones are highlighted. */
     badges: Partial<Record<DashboardPanel, { text: string; full?: boolean; hidden?: boolean }>>;
     search: ReactNode;
-    /** The utility open on the Utilities page, so a pinned one shows as current. */
-    activeTool?: string;
-    onTool: (toolId: string) => void;
     title?: string;
     actions?: ReactNode;
     children: ReactNode;
 }) {
     const current = panelInfo(panel);
     const settings = settingsTabs.includes(panel);
-    const { hidden } = useHiddenNav();
-    const pinned = useSavedTools().tools;
+    const tabs: DashboardPanel[] = settings
+        ? settingsTabs
+        : ['agents', 'keys'].includes(panel)
+          ? ['agents', 'keys']
+          : ['usage', 'billing'].includes(panel)
+            ? ['usage', 'billing']
+            : ['vault', 'authenticators'].includes(panel)
+              ? ['vault', 'authenticators']
+              : ['monitors', 'automation', 'status'].includes(panel)
+                ? ['monitors', 'automation', 'status']
+                : [];
+    const [collapsed, setCollapsed] = useState(false);
     const [navOpen, setNavOpen] = useState(false);
     useEffect(() => {
         if (!navOpen) return;
@@ -377,24 +399,31 @@ export function DashboardShell({
         addEventListener('keydown', onKey);
         return () => removeEventListener('keydown', onKey);
     }, [navOpen]);
-    // Links to public pages offer a way back to this exact panel.
-    function onLinkClick(event: React.MouseEvent) {
-        const link = (event.target as Element).closest('a[href^="/tools/"]');
-        if (!link) return;
-        const target = new URL(link.getAttribute('href')!, location.origin).pathname;
-        rememberReturn(target, location.pathname + location.hash, 'Back to dashboard');
-    }
     const go = (next: DashboardPanel) => {
         onPanelChange(next);
         setNavOpen(false);
     };
     const item = (entry: Section) => {
-        const active = entry.id === 'workspace' ? settings : panel === entry.id;
+        const active =
+            entry.id === 'workspace'
+                ? settings && !['keys', 'billing'].includes(panel)
+                : entry.id === 'monitors'
+                  ? ['monitors', 'automation', 'status'].includes(panel)
+                  : entry.id === 'vault'
+                    ? ['vault', 'authenticators'].includes(panel)
+                    : entry.id === 'agents'
+                      ? ['agents', 'keys'].includes(panel)
+                      : entry.id === 'usage'
+                        ? ['usage', 'billing'].includes(panel)
+                        : panel === entry.id;
+        const label = entry.id === 'workspace' ? 'Settings' : entry.label;
         const badge = badges[entry.id as DashboardPanel];
-        if ((badge?.hidden || hidden.includes(entry.id)) && !active) return null;
+        if (badge?.hidden && !active) return null;
         return (
             <button
                 key={entry.id}
+                title={collapsed ? label : undefined}
+                aria-label={collapsed ? label : undefined}
                 aria-current={active ? 'page' : undefined}
                 onClick={() => go(entry.id as DashboardPanel)}
             >
@@ -408,23 +437,59 @@ export function DashboardShell({
                 ) : (
                     <entry.icon size={18} weight={active ? 'fill' : 'regular'} />
                 )}
-                {entry.id === 'workspace' ? 'Settings' : entry.label}
+                <span className="nav-label">{label}</span>
                 {badge && !badge.hidden && (
                     <span className={`nav-count ${badge.full ? 'is-full' : ''}`}>{badge.text}</span>
                 )}
             </button>
         );
     };
-    const group = (name: Section['group']) =>
-        (dashboardPanels as readonly Section[]).filter((entry) => entry.group === name).map(item);
+    const items = (...panels: DashboardPanel[]) => panels.map((id) => item(panelInfo(id)));
+    const userMenu = (
+        <DropdownMenu.Root>
+            <DropdownMenu.Trigger>
+                <button className="dashboard-user" aria-label="Account menu">
+                    <span className="dashboard-user-avatar">{username[0]?.toUpperCase()}</span>
+                    <span>
+                        <strong>{username}</strong>
+                        <small>Signed in</small>
+                    </span>
+                    <CaretUpDown size={16} />
+                </button>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Content align="start" side="top">
+                <DropdownMenu.Label>{username}</DropdownMenu.Label>
+                <DropdownMenu.Item onSelect={() => go('security')}>
+                    <ShieldCheck size={16} />
+                    Security
+                </DropdownMenu.Item>
+                <DropdownMenu.Item asChild>
+                    <Link href={siteOrigin}>
+                        <House size={16} />
+                        Back to the site
+                    </Link>
+                </DropdownMenu.Item>
+                <DropdownMenu.Item asChild>
+                    <Link href={`${siteOrigin}/docs/`}>
+                        <BookOpen size={16} />
+                        Documentation
+                    </Link>
+                </DropdownMenu.Item>
+                <DropdownMenu.Separator />
+                <DropdownMenu.Item color="red" disabled={busy} onSelect={onSignOut}>
+                    <SignOut size={16} />
+                    Sign out
+                </DropdownMenu.Item>
+            </DropdownMenu.Content>
+        </DropdownMenu.Root>
+    );
     return (
         <div
-            className={`dashboard-layout ${navOpen ? 'is-nav-open' : ''}`}
-            onClickCapture={onLinkClick}
+            className={`dashboard-layout ${navOpen ? 'is-nav-open' : ''} ${collapsed ? 'is-sidebar-collapsed' : ''}`}
         >
             <aside className="dashboard-sidebar" aria-label="Dashboard">
                 <div className="dashboard-sidebar-top">
-                    <Link href="/" className="dashboard-brand">
+                    <Link href="/" className="dashboard-brand" aria-label="Kivel workspace">
                         <LiveLogo size={26} />
                         <span>Kivel</span>
                     </Link>
@@ -440,7 +505,11 @@ export function DashboardShell({
                 </div>
                 <DropdownMenu.Root>
                     <DropdownMenu.Trigger>
-                        <button className="dashboard-workspace" disabled={busy}>
+                        <button
+                            className="dashboard-workspace"
+                            aria-label={workspace.name}
+                            disabled={busy}
+                        >
                             <span className="dashboard-workspace-mark">
                                 {workspace.name[0]?.toUpperCase()}
                             </span>
@@ -477,99 +546,23 @@ export function DashboardShell({
                         </DropdownMenu.Item>
                     </DropdownMenu.Content>
                 </DropdownMenu.Root>
-                {search}
                 <nav className="dashboard-nav" aria-label="Workspace sections">
-                    {group('main')}
-                    <div className="nav-group">
-                        Your tools
-                        <NavCustomize
-                            pages={(dashboardPanels as readonly Section[])
-                                .filter((entry) => entry.group === 'tools')
-                                .map((entry) => ({
-                                    id: entry.id,
-                                    label: entry.label,
-                                    icon: (
-                                        <span
-                                            className="nav-chip"
-                                            style={
-                                                {
-                                                    '--tint': categoryTints[entry.category!],
-                                                } as React.CSSProperties
-                                            }
-                                        >
-                                            <entry.icon size={12} />
-                                        </span>
-                                    ),
-                                }))}
-                        />
-                    </div>
-                    {group('tools')}
-                    {pinned.map((tool) => (
-                        <button
-                            key={tool.id}
-                            aria-current={
-                                panel === 'tools' && activeTool === tool.id ? 'page' : undefined
-                            }
-                            onClick={() => {
-                                onTool(tool.id);
-                                setNavOpen(false);
-                            }}
-                        >
-                            <span
-                                className="nav-chip"
-                                style={
-                                    {
-                                        '--tint': categoryTints[tool.categoryId],
-                                    } as React.CSSProperties
-                                }
-                            >
-                                <ToolIcon name={tool.icon} size={12} />
-                            </span>
-                            <span className="nav-label">{tool.name}</span>
-                        </button>
-                    ))}
-                    <p className="nav-group">Everything else</p>
-                    {group('more')}
-                    {item(dashboardPanels.find((entry) => entry.id === 'workspace')!)}
+                    {items('overview')}
+                    <div className="nav-group">Products</div>
+                    {items(
+                        'webhooks',
+                        'email',
+                        'mocks',
+                        'payments',
+                        'monitors',
+                        'approvals',
+                        'vault',
+                    )}
+                    <div className="nav-group">More</div>
+                    {items('memory', 'files', 'tools')}
+                    <div className="nav-group nav-bottom">Workspace</div>
+                    {items('agents', 'usage', 'workspace')}
                 </nav>
-                <DropdownMenu.Root>
-                    <DropdownMenu.Trigger>
-                        <button className="dashboard-user" aria-label="Account menu">
-                            <span className="dashboard-user-avatar">
-                                {username[0]?.toUpperCase()}
-                            </span>
-                            <span>
-                                <strong>{username}</strong>
-                                <small>Signed in</small>
-                            </span>
-                            <CaretUpDown size={16} />
-                        </button>
-                    </DropdownMenu.Trigger>
-                    <DropdownMenu.Content align="start" side="top">
-                        <DropdownMenu.Label>{username}</DropdownMenu.Label>
-                        <DropdownMenu.Item onSelect={() => go('security')}>
-                            <ShieldCheck size={16} />
-                            Security
-                        </DropdownMenu.Item>
-                        <DropdownMenu.Item asChild>
-                            <Link href="/">
-                                <House size={16} />
-                                Back to the site
-                            </Link>
-                        </DropdownMenu.Item>
-                        <DropdownMenu.Item asChild>
-                            <Link href="/docs/">
-                                <BookOpen size={16} />
-                                Documentation
-                            </Link>
-                        </DropdownMenu.Item>
-                        <DropdownMenu.Separator />
-                        <DropdownMenu.Item color="red" disabled={busy} onSelect={onSignOut}>
-                            <SignOut size={16} />
-                            Sign out
-                        </DropdownMenu.Item>
-                    </DropdownMenu.Content>
-                </DropdownMenu.Root>
             </aside>
             <button
                 className="dashboard-scrim"
@@ -589,6 +582,16 @@ export function DashboardShell({
                     >
                         <List size={20} />
                     </IconButton>
+                    <IconButton
+                        className="sidebar-collapse"
+                        variant="ghost"
+                        color="gray"
+                        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                        aria-pressed={collapsed}
+                        onClick={() => setCollapsed(!collapsed)}
+                    >
+                        <SidebarSimple size={19} />
+                    </IconButton>
                     <span className="dashboard-breadcrumb">
                         {current.group === 'tools' && (
                             <>
@@ -599,14 +602,34 @@ export function DashboardShell({
                         <strong>{settings ? 'Settings' : current.label}</strong>
                     </span>
                     <div className="dashboard-topbar-actions">
-                        <Link className="dashboard-topbar-link" href="/docs/">
-                            <BookOpen size={16} />
-                            Docs
-                        </Link>
-                        <Link className="dashboard-topbar-link" href="/connect/">
-                            <Plugs size={16} />
-                            Connect an agent
-                        </Link>
+                        {search}
+                        <Dialog.Root>
+                            <Dialog.Trigger>
+                                <Button variant="soft" size="2">
+                                    <Plugs size={16} />{' '}
+                                    <span>
+                                        Connect<span className="app-connect-label"> an agent</span>
+                                    </span>
+                                </Button>
+                            </Dialog.Trigger>
+                            <Dialog.Content maxWidth="520px">
+                                <Dialog.Title>Connect an agent</Dialog.Title>
+                                <Dialog.Description>
+                                    Copy the setup prompt or add the MCP server to your client.
+                                </Dialog.Description>
+                                <div className="app-connect-copy">
+                                    <code>{siteOrigin}/mcp</code>
+                                    <CopyButton label="Copy MCP URL" text={`${siteOrigin}/mcp`} />
+                                </div>
+                                <CopyButton label="Copy setup prompt" text={setupPrompt} />
+                                <p className="app-connect-guide">
+                                    <Link className="text-link" href={`${siteOrigin}/connect/`}>
+                                        Read the setup guide
+                                    </Link>
+                                </p>
+                            </Dialog.Content>
+                        </Dialog.Root>
+                        {userMenu}
                     </div>
                 </div>
                 <div className="dashboard-content">
@@ -631,9 +654,9 @@ export function DashboardShell({
                         </div>
                         {actions}
                     </header>
-                    {settings && (
-                        <nav className="dashboard-tabs" aria-label="Settings">
-                            {settingsTabs.map((id) => (
+                    {tabs.length > 0 && (
+                        <nav className="dashboard-tabs" aria-label="Section tabs">
+                            {tabs.map((id) => (
                                 <button
                                     key={id}
                                     aria-current={panel === id ? 'page' : undefined}

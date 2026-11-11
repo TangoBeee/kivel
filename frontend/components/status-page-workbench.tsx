@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { legacyAccountLink, workspaceResource } from '../lib/app-routes';
 import { useEffect, useState } from 'react';
 import { Button, Checkbox, TextArea, TextField } from '@radix-ui/themes';
 import { api } from '../lib/api';
@@ -50,7 +51,7 @@ export function StatusPageWorkbench({ toolId }: { toolId: string }) {
             .catch((failure) => {
                 if (live) setError(failure.message);
             });
-        const id = new URLSearchParams(location.search).get('resource');
+        const id = workspaceResource(location.search);
         if (id && /^[a-f0-9-]{36}$/i.test(id))
             void api(`/api/status-pages/${id}`)
                 .then((response) => response.json())
@@ -113,7 +114,7 @@ export function StatusPageWorkbench({ toolId }: { toolId: string }) {
                     <p>
                         A free workspace can select its own monitors and share their current state.
                     </p>
-                    <Link className="button" href="/account/#register">
+                    <Link className="button" href={legacyAccountLink('/account/#register')}>
                         Create a free account
                     </Link>
                 </div>
@@ -171,7 +172,10 @@ export function StatusPageWorkbench({ toolId }: { toolId: string }) {
                             ) : (
                                 <p>
                                     Create a monitor first in{' '}
-                                    <Link href="/account/#monitors">your dashboard</Link>.
+                                    <Link href={legacyAccountLink('/account/#monitors')}>
+                                        your dashboard
+                                    </Link>
+                                    .
                                 </p>
                             )}
                         </fieldset>
@@ -231,7 +235,10 @@ export function StatusPageWorkbench({ toolId }: { toolId: string }) {
                                 </a>
                                 <p className="muted">
                                     Manage visibility and deletion in{' '}
-                                    <Link href="/account/#resources">workspace resources</Link>.
+                                    <Link href={legacyAccountLink('/account/#resources')}>
+                                        workspace resources
+                                    </Link>
+                                    .
                                 </p>
                             </>
                         ) : (

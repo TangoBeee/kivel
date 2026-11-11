@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { appLink } from '../../lib/app-routes';
 import { useEffect, useRef, type ReactNode } from 'react';
 import {
     motion,
@@ -107,7 +108,7 @@ export function LandingHero({ toolTotal }: { toolTotal: number }) {
                         Code, Cursor and Codex. One MCP connection. Free to start.
                     </p>
                     <div className="kv-buttons">
-                        <Link href="/account/#register" className="kv-button">
+                        <Link href={appLink('/signup/')} className="kv-button">
                             Get started
                         </Link>
                         <Link href="/docs/" className="kv-button is-outline">

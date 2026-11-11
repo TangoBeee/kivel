@@ -37,7 +37,7 @@ export default function Terms() {
                 <h2>Using the tools</h2>
                 <p>
                     You may use Kivel and its HTTP API from a browser, a script, a CI job, or an AI
-                    agent, within the <Link href="/plans/">published allowances</Link>. Available
+                    agent, within the <Link href="/pricing/">published allowances</Link>. Available
                     tools have an anonymous allowance. Creating an account gives access to a
                     workspace and its plan limits.
                 </p>

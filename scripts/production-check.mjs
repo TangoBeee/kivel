@@ -11,8 +11,9 @@ if (
     origin.hash
 )
     throw Error('Provide the public HTTPS origin only.');
-const request = async (path) => {
-    const response = await fetch(new URL(path, origin), {
+const appOrigin = new URL(`https://app.${origin.host}`);
+const request = async (path, host = origin) => {
+    const response = await fetch(new URL(path, host), {
         redirect: 'error',
         signal: AbortSignal.timeout(20000),
     });
@@ -25,6 +26,13 @@ const request = async (path) => {
     return response;
 };
 assert.equal((await (await request('/ready')).json()).status, 'ok');
+const appHome = await request('/', appOrigin);
+assert.match(appHome.headers.get('x-robots-tag') ?? '', /noindex/, 'Private workspace host');
+assert.doesNotMatch(
+    await appHome.text(),
+    /aria-label="Main navigation"/,
+    'Workspace serves the app export',
+);
 const billing = await (await request('/api/billing')).json();
 assert.equal(billing.enabled, true, 'Paid plans must be open for checkout');
 assert.deepEqual(
@@ -44,8 +52,8 @@ for (const path of ['/contact/', '/refunds/', '/terms/', '/privacy/', '/beta/'])
     const html = await (await request(path)).text();
     assert.ok(html.includes('support@kivel.io'), `${path}: support contact`);
 }
-const plans = await (await request('/plans/')).text();
-assert.ok(plans.includes('$2') && plans.includes('$6'), '/plans/: prices');
+const plans = await (await request('/pricing/')).text();
+assert.ok(plans.includes('$2') && plans.includes('$6'), '/pricing/: prices');
 const robots = await (await request('/robots.txt')).text();
 assert.ok(robots.includes(`${origin.origin}/sitemap.xml`), 'Build SEO URLs for this domain');
 console.log(

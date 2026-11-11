@@ -32,7 +32,7 @@ for (const path of [
     '/tools/',
     '/docs/',
     '/account/',
-    '/plans/',
+    '/pricing/',
     '/integrations/',
     '/share/',
     '/privacy/',

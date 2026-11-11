@@ -1,4 +1,3 @@
-import { emailDraftBytes } from '@kivel.io/tools/billing-plans';
 import { plans } from '@kivel.io/tools/plans';
 import { validateEmailContent } from './email-sending.js';
 import type { EmailContent } from './email-sending.js';
@@ -7,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { Pool } from 'pg';
 import { HttpError } from './access.js';
+import { RateLimitError } from './errors.js';
 import type { Access } from './access.js';
 import type { AgentRepository } from './agents.js';
 import { effectivePlan } from './identity.js';
@@ -17,8 +17,6 @@ import type { ResourceRepository } from './resources.js';
 import { isUuid } from './security.js';
 import type { Waiters } from './waiting.js';
 import { waitSeconds } from './waiting.js';
-
-export const approvalLimits = { anonymous: 0, free: 20, pro: 200, team: 1000 } as const;
 
 export interface Approval {
     id: string;
@@ -53,6 +51,7 @@ export interface ApprovalRepository {
     get(accountId: string, id: string): MaybePromise<Approval | undefined>;
     list(accountId: string, pendingOnly: boolean): MaybePromise<Approval[]>;
     countSince(accountId: string, since: string): MaybePromise<number>;
+    quotaRetryAfter(accountId: string, maximum: number): MaybePromise<number>;
     pruneDraftEdits(resources: ResourceRepository): MaybePromise<void>;
     consume(accountId: string, id: string): MaybePromise<boolean>;
     /** Records an answer only while the request is still pending and unexpired. */
@@ -92,6 +91,17 @@ export class MemoryApprovals implements ApprovalRepository {
         return [...this.items.values()].filter(
             (item) => item.accountId === accountId && item.createdAt > since,
         ).length;
+    }
+    quotaRetryAfter(accountId: string, maximum: number) {
+        const now = Date.now();
+        const cutoff = [...this.items.values()]
+            .filter(
+                (item) =>
+                    item.accountId === accountId && Date.parse(item.createdAt) > now - 86400000,
+            )
+            .map((item) => Date.parse(item.createdAt))
+            .sort((left, right) => right - left)[maximum - 1];
+        return cutoff === undefined ? 0 : Math.max(1, Math.ceil((cutoff + 86400000 - now) / 1000));
     }
     consume(accountId: string, id: string) {
         const approval = this.items.get(id);
@@ -176,6 +186,15 @@ export class PostgresApprovals implements ApprovalRepository {
         );
         return Number(result.rows[0]!.count);
     }
+    async quotaRetryAfter(accountId: string, maximum: number) {
+        const { rows } = await this.pool.query<{ retry_after: number }>(
+            `SELECT GREATEST(1, ceil(extract(epoch FROM created_at + interval '24 hours' - clock_timestamp())))::integer AS retry_after
+             FROM approvals WHERE account_id = $1 AND created_at > clock_timestamp() - interval '24 hours'
+             ORDER BY created_at DESC OFFSET $2 LIMIT 1`,
+            [accountId, maximum - 1],
+        );
+        return rows[0]?.retry_after ?? 0;
+    }
     async consume(accountId: string, id: string) {
         if (!isUuid(id)) return false;
         return (
@@ -247,7 +266,6 @@ interface ApprovalContext {
     identities: IdentityRepository;
     recovery: RecoveryRepository;
     waiters: Waiters;
-    origin: string;
     mail?: MailSender;
 }
 
@@ -260,10 +278,9 @@ export function registerApprovals({
     identities,
     recovery,
     waiters,
-    origin,
     mail,
 }: ApprovalContext) {
-    const answerUrl = (id: string) => `${origin}/approve/?id=${id}`;
+    const answerUrl = (id: string) => access.appUrl(`/approve/?id=${id}`);
     const view = (approval: Approval) => {
         const { accountId: _account, keyId: _key, editedEmail: _edit, ...rest } = approval;
         return { ...rest, answerUrl: answerUrl(approval.id) };
@@ -311,11 +328,13 @@ export function registerApprovals({
         if (!Number.isInteger(minutes) || minutes < 1 || minutes > 1440)
             throw new HttpError(400, 'timeoutMinutes must be between 1 and 1440.');
         const plan = effectivePlan(identity.account);
-        const since = new Date(Date.now() - 86400000).toISOString();
-        if ((await approvals.countSince(identity.account.id, since)) >= approvalLimits[plan])
-            throw new HttpError(
-                429,
-                `Your plan allows ${approvalLimits[plan]} questions a day. Ask your human to upgrade at ${origin}/plans/.`,
+        const maximum = plans[plan].approvalQuestionsPerDay;
+        const retryAfter = await approvals.quotaRetryAfter(identity.account.id, maximum);
+        if (retryAfter)
+            throw new RateLimitError(
+                'approvals.questions',
+                `Your plan allows ${maximum} questions a day. Ask your human to upgrade at ${access.origin}/pricing/.`,
+                retryAfter,
             );
         const agent = identity.keyId
             ? (await agents.agents(identity.account.id)).find(
@@ -422,7 +441,7 @@ export function registerApprovals({
                 : validateEmailContent(
                       body.editedEmail,
                       plans[plan].emailRecipients,
-                      emailDraftBytes[plan],
+                      plans[plan].emailDraftBytes,
                   );
         if (
             !(await approvals.answer(identity.account.id, approval.id, {

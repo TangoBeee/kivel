@@ -1,10 +1,9 @@
 import type { Metadata } from 'next';
-import { AccountDashboard } from '../../components/account-dashboard';
-import { toolGlyphs } from '../../components/tool-glyphs';
+import { LegacyWorkspaceBridge } from '../../components/legacy-workspace-bridge';
 export const metadata: Metadata = {
     title: 'Your workspace',
     robots: { index: false, follow: false },
 };
 export default function AccountPage() {
-    return <AccountDashboard glyphs={toolGlyphs(18)} />;
+    return <LegacyWorkspaceBridge />;
 }

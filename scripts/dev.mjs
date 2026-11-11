@@ -64,13 +64,17 @@ try {
         }
         databaseUrl = 'postgres://kivel_dev:local-development-only@127.0.0.1:54329/kivel_dev';
     }
-    for (const name of ['backend', 'frontend']) {
+    for (const name of ['backend', 'frontend', 'dashboard']) {
         const child = spawn('pnpm', ['--filter', name, 'dev'], {
             stdio: 'inherit',
             env: {
                 ...process.env,
                 DATABASE_URL: databaseUrl,
                 PUBLIC_BASE_URL: 'http://localhost:3001',
+                APP_BASE_URL: 'http://127.0.0.1:3002',
+                SITE_URL: 'http://localhost:3001',
+                APP_URL: 'http://127.0.0.1:3002',
+                TRUSTED_PROXIES: '127.0.0.1/32',
                 PORT: '3000',
             },
         });
@@ -83,7 +87,7 @@ try {
         });
         children.push(child);
     }
-    console.log('Kivel: http://localhost:3001');
+    console.log('Kivel site: http://localhost:3001 · App: http://127.0.0.1:3002');
 } catch (error) {
     console.error(error instanceof Error ? error.message : 'Development startup failed.');
     await close(1);

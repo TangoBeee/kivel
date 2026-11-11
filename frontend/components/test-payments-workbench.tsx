@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { appLink } from '../lib/app-routes';
 import { useEffect, useRef, useState } from 'react';
 import { AlertDialog, Button, Select, Tabs, TextArea, TextField } from '@radix-ui/themes';
 import { checkoutCards } from '@kivel.io/tools/test-payments';
@@ -8,7 +9,7 @@ import type {
     TestPaymentResource,
     TestTransaction,
 } from '@kivel.io/tools/test-payments';
-import { testPaymentLimits } from '@kivel.io/tools/billing-plans';
+import { plans, type PlanId } from '@kivel.io/tools/plans';
 import { useViewer } from '../lib/viewer';
 import { api } from '../lib/api';
 import { CopyButton } from './copy-button';
@@ -50,8 +51,7 @@ function PaymentForm({
     onSave(input: object): Promise<void>;
     onCancel(): void;
 }) {
-    const defaults =
-        testPaymentLimits[plan as keyof typeof testPaymentLimits] ?? testPaymentLimits.free;
+    const defaults = plans[plan as PlanId]?.testPayments ?? plans.free.testPayments;
     const [name, setName] = useState(entry?.name ?? '');
     const [amount, setAmount] = useState(String(entry?.amount ?? 1));
     const [balance, setBalance] = useState('100');
@@ -760,7 +760,12 @@ export function PaymentsPanel({
     onChange?(): void;
 }) {
     const viewer = useViewer();
-    const [kind, setKind] = useState(initialKind),
+    const [kind, setKind] = useState(() => {
+            if (typeof window === 'undefined' || location.pathname !== '/payments/')
+                return initialKind;
+            const tab = new URLSearchParams(location.search).get('tab');
+            return tab === 'paywalls' ? 'paywall' : tab === 'checkouts' ? 'checkout' : initialKind;
+        }),
         [entries, setEntries] = useState<TestPaymentResource[]>([]);
     const [selected, setSelected] = useState<TestPaymentResource | null>(null),
         [form, setForm] = useState(false);
@@ -790,7 +795,8 @@ export function PaymentsPanel({
             .then((value) => {
                 if (controller.signal.aborted) return;
                 setEntries(value.resources);
-                const id = new URLSearchParams(location.search).get('resource');
+                const query = new URLSearchParams(location.search);
+                const id = query.get('id') ?? query.get('resource');
                 if (id)
                     setSelected(
                         value.resources.find((entry: TestPaymentResource) => entry.id === id) ??
@@ -825,7 +831,8 @@ export function PaymentsPanel({
     if (viewer.status !== 'user')
         return (
             <p>
-                <Link href="/account/">Sign in</Link> to test agent payments with fake money.
+                <Link href={appLink('/login/')}>Sign in</Link> to test agent payments with fake
+                money.
             </p>
         );
     if (loadedWorkspace !== workspace) return <p role="status">Loading test payments…</p>;

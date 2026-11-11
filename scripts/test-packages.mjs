@@ -191,6 +191,22 @@ try {
             response.writeHead(401, { 'X-Request-Id': 'package-denied' });
             return response.end(JSON.stringify({ error: 'Denied' }));
         }
+        if (request.url === '/api/monitors' && request.method === 'POST') {
+            response.writeHead(402, { 'X-Request-Id': 'package-limit' });
+            return response.end(
+                JSON.stringify({
+                    error: 'Your Free plan allows 20 monitors.',
+                    code: 'limit_reached',
+                    message: 'Your Free plan allows 20 monitors.',
+                    limit: 'monitors.active',
+                    plan: 'free',
+                    used: 20,
+                    max: 20,
+                    requiredPlan: 'pro',
+                    upgradeUrl: 'https://kivel.io/pricing/',
+                }),
+            );
+        }
         if (request.url === '/api/tools/json/run') {
             response.end(
                 JSON.stringify({
@@ -215,6 +231,19 @@ assert.equal((await kivel.tools()).tools[0].id, 'json');
 const result = await kivel.run('json', '{"released":true}');
 assert.equal(JSON.parse(result.output).released, true);
 await assert.rejects(new Kivel({ baseUrl: process.env.KIVEL_URL }).tools(), error => error instanceof KivelError && error.status === 401 && error.requestId === 'package-denied');
+${
+    fromRegistry
+        ? ''
+        : `await assert.rejects(kivel.request('POST', '/api/monitors'), error => {
+    assert.ok(error instanceof KivelError);
+    assert.equal(error.message, 'Your Free plan allows 20 monitors.');
+    assert.equal(error.status, 402);
+    assert.equal(error.retryAfter, undefined);
+    assert.equal(error.requiredPlan, 'pro');
+    assert.deepEqual(error.limitDetails, { code: 'limit_reached', limit: 'monitors.active', used: 20, max: 20, plan: 'free' });
+    return true;
+});`
+}
 `,
     );
     await writeFile(

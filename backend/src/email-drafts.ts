@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import { emailDraftBytes } from '@kivel.io/tools/billing-plans';
 import { plans } from '@kivel.io/tools/plans';
 import type { Access } from './access.js';
 import { emailApprovalRequired } from './email-threading.js';
@@ -57,7 +56,7 @@ export function registerEmailDrafts(
                 ? {
                       approvalId,
                       approvalExpiresAt: approval?.expiresAt,
-                      answerUrl: `${access.origin}/approve/?id=${approvalId}`,
+                      answerUrl: access.appUrl(`/approve/?id=${approvalId}`),
                   }
                 : {}),
             ...(content ? { content: approval?.editedEmail ?? content } : {}),
@@ -72,7 +71,7 @@ export function registerEmailDrafts(
         const content = validateEmailContent(
             request.body,
             plans[actor.plan].emailRecipients,
-            emailDraftBytes[actor.plan],
+            plans[actor.plan].emailDraftBytes,
         );
         const allocation = await access.allocation(request, {
             ttlSeconds: Math.min(7 * 86400, plans[actor.plan].maxRetentionSeconds),

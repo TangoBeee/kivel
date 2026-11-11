@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { appLink } from '../lib/app-routes';
 import { useEffect, useId, useRef, useState } from 'react';
 import { AlertDialog, Button, Select, TextField } from '@radix-ui/themes';
 interface Authenticator {
@@ -120,7 +121,7 @@ export function AuthenticatorsPanel() {
                     you asked your agent to create or operate.
                 </p>
                 <Button asChild>
-                    <Link href="/account/">Sign in to your workspace</Link>
+                    <Link href={appLink('/login/')}>Sign in to your workspace</Link>
                 </Button>
             </div>
         );
@@ -490,7 +491,7 @@ export function AuthenticatorsPanel() {
                         {entries.length >= limit && (
                             <p>
                                 Your plan’s authenticator limit is full. Delete one or{' '}
-                                <Link href="/plans/">view plans</Link>.
+                                <Link href="/pricing/">view plans</Link>.
                             </p>
                         )}
                     </form>

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { siteOrigin } from '../lib/site';
 import { useEffect, useState } from 'react';
 import { Button } from '@radix-ui/themes';
 import { Check, Copy } from '@phosphor-icons/react';
@@ -118,7 +119,7 @@ export function AgentOverview({
                     </div>
                     <div className="home-panel-actions">
                         <CopySetup />
-                        <Link href="/connect/" className="home-panel-link">
+                        <Link href={`${siteOrigin}/connect/`} className="home-panel-link">
                             Set it up by hand
                         </Link>
                     </div>
@@ -140,7 +141,7 @@ export function AgentOverview({
                                 </span>
                                 <Link
                                     className="button button-primary button-small"
-                                    href={`/approve/?id=${item.id}`}
+                                    href={`/approvals/?id=${item.id}`}
                                 >
                                     Answer
                                 </Link>

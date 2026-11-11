@@ -1,0 +1,28 @@
+{
+  "name": "dashboard",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --webpack --hostname 127.0.0.1 --port 3002",
+    "build": "next build --webpack",
+    "typecheck": "tsc --noEmit",
+    "test:pages": "node --import tsx scripts/verify-pages.mts"
+  },
+  "dependencies": {
+    "@kivel.io/tools": "workspace:*",
+    "@phosphor-icons/react": "2.1.10",
+    "@radix-ui/themes": "3.3.0",
+    "geist": "1.8.2",
+    "next": "16.4.3",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "tailwindcss": "4.3.3",
+    "tsx": "4.23.15",
+    "typescript": "^7.0.2"
+  }
+}

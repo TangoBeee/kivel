@@ -103,9 +103,14 @@ export function DashboardSearch({
     };
     return (
         <>
-            <button type="button" className="dashboard-search" onClick={() => setOpen(true)}>
+            <button
+                type="button"
+                className="dashboard-search"
+                aria-label="Search workspace"
+                onClick={() => setOpen(true)}
+            >
                 <MagnifyingGlass size={15} />
-                Search everything
+                <span>Search</span>
                 <kbd>⌘K</kbd>
             </button>
             <Dialog.Root open={open} onOpenChange={(next) => (next ? setOpen(true) : close())}>

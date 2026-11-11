@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { legacyAccountLink } from '../lib/app-routes';
 import { useEffect, useState } from 'react';
 import { ToolHeader } from './tool-header';
 import { MonitorsPanel } from './monitors-panel';
@@ -31,7 +32,7 @@ export function MonitorWorkbench({ toolId }: { toolId: string }) {
                         Free includes 20 monitors with checks every five minutes or slower. Alerts
                         use the owner’s verified email or a configured webhook.
                     </p>
-                    <Link className="button" href="/account/#register">
+                    <Link className="button" href={legacyAccountLink('/account/#register')}>
                         Create a free account
                     </Link>
                 </div>

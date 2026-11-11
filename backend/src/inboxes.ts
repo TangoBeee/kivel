@@ -1,3 +1,4 @@
+import { plans } from '@kivel.io/tools/plans';
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { sharingCredentials, publicAccessAllowed } from './sharing.js';
 import type { PublicAccess, Sharing, SharingCredentials, Visibility } from './sharing.js';
@@ -6,7 +7,7 @@ import type { AllocationContext } from './allocations.js';
 
 export const INBOX_TTL_MS = 60 * 60 * 1000;
 export const MAX_INBOXES = 1000;
-export const MAX_REQUESTS_PER_INBOX = 100;
+export const MAX_REQUESTS_PER_INBOX = plans.anonymous.captureRequests;
 export const MAX_INBOX_BYTES = 1024 * 1024;
 export const MAX_TOTAL_BYTES = 32 * 1024 * 1024;
 

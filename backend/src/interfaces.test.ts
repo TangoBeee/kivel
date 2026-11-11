@@ -339,7 +339,7 @@ test('the executable CLI uses stdin, exit codes and HTTP correctly', async (t) =
     assert.equal(paid.stdout, '');
     assert.equal(JSON.parse(paid.stderr).status, 402);
     assert.equal(JSON.parse(paid.stderr).requiredPlan, 'pro');
-    assert.equal(JSON.parse(paid.stderr).upgradeUrl, `${origin}/plans/`);
+    assert.equal(JSON.parse(paid.stderr).upgradeUrl, `${origin}/pricing/`);
     const email = await run(['email', 'create']);
     assert.equal(email.code, 0, email.stderr);
     assert.match(JSON.parse(email.stdout).address, /@inbox.example.test$/);

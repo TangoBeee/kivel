@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { siteOrigin } from '../lib/site';
 import { useEffect, useState } from 'react';
 import { DropdownMenu, IconButton } from '@radix-ui/themes';
 import { DotsThree } from '@phosphor-icons/react';
@@ -158,7 +159,7 @@ export function AgentActivity({ keys }: { keys: { id: string; name: string }[] }
                     <p className="home-empty">
                         No agents yet. Paste the setup prompt into your agent and approve it when it
                         asks.{' '}
-                        <Link className="text-link" href="/connect/">
+                        <Link className="text-link" href={`${siteOrigin}/connect/`}>
                             How to connect
                         </Link>
                     </p>

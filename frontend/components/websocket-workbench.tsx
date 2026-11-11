@@ -1,5 +1,7 @@
 'use client';
 
+import { workspaceResource } from '../lib/app-routes';
+
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { AlertDialog, Button, Checkbox, Flex, TextArea, TextField } from '@radix-ui/themes';
@@ -49,7 +51,7 @@ export function WebSocketWorkbench({ toolId }: { toolId: string }) {
         const controller = new AbortController();
         async function load() {
             try {
-                const id = new URLSearchParams(location.search).get('resource');
+                const id = workspaceResource(location.search);
                 const saved: Mock | null = JSON.parse(sessionStorage.getItem(key) ?? 'null');
                 const resource = id ?? saved?.id;
                 if (!resource || !/^[\da-f-]{36}$/i.test(resource)) return;

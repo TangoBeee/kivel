@@ -436,8 +436,14 @@ export function registerBilling(
                         always_create_new_customer: false,
                         allow_customer_editing_email: false,
                     },
-                    return_url: `${access.origin}/account/?billing=returned`,
-                    cancel_url: `${access.origin}/account/?billing=cancelled`,
+                    return_url: access.appUrl(
+                        '/usage/?billing=returned',
+                        '/account/?billing=returned',
+                    ),
+                    cancel_url: access.appUrl(
+                        '/usage/?billing=cancelled',
+                        '/account/?billing=cancelled',
+                    ),
                 });
                 if (!session.checkout_url)
                     throw new HttpError(503, 'Checkout did not return a payment link.');
@@ -525,7 +531,7 @@ export function registerBilling(
                 effective_at: 'immediately',
                 on_payment_failure: 'prevent_change',
                 collect_via_payment_link: true,
-                return_url: `${access.origin}/phone/`,
+                return_url: access.appUrl('/phone/'),
             },
             { idempotencyKey: `${identity.account.id}-${retryKey}` },
         );
@@ -540,7 +546,7 @@ export function registerBilling(
             url: (
                 await dodo.customers.customerPortal.create(identity.account.customerId, {
                     send_email: false,
-                    return_url: `${access.origin}/account/`,
+                    return_url: access.appUrl('/usage/', '/account/'),
                 })
             ).link,
         };

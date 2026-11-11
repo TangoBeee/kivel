@@ -9,7 +9,7 @@ import { MemoryCredentials } from './credentials.js';
 import { MemoryApprovals } from './approvals.js';
 import { MemoryActivity } from './activity.js';
 import { secretVault } from './secret-vault.js';
-import { credentialLimits } from '@kivel.io/tools/billing-plans';
+import { plans } from '@kivel.io/tools/plans';
 
 const origin = 'http://localhost:3000';
 const secret = 'test-credential-encryption-key-with-enough-entropy';
@@ -353,9 +353,9 @@ test('generated passwords, plan limits and linked resources work through the API
         ).statusCode,
         400,
     );
-    for (let index = 1; index < credentialLimits.free; index++)
+    for (let index = 1; index < plans.free.credentials; index++)
         assert.equal((await f.save()).statusCode, 201);
-    assert.equal((await f.save()).statusCode, 429);
+    assert.equal((await f.save()).statusCode, 402);
     assert.equal((await client.credentials()).credentials.length, 10);
     assert.equal((await f.save({ ...input, authenticatorId: randomUUID() })).statusCode, 404);
     assert.equal((await f.save({ ...input, inboxId: randomUUID() })).statusCode, 404);
@@ -390,15 +390,13 @@ test('generated passwords, plan limits and linked resources work through the API
     for (const plan of ['free', 'pro', 'team'] as const) {
         const store = new MemoryCredentials();
         const base = { ...first.credential, version: randomUUID(), encrypted: 'ciphertext' };
-        for (let index = 0; index < credentialLimits[plan]; index++)
-            assert.equal(
-                await store.save('owner', { ...base, id: String(index) }, credentialLimits[plan]),
-                true,
-            );
-        assert.equal(
-            await store.save('owner', { ...base, id: 'excess' }, credentialLimits[plan]),
-            false,
-        );
+        for (let index = 0; index < plans[plan].credentials; index++)
+            await store.save('owner', { ...base, id: String(index) }, plan);
+        await assert.rejects(store.save('owner', { ...base, id: 'excess' }, plan), {
+            statusCode: 402,
+            limit: 'vault.entries',
+        });
+        assert.equal((await store.list('owner')).length, plans[plan].credentials);
     }
 });
 

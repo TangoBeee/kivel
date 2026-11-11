@@ -1005,6 +1005,7 @@ textarea::placeholder {
     font-size: 0.75rem;
   }
   .inbox-toolbar {
+    flex-wrap: wrap;
     gap: 8px;
   }
   .inbox-toolbar .button {
@@ -1015,7 +1016,7 @@ textarea::placeholder {
     font-size: 0.75rem;
   }
   .inbox-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     min-height: 0;
   }
   .request-list-panel {

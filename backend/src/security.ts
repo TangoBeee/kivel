@@ -3,6 +3,26 @@ import { readdir, readFile } from 'node:fs/promises';
 import { join, relative, sep } from 'node:path';
 import ipaddr from 'ipaddr.js';
 
+export function httpOrigin(value: string, name: string): URL {
+    const message = `${name} must be an HTTP(S) origin without credentials, path, query, or fragment.`;
+    let url: URL;
+    try {
+        url = new URL(value);
+    } catch {
+        throw new Error(message);
+    }
+    if (
+        !['http:', 'https:'].includes(url.protocol) ||
+        url.username ||
+        url.password ||
+        url.pathname !== '/' ||
+        url.search ||
+        url.hash
+    )
+        throw new Error(message);
+    return url;
+}
+
 export function policy(hashes: string[] = []): string {
     return [
         "default-src 'self'",

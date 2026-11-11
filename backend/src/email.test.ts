@@ -443,7 +443,7 @@ test('email lifecycle upgrades, downgrades, pauses lapsed plans and retires afte
                 createdAt: new Date(createdAt).toISOString(),
                 expiresAt: expiry,
             },
-            50,
+            'team',
         );
         row.resourceId = resources.create('email', { address: row.address }, undefined, {
             visibility: 'public',

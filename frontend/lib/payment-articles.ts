@@ -218,7 +218,7 @@ export const paymentArticles: Article[] = [
         related: [
             { title: 'Prepaid card generator', href: '/tools/prepaid-card-generator/' },
             { title: 'Debit card generator', href: '/tools/debit-card-generator/' },
-            { title: 'Plans and hosted limits', href: '/plans/' },
+            { title: 'Plans and hosted limits', href: '/pricing/' },
         ],
     },
     {

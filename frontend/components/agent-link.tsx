@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { siteOrigin } from '../lib/site';
 import { useEffect, useState } from 'react';
 import { Button } from '@radix-ui/themes';
 import { Robot } from '@phosphor-icons/react';
@@ -115,7 +116,7 @@ export function AgentLink() {
                         <div className="agent-link-actions">
                             <Link
                                 className="button button-primary"
-                                href="/account/#signin"
+                                href="/login/"
                                 onClick={() => {
                                     try {
                                         sessionStorage.setItem(
@@ -129,7 +130,7 @@ export function AgentLink() {
                             </Link>
                             <Link
                                 className="button button-secondary"
-                                href="/account/#register"
+                                href="/signup/"
                                 onClick={() => {
                                     try {
                                         sessionStorage.setItem(
@@ -152,7 +153,7 @@ export function AgentLink() {
                                 : 'The agent was told no. Nothing was added to your workspace.'}
                         </p>
                         <div className="agent-link-actions">
-                            <Link className="button button-secondary" href="/account/#agents">
+                            <Link className="button button-secondary" href="/agents/">
                                 See your agents
                             </Link>
                         </div>
@@ -192,7 +193,10 @@ export function AgentLink() {
                                     <legend>
                                         Your {request.workspace.plan} plan includes {request.limit}{' '}
                                         agents. Choose one to replace, or{' '}
-                                        <Link href="/plans/">upgrade for more</Link>.
+                                        <Link href={`${siteOrigin}/pricing/`}>
+                                            upgrade for more
+                                        </Link>
+                                        .
                                     </legend>
                                     {request.agents.map((agent) => (
                                         <label key={agent.id}>

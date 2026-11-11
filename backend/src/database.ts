@@ -79,8 +79,8 @@ export async function migrate(pool: Pool): Promise<void> {
             'SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1',
         );
         const version = result.rows[0]?.version ?? 0;
-        // Additive schemas 14–19 remain compatible with this rollback baseline.
-        if (version > 19) throw new Error('Database schema is newer than this application.');
+        // Schema 20 adds live events without changing existing tables.
+        if (version > 20) throw new Error('Database schema is newer than this application.');
         if (version < 1) {
             await client.query(schema);
             await client.query('INSERT INTO schema_migrations (version) VALUES (1)');
@@ -323,5 +323,7 @@ export async function migrate(pool: Pool): Promise<void> {
                 ALTER TABLE temporary_resources ENABLE TRIGGER temporary_resource_quota;
                 INSERT INTO schema_migrations(version) VALUES(19);`);
         }
+        // The function adds error details without changing the schema used by older releases.
+        if (version >= 5) await client.query(quotaFunction);
     });
 }

@@ -186,7 +186,11 @@ test('Free sending needs verified account mail, enforces recipient/daily/minute 
     assert.equal((await f.send()).statusCode, 429);
     f.advance();
     const capped = await f.send();
-    assert.equal(capped.statusCode, 429);
+    assert.equal(capped.statusCode, 402);
+    assert.equal(capped.json().limit, 'email.sent_today');
+    assert.ok(Number(capped.headers['retry-after']) > 0);
+    assert.equal(capped.json().retryAfter, Number(capped.headers['retry-after']));
+    assert.equal(capped.json().used, 3);
     assert.match(capped.body, /Daily email allowance/);
     assert.equal(f.sent.length, 3);
 });
@@ -260,7 +264,7 @@ test('Pro and Team daily allowances are enforced before provider calls; a lone b
             }
         });
         const response = await f.send();
-        assert.equal(response.statusCode, 429, response.body);
+        assert.equal(response.statusCode, 402, response.body);
         assert.equal(f.sent.length, 0);
     }
     const f = await fixture(t);
@@ -408,7 +412,9 @@ test('monthly caps count deliveries on earlier days', async (t) => {
         await session.save(job);
     });
     const response = await f.send();
-    assert.equal(response.statusCode, 429);
+    assert.equal(response.statusCode, 402);
+    assert.equal(response.json().limit, 'email.sent_month');
+    assert.ok(Number(response.headers['retry-after']) > 0);
     assert.match(response.body, /Monthly email allowance/);
 });
 
@@ -449,7 +455,8 @@ test('every plan monthly limit is enforced and forged bounce addresses cannot su
             await session.save(job);
         });
         const response = await f.send();
-        assert.equal(response.statusCode, 429);
+        assert.equal(response.statusCode, 402);
+        assert.equal(response.json().limit, 'email.sent_month');
         assert.match(response.body, /Monthly email allowance/);
     }
     const f = await fixture(t);

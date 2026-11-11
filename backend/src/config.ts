@@ -1,6 +1,7 @@
 import { emailAddress } from './recovery.js';
 import type { MailConfig } from './mail.js';
 import { isIP } from 'node:net';
+import { httpOrigin } from './security.js';
 
 export function readConfig(env: Record<string, string | undefined>) {
     const production = env.NODE_ENV === 'production';
@@ -8,32 +9,22 @@ export function readConfig(env: Record<string, string | undefined>) {
     if (!Number.isInteger(port) || port < 1 || port > 65535)
         throw new Error('PORT must be between 1 and 65535.');
     const publicBaseUrl = env.PUBLIC_BASE_URL ?? `http://localhost:${port}`;
-    let origin: URL;
-    try {
-        origin = new URL(publicBaseUrl);
-    } catch {
-        throw new Error('PUBLIC_BASE_URL must be a valid HTTP(S) origin.');
-    }
-    if (
-        !['http:', 'https:'].includes(origin.protocol) ||
-        origin.username ||
-        origin.password ||
-        origin.pathname !== '/' ||
-        origin.search ||
-        origin.hash
-    ) {
-        throw new Error(
-            'PUBLIC_BASE_URL must be an HTTP(S) origin without credentials, path, query, or fragment.',
-        );
-    }
+    const origin = httpOrigin(publicBaseUrl, 'PUBLIC_BASE_URL');
+    const appOrigin = httpOrigin(env.APP_BASE_URL ?? origin.origin, 'APP_BASE_URL');
+    if (appOrigin.origin !== origin.origin && appOrigin.hostname === origin.hostname)
+        throw new Error('APP_BASE_URL must use a different hostname from PUBLIC_BASE_URL.');
     if (production && !env.PUBLIC_BASE_URL)
         throw new Error('PUBLIC_BASE_URL is required in production.');
-    if (
-        production &&
-        origin.protocol !== 'https:' &&
-        !['localhost', '127.0.0.1', '[::1]'].includes(origin.hostname)
-    ) {
-        throw new Error('PUBLIC_BASE_URL must use HTTPS in production.');
+    for (const [name, url] of [
+        ['PUBLIC_BASE_URL', origin],
+        ['APP_BASE_URL', appOrigin],
+    ] as const) {
+        if (
+            production &&
+            url.protocol !== 'https:' &&
+            !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
+        )
+            throw new Error(`${name} must use HTTPS in production.`);
     }
     const databaseUrl = env.DATABASE_URL;
     if (production && !databaseUrl) throw new Error('DATABASE_URL is required in production.');
@@ -284,6 +275,7 @@ export function readConfig(env: Record<string, string | undefined>) {
         sshHostKeyPath: env.SSH_HOST_KEY_PATH ?? '.data/ssh_host_ed25519',
         port,
         publicBaseUrl: origin.origin,
+        appBaseUrl: appOrigin.origin,
         databaseUrl,
         trustProxy,
         logLevel,

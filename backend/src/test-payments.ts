@@ -1,6 +1,6 @@
 import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { testPaymentLimits } from '@kivel.io/tools/billing-plans';
+import { plans } from '@kivel.io/tools/plans';
 import { checkoutOutcomes, testCardOutcome } from '@kivel.io/tools/test-payments';
 import type {
     CheckoutOutcome,
@@ -325,7 +325,7 @@ export function registerTestPayments({
         if (kind === 'wallet') {
             const controls = ['perPaymentLimit', 'dailyLimit', 'approvalThreshold'] as const;
             if (controls.some((key) => input[key] !== undefined)) await human(request);
-            const defaults = testPaymentLimits[actor.plan];
+            const defaults = plans[actor.plan].testPayments;
             for (const key of controls) {
                 const fallback =
                     key === 'perPaymentLimit'
@@ -522,7 +522,7 @@ export function registerTestPayments({
     app.post<{ Params: { id: string } }>('/api/test-wallets/:id/top-up', async (request) => {
         const { owner, actor } = await owned(request, request.params.id, 'wallet', true);
         const amount = cents(object(request.body).amount, 'Amount');
-        await rate(`topup:${owner}`, testPaymentLimits[actor.plan].topupsPerMinute);
+        await rate(`topup:${owner}`, plans[actor.plan].testPayments.topupsPerMinute);
         return mutate(request.params.id, owner, 'wallet', (_config, state) => {
             if (state.balance + amount > 100_000_000)
                 throw new HttpError(400, 'Test balance may not exceed 1,000,000.');
@@ -846,7 +846,7 @@ export function registerTestPayments({
                     status: transaction.status,
                     transaction: publicTransaction(transaction),
                     approvalId: transaction.approvalId,
-                    answerUrl: `${access.origin}/approve/?id=${transaction.approvalId}`,
+                    answerUrl: access.appUrl(`/approve/?id=${transaction.approvalId}`),
                 });
             }
             await recordActivity(owner, resource.id, transaction);
@@ -894,7 +894,7 @@ export function registerTestPayments({
                 const response = await app.inject({
                     method: 'GET',
                     url: `${location.pathname}${location.search}`,
-                    headers: { 'x-payment': header },
+                    headers: { host: location.host, 'x-payment': header },
                 });
                 return reply.code(response.statusCode).send({
                     testMode: true,

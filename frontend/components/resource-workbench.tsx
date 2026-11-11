@@ -1,4 +1,6 @@
 'use client';
+
+import { workspaceResource } from '../lib/app-routes';
 import Link from 'next/link';
 import { EchoWorkbench } from './echo-workbench';
 import { StreamEventsPreview, renderToolResult } from './tool-result';
@@ -198,7 +200,7 @@ export function ResourceWorkbench({
     const base = `/api/${kind === 'mock' ? 'mocks' : kind === 'mcp' ? 'mcp-servers' : 'files'}`;
     const route = routes[active] ?? routes[0] ?? freshRoute();
     useEffect(() => {
-        const requested = new URLSearchParams(location.search).get('resource');
+        const requested = workspaceResource(location.search);
         if (requested && /^[a-f0-9-]{36}$/i.test(requested)) {
             setReady(true);
             void refresh({ id: requested, managementToken: '', expiresAt: '' });
@@ -802,7 +804,10 @@ export function ResourceWorkbench({
                                     and real answers are saved as routes. Beeceptor charges $10 a
                                     month for its paid plans; this is part of Kivel Pro.
                                 </p>
-                                <Link className="button button-primary button-small" href="/plans/">
+                                <Link
+                                    className="button button-primary button-small"
+                                    href="/pricing/"
+                                >
                                     Get Pro for $2 a month
                                 </Link>
                             </div>

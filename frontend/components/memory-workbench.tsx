@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { legacyAccountLink } from '../lib/app-routes';
 import { useEffect, useState } from 'react';
 import { Button, TextArea, TextField } from '@radix-ui/themes';
 import { parseJsonSafely } from '@kivel.io/tools/engine';
@@ -126,7 +127,7 @@ export function MemoryWorkbench({ toolId }: { toolId: string }) {
                         Free includes 5 MiB of workspace memory. Pro includes 100 MiB; Team includes
                         1 GiB.
                     </p>
-                    <Link className="button" href="/account/#register">
+                    <Link className="button" href={legacyAccountLink('/account/#register')}>
                         Create a free account
                     </Link>
                 </div>

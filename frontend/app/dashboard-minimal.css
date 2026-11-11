@@ -783,6 +783,7 @@
 /* Usage meters on a tool page */
 .tool-page {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 32px;
 }
 .tool-meters {
@@ -841,8 +842,11 @@
   border-radius: 4px;
   background: var(--ink);
 }
-.usage-bar.is-full i {
+.usage-bar.is-near i {
   background: var(--warning);
+}
+.usage-bar.is-full i {
+  background: var(--danger);
 }
 
 /* Overview cards */

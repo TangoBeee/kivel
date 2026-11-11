@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { toolCapability, toolAvailability } from '../lib/catalog';
 import { clearPrivateSession, sessionSource } from '../lib/private-session';
+import { siteOrigin } from '../lib/site';
 import { useRouter } from 'next/navigation';
 import {
     createContext,
@@ -135,7 +136,7 @@ export function ToolboxProvider({ children }: { children: React.ReactNode }) {
             return;
         }
         setSearchOpen(false);
-        router.push(tool.href!);
+        router.push(`${siteOrigin}${tool.href!}`);
     }
     const matches = searchTools(query).map((tool) =>
         capabilities ? toolAvailability(tool, capabilities) : tool,
@@ -306,9 +307,7 @@ export function ToolboxProvider({ children }: { children: React.ReactNode }) {
                                                                     onSelect={() => {
                                                                         setSearchOpen(false);
                                                                         router.push(
-                                                                            categoryHref(
-                                                                                category.id,
-                                                                            ),
+                                                                            `${siteOrigin}${categoryHref(category.id)}`,
                                                                         );
                                                                     }}
                                                                 >

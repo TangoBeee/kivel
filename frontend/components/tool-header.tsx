@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { siteOrigin } from '../lib/site';
 import { ToolCapabilityNotice } from './toolbox-provider';
 import { Icon } from './icons';
 import { ReturnLink } from './return-link';
@@ -23,9 +24,9 @@ export function ToolHeader({
         <header className="tool-header">
             <ReturnLink toolId={toolId} />
             <nav className="breadcrumb" aria-label="Breadcrumb">
-                <Link href="/catalog/">Explore tools</Link>
+                <Link href={`${siteOrigin}/catalog/`}>Explore tools</Link>
                 <Icon name="chevron" size={12} />
-                <Link href={categoryHref(category.id)}>{category.name}</Link>
+                <Link href={`${siteOrigin}${categoryHref(category.id)}`}>{category.name}</Link>
                 <Icon name="chevron" size={12} />
                 <span aria-current="page">{tool.name}</span>
             </nav>
@@ -51,7 +52,7 @@ export function ToolHeader({
                 </div>
                 <div className="tool-header-actions">
                     {tool.minimumPlan && tool.minimumPlan !== 'free' && (
-                        <Link className="text-link" href="/plans/">
+                        <Link className="text-link" href="/pricing/">
                             {tool.minimumPlan === 'pro' ? 'Pro' : 'Team'} · View plans
                         </Link>
                     )}

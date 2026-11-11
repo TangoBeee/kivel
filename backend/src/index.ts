@@ -41,10 +41,17 @@ try {
     );
     if (config.production && !existsSync(frontendDir))
         throw new Error('Frontend build is missing. Run pnpm build.');
+    const dashboardDir = resolve(
+        process.env.DASHBOARD_DIR ?? fileURLToPath(new URL('../../dashboard/out', import.meta.url)),
+    );
+    const separateApp = config.appBaseUrl !== config.publicBaseUrl;
+    if (config.production && separateApp && !existsSync(dashboardDir))
+        throw new Error('Dashboard build is missing. Run pnpm build.');
     const identities = pool ? new PostgresIdentityRepository(pool) : new MemoryIdentityRepository();
     const limits = pool ? new PostgresRateLimiter(pool) : new RateLimiter();
     const app = buildApp({
         identityStore: identities,
+        ...(pool ? { usagePool: pool } : {}),
         ...(pool ? { recoveryStore: new PostgresRecoveryRepository(pool) } : {}),
         ...(config.mailConfig ? { mailSender: smtpSender(config.mailConfig) } : {}),
         rateLimiter: limits,
@@ -96,6 +103,8 @@ try {
               }
             : {}),
         ...(existsSync(frontendDir) ? { frontendDir } : {}),
+        ...(separateApp ? { appBaseUrl: config.appBaseUrl } : {}),
+        ...(separateApp && existsSync(dashboardDir) ? { dashboardDir } : {}),
     });
     const database = pool;
     app.addHook('onClose', async () => {
@@ -113,7 +122,13 @@ try {
         });
     }
     const ssh = config.sshPort
-        ? createSshServer(app, identities, limits, await loadHostKey(config.sshHostKeyPath))
+        ? createSshServer(
+              app,
+              identities,
+              limits,
+              await loadHostKey(config.sshHostKeyPath),
+              config.publicBaseUrl,
+          )
         : undefined;
     if (ssh) app.addHook('preClose', () => ssh.close());
     const address = await app.listen({ port: config.port, host: config.host });

@@ -2,6 +2,11 @@
 import { PaymentsPanel } from './test-payments-workbench';
 import { VaultPanel } from './vault-workbench';
 import { AuthenticatorsPanel } from './authenticator-workbench';
+import { returnPath, workspaceHref, workspacePanel } from '../lib/app-routes';
+import { siteOrigin } from '../lib/site';
+import { catalog } from '../lib/catalog';
+import { LiveLogo } from './live-logo';
+import { ApprovalsPanel } from './approvals-panel';
 import { PasswordField } from './password-field';
 import { AppSelect, SelectOption } from './app-select';
 import { Button, TextField, Dialog, AlertDialog, Tabs, Badge } from '@radix-ui/themes';
@@ -13,14 +18,7 @@ import {
     UsersThree,
     WarningCircle,
 } from '@phosphor-icons/react';
-import {
-    DashboardShell,
-    isDashboardPanel,
-    Meter,
-    NewResourceMenu,
-    panelInfo,
-    SettingsSection,
-} from './dashboard-shell';
+import { AppShell, Meter, NewResourceMenu, panelInfo, SettingsSection } from './dashboard-shell';
 import { DashboardSearch } from './dashboard-search';
 import {
     EmbeddedTool,
@@ -88,8 +86,14 @@ async function json(path: string, method = 'GET', body?: unknown) {
     });
     return response.status === 204 ? undefined : response.json();
 }
-export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, React.ReactNode> }) {
-    const [panel, setPanel] = useState<DashboardPanel>('overview');
+export function AccountDashboard({
+    glyphs = {},
+    initialPanel = 'overview',
+}: {
+    glyphs?: Record<string, React.ReactNode>;
+    initialPanel?: DashboardPanel;
+}) {
+    const [panel, setPanel] = useState<DashboardPanel>(initialPanel);
     // What is open inside a page: a resource, or a tool (to create something or run a utility).
     const [open, setOpen] = useState<{ resource?: string; tool?: string }>({});
     const [resourceQuery, setResourceQuery] = useState(''),
@@ -104,16 +108,13 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
         [busy, setBusy] = useState(false),
         [error, setError] = useState(''),
         [notice, setNotice] = useState('');
+    const [cookieReward, setCookieReward] = useState(false);
     const [recovering, setRecovering] = useState(false),
         [emailEnabled, setEmailEnabled] = useState(false);
     const [mode, setMode] = useState<'login' | 'register'>('login'),
         [keys, setKeys] = useState<Key[]>([]),
         [secret, setSecret] = useState(''),
-        [resources, setResources] = useState<Resource[]>([]),
-        [usage, setUsage] = useState<{
-            runsToday: number;
-            limits: { runsPerDay: number; maxResources: number; storageBytes: number };
-        } | null>(null);
+        [resources, setResources] = useState<Resource[]>([]);
     const [billing, setBilling] = useState<{
             enabled: boolean;
             prices: {
@@ -137,21 +138,18 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
         try {
             const account = await json('/api/account');
             setSession(account);
-            const [keyData, resourceData, meter, bill, spaces, people, recovery] =
-                await Promise.all([
-                    json('/api/account/keys'),
-                    account.scopes.includes('resources:read')
-                        ? json('/api/account/resources')
-                        : Promise.resolve({ resources: [] }),
-                    json('/api/usage'),
-                    json('/api/billing').catch(() => ({ enabled: false, prices: [] })),
-                    json('/api/account/workspaces'),
-                    json('/api/account/members'),
-                    json('/api/account/recovery'),
-                ]);
+            const [keyData, resourceData, bill, spaces, people, recovery] = await Promise.all([
+                json('/api/account/keys'),
+                account.scopes.includes('resources:read')
+                    ? json('/api/account/resources')
+                    : Promise.resolve({ resources: [] }),
+                json('/api/billing').catch(() => ({ enabled: false, prices: [] })),
+                json('/api/account/workspaces'),
+                json('/api/account/members'),
+                json('/api/account/recovery'),
+            ]);
             setKeys(keyData.keys);
             setResources(resourceData.resources);
-            setUsage(meter);
             setBilling(bill);
             setWorkspaces(spaces.workspaces);
             setMembers(people.members);
@@ -172,16 +170,17 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
         }
     }
     useEffect(() => {
-        const applyHash = () => {
-            const hash = location.hash.slice(1);
+        const applyLocation = () => {
             const search = new URLSearchParams(location.search);
-            setPanel(isDashboardPanel(hash) ? hash : 'overview');
+            const path = location.pathname.replace(/\/$/, '');
+            setPanel(workspacePanel(path, search));
+            setCookieReward(search.get('reward') === 'cookie');
             setOpen({
-                resource: search.get('resource') ?? undefined,
+                resource: search.get('id') ?? search.get('inbox') ?? undefined,
                 tool: search.get('tool') ?? undefined,
             });
-            if (hash === 'register') setMode('register');
-            if (hash === 'signin') setMode('login');
+            setMode(path === '/signup' ? 'register' : 'login');
+            setRecovering(path === '/recovery');
         };
         const query = new URLSearchParams(location.search),
             returned = query.get('billing'),
@@ -195,19 +194,17 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                       ? 'failed'
                       : 'activating',
             );
-            history.replaceState(null, '', `${location.pathname}#billing`);
+            history.replaceState(null, '', workspaceHref('billing'));
         }
-        applyHash();
-        addEventListener('hashchange', applyHash);
-        addEventListener('popstate', applyHash);
+        applyLocation();
+        addEventListener('popstate', applyLocation);
         void refresh();
         void api('/api/auth/recovery')
             .then((response) => response.json())
             .then((value) => setEmailEnabled(value.enabled))
             .catch(() => {});
         return () => {
-            removeEventListener('hashchange', applyHash);
-            removeEventListener('popstate', applyHash);
+            removeEventListener('popstate', applyLocation);
         };
     }, []);
     const plan = session?.account.effectivePlan ?? 'free',
@@ -284,13 +281,15 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
             refreshViewer();
             // Pages such as the agent approval page send people here to sign in, then take them back.
             try {
-                const next = sessionStorage.getItem('kivel:after-signin');
+                const next = returnPath(sessionStorage.getItem('kivel:after-signin'));
                 sessionStorage.removeItem('kivel:after-signin');
-                if (next?.startsWith('/') && !next.startsWith('//')) {
+                if (next) {
                     location.assign(next);
                     return;
                 }
             } catch {}
+            if (/^\/(login|signup|recovery)\/?$/.test(location.pathname))
+                history.replaceState(null, '', '/');
             if (mode === 'register')
                 setNotice(
                     emailEnabled
@@ -303,17 +302,9 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
         // Leaving a tool screen: it may have created or deleted something.
         if (open.resource || open.tool) void reload();
         setPanel(next);
+        setCookieReward(false);
         setOpen(target);
-        const query = target.resource
-            ? `?resource=${target.resource}`
-            : target.tool
-              ? `?tool=${encodeURIComponent(target.tool)}`
-              : '';
-        history.pushState(
-            null,
-            '',
-            `${location.pathname}${query}${next === 'overview' && !query ? '' : `#${next}`}`,
-        );
+        history.pushState(null, '', workspaceHref(next, target));
         setError('');
         setNotice('');
     }
@@ -352,7 +343,9 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
             setSecret('');
             closeDetail();
             setPanel('overview');
-            history.replaceState(null, '', location.pathname);
+            setMode('login');
+            setRecovering(false);
+            history.replaceState(null, '', '/login/');
             refreshViewer();
         });
     }
@@ -368,11 +361,14 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
             refreshViewer();
         });
     }
-    const storedBytes = resources.reduce((sum, item) => sum + item.storedBytes, 0);
     // Agents get their keys when approved; those are managed on the Agents page.
     const ownKeys = keys.filter((key) => !key.name.startsWith('Agent: '));
     const agentKeys = keys.length - ownKeys.length;
-    const workspaceUsage = useWorkspaceUsage(resources);
+    const workspaceUsage = useWorkspaceUsage(session?.account.id, resources);
+    const storedBytes =
+        workspaceUsage.items?.find((item) => item.key === 'resources.storage')?.used ?? 0;
+    const activeResources =
+        workspaceUsage.items?.find((item) => item.key === 'resources.active')?.used ?? 0;
     const count = (item: ToolPanel) => panelResources(item, resources).length;
     const ratio = (used?: number, limit?: number) =>
         used !== undefined && limit ? { text: `${used}/${limit}`, full: used >= limit } : undefined;
@@ -430,19 +426,41 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                 </div>
             </div>
         );
+    if (!session && (panel === 'webhooks' || panel === 'mocks')) {
+        return (
+            <div className="page-width">
+                <div className="app-standalone-brand">
+                    <Link href="/" aria-label="Kivel workspace">
+                        <LiveLogo size={28} />
+                        Kivel
+                    </Link>
+                    <Link className="button" href="/login/">
+                        Sign in
+                    </Link>
+                </div>
+                <EmbeddedTool
+                    toolId={
+                        open.tool && catalog.some((tool) => tool.id === open.tool)
+                            ? open.tool
+                            : panel === 'webhooks'
+                              ? 'webhooks'
+                              : 'mock-apis-mock-rest-api'
+                    }
+                />
+            </div>
+        );
+    }
     return (
         <div className={`page-width ${session ? 'dashboard-page' : 'account-page'}`}>
             {!session ? (
                 <>
-                    <div className="auth-layout">
-                        <figure className="auth-art">
-                            <img
-                                src="/art/klint-childhood.webp"
-                                alt="Hilma af Klint, The Ten Largest, No. 1, Childhood, 1907."
-                                width={1275}
-                                height={1690}
-                            />
-                        </figure>
+                    <div className="app-standalone-brand">
+                        <Link href="/" aria-label="Kivel workspace">
+                            <LiveLogo size={28} />
+                            Kivel
+                        </Link>
+                    </div>
+                    <div className="app-auth-layout">
                         <div className="auth-main">
                             <header key={`head-${mode}`} className="auth-heading page-enter">
                                 <h1>
@@ -466,6 +484,7 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                     onBack={() => {
                                         setRecovering(false);
                                         setMode('login');
+                                        history.replaceState(null, '', '/login/');
                                         setError('');
                                         setNotice('');
                                     }}
@@ -479,7 +498,7 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                                 setMode('login');
                                                 setError('');
                                                 setNotice('');
-                                                history.replaceState(null, '', location.pathname);
+                                                history.replaceState(null, '', '/login/');
                                             }}
                                         >
                                             Sign in
@@ -490,7 +509,7 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                                 setMode('register');
                                                 setError('');
                                                 setNotice('');
-                                                history.replaceState(null, '', '#register');
+                                                history.replaceState(null, '', '/signup/');
                                             }}
                                         >
                                             Create account
@@ -572,6 +591,7 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                             className="text-link account-forgot"
                                             onClick={() => {
                                                 setRecovering(true);
+                                                history.replaceState(null, '', '/recovery/');
                                                 setError('');
                                                 setNotice('');
                                             }}
@@ -585,7 +605,7 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                     </div>
                 </>
             ) : (
-                <DashboardShell
+                <AppShell
                     panel={panel}
                     onPanelChange={changePanel}
                     workspace={{ id: session.account.id, name: session.account.name }}
@@ -597,8 +617,6 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                     onSignOut={signOut}
                     busy={busy}
                     badges={badges}
-                    activeTool={open.tool}
-                    onTool={(toolId) => navigate('tools', { tool: toolId })}
                     search={
                         <DashboardSearch
                             resources={resources}
@@ -620,7 +638,10 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                 onNew={(toolId) => navigate(panel, { tool: toolId })}
                             />
                         ) : panel === 'agents' ? (
-                            <Link className="button button-primary button-small" href="/connect/">
+                            <Link
+                                className="button button-primary button-small"
+                                href={`${siteOrigin}/connect/`}
+                            >
                                 Connect an agent
                             </Link>
                         ) : undefined
@@ -665,8 +686,8 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                     {panel === 'usage' && (
                         <UsagePanel
                             plan={plan}
-                            resources={resources}
                             usage={workspaceUsage}
+                            validUntil={session.account.planValidUntil}
                             onPlans={() => changePanel('billing')}
                             onUpgrade={
                                 billing.enabled && session.role === 'owner'
@@ -733,6 +754,12 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                     />
                                 )
                             }
+                        />
+                    )}
+                    {panel === 'approvals' && (
+                        <ApprovalsPanel
+                            id={open.resource}
+                            onOpen={(id) => navigate('approvals', id ? { resource: id } : {})}
                         />
                     )}
                     {panel === 'agents' && <AgentActivity keys={keys} />}
@@ -811,7 +838,10 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                     <>
                                         Keys belong to this workspace and work with the API, CLI,
                                         SDK, and MCP. A new key is shown once.{' '}
-                                        <Link className="text-link" href="/integrations/">
+                                        <Link
+                                            className="text-link"
+                                            href={`${siteOrigin}/integrations/`}
+                                        >
                                             Usage examples →
                                         </Link>
                                     </>
@@ -1182,6 +1212,26 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                             </SettingsSection>
                         </div>
                     )}
+                    {panel === 'billing' && cookieReward && (
+                        <div className="account-message">
+                            <button
+                                className="button"
+                                type="button"
+                                disabled={busy}
+                                onClick={() =>
+                                    void action(async () => {
+                                        const result = await json('/api/coupons/cookie', 'POST');
+                                        setNotice(
+                                            `Cookie reward applied at checkout. Code ${result.code}.`,
+                                        );
+                                        setCookieReward(false);
+                                    })
+                                }
+                            >
+                                Claim cookie reward
+                            </button>
+                        </div>
+                    )}
                     {panel === 'billing' && (
                         <div className="settings-stack">
                             {checkout && (
@@ -1248,28 +1298,28 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                         Your allowances are shared across the web app, API, SDK,
                                         CLI, and MCP.
                                     </p>
-                                    <Link className="text-link" href="/plans/">
+                                    <Link className="text-link" href={`${siteOrigin}/pricing/`}>
                                         Compare plan limits →
                                     </Link>
                                 </div>
                                 <div className="plan-hero-meters">
                                     <Meter
                                         label="Active resources"
-                                        value={resources.length}
-                                        max={usage?.limits.maxResources ?? 0}
-                                        display={`${resources.length} / ${usage?.limits.maxResources ?? '-'}`}
+                                        value={activeResources}
+                                        max={workspaceUsage.limits?.maxResources ?? 0}
+                                        display={`${activeResources} / ${workspaceUsage.limits?.maxResources ?? '-'}`}
                                     />
                                     <Meter
                                         label="Storage"
                                         value={storedBytes}
-                                        max={usage?.limits.storageBytes ?? 0}
-                                        display={`${formatBytes(storedBytes)} of ${formatBytes(usage?.limits.storageBytes ?? 0)}`}
+                                        max={workspaceUsage.limits?.storageBytes ?? 0}
+                                        display={`${formatBytes(storedBytes)} of ${formatBytes(workspaceUsage.limits?.storageBytes ?? 0)}`}
                                     />
                                     <Meter
                                         label="Hosted runs today"
-                                        value={usage?.runsToday ?? 0}
-                                        max={usage?.limits.runsPerDay ?? 0}
-                                        display={`${(usage?.runsToday ?? 0).toLocaleString()} / ${usage?.limits.runsPerDay.toLocaleString() ?? '-'}`}
+                                        value={workspaceUsage.runsToday ?? 0}
+                                        max={workspaceUsage.limits?.runsPerDay ?? 0}
+                                        display={`${(workspaceUsage.runsToday ?? 0).toLocaleString()} / ${workspaceUsage.limits?.runsPerDay.toLocaleString() ?? '-'}`}
                                     />
                                 </div>
                             </section>
@@ -1446,7 +1496,7 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                                                     <div className="account-secret-actions">
                                                         {selectedResource.kind === 'file' && (
                                                             <CopyButton
-                                                                text={`${location.origin}/share/?id=${selectedResource.id}`}
+                                                                text={`${siteOrigin}/share/?id=${selectedResource.id}`}
                                                                 label="Copy share link"
                                                             />
                                                         )}
@@ -1557,7 +1607,7 @@ export function AccountDashboard({ glyphs = {} }: { glyphs?: Record<string, Reac
                             </div>
                         </AlertDialog.Content>
                     </AlertDialog.Root>
-                </DashboardShell>
+                </AppShell>
             )}
         </div>
     );

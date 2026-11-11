@@ -74,7 +74,9 @@ export function createSshServer(
     identities: IdentityRepository,
     limits: RateLimitRepository,
     hostKey: Buffer,
+    publicBaseUrl: string,
 ) {
+    const publicHost = new URL(publicBaseUrl).host;
     const parsed = utils.parseKey(hostKey);
     if (parsed instanceof Error) throw parsed;
     const fingerprint = `SHA256:${createHash('sha256').update(parsed.getPublicSSH()).digest('base64').replace(/=+$/, '')}`;
@@ -171,7 +173,7 @@ export function createSshServer(
                         const response = await app.inject({
                             method: init?.method as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
                             url: target.pathname + target.search,
-                            headers,
+                            headers: { ...headers, host: publicHost },
                             remoteAddress: peer,
                             ...(init?.body !== undefined
                                 ? {
@@ -202,7 +204,7 @@ export function createSshServer(
                         try {
                             const result = await command(
                                 new Kivel({
-                                    baseUrl: 'http://localhost',
+                                    baseUrl: publicBaseUrl,
                                     apiKey: key,
                                     fetch: fetcher,
                                 }),

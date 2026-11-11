@@ -143,8 +143,16 @@ export const quotaFunction = `
                 INSERT INTO principal_usage (key_hash, account_id) VALUES (principal, owner) ON CONFLICT DO NOTHING;
                 SELECT resource_count + count_delta, stored_bytes + bytes_delta INTO next_count, next_bytes FROM principal_usage WHERE key_hash = principal FOR UPDATE;
                 SELECT settings INTO config FROM usage_plans WHERE id = plan_id;
-                IF count_delta > 0 AND next_count > (config->>'maxResources')::integer THEN RAISE EXCEPTION 'account_resource_limit'; END IF;
-                IF bytes_delta > 0 AND next_bytes > (config->>'storageBytes')::bigint THEN RAISE EXCEPTION 'account_storage_limit'; END IF;
+                IF count_delta > 0 AND next_count > (config->>'maxResources')::integer THEN
+                    RAISE EXCEPTION 'account_resource_limit' USING DETAIL = json_build_object(
+                        'plan', plan_id, 'used', next_count - count_delta, 'max', (config->>'maxResources')::integer, 'adding', count_delta
+                    )::text;
+                END IF;
+                IF bytes_delta > 0 AND next_bytes > (config->>'storageBytes')::bigint THEN
+                    RAISE EXCEPTION 'account_storage_limit' USING DETAIL = json_build_object(
+                        'plan', plan_id, 'used', next_bytes - bytes_delta, 'max', (config->>'storageBytes')::bigint, 'adding', bytes_delta
+                    )::text;
+                END IF;
                 UPDATE principal_usage SET resource_count = next_count, stored_bytes = next_bytes, updated_at = clock_timestamp() WHERE key_hash = principal;
             END IF;
             IF owner IS NOT NULL AND record_event THEN

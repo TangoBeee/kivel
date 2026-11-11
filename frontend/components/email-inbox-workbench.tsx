@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { siteOrigin } from '../lib/site';
+import { legacyAccountLink } from '../lib/app-routes';
 import { useEffect, useState } from 'react';
 import { AlertDialog, Button, Select, TextArea, TextField } from '@radix-ui/themes';
 import { api, ApiError, resourceHeaders } from '../lib/api';
@@ -143,7 +145,9 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                 if (!live) return;
                 setExisting(data.inboxes);
                 const saved = restore();
-                const requested = new URLSearchParams(location.search).get('resource');
+                const query = new URLSearchParams(location.search);
+                const requested = query.get('inbox') ?? query.get('id') ?? query.get('resource');
+                if (requested) setThreadId(query.get('thread'));
                 setInbox(
                     data.inboxes.find((item: EmailInbox) => item.id === requested) ??
                         data.inboxes.find((item: EmailInbox) => item.id === saved?.id) ??
@@ -347,7 +351,7 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                 description="An owned address for any sign-up, verification or application test flow. Read messages, codes and links in one place."
             >
                 {inbox && (
-                    <Link className="text-link" href="/account/#resources">
+                    <Link className="text-link" href={legacyAccountLink('/account/#resources')}>
                         Manage inboxes
                     </Link>
                 )}
@@ -378,7 +382,7 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                         Free includes one random inbox for 1–7 days. Pro includes 10 addresses that
                         stay active while subscribed, with optional custom names.
                     </p>
-                    <Link className="button" href="/account/#register">
+                    <Link className="button" href={legacyAccountLink('/account/#register')}>
                         Create a free account
                     </Link>
                 </div>
@@ -463,7 +467,7 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                                 {paid
                                     ? 'This address stays active while your subscription is active. Deleted addresses are never reassigned.'
                                     : 'One active inbox per workspace. Upgrade before expiry to keep the same address and choose custom names.'}{' '}
-                                {!paid && <Link href="/plans/">View Pro</Link>}
+                                {!paid && <Link href={`${siteOrigin}/pricing/`}>View Pro</Link>}
                             </p>
                             <Button type="submit" disabled={busy}>
                                 {busy ? 'Creating…' : 'Create address'}
@@ -490,8 +494,8 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                     {inbox.status === 'paused' && (
                         <p className="alert">
                             This address is paused.{' '}
-                            <Link href="/plans/">Restore your subscription</Link> to receive mail
-                            before the grace period ends.
+                            <Link href={`${siteOrigin}/pricing/`}>Restore your subscription</Link>{' '}
+                            to receive mail before the grace period ends.
                         </p>
                     )}
                     {sendingEnabled && !requireApproval && inbox.status !== 'paused' && (
@@ -817,8 +821,9 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                         <summary>Forward mail to a webhook · Pro</summary>
                         {!paid ? (
                             <p className="connection-content">
-                                <Link href="/plans/">Upgrade to Pro</Link> to forward received
-                                messages. Forwarding pauses when the paid plan ends.
+                                <Link href={`${siteOrigin}/pricing/`}>Upgrade to Pro</Link> to
+                                forward received messages. Forwarding pauses when the paid plan
+                                ends.
                             </p>
                         ) : (
                             <form
@@ -863,7 +868,7 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                             <p>
                                 Agents use <code>create_email_inbox</code> and{' '}
                                 <code>wait_for_email</code> over MCP.{' '}
-                                <Link href="/connect/">Connect your agent →</Link>
+                                <Link href={`${siteOrigin}/connect/`}>Connect your agent →</Link>
                             </p>
                         </div>
                     </details>

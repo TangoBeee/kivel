@@ -1,12 +1,10 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { siteOrigin } from '../lib/site';
 import { ToolHeader } from './tool-header';
 import { CopyButton } from './copy-button';
 import { ApiExample } from './api-example';
 export function McpConnect() {
-    const [origin, setOrigin] = useState('');
-    useEffect(() => setOrigin(window.location.origin), []);
-    const url = origin ? `${origin}/mcp` : '';
+    const url = `${siteOrigin}/mcp`;
     return (
         <div className="page-width work-page">
             <ToolHeader toolId="agents-kivel-mcp">
@@ -17,7 +15,7 @@ export function McpConnect() {
                     <strong>MCP endpoint</strong>
                 </div>
                 <div className="resource-link">
-                    <code>{url || 'Loading this instance…'}</code>
+                    <code>{url}</code>
                     <CopyButton text={url} label="Copy endpoint" />
                 </div>
                 <p>
@@ -33,7 +31,7 @@ export function McpConnect() {
                     used.
                 </p>
                 <ApiExample
-                    code={`curl -X POST ${url || 'https://kivel.io/mcp'} \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json, text/event-stream' \\\n  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"my-client","version":"1.0"}}}'`}
+                    code={`curl -X POST ${url} \\\n  -H 'Content-Type: application/json' \\\n  -H 'Accept: application/json, text/event-stream' \\\n  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"my-client","version":"1.0"}}}'`}
                 />
                 <p className="tool-notice">
                     Call tools/list to discover the available tools. Agents can create, inspect, and

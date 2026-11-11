@@ -67,6 +67,7 @@ await writeFile(
     ports: !override ['127.0.0.1:${appPort}:3000']
     environment:
       PUBLIC_BASE_URL: https://localhost:${port}
+      APP_BASE_URL: https://app.localhost:${port}
       BILLING_ENABLED: 'false'
   proxy:
     ports: !override ['127.0.0.1:${port}:443', '127.0.0.1:${httpPort}:80']
@@ -98,11 +99,20 @@ try {
     if (smoke.error) throw smoke.error;
     assert.equal(smoke.status, 0, 'HTTPS smoke test');
     const ca = await readFile(certificate);
-    function call(path, method = 'GET', headers = {}, body, timeout = 15000) {
+    function call(path, method = 'GET', headers = {}, body, timeout = 15000, host = 'localhost') {
         return new Promise((resolve, reject) => {
             const req = request(
-                `https://localhost:${port}${path}`,
-                { method, ca, headers, timeout },
+                `https://${host}:${port}${path}`,
+                {
+                    method,
+                    ca,
+                    headers,
+                    timeout,
+                    lookup: (_host, options, callback) =>
+                        options.all
+                            ? callback(null, [{ address: '127.0.0.1', family: 4 }])
+                            : callback(null, '127.0.0.1', 4),
+                },
                 (response) => {
                     let text = '';
                     response.setEncoding('utf8');
@@ -122,6 +132,43 @@ try {
     const ready = await call('/ready', 'GET', { 'X-Forwarded-Proto': 'http' });
     assert.equal(ready.status, 200);
     assert.equal(ready.headers['strict-transport-security'], 'max-age=31536000');
+    const appHost = 'app.localhost';
+    const appOrigin = `https://${appHost}:${port}`;
+    const landing = await call('/');
+    assert.equal(landing.status, 200);
+    assert.match(landing.text, /aria-label="Main navigation"/);
+    const dashboard = await call('/', 'GET', {}, undefined, 15000, appHost);
+    assert.equal(dashboard.status, 200);
+    assert.match(dashboard.headers['x-robots-tag'], /noindex/);
+    assert.doesNotMatch(dashboard.text, /Main navigation/);
+    const signIn = JSON.stringify({
+        username: 'https-host-test',
+        password: 'local fixture password',
+        email: 'test@example.invalid',
+    });
+    const authHeaders = { Origin: appOrigin, 'Content-Type': 'application/json' };
+    const session = await call('/api/auth/register', 'POST', authHeaders, signIn, 15000, appHost);
+    assert.equal(session.status, 201, session.text);
+    const cookie = session.headers['set-cookie'][0];
+    assert.match(
+        cookie,
+        /^__Host-kivel_session=.*; Path=\/; HttpOnly; SameSite=Strict; Max-Age=604800; Secure$/,
+    );
+    assert.equal((await call('/api/account', 'GET', { Cookie: cookie.split(';')[0] })).status, 401);
+    assert.equal(
+        (
+            await call(
+                '/api/account',
+                'GET',
+                { Cookie: cookie.split(';')[0] },
+                undefined,
+                15000,
+                appHost,
+            )
+        ).status,
+        200,
+    );
+    assert.equal((await call('/plans/')).headers.location, '/pricing/');
     const payload = Buffer.alloc(10 * 1024 * 1024, 90);
     payload[payload.length - 1] = 1;
     const expected = createHash('sha256').update(payload).digest('hex');

@@ -94,7 +94,8 @@ const contentPaths = [
     '/docs/',
     '/docs/reference/',
     ...docPages.map((page) => `/docs/${page.slug}/`),
-    '/plans/',
+    '/pricing/',
+    '/webhooks/',
     '/integrations/',
     '/connect/',
     '/privacy/',
@@ -160,7 +161,12 @@ for (const item of comparisons)
     assert.ok(llmsFull.includes(`Kivel vs ${item.name}`), `llms-full: ${item.slug}`);
 console.log(`Verified llms.txt, llms-full.txt, and the RSS feed (${articles.length} guides).`);
 
-const plansHtml = await readFile('out/plans/index.html', 'utf8');
+const plansHtml = await readFile('out/pricing/index.html', 'utf8');
+assert.equal(
+    [...plansHtml.matchAll(/<span class="content-tag">Start here<\/span>/g)].length,
+    1,
+    'Only the Free card shows the introductory badge',
+);
 assert.ok(
     !plansHtml.includes('cycle-yearly'),
     'Annual billing must not be advertised without checkout support',
@@ -180,7 +186,7 @@ assert.ok(
     robotsText.includes('Disallow: /oauth/'),
     'OAuth test endpoints are excluded from crawling',
 );
-for (const path of ['/account/', '/link/', '/approve/', '/share/', '/webhooks/', '/tools/']) {
+for (const path of ['/account/', '/link/', '/approve/', '/share/', '/tools/']) {
     const html = await readFile(join('out', path, 'index.html'), 'utf8');
     assert.match(
         html,
@@ -206,7 +212,7 @@ console.log(
 );
 
 const availableCount = catalog.filter((tool) => tool.status === 'available').length;
-for (const path of ['/', '/connect/', '/plans/', '/docs/']) {
+for (const path of ['/', '/connect/', '/pricing/', '/docs/']) {
     const html = await readFile(join('out', path, 'index.html'), 'utf8');
     const text = html.replace(/<[^>]*>/g, '').replaceAll('&amp;', '&');
     assert.ok(text.includes(`${availableCount} tools`), `${path}: catalog-derived tool count`);

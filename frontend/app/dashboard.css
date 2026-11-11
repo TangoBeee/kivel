@@ -1547,13 +1547,6 @@ body:has(.dashboard-layout) main::after {
   color: var(--ink);
 }
 
-/* The top bar only exists on small screens, where it holds the menu button */
-@media (min-width: 901px) {
-  .dashboard-topbar {
-    display: none;
-  }
-}
-
 /* Loading: the layout's shape, shimmering, until the workspace arrives */
 .dashboard-skeleton {
   display: grid;

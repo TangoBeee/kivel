@@ -138,8 +138,12 @@ test('anonymous allocations share one limit across resource types and deletion r
         headers: { 'content-type': 'application/octet-stream', 'x-file-name': 'test.txt' },
         payload: 'x',
     });
-    assert.equal(full.statusCode, 429);
-    assert.match(full.json().error, /resource limit/);
+    assert.equal(full.statusCode, 402);
+    assert.equal(full.json().code, 'limit_reached');
+    assert.equal(full.json().error, full.json().message);
+    assert.match(full.json().error, /allowance/);
+    assert.equal(full.json().limit, 'resources.active');
+    assert.equal(full.json().used, full.json().max);
     const inbox = inboxes[0];
     await app.inject({
         method: 'DELETE',
@@ -540,6 +544,26 @@ test('failed hosted tools do not consume daily runs through HTTP or MCP', async 
     assert.equal(await usage(), 2);
 });
 
+test('exhausted daily tool runs expose the UTC reset and a readable error', async (t) => {
+    const identities = new MemoryIdentityRepository();
+    t.mock.method(Date, 'now', () => Date.UTC(2026, 9, 26, 23, 59, 55));
+    t.mock.method(identities, 'consumeRun', () => {
+        return { allowed: false, used: 10, day: Math.floor(Date.now() / 86400000) };
+    });
+    const app = buildApp({ identityStore: identities });
+    t.after(() => app.close());
+    const response = await app.inject({
+        method: 'POST',
+        url: '/api/tools/json/run',
+        payload: { input: '{}' },
+    });
+    assert.equal(response.statusCode, 402, response.body);
+    assert.equal(response.headers['retry-after'], '5');
+    assert.equal(response.json().retryAfter, 5);
+    assert.equal(response.json().code, 'limit_reached');
+    assert.match(response.json().error, /Daily hosted tool allowance/);
+});
+
 test('failed run reservations are released only from their original UTC day', (t) => {
     const repository = new MemoryIdentityRepository();
     let now = Date.UTC(2026, 9, 26, 23, 59, 59);
@@ -846,9 +870,15 @@ test('agent memory stores JSON per workspace within the plan allowance, over HTT
     assert.equal(list.keys.length, 1);
     assert.equal(list.keys[0].value, undefined);
     assert.equal(list.limitBytes, 5 * 1024 * 1024);
-    for (let index = 0; index < 20; index++)
-        await put(`fill/k${index}`, { value: 'y'.repeat(250 * 1024) });
-    assert.equal((await put('fill/over', { value: 'y'.repeat(250 * 1024) })).statusCode, 413);
+    const value = 'y'.repeat(90 * 1024);
+    for (let index = 0; index < 56; index++) {
+        const fill = await put(`fill/k${index}`, { value });
+        assert.equal(fill.statusCode, 200, fill.body);
+    }
+    const over = await put('fill/over', { value });
+    assert.equal(over.statusCode, 402, over.body);
+    assert.equal(over.json().limit, 'memory.bytes');
+    assert.equal(over.json().max, list.limitBytes);
     const other = await signup(app, 'stranger'),
         otherKey = await key(app, other.cookie);
     assert.equal(

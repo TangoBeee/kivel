@@ -5,7 +5,7 @@
     "dev": "next dev --webpack --hostname 127.0.0.1 --port 3001",
     "build": "node --import tsx scripts/generate-openapi.mts && next build --webpack",
     "typecheck": "node --import tsx scripts/generate-openapi.mts && tsc --noEmit",
-    "test": "node --import tsx --test lib/catalog.test.ts lib/browser-operations.test.ts lib/request-filter.test.ts",
+    "test": "node --import tsx --test lib/catalog.test.ts lib/browser-operations.test.ts lib/request-filter.test.ts lib/app-routes.test.ts",
     "test:pages": "node --import tsx scripts/verify-pages.mts"
   },
   "dependencies": {

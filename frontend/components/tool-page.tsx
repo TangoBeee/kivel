@@ -22,6 +22,7 @@ export type ToolPanel = Extract<
     | 'vault'
     | 'authenticators'
     | 'automation'
+    | 'status'
 >;
 export const toolPanels: ToolPanel[] = [
     'email',
@@ -34,6 +35,7 @@ export const toolPanels: ToolPanel[] = [
     'vault',
     'authenticators',
     'automation',
+    'status',
 ];
 export const isToolPanel = (panel: DashboardPanel): panel is ToolPanel =>
     (toolPanels as string[]).includes(panel);
@@ -50,35 +52,31 @@ export const panelResources = (panel: ToolPanel, resources: Resource[]) => {
 type Reading = { label: string; used: number; limit?: number; show: string; note?: string };
 
 /** The limits that matter for one tool, as label, amount used and the plan limit. */
-export function readings(
-    panel: ToolPanel,
-    resources: Resource[],
-    usage: WorkspaceUsage,
-): Reading[] {
-    const mine = panelResources(panel, resources);
-    const limits = usage.limits;
-    const stored = resources.reduce((sum, item) => sum + item.storedBytes, 0);
-    const pool = limits && {
+export function readings(panel: ToolPanel, usage: WorkspaceUsage): Reading[] {
+    const active = usage.items?.find((item) => item.key === 'resources.active');
+    const stored = usage.items?.find((item) => item.key === 'resources.storage');
+    const inboxes = usage.items?.find((item) => item.key === 'email.inboxes');
+    const pool = active && {
         label: 'All resources',
-        used: resources.length,
-        limit: limits.maxResources,
-        show: `${resources.length} / ${limits.maxResources}`,
-        note: 'Webhooks, mocks and files share this',
+        used: active.used,
+        limit: active.max,
+        show: `${active.used} / ${active.max}`,
+        note: 'Shared across products',
     };
-    const storage = limits && {
+    const storage = stored && {
         label: 'Storage',
-        used: stored,
-        limit: limits.storageBytes,
-        show: `${formatBytes(stored)} / ${formatBytes(limits.storageBytes)}`,
+        used: stored.used,
+        limit: stored.max,
+        show: `${formatBytes(stored.used)} / ${formatBytes(stored.max)}`,
     };
     const list: (Reading | undefined)[] =
         panel === 'email'
             ? [
-                  limits && {
+                  inboxes && {
                       label: 'Inboxes',
-                      used: mine.length,
-                      limit: limits.emailInboxes,
-                      show: `${mine.length} / ${limits.emailInboxes}`,
+                      used: inboxes.used,
+                      limit: inboxes.max,
+                      show: `${inboxes.used} / ${inboxes.max}`,
                   },
                   usage.email && {
                       label: 'Sent this month',
@@ -147,11 +145,12 @@ export function UsageBar({ used, limit }: { used: number; limit?: number }) {
     const ratio = limit ? Math.min(1, used / limit) : 0;
     return (
         <span
-            className={`usage-bar ${limit && ratio >= 1 ? 'is-full' : ''}`}
+            className={`usage-bar ${ratio >= 1 ? 'is-full' : ratio >= 0.8 ? 'is-near' : ''}`}
             role="meter"
             aria-valuemin={0}
             aria-valuemax={limit ?? 0}
-            aria-valuenow={used}
+            aria-valuenow={limit ? Math.min(used, limit) : 0}
+            aria-valuetext={`${used} of ${limit ?? 0}`}
         >
             <i style={{ width: `${limit ? Math.max(ratio * 100, used > 0 ? 3 : 0) : 0}%` }} />
         </span>
@@ -278,7 +277,7 @@ export function ToolPage({
     const toolId = opened ? resourceTool(opened).id : open.tool;
     return (
         <div className="tool-page">
-            <Meters items={readings(panel, resources, usage)} onPlans={onPlans} />
+            <Meters items={readings(panel, usage)} onPlans={onPlans} />
             {toolId ? (
                 <EmbeddedTool
                     key={`${open.resource ?? ''}-${toolId}`}
@@ -314,7 +313,7 @@ export function ToolCards({
             <div className="tool-cards">
                 {toolPanels.map((panel) => {
                     const info = panelInfo(panel);
-                    const limit = readings(panel, resources, usage)[0];
+                    const limit = readings(panel, usage)[0];
                     const listed = info.kinds ? panelResources(panel, resources).length : undefined;
                     if (panel === 'automation' && !listed) return null;
                     const main =

@@ -365,7 +365,7 @@ test('OAuth workspace limits, isolation, expiry and atomic code consumption appl
             app.inject({ method: 'POST', url: '/api/oauth-providers', headers, payload: config }),
         ),
     );
-    assert.deepEqual(created.map((r) => r.statusCode).sort(), [201, 429]);
+    assert.deepEqual(created.map((r) => r.statusCode).sort(), [201, 402]);
     const provider = created.find((r) => r.statusCode === 201)!.json();
     for (const url of [
         `/api/oauth-providers/${provider.id}`,
@@ -528,10 +528,7 @@ test('provider plan counts enforce Free, Pro and Team limits and deletion restor
         const created = Array.from({ length: oauthLimits[plan] }, () =>
             store.create('mock', payload, undefined, context)!,
         );
-        assert.throws(
-            () => store.create('mock', payload, undefined, context),
-            /active resource limit/,
-        );
+        assert.throws(() => store.create('mock', payload, undefined, context), /oauth providers/i);
         assert.equal(store.delete(created[0]!.id, 'mock', '', context.ownerId), true);
         assert.ok(store.create('mock', payload, undefined, context));
     }

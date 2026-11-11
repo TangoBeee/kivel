@@ -55,7 +55,7 @@ export default function UseCasesPage() {
                     <p>
                         <Link href="/connect/">Connect an agent</Link> ·{' '}
                         <Link href="/docs/agent-workflows/">Read the implementation guide</Link> ·{' '}
-                        <Link href="/plans/">See every plan limit</Link>
+                        <Link href="/pricing/">See every plan limit</Link>
                     </p>
                 </section>
             </div>

@@ -272,6 +272,8 @@ test('agents without a human get a capped trial that keeps working until claimed
     const capped = await app.inject({ method: 'POST', url: '/api/agents/trial', payload: {} });
     assert.equal(capped.statusCode, 429);
     assert.match(capped.json().error, /api\/agents\/login/);
+    assert.equal(capped.json().code, 'rate_limited');
+    assert.ok(Number(capped.headers['retry-after']) > 86390);
 
     assert.equal((await poll(app, body.claim.deviceCode)).statusCode, 202);
     const session = await human(app, 'claimer');

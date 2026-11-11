@@ -21,7 +21,10 @@ export function accountOpenApi() {
         '400': json(undefined, 'Invalid input'),
         '401': json(undefined, 'Authentication required or credential invalid'),
         '403': json(undefined, 'Insufficient scope, role, or plan'),
-        '429': json(undefined, 'Quota exceeded; inspect Retry-After'),
+        '429': {
+            ...json({ $ref: '#/components/schemas/Error' }, 'Request rate limit exceeded'),
+            headers: { 'Retry-After': { schema: { type: 'integer', minimum: 1 } } },
+        },
         '503': json(undefined, 'Service or billing configuration unavailable'),
     };
     const operation = (
@@ -42,12 +45,6 @@ export function accountOpenApi() {
             ...errors,
         },
     });
-    const credentials = body(
-        object({
-            username: { ...string, pattern: '^[a-z0-9][a-z0-9_.-]{2,31}$' },
-            password: { ...string, minLength: 8, maxLength: 256, writeOnly: true },
-        }),
-    );
     const paths: Record<string, Record<string, unknown>> = {
         '/api/tools': {
             get: {
@@ -161,12 +158,43 @@ export function accountOpenApi() {
             get: {
                 ...operation(
                     'getUsage',
-                    'Read the current principal’s hosted execution usage',
+                    'Read hosted execution usage and workspace allowance counters',
                     'Accounts',
                     undefined,
                     false,
                 ),
+                description:
+                    'Hosted run usage is available to every caller. A workspace session or key with account:read also receives workspace counters in items. Each item includes key, label, unit, used, max and an optional UTC resetsAt. The period describes the current UTC day.',
                 security: [...auth, {}],
+                responses: {
+                    '200': json(
+                        object({
+                            plan: { type: 'string', enum: ['anonymous', 'free', 'pro', 'team'] },
+                            limits: { type: 'object', additionalProperties: true },
+                            runsToday: { type: 'integer', minimum: 0 },
+                            resetsAt: { type: 'string', format: 'date-time' },
+                            period: object({
+                                start: { type: 'string', format: 'date-time' },
+                                end: { type: 'string', format: 'date-time' },
+                            }),
+                            items: {
+                                type: 'array',
+                                items: object(
+                                    {
+                                        key: string,
+                                        label: string,
+                                        unit: { type: 'string', enum: ['count', 'bytes'] },
+                                        used: { type: 'integer', minimum: 0 },
+                                        max: { type: 'integer', minimum: 0 },
+                                        resetsAt: { type: 'string', format: 'date-time' },
+                                    },
+                                    ['key', 'label', 'unit', 'used', 'max'],
+                                ),
+                            },
+                        }),
+                    ),
+                    ...errors,
+                },
             },
         },
         '/api/email-sending/usage': {
@@ -178,44 +206,6 @@ export function accountOpenApi() {
                 ),
                 security: auth,
             },
-        },
-        '/api/auth/register': {
-            post: operation(
-                'register',
-                'Create a free username/password account and session',
-                'Accounts',
-                body(
-                    object(
-                        {
-                            username: { ...string, pattern: '^[a-z0-9][a-z0-9_.-]{2,31}$' },
-                            password: { ...string, minLength: 8, maxLength: 256, writeOnly: true },
-                            email: { ...string, format: 'email', maxLength: 254 },
-                        },
-                        ['username', 'password', 'email'],
-                    ),
-                ),
-                false,
-                '201',
-            ),
-        },
-        '/api/auth/login': {
-            post: operation(
-                'login',
-                'Sign in with a seven-day HttpOnly session cookie',
-                'Accounts',
-                credentials,
-                false,
-            ),
-        },
-        '/api/auth/logout': {
-            post: operation(
-                'logout',
-                'Revoke the current browser session',
-                'Accounts',
-                undefined,
-                true,
-                '204',
-            ),
         },
         '/api/account': {
             get: operation(
@@ -435,15 +425,6 @@ export function accountOpenApi() {
     const code = { type: 'string', pattern: '^[0-9]{8}$', writeOnly: true };
     const email = { type: 'string', format: 'email', maxLength: 254 };
     const password = { type: 'string', minLength: 8, maxLength: 256, writeOnly: true };
-    paths['/api/auth/recovery'] = {
-        get: operation(
-            'recoveryAvailability',
-            'Read email recovery availability',
-            'Accounts',
-            undefined,
-            false,
-        ),
-    };
     paths['/api/account/recovery'] = {
         get: {
             ...operation(
@@ -478,34 +459,6 @@ export function accountOpenApi() {
                 '204',
             ),
             security: [{ sessionCookie: [] }],
-        },
-    };
-    paths['/api/auth/password/forgot'] = {
-        post: {
-            ...operation(
-                'forgotPassword',
-                'Request a password reset code',
-                'Accounts',
-                body(object({ email })),
-                false,
-                '202',
-            ),
-            description:
-                'Requires the site Origin. Responses are identical for known and unknown addresses. Codes expire after 15 minutes, allow five attempts, and are sent only to verified recovery addresses. No codes appear in URLs or API responses.',
-        },
-    };
-    paths['/api/auth/password/reset'] = {
-        post: {
-            ...operation(
-                'resetPassword',
-                'Consume an email code and replace your password',
-                'Accounts',
-                body(object({ email, code, password })),
-                false,
-                '204',
-            ),
-            description:
-                'Requires the site Origin. Success revokes every user session and API key, consumes outstanding codes, and does not sign in automatically. Existing resources remain owned by the same account.',
         },
     };
     for (const kind of ['inboxes', 'mocks', 'files', 'mcp-servers', 'status-pages'])

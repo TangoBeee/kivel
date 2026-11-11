@@ -40,7 +40,7 @@ export default function Beta() {
                 <h2>Expect limits and keep your own copies</h2>
                 <p>
                     Hosted runs, active resources, storage, request rates and retention are bounded.
-                    See the <Link href="/plans/">current allowances</Link> and each tool’s guide.
+                    See the <Link href="/pricing/">current allowances</Link> and each tool’s guide.
                     Anonymous users on the same internet connection share limits. Browser-local
                     processing does not consume a hosted run; completed API scenario reports count
                     once even when assertions fail.

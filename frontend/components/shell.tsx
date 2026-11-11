@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { LiveLogo } from './live-logo';
 import { SearchLaunch } from './toolbox-provider';
 import { supportEmail, supportHref } from '../lib/support';
-import { useViewer } from '../lib/viewer';
+import { appLink } from '../lib/app-routes';
 
 const links = [
     {
@@ -15,7 +15,7 @@ const links = [
         match: (path: string) => path.startsWith('/connect'),
     },
     { href: '/docs/', label: 'Docs', match: (path: string) => path.startsWith('/docs') },
-    { href: '/plans/', label: 'Pricing', match: (path: string) => path === '/plans' },
+    { href: '/pricing/', label: 'Pricing', match: (path: string) => path === '/pricing' },
     {
         href: '/catalog/',
         label: 'Free tools',
@@ -39,69 +39,9 @@ const menuLinks = [
     { href: '/terms/', label: 'Terms', match: (path: string) => path === '/terms' },
 ];
 
-// Signed out: sign in and create account. Signed in: a way back to the dashboard.
-function HeaderAccount() {
-    const viewer = useViewer();
-    // Tells the first-load reveal (app/layout.tsx) that the header knows who is signed in.
-    useEffect(() => {
-        if (viewer.status !== 'loading') dispatchEvent(new Event('kivel:viewer'));
-    }, [viewer.status]);
-    if (viewer.status === 'loading')
-        return <span className="island-account is-loading" aria-hidden="true" />;
-    if (viewer.status === 'user')
-        return (
-            <div className="island-account">
-                <Link href="/account/" className="island-cta">
-                    <span className="island-avatar" aria-hidden="true">
-                        {viewer.username[0]?.toUpperCase()}
-                    </span>
-                    Dashboard
-                </Link>
-            </div>
-        );
-    return (
-        <div className="island-account">
-            <Link href="/account/" className="island-signin">
-                Sign in
-            </Link>
-            <Link
-                href="/account/#register"
-                className="island-cta"
-                onClick={(event) => {
-                    // Already on the account page: change the hash so the page switches to the
-                    // create account tab itself, without a reload.
-                    if (location.pathname.replace(/\/$/, '') === '/account') {
-                        event.preventDefault();
-                        location.hash = 'register';
-                    }
-                }}
-            >
-                Create account
-            </Link>
-        </div>
-    );
-}
-
 export function Header() {
     const pathname = usePathname().replace(/\/$/, '');
-    const viewer = useViewer();
-    const accountLinks =
-        viewer.status === 'user'
-            ? [
-                  {
-                      href: '/account/',
-                      label: 'Dashboard',
-                      match: (path: string) => path === '/account',
-                  },
-              ]
-            : [
-                  {
-                      href: '/account/',
-                      label: 'Sign in',
-                      match: (path: string) => path === '/account',
-                  },
-                  { href: '/account/#register', label: 'Create account', match: () => false },
-              ];
+    const accountLinks = [{ href: appLink(), label: 'Open app', match: () => false }];
     const [open, setOpen] = useState(false);
     const toggle = useRef<HTMLButtonElement>(null);
     const firstLink = useRef<HTMLAnchorElement>(null);
@@ -151,7 +91,11 @@ export function Header() {
                     ))}
                 </nav>
                 <SearchLaunch compact />
-                <HeaderAccount />
+                <div className="island-account">
+                    <Link href={appLink()} className="island-cta">
+                        Open app
+                    </Link>
+                </div>
                 <button
                     ref={toggle}
                     className="island-toggle"
@@ -177,34 +121,14 @@ export function Header() {
                                 key={link.href}
                                 style={{ transitionDelay: `${100 + index * 50}ms` }}
                             >
-                                {link.href.includes('#') ? (
-                                    <Link
-                                        ref={index === 0 ? firstLink : undefined}
-                                        href={link.href}
-                                        onClick={(event) => {
-                                            setOpen(false);
-                                            const hash = link.href.split('#')[1]!;
-                                            if (
-                                                location.pathname.replace(/\/$/, '') ===
-                                                link.href.split('#')[0]!.replace(/\/$/, '')
-                                            ) {
-                                                event.preventDefault();
-                                                location.hash = hash;
-                                            }
-                                        }}
-                                    >
-                                        {link.label}
-                                    </Link>
-                                ) : (
-                                    <Link
-                                        ref={index === 0 ? firstLink : undefined}
-                                        href={link.href}
-                                        aria-current={link.match(pathname) ? 'page' : undefined}
-                                        onClick={() => setOpen(false)}
-                                    >
-                                        {link.label}
-                                    </Link>
-                                )}
+                                <Link
+                                    ref={index === 0 ? firstLink : undefined}
+                                    href={link.href}
+                                    aria-current={link.match(pathname) ? 'page' : undefined}
+                                    onClick={() => setOpen(false)}
+                                >
+                                    {link.label}
+                                </Link>
                             </li>
                         ))}
                     </ul>
@@ -219,7 +143,7 @@ const footerColumns = [
         title: 'Product',
         links: [
             { href: '/connect/', label: 'Setup' },
-            { href: '/plans/', label: 'Pricing' },
+            { href: '/pricing/', label: 'Pricing' },
             { href: '/catalog/', label: 'Free tools' },
             { href: '/integrations/', label: 'Integrations' },
             { href: '/use-cases/', label: 'Use cases' },
@@ -239,7 +163,7 @@ const footerColumns = [
         links: [
             { href: '/blog/', label: 'Blog' },
             { href: '/contact/', label: 'Contact & support' },
-            { href: '/account/', label: 'Workspace' },
+            { href: appLink(), label: 'Workspace' },
         ],
     },
 ];

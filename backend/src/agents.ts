@@ -1,3 +1,4 @@
+import { RateLimitError } from './errors.js';
 import {
     createCipheriv,
     createDecipheriv,
@@ -60,8 +61,7 @@ type MaybePromise<T> = T | Promise<T>;
 export interface AgentRepository {
     createTrial(trial: AgentTrial): MaybePromise<void>;
     trialByToken(tokenHash: string): MaybePromise<AgentTrial | undefined>;
-    /** Trials started from one network in the last 24 hours. */
-    recentTrials(ipKey: string): MaybePromise<number>;
+    trialRetryAfter(ipKey: string): MaybePromise<number>;
     createLogin(login: AgentLogin): MaybePromise<void>;
     loginById(id: string): MaybePromise<AgentLogin | undefined>;
     loginByCode(userCode: string): MaybePromise<AgentLogin | undefined>;
@@ -89,11 +89,15 @@ export class MemoryAgents implements AgentRepository {
         const trial = [...this.trials.values()].find((item) => item.tokenHash === tokenHash);
         return trial && Date.parse(trial.expiresAt) > Date.now() ? { ...trial } : undefined;
     }
-    recentTrials(ipKey: string) {
-        const since = Date.now() - 86400000;
-        return [...this.trials.values()].filter(
-            (trial) => trial.ipKey === ipKey && Date.parse(trial.createdAt) > since,
-        ).length;
+    trialRetryAfter(ipKey: string) {
+        const now = Date.now();
+        const cutoff = [...this.trials.values()]
+            .filter(
+                (trial) => trial.ipKey === ipKey && Date.parse(trial.createdAt) > now - 86400000,
+            )
+            .map((trial) => Date.parse(trial.createdAt))
+            .sort((left, right) => right - left)[TRIALS_PER_NETWORK - 1];
+        return cutoff === undefined ? 0 : Math.max(1, Math.ceil((cutoff + 86400000 - now) / 1000));
     }
     createLogin(login: AgentLogin) {
         this.logins.set(login.id, { ...login });
@@ -195,12 +199,14 @@ export class PostgresAgents implements AgentRepository {
               }
             : undefined;
     }
-    async recentTrials(ipKey: string) {
-        const result = await this.pool.query<{ count: string }>(
-            "SELECT count(*) FROM agent_trials WHERE ip_key = $1 AND created_at > clock_timestamp() - interval '1 day'",
-            [ipKey],
+    async trialRetryAfter(ipKey: string) {
+        const { rows } = await this.pool.query<{ retry_after: number }>(
+            `SELECT GREATEST(1, ceil(extract(epoch FROM created_at + interval '24 hours' - clock_timestamp())))::integer AS retry_after
+             FROM agent_trials WHERE ip_key = $1 AND created_at > clock_timestamp() - interval '24 hours'
+             ORDER BY created_at DESC OFFSET $2 LIMIT 1`,
+            [ipKey, TRIALS_PER_NETWORK - 1],
         );
-        return Number(result.rows[0]!.count);
+        return rows[0]?.retry_after ?? 0;
     }
     async createLogin(login: AgentLogin) {
         await this.pool.query(
@@ -332,7 +338,6 @@ export interface AgentContext {
     access: Access;
     identities: IdentityRepository;
     agents: AgentRepository;
-    origin: string;
     limits: RateLimitRepository;
     mail?: MailSender;
 }
@@ -357,22 +362,14 @@ async function workspaceAgents(
         .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
 }
 
-export function registerAgents({
-    app,
-    access,
-    identities,
-    agents,
-    origin,
-    limits,
-    mail,
-}: AgentContext) {
+export function registerAgents({ app, access, identities, agents, limits, mail }: AgentContext) {
     access.trials = async (token) => {
         const trial = await agents.trialByToken(hash('trial', token).toString('hex'));
         if (!trial) return undefined;
         const login = await agents.loginById(trial.loginId);
         return {
             id: trial.id,
-            ...(login ? { claimUrl: `${origin}/link/?code=${login.userCode}` } : {}),
+            ...(login ? { claimUrl: access.appUrl(`/link/?code=${login.userCode}`) } : {}),
         };
     };
     const manager = (identity: Identity) => {
@@ -413,7 +410,7 @@ export function registerAgents({
                 expiresAt: new Date(now + LOGIN_TTL_MS).toISOString(),
             };
             await agents.createLogin(login);
-            const link = `${origin}/link/?code=${login.userCode}`;
+            const link = access.appUrl(`/link/?code=${login.userCode}`);
             return reply.code(201).send({
                 userCode: login.userCode,
                 verificationUrl: link,
@@ -445,10 +442,12 @@ export function registerAgents({
                     400,
                     'You already have a key. Trials are for agents without one.',
                 );
-            if ((await agents.recentTrials(network.quotaKey)) >= TRIALS_PER_NETWORK)
-                throw new HttpError(
-                    429,
+            const retryAfter = await agents.trialRetryAfter(network.quotaKey);
+            if (retryAfter)
+                throw new RateLimitError(
+                    'agents.trials',
                     'This network started 3 trials today. Ask your human to connect you with POST /api/agents/login instead.',
+                    retryAfter,
                 );
             const humanEmail =
                 typeof body.humanEmail === 'string' &&
@@ -480,7 +479,7 @@ export function registerAgents({
                 createdAt: login.createdAt,
                 expiresAt: login.expiresAt,
             });
-            const claimUrl = `${origin}/link/?code=${login.userCode}`;
+            const claimUrl = access.appUrl(`/link/?code=${login.userCode}`);
             let notified = false;
             // One notice per address per minute, so the trial endpoint cannot be used to spam people.
             if (humanEmail && mail && !(await limits.consume(`trial-mail:${humanEmail}`, 1))) {
@@ -622,7 +621,7 @@ export function registerAgents({
         return {
             status: 'approved',
             apiKey,
-            mcp: { url: `${origin}/mcp`, header: `Authorization: Bearer ${apiKey}` },
+            mcp: { url: `${access.origin}/mcp`, header: `Authorization: Bearer ${apiKey}` },
             next: 'Store the key in your MCP client config or an environment variable such as KIVEL_API_KEY. Do not print it in chat.',
         };
     });

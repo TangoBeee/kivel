@@ -141,4 +141,5 @@ export interface OperationOptions {
     selector?: string;
     disambiguation?: string;
     userAgent?: string;
+    domain?: string;
 }

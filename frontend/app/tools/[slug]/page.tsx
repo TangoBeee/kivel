@@ -22,6 +22,7 @@ import { toolGuide, toolExample, toolArticle } from '../../../lib/tool-guides';
 import { CodeExample } from '../../../components/code-example';
 import { StructuredData } from '../../../components/content-layout';
 import { breadcrumbs, pageMetadata } from '../../../lib/seo';
+import { toolSeo } from '../../../lib/tool-seo';
 
 function appPanel(tool: CatalogTool): WorkspacePanel | undefined {
     if (tool.status !== 'available') return undefined;
@@ -64,9 +65,12 @@ export async function generateMetadata({
     if (!tool) return {};
     const available = tool.status === 'available';
     // What people type into search: the tool name plus "free online".
-    const title = available ? `${tool.name}: free online tool` : `${tool.name} · Coming soon`;
+    const seo = toolSeo[tool.id];
+    const title = available
+        ? (seo?.title ?? `${tool.name}: free online tool`)
+        : `${tool.name} · Coming soon`;
     const description = available
-        ? (toolExample(tool.id)?.useCase ?? tool.description)
+        ? (seo?.description ?? toolExample(tool.id)?.useCase ?? tool.description)
         : `${tool.description} Planned for Kivel; not available yet.`;
     return {
         ...pageMetadata(title, description, toolPageHref(tool)),
@@ -81,19 +85,26 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
     const guide = toolGuide(tool);
     const example = toolExample(tool.id);
     const article = toolArticle(tool.id);
-    const related = catalog
-        .filter(
-            (entry) =>
-                entry.categoryId === tool.categoryId &&
-                entry.id !== tool.id &&
-                entry.status === 'available',
-        )
-        .sort((left, right) =>
-            article
-                ? Number(Boolean(toolArticle(right.id))) - Number(Boolean(toolArticle(left.id)))
-                : 0,
-        )
-        .slice(0, 4);
+    const seo = toolSeo[tool.id];
+    const picked = (seo?.related ?? [])
+        .map((id) => catalog.find((entry) => entry.id === id))
+        .filter((entry) => entry?.status === 'available') as typeof catalog;
+    const related = [
+        ...picked,
+        ...catalog
+            .filter(
+                (entry) =>
+                    entry.categoryId === tool.categoryId &&
+                    entry.id !== tool.id &&
+                    entry.status === 'available' &&
+                    !picked.includes(entry),
+            )
+            .sort((left, right) =>
+                article
+                    ? Number(Boolean(toolArticle(right.id))) - Number(Boolean(toolArticle(left.id)))
+                    : 0,
+            ),
+    ].slice(0, 6);
     return (
         <>
             <StructuredData
@@ -102,6 +113,19 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
                     { name: tool.name, path: toolPageHref(tool) },
                 ])}
             />
+            {seo && (
+                <StructuredData
+                    value={{
+                        '@context': 'https://schema.org',
+                        '@type': 'FAQPage',
+                        mainEntity: seo.faq.map(([question, answer]) => ({
+                            '@type': 'Question',
+                            name: question,
+                            acceptedAnswer: { '@type': 'Answer', text: answer },
+                        })),
+                    }}
+                />
+            )}
             {panel ? (
                 <div className="page-width work-page">
                     <ToolHeader toolId={tool.id} />
@@ -193,6 +217,17 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
                             Read the full guide →
                         </Link>
                     </p>
+                )}
+                {seo && (
+                    <section className="tool-guide-detail" aria-label="Frequently asked questions">
+                        <h3>Frequently asked questions</h3>
+                        {seo.faq.map(([question, answer]) => (
+                            <details key={question}>
+                                <summary>{question}</summary>
+                                <p>{answer}</p>
+                            </details>
+                        ))}
+                    </section>
                 )}
                 {related.length > 0 && (
                     <nav className="related-tools" aria-label="Related tools">

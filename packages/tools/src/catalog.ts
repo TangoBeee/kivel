@@ -327,7 +327,10 @@ const planned: Record<Category['id'], [string, string][]> = {
         ['Temporary notes', 'Share a short note with an expiration time.'],
     ],
     developer: [
-        ['Fake identity generator', 'Create diverse synthetic names, addresses and companies.'],
+        [
+            'Fake identity generator',
+            'Generate realistic fake people with addresses, phones, emails and birthdays.',
+        ],
         ['Test bank account generator', 'Generate fake IBAN and US bank account fixtures.'],
         ['JSON Schema validator', 'Validate JSON with precise paths and readable errors.'],
         ['JSON Schema from sample', 'Infer a reusable schema from representative JSON.'],

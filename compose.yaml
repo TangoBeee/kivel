@@ -7,8 +7,8 @@ services:
       args:
         BILLING_ENABLED: ${BILLING_ENABLED:-false}
         BILLING_PRICE_SCHEDULE: ${BILLING_PRICE_SCHEDULE:-}
-        SITE_URL: ${SITE_URL:-http://localhost:8080}
-        APP_URL: ${APP_URL:-http://127.0.0.1:8080}
+        SITE_URL: ${SITE_URL:-${PUBLIC_BASE_URL:-http://localhost:8080}}
+        APP_URL: ${APP_URL:-${APP_BASE_URL:-${PUBLIC_BASE_URL:-http://localhost:8080}}}
     image: ${APP_IMAGE:-kivel:local}
     init: true
     restart: unless-stopped
@@ -18,7 +18,7 @@ services:
     environment:
       NODE_ENV: production
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
-      APP_BASE_URL: ${APP_BASE_URL:-http://127.0.0.1:8080}
+      APP_BASE_URL: ${APP_BASE_URL:-${PUBLIC_BASE_URL:-http://localhost:8080}}
       DATABASE_URL: postgres://socket:${APP_DATABASE_PASSWORD:?Run node scripts/setup-env.mjs}@database:5432/socket
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
       LOG_LEVEL: ${LOG_LEVEL:-info}

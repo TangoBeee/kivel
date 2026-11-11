@@ -121,7 +121,7 @@ export class KivelError extends Error {
 }
 function apiFailure(response: Response, value: unknown) {
     const error = value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
-    const code = error.error;
+    const code = error.code ?? error.error;
     const details: KivelLimitDetails | undefined =
         (code === 'limit_reached' || code === 'rate_limited') && typeof error.limit === 'string'
             ? {
@@ -137,8 +137,8 @@ function apiFailure(response: Response, value: unknown) {
     return new KivelError(
         typeof error.message === 'string'
             ? error.message
-            : typeof code === 'string'
-              ? code
+            : typeof error.error === 'string'
+              ? error.error
               : `Request failed (${response.status}).`,
         response.status,
         response.headers.get('x-request-id') ?? undefined,

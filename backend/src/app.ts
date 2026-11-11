@@ -298,14 +298,15 @@ export function buildApp({
         };
         const expected = error instanceof HttpError ? error : allocationError(failure);
         if (expected) {
+            if (expected.retryAfter) reply.header('Retry-After', expected.retryAfter);
             if (expected instanceof LimitError)
                 return reply
                     .code(402)
                     .send({ ...expected.details(baseUrl.origin), requestId: request.id });
-            if (expected.retryAfter) reply.header('Retry-After', expected.retryAfter);
-            if (expected.statusCode === 429 && expected.retryAfter)
+            if (expected.statusCode === 429)
                 return reply.code(429).send({
-                    error: 'rate_limited',
+                    error: expected.message,
+                    code: 'rate_limited',
                     message: expected.message,
                     limit:
                         expected instanceof RateLimitError

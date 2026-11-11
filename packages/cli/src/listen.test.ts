@@ -125,3 +125,46 @@ test('the webhook listener reads captures on a notice and falls back on older se
         assert.deepEqual(lines[1], { event: 'request', request });
     }
 });
+
+test('the listener backs off on network errors and resumes from the last processed cursor', async () => {
+    const controller = new AbortController();
+    const cursors: (string | null)[] = [];
+    const requests: object[] = [];
+    let waits = 0;
+    const frame = (cursor: string) => `id: ${cursor}\nevent: ready\ndata: {}\n\n`;
+    const client = new Kivel({
+        fetch: async (target, options) => {
+            const url = new URL(String(target));
+            if (url.pathname === '/api/stream') {
+                cursors.push(new Headers(options?.headers).get('last-event-id'));
+                if (cursors.length === 2) throw new TypeError('fetch failed');
+                return new Response(
+                    cursors.length === 1 ? frame('first') + frame('second') : frame('second'),
+                    {
+                        headers: { 'content-type': 'text/event-stream' },
+                    },
+                );
+            }
+            assert.equal(url.pathname, '/api/inboxes/abc/wait');
+            waits++;
+            if (waits === 2) throw new TypeError('fetch failed');
+            if (waits === 3) assert.equal(url.searchParams.get('after'), request.id);
+            return Response.json({
+                timedOut: false,
+                requests: [{ ...request, id: waits === 1 ? request.id : 'r2' }],
+            });
+        },
+    });
+    await listen(
+        client,
+        'abc',
+        { all: true },
+        (line) => {
+            if ('request' in line) requests.push(line.request as object);
+            if (requests.length === 2) controller.abort();
+        },
+        controller.signal,
+    );
+    assert.deepEqual(cursors, [null, 'first', 'first']);
+    assert.deepEqual(requests, [request, { ...request, id: 'r2' }]);
+});

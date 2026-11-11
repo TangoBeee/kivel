@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { signatureProviders, verifyWebhookSignature } from '@kivel.io/tools/webhooks';
 import type { SignatureProvider } from '@kivel.io/tools/webhooks';
 import type { CapturedRequest } from '../lib/api';
+import { siteOrigin } from '../lib/site';
 import { AppSelect, SelectOption } from './app-select';
 import { Button } from '@radix-ui/themes';
 
@@ -18,9 +19,7 @@ export function WebhookSignature({ request }: { request: CapturedRequest }) {
     const [result, setResult] = useState<{ valid: boolean; reason: string } | null>(null);
     const [busy, setBusy] = useState(false);
     useEffect(() => {
-        setUrl(
-            `${location.origin}${request.path}${request.rawQuery ? `?${request.rawQuery}` : ''}`,
-        );
+        setUrl(`${siteOrigin}${request.path}${request.rawQuery ? `?${request.rawQuery}` : ''}`);
     }, [request.path, request.rawQuery]);
     async function verify() {
         setBusy(true);

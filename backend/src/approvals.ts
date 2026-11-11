@@ -55,6 +55,7 @@ export interface ApprovalRepository {
     get(accountId: string, id: string): MaybePromise<Approval | undefined>;
     list(accountId: string, pendingOnly: boolean): MaybePromise<Approval[]>;
     countSince(accountId: string, since: string): MaybePromise<number>;
+    quotaRetryAfter(accountId: string, maximum: number): MaybePromise<number>;
     pruneDraftEdits(resources: ResourceRepository): MaybePromise<void>;
     consume(accountId: string, id: string): MaybePromise<boolean>;
     /** Records an answer only while the request is still pending and unexpired. */
@@ -76,7 +77,16 @@ export class MemoryApprovals implements ApprovalRepository {
     create(approval: Approval, plan: PlanId, queueDraft?: QueueDraft) {
         if (this.items.has(approval.id)) return false;
         const since = new Date(Date.now() - 86400000).toISOString();
-        checkLimit(plan, 'approvals.questions', this.countSince(approval.accountId, since));
+        const used = this.countSince(approval.accountId, since);
+        const maximum = plans[plan].approvalQuestionsPerDay;
+        if (used >= maximum)
+            checkLimit(
+                plan,
+                'approvals.questions',
+                used,
+                1,
+                this.quotaRetryAfter(approval.accountId, maximum) || 1,
+            );
         this.items.set(approval.id, { ...approval });
         if (!queueDraft) return true;
         return queueDraft().then(
@@ -107,6 +117,17 @@ export class MemoryApprovals implements ApprovalRepository {
         return [...this.items.values()].filter(
             (item) => item.accountId === accountId && item.createdAt > since,
         ).length;
+    }
+    quotaRetryAfter(accountId: string, maximum: number) {
+        const now = Date.now();
+        const cutoff = [...this.items.values()]
+            .filter(
+                (item) =>
+                    item.accountId === accountId && Date.parse(item.createdAt) > now - 86400000,
+            )
+            .map((item) => Date.parse(item.createdAt))
+            .sort((left, right) => right - left)[maximum - 1];
+        return cutoff === undefined ? 0 : Math.max(1, Math.ceil((cutoff + 86400000 - now) / 1000));
     }
     consume(accountId: string, id: string) {
         const approval = this.items.get(id);
@@ -159,7 +180,7 @@ export class PostgresApprovals implements ApprovalRepository {
     constructor(private readonly pool: Pool) {}
     create(approval: Approval, plan: PlanId, queueDraft?: QueueDraft) {
         return transaction(this.pool, async (client) => {
-            await client.query('SELECT id FROM accounts WHERE id = $1 FOR UPDATE', [
+            await client.query('SELECT id FROM accounts WHERE id = $1 FOR NO KEY UPDATE', [
                 approval.accountId,
             ]);
             if (
@@ -171,7 +192,16 @@ export class PostgresApprovals implements ApprovalRepository {
                 "SELECT count(*) FROM approvals WHERE account_id = $1 AND created_at > clock_timestamp() - interval '1 day'",
                 [approval.accountId],
             );
-            checkLimit(plan, 'approvals.questions', Number(rows[0]!.count));
+            const used = Number(rows[0]!.count);
+            const maximum = plans[plan].approvalQuestionsPerDay;
+            if (used >= maximum)
+                checkLimit(
+                    plan,
+                    'approvals.questions',
+                    used,
+                    1,
+                    (await this.quotaRetryAfter(approval.accountId, maximum, client)) || 1,
+                );
             const result = await client.query(
                 'INSERT INTO approvals (id, account_id, approval, status, created_at, expires_at) VALUES ($1, $2, $3::jsonb, $4, $5, $6) ON CONFLICT (id) DO NOTHING',
                 [
@@ -209,6 +239,19 @@ export class PostgresApprovals implements ApprovalRepository {
             [accountId, since],
         );
         return Number(result.rows[0]!.count);
+    }
+    async quotaRetryAfter(
+        accountId: string,
+        maximum: number,
+        client: Pick<Pool, 'query'> = this.pool,
+    ) {
+        const { rows } = await client.query<{ retry_after: number }>(
+            `SELECT GREATEST(1, ceil(extract(epoch FROM created_at + interval '24 hours' - clock_timestamp())))::integer AS retry_after
+             FROM approvals WHERE account_id = $1 AND created_at > clock_timestamp() - interval '24 hours'
+             ORDER BY created_at DESC OFFSET $2 LIMIT 1`,
+            [accountId, maximum - 1],
+        );
+        return rows[0]?.retry_after ?? 0;
     }
     async consume(accountId: string, id: string) {
         if (!isUuid(id)) return false;
@@ -342,12 +385,20 @@ export function registerApprovals({
         const minutes = body.timeoutMinutes === undefined ? 60 : Number(body.timeoutMinutes);
         if (!Number.isInteger(minutes) || minutes < 1 || minutes > 1440)
             throw new HttpError(400, 'timeoutMinutes must be between 1 and 1440.');
-        const since = new Date(Date.now() - 86400000).toISOString();
-        checkLimit(
-            actor.plan,
-            'approvals.questions',
-            await approvals.countSince(identity.account.id, since),
+        const retryAfter = await approvals.quotaRetryAfter(
+            identity.account.id,
+            plans[actor.plan].approvalQuestionsPerDay,
         );
+        if (retryAfter) {
+            const since = new Date(Date.now() - 86400000).toISOString();
+            checkLimit(
+                actor.plan,
+                'approvals.questions',
+                await approvals.countSince(identity.account.id, since),
+                1,
+                retryAfter,
+            );
+        }
         const agent = identity.keyId
             ? (await agents.agents(identity.account.id)).find(
                   (item) => item.keyId === identity.keyId,

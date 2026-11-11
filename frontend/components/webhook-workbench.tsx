@@ -515,7 +515,7 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
                 title={toolId === 'webhooks' ? 'Catch every callback.' : undefined}
                 description={
                     toolId === 'webhooks'
-                        ? 'A temporary endpoint. A clear view of every request.'
+                        ? 'Get a webhook URL and inspect every request it receives.'
                         : undefined
                 }
             >

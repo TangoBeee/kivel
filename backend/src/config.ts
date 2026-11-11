@@ -119,6 +119,10 @@ export function readConfig(env: Record<string, string | undefined>) {
         env.DODO_PRO_PRODUCT_ID,
         env.DODO_TEAM_PRODUCT_ID,
     ]);
+    if (priceSchedule !== 'legacy' && !Object.keys(legacyProducts ?? {}).length)
+        throw new Error(
+            'DODO_LEGACY_PRODUCT_IDS is required when BILLING_PRICE_SCHEDULE is not legacy.',
+        );
     const dodoConfig = configured.length
         ? {
               apiKey: env.DODO_PAYMENTS_API_KEY!,

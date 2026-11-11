@@ -188,6 +188,8 @@ test('Free sending needs verified account mail, enforces recipient/daily/minute 
     const capped = await f.send();
     assert.equal(capped.statusCode, 402);
     assert.equal(capped.json().limit, 'email.sent_today');
+    assert.ok(Number(capped.headers['retry-after']) > 0);
+    assert.equal(capped.json().retryAfter, Number(capped.headers['retry-after']));
     assert.equal(capped.json().used, 3);
     assert.match(capped.body, /Daily email allowance/);
     assert.equal(f.sent.length, 3);
@@ -412,6 +414,7 @@ test('monthly caps count deliveries on earlier days', async (t) => {
     const response = await f.send();
     assert.equal(response.statusCode, 402);
     assert.equal(response.json().limit, 'email.sent_month');
+    assert.ok(Number(response.headers['retry-after']) > 0);
     assert.match(response.body, /Monthly email allowance/);
 });
 

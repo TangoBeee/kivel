@@ -199,7 +199,8 @@ try {
             response.writeHead(402, { 'X-Request-Id': 'package-limit' });
             return response.end(
                 JSON.stringify({
-                    error: 'limit_reached',
+                    error: 'Your Free plan allows 20 monitors.',
+                    code: 'limit_reached',
                     message: 'Your Free plan allows 20 monitors.',
                     limit: 'monitors.active',
                     plan: 'free',

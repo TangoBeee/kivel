@@ -21,6 +21,7 @@ export function useLiveStream(
         let retry: ReturnType<typeof setTimeout> | undefined;
         let refreshTimer: ReturnType<typeof setTimeout> | undefined;
         let connected = false;
+        let reconnectDelay = 1000;
         let loading = false;
         let changed = false;
         let refreshAfter = 0;
@@ -48,6 +49,12 @@ export function useLiveStream(
                 }
             }
         }
+        function reconnect(retryAfter = 0) {
+            if (signal.aborted) return;
+            clearTimeout(retry);
+            retry = setTimeout(connect, Math.max(reconnectDelay, retryAfter * 1000));
+            reconnectDelay = Math.min(reconnectDelay * 2, 30000);
+        }
         async function connect() {
             const query = new URLSearchParams({ topics });
             if (token) {
@@ -65,11 +72,7 @@ export function useLiveStream(
                     ).json();
                     query.set('ticket', ticket);
                 } catch (failure) {
-                    const delay =
-                        failure instanceof ApiError
-                            ? Math.max(5000, failure.retryAfter * 1000)
-                            : 5000;
-                    if (!signal.aborted) retry = setTimeout(connect, delay);
+                    reconnect(failure instanceof ApiError ? failure.retryAfter : undefined);
                     return;
                 }
             }
@@ -77,18 +80,20 @@ export function useLiveStream(
             const connection = new EventSource(`/api/stream?${query}`);
             source = connection;
             connection.addEventListener('ready', () => {
+                if (source !== connection || signal.aborted) return;
+                reconnectDelay = 1000;
                 connected = true;
                 setLive(true);
                 void pull();
             });
             connection.addEventListener('change', () => void pull());
             connection.onerror = () => {
+                if (source !== connection || signal.aborted) return;
+                connection.close();
+                source = undefined;
                 connected = false;
                 setLive(false);
-                if (token) {
-                    connection.close();
-                    retry = setTimeout(connect, 5000);
-                }
+                reconnect();
             };
         }
         void pull();

@@ -30,15 +30,15 @@ export const comparisons: Comparison[] = [
         description:
             'Kivel gives private webhook inboxes with custom responses, forwarding, email inboxes and MCP for agents; Webhook.site adds workflows, schedules and custom domains.',
         summary:
-            'Both give a callback a temporary destination with a custom response. Kivel inboxes are private by default, forward to your server on Pro, and sit next to email inboxes, mocks, files, utilities and MCP for agents. Webhook.site adds a larger automation platform with workflows and schedules.',
+            'Both give callbacks a destination with a custom response. Kivel inboxes are private by default, forward to your server on Pro, and sit next to email inboxes, mocks, files, utilities and MCP for agents. Webhook.site adds a larger automation platform with workflows and schedules.',
         kivelFit:
-            'Choose Kivel when a disposable inbox is one part of a development workflow: capture a callback, format its JSON, test a mock response, or let an MCP agent inspect the result.',
+            'Choose Kivel when a webhook inbox is one part of a development workflow: capture a callback, format its JSON, test a mock response, or let an MCP agent inspect the result.',
         otherFit:
             'Choose Webhook.site when you need custom actions, workflows, schedules or custom domains. Its documentation covers automation well beyond request inspection.',
         rows: [
             {
                 topic: 'Main workflow',
-                kivel: 'Temporary testing resources and browser utilities in one toolbox.',
+                kivel: 'Hosted resources and browser utilities in one toolbox.',
                 other: 'Webhook and email inspection plus workflow automation and custom actions.',
             },
             {
@@ -121,7 +121,7 @@ export const comparisons: Comparison[] = [
         summary:
             'Kivel creates a small hosted mock API that expires. Mockoon is a dedicated, open source mocking environment that runs as a desktop application or headless through its CLI and Docker image.',
         kivelFit:
-            'Choose Kivel for a small disposable endpoint with predictable bodies, status codes, and delays that other people or CI can reach without installing anything, especially when you also need webhook inspection or file sharing.',
+            'Choose Kivel for a mock endpoint with predictable bodies, status codes, and delays that other people or CI can reach without installing anything, especially when you also need webhook inspection or file sharing.',
         otherFit:
             'Choose Mockoon for richer mock design and reusable environments, including Faker.js templating, response rules, CRUD routes, recording, proxying, and running mocks locally or through its CLI.',
         rows: [

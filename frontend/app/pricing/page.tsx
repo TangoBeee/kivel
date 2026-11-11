@@ -100,7 +100,7 @@ const rows: { name: string; value: (id: PlanId) => string }[] = [
 const extras: Record<PlanId, string[]> = {
     anonymous: [
         'Browser utilities, test data and public network checks',
-        'Temporary HTTP, mock and file resources',
+        'Webhook inboxes, mock APIs and file sharing',
     ],
     free: [
         'Email, memory, monitors and authenticators',

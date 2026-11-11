@@ -759,7 +759,7 @@ test('SSH verifies host identity, executes the shared engine, rejects shell comm
     assert.equal(paid.stdout, '');
     assert.equal(JSON.parse(paid.stderr).status, 402);
     assert.equal(JSON.parse(paid.stderr).requiredPlan, 'pro');
-    assert.equal(JSON.parse(paid.stderr).upgradeUrl, `${publicBaseUrl}/plans/`);
+    assert.equal(JSON.parse(paid.stderr).upgradeUrl, `${publicBaseUrl}/pricing/`);
     const email = await execute(client, 'kivel email create');
     assert.equal(email.code, 0, email.stderr);
     const emailId = JSON.parse(email.stdout).id;
@@ -1488,10 +1488,12 @@ test('agent trials resolve by token until they expire and count toward the netwo
     await store.createTrial(trial(crypto.randomUUID(), 'old-token', now - 1000));
     assert.equal((await store.trialByToken('live-token'))?.name, 'Trial bot');
     assert.equal(await store.trialByToken('old-token'), undefined);
-    assert.equal(await store.recentTrials('network-a'), 2);
-    assert.equal(await store.recentTrials('network-b'), 0);
+    assert.equal(await store.trialRetryAfter('network-a'), 0);
+    await store.createTrial(trial(crypto.randomUUID(), 'third-token', now + 3600000));
+    assert.ok((await store.trialRetryAfter('network-a')) > 86390);
+    assert.equal(await store.trialRetryAfter('network-b'), 0);
     await store.deleteExpired();
-    assert.equal(await store.recentTrials('network-a'), 2);
+    assert.ok((await store.trialRetryAfter('network-a')) > 86390);
 });
 
 test('approvals are answered once and never after they expire', async () => {
@@ -1555,6 +1557,7 @@ test('the cookie coupon is created once per person, only before a first subscrip
     const identities = new PostgresIdentityRepository(pool),
         recovery = new PostgresRecoveryRepository(pool);
     let discounts = 0;
+    let discountRestrictions = ['pdt_pro', 'pdt_team'];
     let discountPayload: Record<string, unknown> = {};
     let checkoutPayload: Record<string, unknown> = {};
     const dodo = new DodoPayments({
@@ -1588,6 +1591,10 @@ test('the cookie coupon is created once per person, only before a first subscrip
                     code: discountPayload.code,
                 });
             }
+            if (url.pathname === '/discounts/dsc_1')
+                return Response.json({ restricted_to: discountRestrictions });
+            if (url.pathname === '/checkouts/cks_cookie')
+                return Response.json({ payment_status: 'cancelled' });
             if (url.pathname === '/customers') return Response.json({ customer_id: 'cus_cookie' });
             if (url.pathname === '/subscriptions') return Response.json({ items: [] });
             if (url.pathname === '/checkouts') {
@@ -1659,6 +1666,16 @@ test('the cookie coupon is created once per person, only before a first subscrip
     });
     assert.equal(checkout.statusCode, 200, checkout.body);
     assert.deepEqual(checkoutPayload.discount_codes, [one.json().code]);
+
+    discountRestrictions = ['pdt_retired'];
+    const withoutCoupon = await app.inject({
+        method: 'POST',
+        url: '/api/billing/checkout',
+        headers: { origin, cookie },
+        payload: { plan: 'pro' },
+    });
+    assert.equal(withoutCoupon.statusCode, 200, withoutCoupon.body);
+    assert.equal(checkoutPayload.discount_codes, undefined);
 
     // Someone else whose workspace already pays cannot claim one.
     const paid = await app.inject({
@@ -3522,8 +3539,11 @@ test('concurrent monitor creation across replicas stops at the plan allowance', 
     for (const response of results.filter((response) => response.statusCode !== 201)) {
         assert.equal(response.statusCode, 402, response.body);
         assert.equal(response.headers['retry-after'], undefined);
-        assert.deepEqual((({ requestId, message, ...details }) => details)(response.json()), {
-            error: 'limit_reached',
+        const { requestId, error, message, ...details } = response.json();
+        assert.equal(error, message);
+        assert.match(error, /allowance/);
+        assert.deepEqual(details, {
+            code: 'limit_reached',
             limit: 'monitors.active',
             used: 20,
             max: 20,
@@ -3747,6 +3767,7 @@ test('approval requests across replicas respect the same workspace allowance', a
     for (const response of responses.filter(({ statusCode }) => statusCode !== 201)) {
         assert.equal(response.statusCode, 402, response.body);
         assert.equal(response.json().limit, 'approvals.questions');
+        assert.ok(Number(response.headers['retry-after']) > 0);
         assert.equal(response.json().used, max);
         assert.equal(response.json().requiredPlan, 'pro');
     }

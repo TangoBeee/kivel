@@ -388,13 +388,11 @@ export function registerCredentials(
                 requesterId: identity.userId,
             };
             const approval = await review.submit(prepared, actor.plan);
-            return reply
-                .code(202)
-                .send({
-                    status: 'awaitingApproval',
-                    approvalId: approval.id,
-                    answerUrl: approval.answerUrl,
-                });
+            return reply.code(202).send({
+                status: 'awaitingApproval',
+                approvalId: approval.id,
+                answerUrl: approval.answerUrl,
+            });
         }
         let approvalId: string | undefined;
         if (!input.confirm && !entry.agentMayRead) {
@@ -411,13 +409,11 @@ export function registerCredentials(
                     'This approval does not authorize this credential and caller.',
                 );
             if (approval.status === 'pending')
-                return reply
-                    .code(202)
-                    .send({
-                        status: 'awaitingApproval',
-                        approvalId: approval.id,
-                        answerUrl: `${access.origin}/approve/?id=${approval.id}`,
-                    });
+                return reply.code(202).send({
+                    status: 'awaitingApproval',
+                    approvalId: approval.id,
+                    answerUrl: access.appUrl(`/approve/?id=${approval.id}`),
+                });
             if (approval.status !== 'answered' || approval.answer !== 'Approve')
                 throw new HttpError(403, 'The credential reveal was rejected or expired.');
             approvalId = approval.id;

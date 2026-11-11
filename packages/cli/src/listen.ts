@@ -41,8 +41,35 @@ export async function listen(
 ) {
     if (options.forward) new URL(options.forward);
     let after: string | undefined;
-    if (!options.all)
-        after = (await client.inspectInbox(inboxId, options.token)).requests.at(-1)?.id;
+    let delay = 200;
+    async function backoff(seconds = 0) {
+        await pause(Math.max(delay, seconds * 1000), undefined, { signal }).catch(() => {});
+        delay = Math.min(delay * 2, 10000);
+    }
+    async function retry(error: unknown) {
+        if (signal?.aborted) return;
+        if (error instanceof KivelError && error.status === 429) {
+            await backoff(error.retryAfter ?? 2);
+        } else if (
+            error instanceof TypeError ||
+            (error instanceof DOMException &&
+                ['AbortError', 'NetworkError', 'TimeoutError'].includes(error.name))
+        ) {
+            await backoff();
+        } else {
+            throw error;
+        }
+    }
+    while (!options.all && !signal?.aborted) {
+        try {
+            after = (await client.inspectInbox(inboxId, options.token)).requests.at(-1)?.id;
+            delay = 200;
+            break;
+        } catch (error) {
+            await retry(error);
+        }
+    }
+    if (signal?.aborted) return;
     write({ event: 'listening', inboxId, forward: options.forward ?? null });
 
     async function report(requests: CapturedRequest[]) {
@@ -88,20 +115,20 @@ export async function listen(
                 ...(cursor ? { lastEventId: cursor } : {}),
                 ...(signal ? { signal } : {}),
             })) {
-                cursor = change.cursor;
                 const { requests } = await client.waitForRequests(inboxId, {
                     ...(options.token ? { token: options.token } : {}),
                     ...(after ? { after } : {}),
                     timeoutSeconds: 1,
                 });
                 await report(requests);
+                cursor = change.cursor;
+                delay = 200;
             }
-            await pause(200, undefined, { signal });
+            await backoff();
         } catch (error) {
             if (signal?.aborted) return;
             if (error instanceof KivelError && [404, 501, 503].includes(error.status)) break;
-            if (!(error instanceof KivelError) || error.status !== 429) throw error;
-            await pause((error.retryAfter ?? 2) * 1000, undefined, { signal }).catch(() => {});
+            await retry(error);
         }
     }
 
@@ -112,10 +139,10 @@ export async function listen(
                 ...(after ? { after } : {}),
             });
             await report(batch.requests);
+            delay = 200;
         } catch (error) {
             if (signal?.aborted) return;
-            if (!(error instanceof KivelError) || error.status !== 429) throw error;
-            await pause((error.retryAfter ?? 2) * 1000, undefined, { signal }).catch(() => {});
+            await retry(error);
         }
     }
 }

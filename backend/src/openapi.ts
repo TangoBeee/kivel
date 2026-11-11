@@ -55,7 +55,7 @@ export function openApi(origin: string) {
             title: 'Kivel API',
             version: API_VERSION,
             description: [
-                'Run utilities and create temporary webhook inboxes, mock APIs, files, and MCP servers.',
+                'Run utilities and create webhook inboxes, mock APIs, files, and MCP servers.',
                 '## Start here',
                 'Use the [quickstart](/docs/) for a first request or [integrations](/integrations/) for SDK, CLI, SSH, and MCP setup. SDK and CLI packages currently ship in the repository.',
                 '## Credentials',
@@ -63,8 +63,8 @@ export function openApi(origin: string) {
                 '- **Anonymous management:** the returned inspection or management token, sent as Bearer or `X-Resource-Token` when an account key occupies Authorization.',
                 '- **Private callers:** a separate token in `X-Access-Token`, or authorized workspace access. Webhook receiving is public by default; inspection is always private. Other resources are private by default. Keep credentials out of URLs.',
                 '## Lifetimes and usage',
-                'Resources start with one hour. Renewal and persistent leases follow the plan. Read `GET /api/plans` and `GET /api/usage` for allowances. Delete temporary resources when finished.',
-                'Browser utilities run locally. Hosted execution sends input to the server without saving execution history. Account administration and billing require a browser session.',
+                'Resources start with one hour. Renewal and persistent leases follow the plan. Read `GET /api/plans` and `GET /api/usage` for allowances. Delete resources when finished.',
+                'Browser utilities run locally. Hosted execution sends input to the server without saving execution history. Sign-in, registration and password recovery run in the workspace browser on app.kivel.io. Account administration and billing require a browser session.',
             ].join('\n\n'),
         },
         servers: [{ url: origin }],
@@ -75,14 +75,14 @@ export function openApi(origin: string) {
                 description: 'Original CC0 instrumental tracks and byte-range audio playback.',
             },
             { name: 'Webhook inboxes', description: 'Capture and inspect callbacks.' },
-            { name: 'Mock APIs', description: 'Manage temporary API configurations.' },
+            { name: 'Mock APIs', description: 'Manage mock API configurations.' },
             {
                 name: 'OAuth test providers',
                 description:
                     'Test OAuth and OpenID Connect with synthetic users and controlled failures.',
             },
             { name: 'Mock endpoints', description: 'Call your configured routes.' },
-            { name: 'Files', description: 'Share temporary attachments.' },
+            { name: 'Files', description: 'Share files with public or private access.' },
             { name: 'Platform', description: 'Service health.' },
             {
                 name: 'MCP',
@@ -149,7 +149,7 @@ export function openApi(origin: string) {
                 post: {
                     operationId: 'createInbox',
                     tags: ['Webhook inboxes'],
-                    summary: 'Create a temporary webhook inbox',
+                    summary: 'Create a webhook inbox',
                     description:
                         'Returns webhookUrl. Senders can POST without credentials by default. Reading, inspecting and waiting always require workspace credentials or the private inspectionToken. Set visibility=private only to require X-Access-Token from senders.',
                     parameters: [
@@ -872,9 +872,11 @@ export function openApi(origin: string) {
                 },
                 LimitError: {
                     type: 'object',
-                    required: ['error', 'message', 'limit', 'used', 'max', 'plan'],
+                    required: ['error', 'code', 'message', 'limit', 'used', 'max', 'plan'],
                     properties: {
-                        error: { const: 'limit_reached' },
+                        error: { type: 'string' },
+                        code: { const: 'limit_reached' },
+                        retryAfter: { type: 'integer', minimum: 1 },
                         message: { type: 'string' },
                         limit: { type: 'string' },
                         used: { type: 'integer' },
@@ -890,6 +892,7 @@ export function openApi(origin: string) {
                     required: ['error'],
                     properties: {
                         error: { type: 'string' },
+                        code: { enum: ['limit_reached', 'rate_limited'] },
                         message: { type: 'string' },
                         limit: { type: 'string' },
                         retryAfter: { type: 'integer', minimum: 1 },
@@ -925,10 +928,23 @@ export function openApi(origin: string) {
                     )) ||
                     (method === 'put' && path === '/api/memory/{namespace}/{key}'))
             )
-                operation.responses['402'] = json(
-                    { anyOf: [reference('LimitError'), reference('Error')] },
-                    'Plan allowance reached or feature requires a higher plan',
-                );
+                operation.responses['402'] = {
+                    ...json(
+                        { anyOf: [reference('LimitError'), reference('Error')] },
+                        'Plan allowance reached or feature requires a higher plan',
+                    ),
+                    ...(/^\/api\/(email-inboxes|tools)\/\{id\}\/(send|run)$/.test(path)
+                        ? {
+                              headers: {
+                                  'Retry-After': {
+                                      description:
+                                          'Seconds until the allowance resets, when the limit has a reset time.',
+                                      schema: { type: 'integer', minimum: 1 },
+                                  },
+                              },
+                          }
+                        : {}),
+                };
             if (
                 /^\/api\/(inboxes|mocks|files|mcp-servers|email-inboxes|status-pages|memory|monitors)(\/|$)/.test(
                     path,

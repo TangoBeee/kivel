@@ -59,7 +59,7 @@ test('Dodo entitlements require a configured, active, paid fixed subscription', 
         { status: 'failed' },
         { status: 'expired' },
         { status: 'paused' },
-        { product_id: 'pdt_other' },
+        { product_id: 'pdt_other', status: 'expired' },
         { quantity: 2 },
         { trial_period_days: 7 },
         { on_demand: true },
@@ -73,16 +73,29 @@ test('Dodo entitlements require a configured, active, paid fixed subscription', 
             JSON.stringify(override),
         );
 });
+test('an unmapped paid product cannot revoke access even with a nonstandard quantity', () => {
+    assert.throws(
+        () =>
+            subscriptionState(
+                subscription({ product_id: 'pdt_unknown', quantity: 2 }),
+                products,
+                undefined,
+                () => {},
+            ),
+        { statusCode: 500 },
+    );
+});
 test('Dodo verifies webhook signatures and renews an active subscription on a retired product', async (t) => {
     let applied = 0,
-        retrieved = 0;
+        retrieved = 0,
+        productId = 'pdt_unmapped';
     const dodo = new DodoPayments({
         bearerToken: config.apiKey,
         environment: 'test_mode',
         maxRetries: 0,
         fetch: async () => {
             retrieved++;
-            return Response.json(subscription({ product_id: 'pdt_oldpro' }));
+            return Response.json(subscription({ product_id: productId }));
         },
     });
     const repository = {
@@ -120,9 +133,14 @@ test('Dodo verifies webhook signatures and renews an active subscription on a re
     assert.equal((await send(payload + ' ', signature(payload))).statusCode, 400);
     assert.equal(applied, 0);
     assert.equal(retrieved, 0);
+    const unmapped = await send(payload, signature(payload));
+    assert.equal(unmapped.statusCode, 500, unmapped.body);
+    assert.equal(applied, 0);
+    assert.equal(retrieved, 1);
+    productId = 'pdt_oldpro';
     assert.equal((await send(payload, signature(payload))).statusCode, 200);
     assert.equal(applied, 1);
-    assert.equal(retrieved, 1);
+    assert.equal(retrieved, 2);
     const harmless = JSON.stringify({
         type: 'payment.succeeded',
         data: { payload_type: 'Payment' },

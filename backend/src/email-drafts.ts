@@ -57,7 +57,7 @@ export function registerEmailDrafts(
                 ? {
                       approvalId,
                       approvalExpiresAt: approval?.expiresAt,
-                      answerUrl: `${access.origin}/approve/?id=${approvalId}`,
+                      answerUrl: access.appUrl(`/approve/?id=${approvalId}`),
                   }
                 : {}),
             ...(content ? { content: approval?.editedEmail ?? content } : {}),

@@ -1,3 +1,4 @@
+import { RateLimitError } from './errors.js';
 import {
     createCipheriv,
     createDecipheriv,
@@ -76,8 +77,7 @@ type MaybePromise<T> = T | Promise<T>;
 export interface AgentRepository {
     createTrial(trial: AgentTrial): MaybePromise<void>;
     trialByToken(tokenHash: string): MaybePromise<AgentTrial | undefined>;
-    /** Trials started from one network in the last 24 hours. */
-    recentTrials(ipKey: string): MaybePromise<number>;
+    trialRetryAfter(ipKey: string): MaybePromise<number>;
     createLogin(login: AgentLogin): MaybePromise<void>;
     loginById(id: string): MaybePromise<AgentLogin | undefined>;
     loginByCode(userCode: string): MaybePromise<AgentLogin | undefined>;
@@ -105,11 +105,15 @@ export class MemoryAgents implements AgentRepository {
         const trial = [...this.trials.values()].find((item) => item.tokenHash === tokenHash);
         return trial && Date.parse(trial.expiresAt) > Date.now() ? { ...trial } : undefined;
     }
-    recentTrials(ipKey: string) {
-        const since = Date.now() - 86400000;
-        return [...this.trials.values()].filter(
-            (trial) => trial.ipKey === ipKey && Date.parse(trial.createdAt) > since,
-        ).length;
+    trialRetryAfter(ipKey: string) {
+        const now = Date.now();
+        const cutoff = [...this.trials.values()]
+            .filter(
+                (trial) => trial.ipKey === ipKey && Date.parse(trial.createdAt) > now - 86400000,
+            )
+            .map((trial) => Date.parse(trial.createdAt))
+            .sort((left, right) => right - left)[TRIALS_PER_NETWORK - 1];
+        return cutoff === undefined ? 0 : Math.max(1, Math.ceil((cutoff + 86400000 - now) / 1000));
     }
     createLogin(login: AgentLogin) {
         this.logins.set(login.id, { ...login });
@@ -232,12 +236,14 @@ export class PostgresAgents implements AgentRepository {
               }
             : undefined;
     }
-    async recentTrials(ipKey: string) {
-        const result = await this.pool.query<{ count: string }>(
-            "SELECT count(*) FROM agent_trials WHERE ip_key = $1 AND created_at > clock_timestamp() - interval '1 day'",
-            [ipKey],
+    async trialRetryAfter(ipKey: string) {
+        const { rows } = await this.pool.query<{ retry_after: number }>(
+            `SELECT GREATEST(1, ceil(extract(epoch FROM created_at + interval '24 hours' - clock_timestamp())))::integer AS retry_after
+             FROM agent_trials WHERE ip_key = $1 AND created_at > clock_timestamp() - interval '24 hours'
+             ORDER BY created_at DESC OFFSET $2 LIMIT 1`,
+            [ipKey, TRIALS_PER_NETWORK - 1],
         );
-        return Number(result.rows[0]!.count);
+        return rows[0]?.retry_after ?? 0;
     }
     async createLogin(login: AgentLogin) {
         await this.pool.query(
@@ -292,7 +298,7 @@ export class PostgresAgents implements AgentRepository {
     }
     connect({ loginId, agent, sealedKey, plan, replace: requested }: AgentConnection) {
         return transaction(this.pool, async (client) => {
-            await client.query('SELECT id FROM accounts WHERE id = $1 FOR UPDATE', [
+            await client.query('SELECT id FROM accounts WHERE id = $1 FOR NO KEY UPDATE', [
                 agent.accountId,
             ]);
             const login = await client.query(
@@ -509,10 +515,12 @@ export function registerAgents({ app, access, identities, agents, limits, mail }
                     400,
                     'You already have a key. Trials are for agents without one.',
                 );
-            if ((await agents.recentTrials(network.quotaKey)) >= TRIALS_PER_NETWORK)
-                throw new HttpError(
-                    429,
+            const retryAfter = await agents.trialRetryAfter(network.quotaKey);
+            if (retryAfter)
+                throw new RateLimitError(
+                    'agents.trials',
                     'This network started 3 trials today. Ask your human to connect you with POST /api/agents/login instead.',
+                    retryAfter,
                 );
             const humanEmail =
                 typeof body.humanEmail === 'string' &&

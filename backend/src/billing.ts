@@ -32,6 +32,10 @@ export function subscriptionState(
     subscription: Subscription,
     products: Pick<BillingConfig, 'proProduct' | 'teamProduct' | 'legacyProducts' | 'phoneAddonId'>,
     warn: (message: string) => void = console.warn,
+    error: (
+        details: { productId: string; subscriptionId: string },
+        message: string,
+    ) => void = console.error,
 ): SubscriptionState {
     const plan =
         subscription.product_id === products.proProduct
@@ -51,6 +55,17 @@ export function subscriptionState(
         subscription.recurring_pre_tax_amount > 0 &&
         Number.isFinite(end) &&
         end > Date.now();
+    if (
+        plan === 'free' &&
+        subscription.status === 'active' &&
+        subscription.recurring_pre_tax_amount > 0
+    ) {
+        error(
+            { productId: subscription.product_id, subscriptionId: subscription.subscription_id },
+            'Active Dodo subscription uses an unrecognized product.',
+        );
+        throw new HttpError(500, 'Billing could not resolve the subscription product.');
+    }
     let phoneNumbers = 0;
     for (const addon of subscription.addons) {
         if (!products.phoneAddonId || addon.addon_id !== products.phoneAddonId) {
@@ -210,11 +225,13 @@ export class BillingRepository {
     async couponFor(accountId: string) {
         const row = (
             await this.pool.query(
-                'SELECT code FROM cookie_coupons WHERE account_id = $1 AND expires_at > clock_timestamp() ORDER BY created_at LIMIT 1',
+                'SELECT code, discount_id FROM cookie_coupons WHERE account_id = $1 AND expires_at > clock_timestamp() ORDER BY created_at LIMIT 1',
                 [accountId],
             )
         ).rows[0];
-        return row?.code as string | undefined;
+        return row
+            ? { code: row.code as string, discountId: row.discount_id as string }
+            : undefined;
     }
     async process(
         eventId: string,
@@ -363,6 +380,13 @@ export function registerBilling(
         cached = { at: Date.now(), prices: values };
         return values;
     }
+    const resolveSubscription = (subscription: Subscription, products: BillingConfig) =>
+        subscriptionState(
+            subscription,
+            products,
+            (message) => app.log.warn(message),
+            (details, message) => app.log.error(details, message),
+        );
     app.get('/api/billing', async () => ({ provider: 'dodo', enabled, prices: await prices() }));
     app.post('/api/billing/checkout', async (request) => {
         const identity = await access.require(request, 'account:read', true);
@@ -439,8 +463,17 @@ export function registerBilling(
                 const coupon = historical
                     ? undefined
                     : await repository.couponFor(identity.account.id);
+                const discount = coupon
+                    ? await dodo.discounts.retrieve(coupon.discountId).catch((error: unknown) => {
+                          if (error instanceof DodoPayments.NotFoundError) return undefined;
+                          throw error;
+                      })
+                    : undefined;
+                const applies =
+                    discount &&
+                    (!discount.restricted_to.length || discount.restricted_to.includes(productId));
                 const session = await dodo.checkoutSessions.create({
-                    ...(coupon ? { discount_codes: [coupon] } : {}),
+                    ...(applies && coupon ? { discount_codes: [coupon.code] } : {}),
                     product_cart: [
                         {
                             product_id: productId,
@@ -531,7 +564,7 @@ export function registerBilling(
         const id = await repository.subscription(identity.account.id);
         if (!id) throw new HttpError(409, 'Subscribe to Pro or Team before adding phone numbers.');
         const subscription = await dodo.subscriptions.retrieve(id);
-        const state = subscriptionState(subscription, config, (message) => app.log.warn(message));
+        const state = resolveSubscription(subscription, config);
         if (state.accountId !== identity.account.id || state.plan === 'free')
             throw new HttpError(409, 'An active workspace subscription is required.');
         return dodo.subscriptions.changePlan(
@@ -622,9 +655,7 @@ export function registerBilling(
                     data.customer.customer_id,
                     async () => {
                         const current = await dodo.subscriptions.retrieve(subscriptionId);
-                        const state = subscriptionState(current, config, (message) =>
-                            app.log.warn(message),
-                        );
+                        const state = resolveSubscription(current, config);
                         if (!state.accountId) {
                             const customer = await dodo.customers.retrieve(
                                 current.customer.customer_id,

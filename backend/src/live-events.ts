@@ -41,7 +41,7 @@ export class LiveEvents {
             connection.release(true);
             this.reconnect();
         };
-        connection.once('error', disconnected);
+        connection.on('error', disconnected);
         connection.on('notification', (notification) => {
             if (notification.channel !== 'kivel_events' || !notification.payload) return;
             let event: LiveTopic;

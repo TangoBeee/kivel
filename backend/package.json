@@ -1,7 +1,7 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "Temporary webhook inbox API for Kivel",
+  "description": "Kivel API for webhooks, email, mocks, and developer tools",
   "private": true,
   "type": "module",
   "files": [

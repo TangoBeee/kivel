@@ -1,3 +1,4 @@
+import type { LiveEvents, LiveTopic } from './live-events.js';
 import { setTimeout as pause } from 'node:timers/promises';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { HttpError, requireWorkspace } from './access.js';
@@ -24,6 +25,7 @@ interface Context {
     email: ReturnType<typeof registerEmail>;
     approvals: ApprovalRepository;
     waiters: Waiters;
+    liveEvents?: LiveEvents;
     phones: ReturnType<typeof import('./phone/routes.js').registerPhones>;
     jobs: ReturnType<typeof import('./scheduled-jobs.js').registerScheduledJobs>;
 }
@@ -85,6 +87,7 @@ export function registerEvents({
     waiters,
     jobs,
     phones,
+    liveEvents,
 }: Context) {
     const pending = new Set<AbortController>();
     app.addHook('preClose', async () => {
@@ -94,6 +97,13 @@ export function registerEvents({
         const actor = await access.scope(request, 'resources:read');
         const body = request.body as { sources?: unknown; timeoutSeconds?: unknown } | null;
         const inputs = sources(body?.sources);
+        const topics = inputs.flatMap((source): LiveTopic[] => {
+            if (source.kind === 'webhook' || source.kind === 'email')
+                return [{ topic: source.kind, scopeId: source.id.toLowerCase() }];
+            if (source.kind === 'approval' && actor.identity)
+                return [{ topic: 'approvals', scopeId: actor.identity.account.id }];
+            return [];
+        });
         const deadline = Date.now() + waitSeconds(body?.timeoutSeconds) * 1000;
         const controller = new AbortController(),
             abort = () => controller.abort();
@@ -189,10 +199,17 @@ export function registerEvents({
                 for (;;) {
                     const events = await poll();
                     if (events.length) return { timedOut: false, events };
-                    if (controller.signal.aborted || Date.now() + 500 > deadline)
+                    const remaining = deadline - Date.now();
+                    if (controller.signal.aborted || remaining <= 0)
                         return { timedOut: true, events: [] };
+                    const delay = Math.min(
+                        remaining,
+                        liveEvents && topics.length === inputs.length ? 5000 : 500,
+                    );
                     try {
-                        await pause(500, undefined, { signal: controller.signal });
+                        if (liveEvents && topics.length)
+                            await liveEvents.wait(topics, delay, controller.signal);
+                        else await pause(delay, undefined, { signal: controller.signal });
                     } catch {
                         return { timedOut: true, events: [] };
                     }

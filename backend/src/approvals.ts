@@ -1,12 +1,13 @@
-import { plans } from '@kivel.io/tools/plans';
+import { plans, type PlanId } from '@kivel.io/tools/plans';
+import { checkLimit } from './errors.js';
+import { transaction } from './database.js';
 import { validateEmailContent } from './email-sending.js';
 import type { EmailContent } from './email-sending.js';
 import { requireWorkspace } from './access.js';
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import type { Pool } from 'pg';
+import type { Pool, PoolClient } from 'pg';
 import { HttpError } from './access.js';
-import { RateLimitError } from './errors.js';
 import type { Access } from './access.js';
 import type { AgentRepository } from './agents.js';
 import { effectivePlan } from './identity.js';
@@ -46,8 +47,11 @@ export interface Approval {
 }
 
 type MaybePromise<T> = T | Promise<T>;
+type QueueDraft = (client?: PoolClient) => Promise<boolean>;
+const alreadySubmitted = () =>
+    new HttpError(409, 'This draft was already submitted. Check its status.');
 export interface ApprovalRepository {
-    create(approval: Approval): MaybePromise<boolean>;
+    create(approval: Approval, plan: PlanId, queueDraft?: QueueDraft): MaybePromise<boolean>;
     get(accountId: string, id: string): MaybePromise<Approval | undefined>;
     list(accountId: string, pendingOnly: boolean): MaybePromise<Approval[]>;
     countSince(accountId: string, since: string): MaybePromise<number>;
@@ -70,10 +74,32 @@ const current = (approval: Approval): Approval =>
 
 export class MemoryApprovals implements ApprovalRepository {
     private readonly items = new Map<string, Approval>();
-    create(approval: Approval) {
+    create(approval: Approval, plan: PlanId, queueDraft?: QueueDraft) {
         if (this.items.has(approval.id)) return false;
+        const since = new Date(Date.now() - 86400000).toISOString();
+        const used = this.countSince(approval.accountId, since);
+        const maximum = plans[plan].approvalQuestionsPerDay;
+        if (used >= maximum)
+            checkLimit(
+                plan,
+                'approvals.questions',
+                used,
+                1,
+                this.quotaRetryAfter(approval.accountId, maximum) || 1,
+            );
         this.items.set(approval.id, { ...approval });
-        return true;
+        if (!queueDraft) return true;
+        return queueDraft().then(
+            (queued) => {
+                if (queued) return true;
+                this.items.delete(approval.id);
+                throw alreadySubmitted();
+            },
+            (error) => {
+                this.items.delete(approval.id);
+                throw error;
+            },
+        );
     }
     get(accountId: string, id: string) {
         const item = this.items.get(id);
@@ -121,7 +147,9 @@ export class MemoryApprovals implements ApprovalRepository {
         for (const approval of this.items.values()) {
             if (
                 approval.editedEmail &&
-                !(await resources.peek(approval.id, 'job', { ownerId: approval.accountId }))
+                !(await resources.peek(approval.emailDraft?.id ?? approval.id, 'job', {
+                    ownerId: approval.accountId,
+                }))
             )
                 delete approval.editedEmail;
         }
@@ -150,19 +178,45 @@ const fromRow = (row: Row) => current({ ...row.approval, status: row.status });
 
 export class PostgresApprovals implements ApprovalRepository {
     constructor(private readonly pool: Pool) {}
-    async create(approval: Approval) {
-        const result = await this.pool.query(
-            'INSERT INTO approvals (id, account_id, approval, status, created_at, expires_at) VALUES ($1, $2, $3::jsonb, $4, $5, $6) ON CONFLICT (id) DO NOTHING',
-            [
-                approval.id,
+    create(approval: Approval, plan: PlanId, queueDraft?: QueueDraft) {
+        return transaction(this.pool, async (client) => {
+            await client.query('SELECT id FROM accounts WHERE id = $1 FOR NO KEY UPDATE', [
                 approval.accountId,
-                JSON.stringify(approval),
-                approval.status,
-                approval.createdAt,
-                approval.expiresAt,
-            ],
-        );
-        return result.rowCount === 1;
+            ]);
+            if (
+                (await client.query('SELECT 1 FROM approvals WHERE id = $1', [approval.id]))
+                    .rowCount
+            )
+                return false;
+            const { rows } = await client.query<{ count: string }>(
+                "SELECT count(*) FROM approvals WHERE account_id = $1 AND created_at > clock_timestamp() - interval '1 day'",
+                [approval.accountId],
+            );
+            const used = Number(rows[0]!.count);
+            const maximum = plans[plan].approvalQuestionsPerDay;
+            if (used >= maximum)
+                checkLimit(
+                    plan,
+                    'approvals.questions',
+                    used,
+                    1,
+                    (await this.quotaRetryAfter(approval.accountId, maximum, client)) || 1,
+                );
+            const result = await client.query(
+                'INSERT INTO approvals (id, account_id, approval, status, created_at, expires_at) VALUES ($1, $2, $3::jsonb, $4, $5, $6) ON CONFLICT (id) DO NOTHING',
+                [
+                    approval.id,
+                    approval.accountId,
+                    JSON.stringify(approval),
+                    approval.status,
+                    approval.createdAt,
+                    approval.expiresAt,
+                ],
+            );
+            const created = result.rowCount === 1;
+            if (created && queueDraft && !(await queueDraft(client))) throw alreadySubmitted();
+            return created;
+        });
     }
     async get(accountId: string, id: string) {
         if (!isUuid(id)) return undefined;
@@ -186,8 +240,12 @@ export class PostgresApprovals implements ApprovalRepository {
         );
         return Number(result.rows[0]!.count);
     }
-    async quotaRetryAfter(accountId: string, maximum: number) {
-        const { rows } = await this.pool.query<{ retry_after: number }>(
+    async quotaRetryAfter(
+        accountId: string,
+        maximum: number,
+        client: Pick<Pool, 'query'> = this.pool,
+    ) {
+        const { rows } = await client.query<{ retry_after: number }>(
             `SELECT GREATEST(1, ceil(extract(epoch FROM created_at + interval '24 hours' - clock_timestamp())))::integer AS retry_after
              FROM approvals WHERE account_id = $1 AND created_at > clock_timestamp() - interval '24 hours'
              ORDER BY created_at DESC OFFSET $2 LIMIT 1`,
@@ -212,7 +270,7 @@ export class PostgresApprovals implements ApprovalRepository {
         await this.pool.query(
             `UPDATE approvals a SET approval = a.approval - 'editedEmail'
              WHERE a.approval ? 'editedEmail' AND NOT EXISTS (
-                 SELECT 1 FROM temporary_resources r WHERE r.id = a.id AND r.expires_at > clock_timestamp()
+                 SELECT 1 FROM temporary_resources r WHERE r.id = COALESCE((a.approval->'emailDraft'->>'id')::uuid,a.id) AND r.expires_at > clock_timestamp()
              )`,
         );
     }
@@ -327,15 +385,20 @@ export function registerApprovals({
         const minutes = body.timeoutMinutes === undefined ? 60 : Number(body.timeoutMinutes);
         if (!Number.isInteger(minutes) || minutes < 1 || minutes > 1440)
             throw new HttpError(400, 'timeoutMinutes must be between 1 and 1440.');
-        const plan = effectivePlan(identity.account);
-        const maximum = plans[plan].approvalQuestionsPerDay;
-        const retryAfter = await approvals.quotaRetryAfter(identity.account.id, maximum);
-        if (retryAfter)
-            throw new RateLimitError(
+        const retryAfter = await approvals.quotaRetryAfter(
+            identity.account.id,
+            plans[actor.plan].approvalQuestionsPerDay,
+        );
+        if (retryAfter) {
+            const since = new Date(Date.now() - 86400000).toISOString();
+            checkLimit(
+                actor.plan,
                 'approvals.questions',
-                `Your plan allows ${maximum} questions a day. Ask your human to upgrade at ${access.origin}/pricing/.`,
+                await approvals.countSince(identity.account.id, since),
+                1,
                 retryAfter,
             );
+        }
         const agent = identity.keyId
             ? (await agents.agents(identity.account.id)).find(
                   (item) => item.keyId === identity.keyId,
@@ -362,8 +425,9 @@ export function registerApprovals({
             ).toISOString(),
         };
     }
-    async function submit(approval: Approval) {
-        const created = await approvals.create(approval);
+    async function submit(approval: Approval, plan: PlanId, queueDraft?: QueueDraft) {
+        const created = await approvals.create(approval, plan, queueDraft);
+        if (queueDraft && !created) throw alreadySubmitted();
         const emailed = created && (await notify(approval));
         return {
             ...view(approval),
@@ -375,7 +439,7 @@ export function registerApprovals({
     }
     app.post('/api/approvals', async (request, reply) => {
         const approval = await prepare(request, (request.body ?? {}) as Record<string, unknown>);
-        return reply.code(201).send(await submit(approval));
+        return reply.code(201).send(await submit(approval, (await access.actor(request)).plan));
     });
 
     app.get('/api/approvals', async (request) => {

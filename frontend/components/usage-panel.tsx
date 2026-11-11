@@ -3,7 +3,8 @@
 import { Button } from '@radix-ui/themes';
 import { describeLimit, type UsageItem } from '@kivel.io/tools/plans';
 import { formatBytes, type WorkspaceUsage } from '../lib/workspace-usage';
-import { UsageBar } from './tool-page';
+import { UsageMeter } from './app/usage-meter';
+import { LimitCard } from './app/limit-card';
 
 const resetTime = new Intl.DateTimeFormat(undefined, {
     month: 'short',
@@ -29,7 +30,7 @@ export function UsagePanel({
 }) {
     const groups = new Map<string, UsageItem[]>();
     for (const item of usage.items ?? []) {
-        const group = describeLimit(item.key).group;
+        const group = describeLimit(item.key)?.group ?? 'Other';
         if (!groups.has(group)) groups.set(group, []);
         groups.get(group)!.push(item);
     }
@@ -82,14 +83,24 @@ export function UsagePanel({
                                                     </small>
                                                 )}
                                                 {near && (
-                                                    <small>
+                                                    <small
+                                                        className={
+                                                            item.used >= item.max
+                                                                ? 'usage-status-full'
+                                                                : 'usage-status-near'
+                                                        }
+                                                    >
                                                         {item.used >= item.max
                                                             ? 'At your limit'
                                                             : 'Near your limit'}
                                                     </small>
                                                 )}
                                             </span>
-                                            <UsageBar used={item.used} limit={item.max} />
+                                            <UsageMeter
+                                                label={item.label}
+                                                used={item.used}
+                                                limit={item.max}
+                                            />
                                             <b>
                                                 {format(item.used)} / {format(item.max)}
                                             </b>
@@ -97,6 +108,17 @@ export function UsagePanel({
                                     );
                                 })}
                             </ul>
+                            {usage.plan &&
+                                items
+                                    .filter((item) => item.max > 0 && item.used >= item.max)
+                                    .map((item) => (
+                                        <LimitCard
+                                            key={item.key}
+                                            item={item}
+                                            plan={usage.plan!}
+                                            onPlans={onPlans}
+                                        />
+                                    ))}
                         </section>
                     ))}
                 </div>

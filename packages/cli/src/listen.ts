@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer';
+import { setTimeout as pause } from 'node:timers/promises';
 import { KivelError } from '@kivel.io/sdk';
 import type { CapturedRequest, Kivel } from '@kivel.io/sdk';
 
@@ -40,28 +41,39 @@ export async function listen(
 ) {
     if (options.forward) new URL(options.forward);
     let after: string | undefined;
-    if (!options.all) {
-        const existing = (await client.inspectInbox(inboxId, options.token)) as {
-            requests: CapturedRequest[];
-        };
-        after = existing.requests.at(-1)?.id;
+    let delay = 200;
+    async function backoff(seconds = 0) {
+        await pause(Math.max(delay, seconds * 1000), undefined, { signal }).catch(() => {});
+        delay = Math.min(delay * 2, 10000);
     }
-    write({ event: 'listening', inboxId, forward: options.forward ?? null });
-    while (!signal?.aborted) {
-        let batch;
-        try {
-            batch = await client.waitForRequests(inboxId, {
-                ...(options.token ? { token: options.token } : {}),
-                ...(after ? { after } : {}),
-            });
-        } catch (error) {
-            if (error instanceof KivelError && error.status === 429) {
-                await new Promise((resolve) => setTimeout(resolve, (error.retryAfter ?? 2) * 1000));
-                continue;
-            }
+    async function retry(error: unknown) {
+        if (signal?.aborted) return;
+        if (error instanceof KivelError && error.status === 429) {
+            await backoff(error.retryAfter ?? 2);
+        } else if (
+            error instanceof TypeError ||
+            (error instanceof DOMException &&
+                ['AbortError', 'NetworkError', 'TimeoutError'].includes(error.name))
+        ) {
+            await backoff();
+        } else {
             throw error;
         }
-        for (const request of batch.requests) {
+    }
+    while (!options.all && !signal?.aborted) {
+        try {
+            after = (await client.inspectInbox(inboxId, options.token)).requests.at(-1)?.id;
+            delay = 200;
+            break;
+        } catch (error) {
+            await retry(error);
+        }
+    }
+    if (signal?.aborted) return;
+    write({ event: 'listening', inboxId, forward: options.forward ?? null });
+
+    async function report(requests: CapturedRequest[]) {
+        for (const request of requests) {
             after = request.id;
             write({ event: 'request', request });
             if (!options.forward) continue;
@@ -92,6 +104,45 @@ export async function listen(
                     error: error instanceof Error ? error.message : 'Forwarding failed.',
                 });
             }
+        }
+    }
+
+    let cursor: string | undefined;
+    while (!signal?.aborted) {
+        try {
+            for await (const change of client.stream([`webhook:${inboxId}`], {
+                ...(options.token ? { token: options.token } : {}),
+                ...(cursor ? { lastEventId: cursor } : {}),
+                ...(signal ? { signal } : {}),
+            })) {
+                const { requests } = await client.waitForRequests(inboxId, {
+                    ...(options.token ? { token: options.token } : {}),
+                    ...(after ? { after } : {}),
+                    timeoutSeconds: 1,
+                });
+                await report(requests);
+                cursor = change.cursor;
+                delay = 200;
+            }
+            await backoff();
+        } catch (error) {
+            if (signal?.aborted) return;
+            if (error instanceof KivelError && [404, 501, 503].includes(error.status)) break;
+            await retry(error);
+        }
+    }
+
+    while (!signal?.aborted) {
+        try {
+            const batch = await client.waitForRequests(inboxId, {
+                ...(options.token ? { token: options.token } : {}),
+                ...(after ? { after } : {}),
+            });
+            await report(batch.requests);
+            delay = 200;
+        } catch (error) {
+            if (signal?.aborted) return;
+            await retry(error);
         }
     }
 }

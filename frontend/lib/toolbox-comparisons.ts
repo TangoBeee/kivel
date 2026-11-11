@@ -6,17 +6,17 @@ export const toolboxComparisons: Comparison[] = [
         name: 'IT Tools',
         focus: 'Developer utilities',
         description:
-            'Compare IT Tools and Kivel for everyday developer utilities, self-hosting and temporary test resources, with official sources and practical limits.',
+            'Compare IT Tools and Kivel for everyday developer utilities, self-hosting and hosted resources, with official sources and practical limits.',
         summary:
-            'IT Tools is a focused collection of developer utilities. Kivel combines utilities with temporary webhook inboxes, mock APIs, file shares and MCP access. Choose by the job you need to finish.',
+            'IT Tools is a focused collection of developer utilities. Kivel combines utilities with webhook inboxes, mock APIs, file shares and MCP access. Choose by the job you need to finish.',
         kivelFit:
-            'Choose Kivel when formatting or generating data is part of an integration test. You can inspect a callback, create a temporary mock, generate fixtures and use the shared API, CLI or MCP interface without assembling several services. Available tools are distinguished from the roadmap.',
+            'Choose Kivel when formatting or generating data is part of an integration test. You can inspect a callback, create a mock API, generate fixtures and use the shared API, CLI or MCP interface without assembling several services. Available tools are distinguished from the roadmap.',
         otherFit:
             'Choose IT Tools when you want a dedicated developer toolbox and its established open-source application. Its repository documents local development and Docker deployment, so it is a practical option when a focused, self-hostable utility collection is the whole job.',
         rows: [
             {
                 topic: 'Primary job',
-                kivel: 'Utilities plus disposable integration-testing resources.',
+                kivel: 'Utilities plus hosted resources for integration workflows.',
                 other: 'A collection of small developer utilities in one application.',
             },
             {
@@ -51,7 +51,7 @@ export const toolboxComparisons: Comparison[] = [
         reviewedAt: '2026-10-27',
         bestFor: {
             kivel: [
-                'You need a temporary endpoint as well as a utility',
+                'You need an endpoint as well as a utility',
                 'You want the same hosted operation in scripts and an MCP client',
                 'You want file and media previews next to integration tools',
             ],
@@ -81,13 +81,13 @@ export const toolboxComparisons: Comparison[] = [
         name: 'Hoppscotch',
         focus: 'API workflows',
         description:
-            'Compare Hoppscotch and Kivel for API workflows: reusable collections, import/export, temporary receivers, mocks, client interfaces and current limits.',
+            'Compare Hoppscotch and Kivel for API workflows: reusable collections, import/export, webhook receivers, mocks, client interfaces and current limits.',
         summary:
-            'Hoppscotch organizes reusable API requests into collections. Kivel supplies disposable resources and utility operations for integration testing. They can work together: send a request from Hoppscotch to a Kivel mock or receiver.',
+            'Hoppscotch organizes reusable API requests into collections. Kivel supplies webhook inboxes, mock APIs and utilities. They can work together: send a request from Hoppscotch to a Kivel mock or receiver.',
         kivelFit:
-            'Choose Kivel when you need a destination for a callback, a temporary mock response, a test file or an operation an agent can discover. Resources expose explicit lifetimes and public/private access. The same hosted operations are reachable through ordinary HTTP, the SDK, CLI and MCP.',
+            'Choose Kivel when you need a destination for a callback, a mock response, a test file or an operation an agent can discover. Resources expose explicit lifetimes and public/private access. The same hosted operations are reachable through ordinary HTTP, the SDK, CLI and MCP.',
         otherFit:
-            'Choose Hoppscotch when the main job is maintaining and reusing an API request collection. Its documentation covers nested collections, sharing, and import/export with Hoppscotch, OpenAPI and Postman formats. That is a different job from creating a temporary receiving endpoint.',
+            'Choose Hoppscotch when the main job is maintaining and reusing an API request collection. Its documentation covers nested collections, sharing, and import/export with Hoppscotch, OpenAPI and Postman formats. That is a different job from creating a webhook receiver.',
         rows: [
             {
                 topic: 'Starting point',
@@ -116,7 +116,7 @@ export const toolboxComparisons: Comparison[] = [
             },
         ],
         limitations:
-            'Kivel has a bounded scenario runner for up to six sequential requests on one origin, with variables, checks and non-secret JSON captures. It does not import Postman collections, run scripts or provide a full collaborative collection platform. Its scenario JSON and mock configuration exports are separate formats. Hosted runs and temporary resources use plan allowances, so a temporary mock is not a permanent production API.',
+            'Kivel has a bounded scenario runner for up to six sequential requests on one origin, with variables, checks and non-secret JSON captures. It does not import Postman collections, run scripts or provide a full collaborative collection platform. Its scenario JSON and mock configuration exports are separate formats. Hosted runs and mock APIs use plan allowances. Check the plan for retention and persistent URLs.',
         sources: [
             {
                 title: 'Hoppscotch collection runner',

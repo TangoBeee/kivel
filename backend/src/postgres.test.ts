@@ -7,6 +7,8 @@ import { Pool } from 'pg';
 import { migrate } from './database.js';
 import { PostgresInboxStore, PostgresRateLimiter } from './postgres.js';
 import { buildApp } from './app.js';
+import { LiveEvents } from './live-events.js';
+import { setTimeout as pause } from 'node:timers/promises';
 import { PostgresResourceStore } from './resources.js';
 import { PostgresMockCalls } from './mock-calls.js';
 import { PostgresEmailSending, newSendJob } from './email-sending-store.js';
@@ -57,7 +59,7 @@ before(async () => {
 });
 beforeEach(async () => {
     await pool.query(
-        'TRUNCATE phone_messages, phone_numbers, email_send_jobs, email_sender_suspensions, email_suppressions, email_addresses, captured_requests, inboxes, rate_windows, temporary_resources, users, accounts, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events RESTART IDENTITY CASCADE',
+        'TRUNCATE live_stream_leases, live_events, phone_messages, phone_numbers, email_send_jobs, email_sender_suspensions, email_suppressions, email_addresses, captured_requests, inboxes, rate_windows, temporary_resources, users, accounts, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events RESTART IDENTITY CASCADE',
     );
     await pool.query('UPDATE platform_usage SET inbox_count = 0, stored_bytes = 0');
     await pool.query('UPDATE resource_usage SET resource_count = 0, stored_bytes = 0');
@@ -441,7 +443,7 @@ test('upgrading an existing webhook-only database preserves captures and enables
     await pool.query(
         `DROP TRIGGER inbox_quota ON inboxes; DROP FUNCTION enforce_resource_quota() CASCADE;
          ALTER TABLE inboxes DROP COLUMN owner_id, DROP COLUMN quota_key, DROP COLUMN created_at, DROP COLUMN persistent, DROP COLUMN request_limit, DROP COLUMN byte_limit, DROP COLUMN visibility, DROP COLUMN access_token_hash, DROP COLUMN access_version, DROP COLUMN response, DROP COLUMN forward_url;
-         DROP TABLE phone_messages, phone_numbers, scheduled_jobs, email_send_jobs, email_sender_suspensions, email_suppressions, email_addresses, mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors, cookie_coupons, approvals, agent_trials, agent_logins, agents, user_contact_emails, auth_mail_outbox, auth_challenges, user_recovery_emails, temporary_resources, resource_usage, account_members, auth_sessions, api_keys, account_invites, users, accounts, usage_plans, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events CASCADE; DELETE FROM schema_migrations WHERE version > 1`,
+         DROP FUNCTION record_live_event() CASCADE; DROP TABLE live_stream_leases, live_events, phone_messages, phone_numbers, scheduled_jobs, email_send_jobs, email_sender_suspensions, email_suppressions, email_addresses, mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors, cookie_coupons, approvals, agent_trials, agent_logins, agents, user_contact_emails, auth_mail_outbox, auth_challenges, user_recovery_emails, temporary_resources, resource_usage, account_members, auth_sessions, api_keys, account_invites, users, accounts, usage_plans, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events CASCADE; DELETE FROM schema_migrations WHERE version > 1`,
     );
     await Promise.all([migrate(pool), migrate(pool)]);
     assert.equal(
@@ -457,7 +459,7 @@ test('upgrading an existing webhook-only database preserves captures and enables
     );
     assert.equal(
         (await pool.query('SELECT max(version) AS version FROM schema_migrations')).rows[0].version,
-        19,
+        20,
     );
 });
 
@@ -1164,6 +1166,17 @@ test('Dodo checkout is serialized, reused, owner-only and does not grant access 
     assert.deepEqual(checkoutPayload.metadata, { accountId: identity.account.id });
     assert.equal((await identities.account(identity.account.id))!.plan, 'free');
     assert.equal((await checkout('team')).statusCode, 409);
+    await pool.query("UPDATE accounts SET dodo_checkout_plan='pro' WHERE id=$1", [
+        identity.account.id,
+    ]);
+    assert.equal((await checkout()).json().url, 'https://checkout.dodopayments.com/session/1');
+    await pool.query("UPDATE accounts SET dodo_checkout_plan='pro:pdt_retired:200' WHERE id=$1", [
+        identity.account.id,
+    ]);
+    const replaced = await checkout();
+    assert.equal(replaced.statusCode, 409, replaced.body);
+    assert.match(replaced.body, /earlier pricing/);
+    assert.equal(checkoutCreates, 1);
     // An unpaid link older than Dodo keeps it open is replaced, not handed out again.
     checkoutCreatedAt = new Date(Date.now() - 31 * 60 * 1000).toISOString();
     const stale = await checkout();
@@ -1209,7 +1222,7 @@ test('Dodo migration preserves legacy Stripe data without adopting its customer 
         user.personalAccountId,
     ]);
     await pool.query(
-        'ALTER TABLE accounts DROP COLUMN phone_allowance, DROP COLUMN dodo_customer_id, DROP COLUMN dodo_subscription_id, DROP COLUMN dodo_event_created, DROP COLUMN dodo_checkout_id, DROP COLUMN dodo_checkout_url, DROP COLUMN dodo_checkout_plan; DROP TABLE dodo_events; ALTER TABLE inboxes DROP COLUMN response, DROP COLUMN forward_url; DROP TABLE phone_messages, phone_numbers, scheduled_jobs, email_send_jobs, email_sender_suspensions, email_suppressions, email_addresses, mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors, cookie_coupons, approvals, agent_trials, agent_logins, agents; DELETE FROM schema_migrations WHERE version >= 8',
+        'ALTER TABLE accounts DROP COLUMN phone_allowance, DROP COLUMN dodo_customer_id, DROP COLUMN dodo_subscription_id, DROP COLUMN dodo_event_created, DROP COLUMN dodo_checkout_id, DROP COLUMN dodo_checkout_url, DROP COLUMN dodo_checkout_plan; DROP TABLE dodo_events; ALTER TABLE inboxes DROP COLUMN response, DROP COLUMN forward_url; DROP FUNCTION record_live_event() CASCADE; DROP TABLE live_stream_leases, live_events, phone_messages, phone_numbers, scheduled_jobs, email_send_jobs, email_sender_suspensions, email_suppressions, email_addresses, mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors, cookie_coupons, approvals, agent_trials, agent_logins, agents; DELETE FROM schema_migrations WHERE version >= 8',
     );
     await Promise.all([migrate(pool), migrate(pool)]);
     const row = (
@@ -1503,8 +1516,22 @@ test('approvals are answered once and never after they expire', async () => {
     });
     const live = approval(Date.now() + 60000),
         stale = approval(Date.now() - 1000);
-    await store.create(live);
-    await store.create(stale);
+    await store.create(live, 'free');
+    await store.create(stale, 'free');
+    const unqueued = approval(Date.now() + 60000);
+    await assert.rejects(
+        store.create(unqueued, 'free', async (client) => {
+            assert.ok(client);
+            assert.equal(
+                (await client.query('SELECT 1 FROM approvals WHERE id = $1', [unqueued.id]))
+                    .rowCount,
+                1,
+            );
+            return false;
+        }),
+        { statusCode: 409 },
+    );
+    assert.equal(await store.get(accountId, unqueued.id), undefined);
     assert.equal((await store.get(accountId, stale.id))?.status, 'expired');
     assert.deepEqual(
         (await store.list(accountId, true)).map((item) => item.id),
@@ -1530,6 +1557,7 @@ test('the cookie coupon is created once per person, only before a first subscrip
     const identities = new PostgresIdentityRepository(pool),
         recovery = new PostgresRecoveryRepository(pool);
     let discounts = 0;
+    let discountRestrictions = ['pdt_pro', 'pdt_team'];
     let discountPayload: Record<string, unknown> = {};
     let checkoutPayload: Record<string, unknown> = {};
     const dodo = new DodoPayments({
@@ -1563,6 +1591,10 @@ test('the cookie coupon is created once per person, only before a first subscrip
                     code: discountPayload.code,
                 });
             }
+            if (url.pathname === '/discounts/dsc_1')
+                return Response.json({ restricted_to: discountRestrictions });
+            if (url.pathname === '/checkouts/cks_cookie')
+                return Response.json({ payment_status: 'cancelled' });
             if (url.pathname === '/customers') return Response.json({ customer_id: 'cus_cookie' });
             if (url.pathname === '/subscriptions') return Response.json({ items: [] });
             if (url.pathname === '/checkouts') {
@@ -1634,6 +1666,16 @@ test('the cookie coupon is created once per person, only before a first subscrip
     });
     assert.equal(checkout.statusCode, 200, checkout.body);
     assert.deepEqual(checkoutPayload.discount_codes, [one.json().code]);
+
+    discountRestrictions = ['pdt_retired'];
+    const withoutCoupon = await app.inject({
+        method: 'POST',
+        url: '/api/billing/checkout',
+        headers: { origin, cookie },
+        payload: { plan: 'pro' },
+    });
+    assert.equal(withoutCoupon.statusCode, 200, withoutCoupon.body);
+    assert.equal(checkoutPayload.discount_codes, undefined);
 
     // Someone else whose workspace already pays cannot claim one.
     const paid = await app.inject({
@@ -2038,7 +2080,7 @@ test('email bytes share workspace/global budgets, survive metadata updates and m
     const empty = (await resources.read(created.id, 'email', '', account.id))!.storedBytes;
     assert.ok(empty < renamed);
     await pool.query(
-        'ALTER TABLE email_messages DROP COLUMN stored_bytes; DELETE FROM schema_migrations WHERE version=19',
+        'DROP FUNCTION record_live_event() CASCADE; DROP TABLE live_stream_leases, live_events; ALTER TABLE email_messages DROP COLUMN stored_bytes; DELETE FROM schema_migrations WHERE version>=19',
     );
     await pool.query('INSERT INTO email_messages(resource_id,message) VALUES($1,$2)', [
         created.id,
@@ -3391,7 +3433,7 @@ test('workspace usage reads durable counters and keeps totals behind account rea
         memory,
         emailSending: sending,
         approvalStore: approvals,
-        usagePool: pool,
+        databasePool: pool,
     });
     t.after(() => app.close());
     async function workspace(name: string) {
@@ -3549,5 +3591,264 @@ test('PostgreSQL resource and storage rejections report the checked limits', asy
         assert.equal(storage.json().plan, 'anonymous');
     } finally {
         await pool.query("UPDATE usage_plans SET settings=$1 WHERE id='anonymous'", [original]);
+    }
+});
+
+test('live streams receive committed captures across replicas and replay only authorized topics', async (t) => {
+    const options = {
+        databasePool: pool,
+        inboxStore: new PostgresInboxStore(pool),
+        authSecret: 'live-stream-test-secret-with-32-characters',
+    };
+    const writer = buildApp(options),
+        reader = buildApp(options);
+    const abort = new AbortController();
+    const signal = AbortSignal.any([abort.signal, AbortSignal.timeout(12_000)]);
+    t.after(async () => {
+        abort.abort();
+        reader.server.closeAllConnections();
+        writer.server.closeAllConnections();
+        await Promise.all([reader.close(), writer.close()]);
+    });
+    const { id, inspectionToken } = (
+        await writer.inject({
+            method: 'POST',
+            url: '/api/inboxes?visibility=public',
+        })
+    ).json();
+    const other = (
+        await writer.inject({
+            method: 'POST',
+            url: '/api/inboxes?visibility=public',
+        })
+    ).json();
+    const topics = `webhook:${id}`;
+    const ticket = await reader.inject({
+        method: 'POST',
+        url: '/api/stream/ticket',
+        headers: { 'x-resource-token': inspectionToken },
+        payload: { topics },
+    });
+    assert.equal(ticket.statusCode, 200, ticket.body);
+    assert.ok(!ticket.body.includes(inspectionToken));
+    const invalid = await reader.inject({
+        url: `/api/stream?topics=webhook:${other.id}&ticket=${ticket.json().ticket}`,
+    });
+    assert.equal(invalid.statusCode, 404, invalid.body);
+    const address = await reader.listen({ port: 0, host: '127.0.0.1' });
+    const path = `${address}/api/stream?topics=${topics}`;
+    const headers = { 'x-resource-token': inspectionToken, connection: 'close' };
+    const start = await fetch(path, { headers, signal });
+    assert.equal(start.status, 200);
+    assert.match(start.headers.get('content-type') ?? '', /^text\/event-stream/);
+    function frames(response: Response) {
+        const input = response.body!.getReader();
+        let buffered = '';
+        return {
+            async next() {
+                while (!buffered.includes('\n\n')) {
+                    const chunk = await input.read();
+                    if (chunk.done) throw new Error('Stream closed before the next event.');
+                    buffered += Buffer.from(chunk.value).toString();
+                }
+                const end = buffered.indexOf('\n\n');
+                const frame = buffered.slice(0, end);
+                buffered = buffered.slice(end + 2);
+                return frame;
+            },
+            close: () => input.cancel(),
+        };
+    }
+    const live = frames(start);
+    const ready = await live.next();
+    assert.match(ready, /event: ready/);
+    const cursor = /^id: ([A-Za-z0-9_-]+)/.exec(ready)![1]!;
+    assert.equal(
+        (await writer.inject({ method: 'POST', url: `/hooks/${other.id}`, payload: 'hidden' }))
+            .statusCode,
+        200,
+    );
+    assert.equal(
+        (await writer.inject({ method: 'POST', url: `/hooks/${id}`, payload: 'private body' }))
+            .statusCode,
+        200,
+    );
+    const event = await live.next();
+    assert.match(event, /webhook\.request\.created/);
+    assert.ok(event.includes(id));
+    assert.ok(!event.includes(other.id));
+    assert.ok(!event.includes('private body'));
+    await live.close();
+
+    const resumed = frames(
+        await fetch(path, {
+            headers: { ...headers, 'last-event-id': cursor },
+            signal,
+        }),
+    );
+    assert.match(await resumed.next(), /event: ready/);
+    assert.equal(await resumed.next(), event);
+    await resumed.close();
+    for (let attempt = 0; attempt < 30; attempt++) {
+        const remaining = await pool.query('SELECT 1 FROM live_stream_leases LIMIT 1');
+        if (!remaining.rowCount) break;
+        await pause(20);
+    }
+    assert.equal((await pool.query('SELECT 1 FROM live_stream_leases')).rowCount, 0);
+
+    const secondAddress = await writer.listen({ port: 0, host: '127.0.0.1' });
+    const secondPath = `${secondAddress}/api/stream?topics=${topics}`;
+    const open = await Promise.all(
+        Array.from({ length: 5 }, (_, index) =>
+            fetch(index % 2 ? path : secondPath, { headers, signal }),
+        ),
+    );
+    try {
+        assert.ok(open.every((response) => response.status === 200));
+        const capped = await fetch(path, { headers, signal });
+        assert.equal(capped.status, 429);
+        assert.equal(capped.headers.get('retry-after'), '5');
+        assert.equal((await capped.json()).limit, 'streams.connections');
+    } finally {
+        await Promise.all(open.map((response) => response.body?.cancel()));
+    }
+});
+
+test('live stream leases enforce the workspace cap across different sessions', async () => {
+    const workspace = crypto.randomUUID();
+    const first = new LiveEvents(pool),
+        second = new LiveEvents(pool);
+    const leases = await Promise.all(
+        Array.from({ length: 25 }, (_, index) =>
+            (index % 2 ? first : second).reserve(crypto.randomUUID(), workspace),
+        ),
+    );
+    assert.equal(leases.filter(Boolean).length, 20);
+    await first.release(leases.find((lease) => lease !== undefined)!);
+    assert.ok(await second.reserve(crypto.randomUUID(), workspace));
+});
+
+test('approval requests across replicas respect the same workspace allowance', async (t) => {
+    const identities = new PostgresIdentityRepository(pool);
+    const options = {
+        identityStore: identities,
+        recoveryStore: new PostgresRecoveryRepository(pool),
+        approvalStore: new PostgresApprovals(pool),
+    };
+    const apps = [buildApp(options), buildApp(options)];
+    t.after(async () => {
+        await Promise.all(apps.map((app) => app.close()));
+    });
+    const origin = 'http://localhost:3000';
+    const registration = await apps[0]!.inject({
+        method: 'POST',
+        url: '/api/auth/register',
+        headers: { origin },
+        payload: {
+            username: 'approval-limit-owner',
+            email: 'approval-limit@example.test',
+            password: 'correct-horse-battery-staple',
+        },
+    });
+    assert.equal(registration.statusCode, 201, registration.body);
+    const headers = { origin, cookie: String(registration.headers['set-cookie']).split(';')[0]! };
+    const max = plans.free.approvalQuestionsPerDay;
+    const responses = await Promise.all(
+        Array.from({ length: max + 5 }, (_, index) =>
+            apps[index % 2]!.inject({
+                method: 'POST',
+                url: '/api/approvals',
+                headers,
+                payload: { question: `Approve fixture ${index}?` },
+            }),
+        ),
+    );
+    assert.equal(responses.filter(({ statusCode }) => statusCode === 201).length, max);
+    for (const response of responses.filter(({ statusCode }) => statusCode !== 201)) {
+        assert.equal(response.statusCode, 402, response.body);
+        assert.equal(response.json().limit, 'approvals.questions');
+        assert.ok(Number(response.headers['retry-after']) > 0);
+        assert.equal(response.json().used, max);
+        assert.equal(response.json().requiredPlan, 'pro');
+    }
+    assert.equal((await pool.query('SELECT 1 FROM approvals')).rowCount, max);
+});
+
+test('agent approvals and replacements respect workspace caps across replicas', async (t) => {
+    const identities = new PostgresIdentityRepository(pool);
+    const agents = new PostgresAgents(pool);
+    const options = {
+        identityStore: identities,
+        recoveryStore: new PostgresRecoveryRepository(pool),
+        agentStore: agents,
+    };
+    const apps = [buildApp(options), buildApp(options)];
+    t.after(async () => {
+        await Promise.all(apps.map((app) => app.close()));
+    });
+    const origin = 'http://localhost:3000';
+    for (const plan of ['free', 'pro'] as const) {
+        const registration = await apps[0]!.inject({
+            method: 'POST',
+            url: '/api/auth/register',
+            headers: { origin },
+            payload: {
+                username: `agent-cap-${plan}`,
+                email: `agent-cap-${plan}@example.test`,
+                password: 'correct-horse-battery-staple',
+            },
+        });
+        assert.equal(registration.statusCode, 201, registration.body);
+        const headers = {
+            origin,
+            cookie: String(registration.headers['set-cookie']).split(';')[0]!,
+        };
+        const accountId = registration.json().account.id;
+        if (plan === 'pro')
+            await identities.setEntitlement(
+                accountId,
+                plan,
+                new Date(Date.now() + 86_400_000).toISOString(),
+            );
+        const max = plans[plan].agents;
+        const pending: { userCode: string }[] = [];
+        for (let i = 0; i < max + 2; i++) {
+            const login = await apps[i % 2]!.inject({
+                method: 'POST',
+                url: '/api/agents/login',
+                remoteAddress: `192.0.2.${i + 1}`,
+                payload: { name: `Agent ${i}` },
+            });
+            assert.equal(login.statusCode, 201, login.body);
+            pending.push(login.json());
+        }
+        const approve = (code: string, index: number, replaceAgentId?: string) =>
+            apps[index % 2]!.inject({
+                method: 'POST',
+                url: `/api/agents/login/${code}/approve`,
+                headers,
+                payload: replaceAgentId ? { replaceAgentId } : {},
+            });
+        const results = await Promise.all(
+            pending.map(({ userCode }, index) => approve(userCode, index)),
+        );
+        const connected = results.filter(({ statusCode }) => statusCode === 200);
+        assert.equal(connected.length, max, results.map((response) => response.body).join('\n'));
+        const blocked = results.flatMap((response, index) => {
+            if (response.statusCode === 200) return [];
+            assert.equal(response.statusCode, 402, response.body);
+            assert.equal(response.json().limit, 'agents.connected');
+            assert.equal(response.json().used, max);
+            return [pending[index]!];
+        });
+        const old = connected[0]!.json().agentId;
+        const replaced = await Promise.all(
+            blocked.map(({ userCode }, index) => approve(userCode, index, old)),
+        );
+        assert.deepEqual(replaced.map(({ statusCode }) => statusCode).sort(), [200, 402]);
+        const keys = await identities.accountKeys(accountId);
+        assert.equal(keys.length, max);
+        assert.ok(!keys.some(({ id }) => id === old));
+        assert.equal((await agents.agents(accountId)).length, max);
     }
 });

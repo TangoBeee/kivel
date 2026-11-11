@@ -68,9 +68,9 @@ export default async function Comparison({ params }: { params: Promise<{ slug: s
                 </div>
             </section>
             <p className="comparison-included">
-                Every Kivel plan includes webhook and email inboxes, mock APIs and MCP servers,
+                Kivel workspaces include webhook and email inboxes, mock APIs and MCP servers,
                 files, memory, monitors and approvals for AI agents over one MCP connection, plus{' '}
-                {available} tools in all. Free to start; Pro is $2 a month.
+                {available} tools in all. Start free or <Link href="/pricing/">compare plans</Link>.
             </p>
             <section id="differences">
                 <h2>The differences that matter.</h2>

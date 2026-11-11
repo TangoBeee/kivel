@@ -387,7 +387,7 @@ export function registerCredentials(
                 version: entry.version,
                 requesterId: identity.userId,
             };
-            const approval = await review.submit(prepared);
+            const approval = await review.submit(prepared, actor.plan);
             return reply.code(202).send({
                 status: 'awaitingApproval',
                 approvalId: approval.id,

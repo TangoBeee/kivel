@@ -26,7 +26,7 @@ import { useToolbox } from './toolbox-provider';
 import { ToolHeader } from './tool-header';
 import { CopyButton } from './copy-button';
 
-export function AuthenticatorsPanel() {
+export function AuthenticatorsPanel({ onUsageChange }: { onUsageChange?: () => void }) {
     const { capabilities } = useToolbox();
     const viewer = useViewer(),
         fileId = useId();
@@ -96,6 +96,7 @@ export function AuthenticatorsPanel() {
         if (currentWorkspace.current !== target) return;
         setEntries(value.authenticators);
         setLimit(value.limit);
+        onUsageChange?.();
     }
     async function act(action: () => Promise<void>) {
         setBusy(true);

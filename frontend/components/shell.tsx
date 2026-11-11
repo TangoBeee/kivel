@@ -72,9 +72,7 @@ export function Header() {
 
     return (
         <>
-            <header
-                className={`island ${open ? 'is-open' : ''} ${pathname === '' ? 'is-landing' : ''}`}
-            >
+            <header className={`island ${open ? 'is-open' : ''}`}>
                 <Link href="/" className="island-brand" aria-label="Kivel home">
                     <LiveLogo size={28} />
                     <span>Kivel</span>
@@ -174,9 +172,8 @@ const legalLinks = [
 ];
 
 export function Footer() {
-    const landing = usePathname().replace(/\/$/, '') === '';
     return (
-        <footer className={`site-footer ${landing ? 'is-landing' : ''}`}>
+        <footer className="site-footer">
             <div className="footer-inner">
                 <div className="footer-about">
                     <Link href="/" className="footer-brand" aria-label="Kivel home">

@@ -132,7 +132,7 @@ export class PostgresMonitors implements MonitorRepository {
     constructor(private readonly pool: Pool) {}
     async create(monitor: Monitor, plan: PlanId, pingHash?: string) {
         await transaction(this.pool, async (client) => {
-            await client.query('SELECT id FROM accounts WHERE id = $1 FOR UPDATE', [
+            await client.query('SELECT id FROM accounts WHERE id = $1 FOR NO KEY UPDATE', [
                 monitor.accountId,
             ]);
             const count = await client.query<{ count: string }>(

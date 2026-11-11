@@ -6,11 +6,11 @@ import { pageMetadata } from '../../lib/seo';
 import { Icon } from '../../components/icons';
 import { StructuredData } from '../../components/content-layout';
 import { FaqSection, absolute, faqSchema } from '../../components/content-blocks';
-import { money, paidPlansEnabled, pricing } from '../../lib/pricing';
+import { earlyPriceNote, money, paidPlansEnabled, pricing } from '../../lib/pricing';
 import { PlanAction } from '../../components/plan-action';
 export const metadata = pageMetadata(
-    'Pricing, plans & API limits',
-    'Compare Free, Pro and Team workspace limits for agents, API requests, storage and retention. Paid subscriptions are optional; Free needs no payment method.',
+    'Pricing and limits for AI agent tools',
+    'Compare Free, Pro and Team for email inboxes, webhooks, mock APIs and connected agents. See monthly pricing, storage and retention limits.',
     '/pricing/',
 );
 const ids = Object.keys(plans) as PlanId[];
@@ -100,7 +100,7 @@ const rows: { name: string; value: (id: PlanId) => string }[] = [
 const extras: Record<PlanId, string[]> = {
     anonymous: [
         'Browser utilities, test data and public network checks',
-        'Temporary HTTP, mock and file resources',
+        'Webhook inboxes, mock APIs and file sharing',
     ],
     free: [
         'Email, memory, monitors and authenticators',
@@ -118,7 +118,7 @@ const faqs = [
     },
     {
         question: 'Is Team priced per seat?',
-        answer: `No. Team is ${money(pricing.team.monthly)} a month for the whole workspace, with up to 20 members sharing its allowances.`,
+        answer: `Team is priced per workspace, with up to 20 members sharing its allowances. ${paidPlansEnabled ? `It costs ${money(pricing.team.monthly)} a month.` : `The planned price is ${money(pricing.team.monthly)} a month.`}`,
     },
     {
         question: paidPlansEnabled
@@ -171,7 +171,7 @@ export default function Plans() {
                 description={
                     paidPlansEnabled
                         ? 'Every limit is listed below. Nothing is charged or blocked silently, and you can cancel anytime.'
-                        : 'Every limit is listed below. During the open beta everything is free; Pro and Team open after it, and no account is ever charged automatically.'
+                        : 'Use the Free plan during open beta. The paid prices are a preview until checkout opens.'
                 }
             />
             <p className="content-lede">
@@ -190,6 +190,9 @@ export default function Plans() {
                         <div className="pricing-card-top">
                             <h2>{plans[id].name}</h2>
                             {id === 'free' && <span className="content-tag">Start here</span>}
+                            {id === 'pro' && paidPlansEnabled && pricing.early && (
+                                <span className="content-tag">Early pricing</span>
+                            )}
                             {!paidPlansEnabled && (id === 'pro' || id === 'team') && (
                                 <span className="content-tag">Planned</span>
                             )}
@@ -204,6 +207,9 @@ export default function Plans() {
                             ) : (
                                 <>
                                     <span className="price-figure price-monthly">
+                                        {id === 'pro' && pricing.early && (
+                                            <del>{money(pricing.pro.listMonthly)}</del>
+                                        )}
                                         <strong>{money(pricing[id].monthly)}</strong>
                                         <em>/ month</em>
                                     </span>
@@ -239,6 +245,7 @@ export default function Plans() {
                     </section>
                 ))}
             </div>
+            {paidPlansEnabled && pricing.early && <p className="pricing-after">{earlyPriceNote}</p>}
             <p className="pricing-after">
                 No account? Agents can start a 72 hour trial, and the browser tools work without
                 signing up.{' '}

@@ -38,13 +38,14 @@ export class LimitError extends HttpError {
         adding = 1,
         message?: string,
         readonly max = describeLimit(limit).max(plan),
+        retryAfter = allowanceRetryAfter(limit),
     ) {
         const definition = describeLimit(limit);
         super(
             402,
             message ??
                 `Your plan's allowance for ${definition.label.toLowerCase()} has been reached.`,
-            allowanceRetryAfter(limit),
+            retryAfter,
         );
         this.requiredPlan = (['free', 'pro', 'team'] as const).find(
             (candidate) =>
@@ -73,9 +74,15 @@ export class LimitError extends HttpError {
     }
 }
 
-export function checkLimit(plan: PlanId, limit: UsageKey, used: number, adding = 1) {
+export function checkLimit(
+    plan: PlanId,
+    limit: UsageKey,
+    used: number,
+    adding = 1,
+    retryAfter?: number,
+) {
     if (used + adding > describeLimit(limit).max(plan))
-        throw new LimitError(limit, used, plan, adding);
+        throw new LimitError(limit, used, plan, adding, undefined, undefined, retryAfter);
 }
 
 export class RateLimitError extends HttpError {

@@ -1,5 +1,16 @@
 # @kivel.io/sdk
 
+## 0.9.0
+
+### Minor Changes
+
+- fde4ed4: Show clear messages and structured details for plan allowances and request rate limits.
+- fde4ed4: Type the usage response, including workspace allowance counters and reset times when the server provides them.
+
+### Patch Changes
+
+- fde4ed4: Read the machine code from the new `code` field while retaining support for older servers. The HTTP `error` field remains a readable message. Exhausted hosted tool, email, and resource allowances return 402. Request rate limits return 429. Timed limits include `Retry-After`, which the SDK and CLI expose to callers.
+
 ## 0.8.0
 
 ### Minor Changes

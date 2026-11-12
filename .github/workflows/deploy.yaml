@@ -19,6 +19,9 @@ concurrency:
 env:
   REPOSITORY: tangobee/socket
   DOMAIN: kivel.io
+  # The build summary upload only decorates the Actions page and fails when GitHub's API is down.
+  DOCKER_BUILD_SUMMARY: false
+  DOCKER_BUILD_RECORD_UPLOAD: false
 jobs:
   deploy:
     # Nothing runs until the DEPLOY_HOST variable names the server.

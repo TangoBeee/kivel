@@ -1436,7 +1436,7 @@ curl https://kivel.io/api/tools/everyday-file-checksums/run \\
                 title: 'What the CLI is for',
                 paragraphs: [
                     'kivel is a small command line client for shell scripts and CI. It reads input from standard input, prints JSON to standard output, writes errors as JSON to standard error and exits with a nonzero code on failure. It is built on the TypeScript SDK.',
-                    'The CLI beta is published as @kivel.io/cli. Install it with npm install --global @kivel.io/cli@beta, or run npx --package=@kivel.io/cli@beta kivel --help. It installs the matching SDK automatically. In the repository you can also use pnpm cli instead of kivel.',
+                    'The CLI is published as @kivel.io/cli. Install it with npm install --global @kivel.io/cli, or run npx --package=@kivel.io/cli kivel --help. It installs the matching SDK automatically. In the repository you can also use pnpm cli instead of kivel.',
                 ],
             },
             {
@@ -1574,7 +1574,7 @@ kivel api DELETE /api/mocks/MOCK_ID --token "$MANAGEMENT_TOKEN"`,
         faqs: [
             {
                 question: 'How do I install the kivel CLI?',
-                answer: 'Install npm install --global @kivel.io/cli@beta, or use npx --package=@kivel.io/cli@beta kivel --help without a global installation. The CLI requires Node.js 22.13+. Use the scoped package name @kivel.io/cli; the executable is named kivel.',
+                answer: 'Install npm install --global @kivel.io/cli, or use npx --package=@kivel.io/cli kivel --help without a global installation. The CLI requires Node.js 22.13+. Use the scoped package name @kivel.io/cli; the executable is named kivel.',
             },
             {
                 question: 'How do I run a multi-file tool such as PDF merging from the CLI?',
@@ -1606,7 +1606,7 @@ kivel api DELETE /api/mocks/MOCK_ID --token "$MANAGEMENT_TOKEN"`,
                 title: 'What the SDK covers',
                 paragraphs: [
                     '@kivel.io/sdk is a small, dependency-free TypeScript client for the Kivel HTTP API. It works in Node.js and any runtime with fetch. Use it when you want typed methods for utilities and resources instead of building requests by hand.',
-                    'Install the SDK beta with npm install @kivel.io/sdk@beta. The ESM package includes JavaScript and TypeScript declarations, requires Node.js 22.13+ and uses import rather than CommonJS require. Use an explicit beta tag or version until a latest release is promoted.',
+                    'Install the SDK with npm install @kivel.io/sdk. The ESM package includes JavaScript and TypeScript declarations, requires Node.js 22.13+ and uses import rather than CommonJS require. Pin an exact version for reproducible builds.',
                 ],
             },
             {
@@ -1790,7 +1790,7 @@ await kivel.remove('inboxes', inbox.id);`,
         faqs: [
             {
                 question: 'Is the SDK on npm?',
-                answer: 'Yes. Install @kivel.io/sdk@beta for the published beta, or pin an exact @kivel.io/sdk version. It includes TypeScript declarations. An untagged install requires a latest-tag release.',
+                answer: 'Yes. Install @kivel.io/sdk, or pin an exact version. It includes TypeScript declarations.',
             },
             {
                 question: 'Does the SDK create public resources?',

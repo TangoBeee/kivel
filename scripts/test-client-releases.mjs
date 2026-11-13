@@ -135,7 +135,7 @@ try {
         });
         await json(join(publisher, 'packages', name, 'package.json'), {
             version: '1.0.0',
-            publishConfig: { tag: 'beta' },
+            publishConfig: { tag: 'latest' },
         });
     }
     await json(join(publisher, 'release/manifest.json'), { packages: artifacts });
@@ -159,7 +159,7 @@ try {
                 join(publisher, 'offline.mjs'),
                 join(publisher, 'scripts/publish-clients.mjs'),
                 '--publish',
-                'beta',
+                'latest',
             ],
             {
                 env: {
@@ -179,15 +179,16 @@ try {
     assert.equal(calls.length, 2);
     assert.ok(calls[0][1].includes('sdk'));
     assert.ok(calls[1][1].includes('cli'));
-    for (const args of calls) assert.equal(args[args.indexOf('--tag') + 1], 'beta');
+    for (const args of calls) assert.equal(args[args.indexOf('--tag') + 1], 'latest');
+    // A package still configured for another channel must stop the release.
     await json(join(publisher, 'packages/sdk/package.json'), {
         version: '1.0.0',
-        publishConfig: { tag: 'latest' },
+        publishConfig: { tag: 'beta' },
     });
     assert.throws(publish, /Command failed/);
     await json(join(publisher, 'packages/sdk/package.json'), {
         version: '1.0.0',
-        publishConfig: { tag: 'beta' },
+        publishConfig: { tag: 'latest' },
     });
     await rm(log);
     plan.plan[0] = [plan.plan[0][1]];
@@ -195,7 +196,7 @@ try {
     publish();
     assert.equal((await readFile(log, 'utf8')).trim().split('\n').length, 1);
     console.log(
-        'Verified CLI-only releases, SDK dependency propagation, private-package exclusion, changelogs, missing-note rejection and generated release PR coverage, beta publishing arguments and planned-package selection.',
+        'Verified CLI-only releases, SDK dependency propagation, private-package exclusion, changelogs, missing-note rejection and generated release PR coverage, latest publishing arguments, channel mismatch rejection and planned-package selection.',
     );
 } finally {
     await rm(temporary, { recursive: true, force: true });

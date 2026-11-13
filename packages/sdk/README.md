@@ -6,11 +6,10 @@ for coding agents. Requires Node.js 22.13+ or a compatible fetch-based runtime.
 The published package is ESM; use `import`, not CommonJS `require`.
 
 ```sh
-npm install @kivel.io/sdk@beta
+npm install @kivel.io/sdk
 ```
 
-Use the explicit beta tag for the current beta channel. Pin an exact version
-when you need reproducible application builds.
+Pin an exact version when you need reproducible application builds.
 
 ```ts
 import { Kivel, KivelError } from '@kivel.io/sdk';
@@ -23,7 +22,6 @@ await kivel.remove('inboxes', inbox.id);
 ```
 
 `createInbox()` returns a `webhookUrl` that accepts senders without credentials. Reading and waiting still require your workspace key or the private `inspectionToken`. For token-required receiving, pass `{ visibility: 'private' }` and give the sender the returned `accessToken` for its `X-Access-Token` header.
-
 
 Use `stream(['webhook:' + inbox.id], { token, signal })` to receive change notices
 when live updates are available. Fetch the request bodies with the normal inbox

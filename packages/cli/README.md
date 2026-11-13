@@ -3,13 +3,13 @@
 The command-line client for [Kivel](https://kivel.io). Requires Node.js
 22.13+. Commands share the HTTP API's access rules, plan limits and expiry.
 
-Install the current beta:
+Install the `kivel` command globally:
 
 ```sh
-npx --package=@kivel.io/cli@beta kivel --help
-# Or install the command:
-npm install --global @kivel.io/cli@beta
+npm install --global @kivel.io/cli
 kivel --version
+# Or run it once without installing:
+npx --package=@kivel.io/cli kivel --help
 ```
 
 For source development, run `pnpm build:packages` and `pnpm cli --help` from the

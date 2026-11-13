@@ -32,7 +32,7 @@ test('legacy workspace links preserve useful state and keep credentials on the o
 });
 
 test('workspace routes preserve panel selection without accepting external return paths', () => {
-    assert.equal(workspaceHref('authenticators'), '/credentials/?tab=authenticators');
+    assert.equal(workspaceHref('authenticators'), '/authenticators/');
     assert.equal(workspaceHref('billing'), '/usage/?tab=billing');
     assert.equal(
         workspacePanel('/credentials/', new URLSearchParams('tab=authenticators')),

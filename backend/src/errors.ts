@@ -56,10 +56,12 @@ export class LimitError extends HttpError {
     details(origin: string) {
         const upgradeUrl = this.requiredPlan ? new URL('/pricing/', origin).href : undefined;
         const guidance = this.retryAfter
-            ? 'Retry after the allowance resets.'
-            : 'Do not retry until capacity is available.';
+            ? `Try again after ${new Date(Date.now() + this.retryAfter * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z')}.`
+            : this.limit.endsWith('.storage') || this.limit === 'memory.bytes'
+              ? 'Delete stored data to free space.'
+              : 'Delete an item or wait for one to expire before creating another.';
         const upgrade = upgradeUrl ? ` Ask your human to upgrade at ${upgradeUrl}.` : '';
-        const message = `${this.message}${upgrade} ${guidance}`;
+        const message = `${this.message} Used ${this.used.toLocaleString('en-US')} of ${this.max.toLocaleString('en-US')}${describeLimit(this.limit).unit === 'bytes' ? ' bytes' : ''}. ${guidance}${upgrade}`;
         return {
             error: message,
             code: 'limit_reached',

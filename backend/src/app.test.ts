@@ -767,6 +767,8 @@ test('the app host uses its own export, CSP and browser sessions while public AP
     for (const site of ['public', 'app']) {
         const dir = join(root, site);
         await mkdir(join(dir, 'webhooks'), { recursive: true });
+        await mkdir(join(dir, 'files'), { recursive: true });
+        await writeFile(join(dir, 'files', 'index.html'), `${site} files`);
         await mkdir(join(dir, '_next', 'static'), { recursive: true });
         await writeFile(
             join(dir, 'webhooks', 'index.html'),
@@ -801,6 +803,9 @@ test('the app host uses its own export, CSP and browser sessions while public AP
         assert.equal(asset.body, script);
         assert.equal(asset.headers['cache-control'], 'public, max-age=31536000, immutable');
     }
+    const filesPage = await app.inject({ url: '/files/', headers: appHeaders });
+    assert.equal(filesPage.statusCode, 200, filesPage.body);
+    assert.equal(filesPage.body, 'app files');
     const missing = await app.inject({
         url: '/account/',
         headers: { ...appHeaders, accept: 'text/html' },
@@ -961,4 +966,43 @@ test('the app host uses its own export, CSP and browser sessions while public AP
         (await app.inject({ method: 'POST', url: path, headers: appHeaders })).statusCode,
         404,
     );
+});
+
+test('a trusted loopback proxy supports local dashboard sign-in with a host-only cookie', async (t) => {
+    const publicOrigin = 'http://localhost:3001';
+    const appOrigin = 'http://127.0.0.1:3002';
+    const app = buildApp({
+        publicBaseUrl: publicOrigin,
+        appBaseUrl: appOrigin,
+        trustProxy: ['127.0.0.1/32'],
+    });
+    t.after(() => app.close());
+    const headers = { host: '127.0.0.1:3000', 'x-forwarded-host': '127.0.0.1:3002' };
+    const signedIn = await app.inject({
+        method: 'POST',
+        url: '/api/auth/register',
+        remoteAddress: '127.0.0.1',
+        headers: { ...headers, origin: appOrigin },
+        payload: {
+            username: 'local-workspace',
+            password: 'local fixture password',
+            email: 'local@example.com',
+        },
+    });
+    assert.equal(signedIn.statusCode, 201, signedIn.body);
+    const session = String(signedIn.headers['set-cookie']);
+    assert.match(session, /HttpOnly; SameSite=Strict/);
+    assert.doesNotMatch(session, /Secure|Domain=/);
+    const cookie = session.split(';', 1)[0]!;
+    const account = await app.inject({
+        url: '/api/account',
+        remoteAddress: '127.0.0.1',
+        headers: { ...headers, cookie },
+    });
+    assert.equal(account.statusCode, 200, account.body);
+    const publicAccount = await app.inject({
+        url: '/api/account',
+        headers: { host: 'localhost:3001', cookie },
+    });
+    assert.equal(publicAccount.statusCode, 401);
 });

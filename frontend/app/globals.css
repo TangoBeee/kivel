@@ -5,14 +5,13 @@
 @import './header.css';
 @import './tools.css';
 @import './account.css';
-@import './dashboard.css';
 @import './content.css';
 @import './system.css';
 @import './saved-tools.css';
 @import './scenarios.css';
 @import './crud.css';
 @import './motion.css';
-@import './dashboard-minimal.css';
+@import './dashboard.css';
 
 .email-create-form {
   display: grid;

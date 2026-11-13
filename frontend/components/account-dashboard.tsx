@@ -1,4 +1,5 @@
 'use client';
+import type { UsageKey } from '@kivel.io/tools/plans';
 import { PaymentsPanel } from './test-payments-workbench';
 import { VaultPanel } from './vault-workbench';
 import { AuthenticatorsPanel } from './authenticator-workbench';
@@ -38,10 +39,11 @@ import { AgentOverview } from './agent-overview';
 import { MonitorsPanel } from './monitors-panel';
 import { refreshViewer } from '../lib/viewer';
 import type { DashboardPanel } from './dashboard-shell';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { PasswordRecovery, AccountSecurity } from './account-security';
 import { clearPrivateSession } from '../lib/private-session';
+import { activityLabel, timeAgo } from '../lib/activity-labels';
 import { api, ApiError } from '../lib/api';
 import { SharingControl } from './sharing-control';
 import type { Visibility } from './sharing-control';
@@ -67,8 +69,6 @@ const paths = {
     status: 'status-pages',
     job: 'scheduled-jobs',
 };
-const formatBytes = (value: number) =>
-    value < 1048576 ? `${Math.ceil(value / 1024)} KiB` : `${(value / 1048576).toFixed(1)} MiB`;
 const keyAccess = (scopes: string[]) =>
     scopes.includes('resources:write')
         ? 'Full access'
@@ -128,6 +128,10 @@ export function AccountDashboard({
         [workspaces, setWorkspaces] = useState<{ id: string; name: string }[]>([]),
         [members, setMembers] = useState<{ userId: string; username: string; role: string }[]>([]),
         [detail, setDetail] = useState('');
+    const [resourceData, setResourceData] = useState('');
+    const [resourceActivity, setResourceActivity] = useState<
+        { at: string; tool: string; ok: boolean }[]
+    >([]);
     const [selectedResource, setSelectedResource] = useState<Resource | null>(null),
         [sharedAccess, setSharedAccess] = useState('');
     // Outcome of a Dodo checkout redirect. The plan itself only changes once the signed webhook lands.
@@ -173,10 +177,12 @@ export function AccountDashboard({
         const applyLocation = () => {
             const search = new URLSearchParams(location.search);
             const path = location.pathname.replace(/\/$/, '');
+            closeDetail();
             setPanel(workspacePanel(path, search));
             setCookieReward(search.get('reward') === 'cookie');
             setOpen({
-                resource: search.get('id') ?? search.get('inbox') ?? undefined,
+                resource:
+                    search.get('id') ?? search.get('inbox') ?? search.get('resource') ?? undefined,
                 tool: search.get('tool') ?? undefined,
             });
             setMode(path === '/signup' ? 'register' : 'login');
@@ -307,6 +313,7 @@ export function AccountDashboard({
     function navigate(next: DashboardPanel, target: { resource?: string; tool?: string } = {}) {
         // Leaving a tool screen: it may have created or deleted something.
         if (open.resource || open.tool) void reload();
+        closeDetail();
         setPanel(next);
         setCookieReward(false);
         setOpen(target);
@@ -321,17 +328,31 @@ export function AccountDashboard({
         });
     function closeDetail() {
         setDetail('');
+        setResourceData('');
+        setResourceActivity([]);
         setSelectedResource(null);
         setSharedAccess('');
     }
+    const workspaceRef = useRef(session?.account.id);
+    workspaceRef.current = session?.account.id;
     async function inspect(resource: Resource) {
+        const workspace = workspaceRef.current;
         await action(async () => {
-            const value = await json(
-                `/api/${paths[resource.kind]}/${resource.id}${resource.kind === 'inbox' ? '/requests' : ''}`,
-            );
-            setSelectedResource({ ...resource, name: value.name });
+            const base =
+                resource.toolId === 'email-mock-smtp' ? 'smtp-inboxes' : paths[resource.kind];
+            const [value, history] = await Promise.all([
+                json(`/api/${base}/${resource.id}${resource.kind === 'inbox' ? '/requests' : ''}`),
+                json('/api/account/activity').catch(() => ({ activity: [] })),
+            ]);
+            if (workspaceRef.current !== workspace) return;
+            setSelectedResource({ ...resource, name: value.name ?? resource.name });
             setSharedAccess('');
-            setDetail(JSON.stringify(value, null, 2));
+            setResourceData(JSON.stringify(value, null, 2));
+            setResourceActivity(
+                history.activity.filter(
+                    (event: { resourceId?: string }) => event.resourceId === resource.id,
+                ),
+            );
         });
     }
     function renew(resource: Resource, persistent = resource.persistent) {
@@ -373,33 +394,33 @@ export function AccountDashboard({
     const [usageRevision, setUsageRevision] = useState(0);
     const updateUsage = useCallback(() => setUsageRevision((revision) => revision + 1), []);
     const workspaceUsage = useWorkspaceUsage(session?.account.id, resources, usageRevision);
-    const storedBytes =
-        workspaceUsage.items?.find((item) => item.key === 'resources.storage')?.used ?? 0;
-    const activeResources =
-        workspaceUsage.items?.find((item) => item.key === 'resources.active')?.used ?? 0;
-    const count = (item: ToolPanel) => panelResources(item, resources).length;
     const ratio = (used?: number, limit?: number) =>
         used !== undefined && limit ? { text: `${used}/${limit}`, full: used >= limit } : undefined;
+    const allowanceBadge = (key: UsageKey) => {
+        const item = workspaceUsage.items?.find((entry) => entry.key === key);
+        return ratio(item?.used, item?.max);
+    };
     const badges: Partial<
         Record<DashboardPanel, { text: string; full?: boolean; hidden?: boolean }>
     > = {
         agents: ratio(workspaceUsage.agents?.used, workspaceUsage.agents?.limit),
-        email: ratio(count('email'), workspaceUsage.limits?.emailInboxes),
-        webhooks: { text: String(count('webhooks')) },
-        mocks: { text: String(count('mocks')) },
-        files: { text: String(count('files')) },
+        email: allowanceBadge('email.inboxes'),
+        webhooks: allowanceBadge('webhooks.active'),
+        mocks: allowanceBadge('mocks.active'),
+        files: allowanceBadge('files.active'),
         monitors: ratio(workspaceUsage.monitors?.used, workspaceUsage.monitors?.limit),
         memory: workspaceUsage.memory && {
             text: formatSize(workspaceUsage.memory.used),
             full: workspaceUsage.memory.used >= workspaceUsage.memory.limit,
         },
-        payments: { text: String(count('payments')) },
+        payments: allowanceBadge('payments.active'),
         vault: ratio(workspaceUsage.vault?.used, workspaceUsage.vault?.limit),
         authenticators: ratio(
             workspaceUsage.authenticators?.used,
             workspaceUsage.authenticators?.limit,
         ),
-        automation: { text: String(count('automation')), hidden: !count('automation') },
+        automation: allowanceBadge('jobs.active'),
+        status: allowanceBadge('status.active'),
     };
     const messages = (
         <>
@@ -751,6 +772,7 @@ export function AccountDashboard({
                             glyphs={glyphs}
                             selected={open.tool}
                             onSelect={(toolId) => navigate('tools', { tool: toolId })}
+                            onBack={() => navigate('tools')}
                         />
                     )}
                     {panel === 'usage' && (
@@ -787,14 +809,30 @@ export function AccountDashboard({
                                 panel === 'monitors' ? (
                                     <MonitorsPanel
                                         verifiedEmail={!!recoveryEmail?.verifiedAt}
+                                        selectedId={open.resource}
+                                        onSelect={(id) =>
+                                            navigate('monitors', id ? { resource: id } : {})
+                                        }
                                         onUsageChange={updateUsage}
                                     />
                                 ) : panel === 'payments' ? (
                                     <PaymentsPanel onChange={() => void reload()} />
                                 ) : panel === 'vault' ? (
-                                    <VaultPanel onChange={() => void reload()} />
+                                    <VaultPanel
+                                        onChange={() => void reload()}
+                                        selectedId={open.resource}
+                                        onSelect={(id) =>
+                                            navigate('vault', id ? { resource: id } : {})
+                                        }
+                                    />
                                 ) : panel === 'authenticators' ? (
-                                    <AuthenticatorsPanel onUsageChange={updateUsage} />
+                                    <AuthenticatorsPanel
+                                        onUsageChange={updateUsage}
+                                        selectedId={open.resource}
+                                        onSelect={(id) =>
+                                            navigate('authenticators', id ? { resource: id } : {})
+                                        }
+                                    />
                                 ) : panel === 'memory' ? (
                                     <EmbeddedTool toolId="databases-agent-state-store" />
                                 ) : (
@@ -806,7 +844,10 @@ export function AccountDashboard({
                                         busy={busy}
                                         refreshing={refreshing}
                                         onRefresh={() => void reload()}
-                                        onDetails={(resource) => void inspect(resource)}
+                                        onDetails={(resource) => {
+                                            openResource(resource);
+                                            void inspect(resource);
+                                        }}
                                         onRenew={renew}
                                         onDelete={setDeleteTarget}
                                         onOpen={openResource}
@@ -825,6 +866,207 @@ export function AccountDashboard({
                                     />
                                 )
                             }
+                            details={(resource) => (
+                                <section
+                                    className="dashboard-resource-management"
+                                    aria-label="Resource details"
+                                >
+                                    <h2>Resource details</h2>
+                                    <p>
+                                        {resourceTool(resource).name} ·{' '}
+                                        {resource.persistent
+                                            ? 'Persistent'
+                                            : resource.expiresAt
+                                              ? `Expires ${new Date(resource.expiresAt).toLocaleString()}`
+                                              : 'Active'}
+                                    </p>
+                                    {session.scopes.includes('resources:write') &&
+                                        !['email', 'job'].includes(resource.kind) && (
+                                            <div className="button-row">
+                                                <Button
+                                                    variant="soft"
+                                                    disabled={busy}
+                                                    onClick={() => renew(resource)}
+                                                >
+                                                    Renew
+                                                </Button>
+                                                {subscribed && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        disabled={busy}
+                                                        onClick={() =>
+                                                            renew(resource, !resource.persistent)
+                                                        }
+                                                    >
+                                                        {resource.persistent
+                                                            ? 'Use expiry'
+                                                            : 'Keep active'}
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        )}
+                                    {selectedResource?.id === resource.id ? (
+                                        <Tabs.Root defaultValue="manage">
+                                            <Tabs.List>
+                                                <Tabs.Trigger value="manage">
+                                                    Manage access
+                                                </Tabs.Trigger>
+                                                <Tabs.Trigger value="response">
+                                                    Technical details
+                                                </Tabs.Trigger>
+                                                <Tabs.Trigger value="activity">
+                                                    Activity
+                                                </Tabs.Trigger>
+                                            </Tabs.List>
+                                            <Tabs.Content value="manage">
+                                                {!['email', 'job'].includes(
+                                                    selectedResource.kind,
+                                                ) &&
+                                                    selectedResource.toolId !==
+                                                        'mock-apis-mock-oauth-provider' && (
+                                                        <SharingControl
+                                                            value={selectedResource.visibility}
+                                                            disabled={
+                                                                busy ||
+                                                                !session.scopes.includes(
+                                                                    'resources:write',
+                                                                )
+                                                            }
+                                                            onChange={(visibility) =>
+                                                                void action(async () => {
+                                                                    const result = await json(
+                                                                        `/api/${paths[selectedResource.kind]}/${selectedResource.id}/sharing`,
+                                                                        'POST',
+                                                                        { visibility },
+                                                                    );
+                                                                    setSelectedResource({
+                                                                        ...selectedResource,
+                                                                        visibility,
+                                                                    });
+                                                                    setSharedAccess(
+                                                                        result.accessToken ?? '',
+                                                                    );
+                                                                    await refresh();
+                                                                    setNotice(
+                                                                        visibility === 'private'
+                                                                            ? 'Private sharing enabled. Previous access tokens are revoked.'
+                                                                            : 'Public sharing enabled.',
+                                                                    );
+                                                                })
+                                                            }
+                                                        />
+                                                    )}
+                                                {!['email', 'job'].includes(
+                                                    selectedResource.kind,
+                                                ) &&
+                                                    selectedResource.toolId !==
+                                                        'mock-apis-mock-oauth-provider' &&
+                                                    selectedResource.visibility === 'private' && (
+                                                        <div className="account-secret">
+                                                            <p>
+                                                                Private access requires a sharing
+                                                                token or workspace access.
+                                                            </p>
+                                                            {selectedResource.kind === 'file' && (
+                                                                <p>
+                                                                    Share the link and access token
+                                                                    separately.
+                                                                </p>
+                                                            )}
+                                                            <div className="account-secret-actions">
+                                                                {selectedResource.kind ===
+                                                                    'file' && (
+                                                                    <CopyButton
+                                                                        text={`${siteOrigin}/share/?id=${selectedResource.id}`}
+                                                                        label="Copy share link"
+                                                                    />
+                                                                )}
+                                                                {sharedAccess ? (
+                                                                    <CopyButton
+                                                                        text={sharedAccess}
+                                                                        label="Copy access token"
+                                                                    />
+                                                                ) : (
+                                                                    <Button
+                                                                        variant="soft"
+                                                                        disabled={
+                                                                            busy ||
+                                                                            !session.scopes.includes(
+                                                                                'resources:write',
+                                                                            )
+                                                                        }
+                                                                        onClick={() =>
+                                                                            void action(
+                                                                                async () => {
+                                                                                    const result =
+                                                                                        await json(
+                                                                                            `/api/${paths[selectedResource.kind]}/${selectedResource.id}/sharing`,
+                                                                                            'POST',
+                                                                                            {
+                                                                                                visibility:
+                                                                                                    'private',
+                                                                                            },
+                                                                                        );
+                                                                                    setSharedAccess(
+                                                                                        result.accessToken,
+                                                                                    );
+                                                                                },
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        Rotate access token
+                                                                    </Button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                {selectedResource.kind === 'file' && (
+                                                    <RemoteFilePreview
+                                                        id={selectedResource.id}
+                                                        name={selectedResource.name ?? 'download'}
+                                                        accessToken={sharedAccess || undefined}
+                                                    />
+                                                )}
+                                            </Tabs.Content>
+                                            <Tabs.Content value="response">
+                                                <ResultPreview
+                                                    text={resourceData}
+                                                    title="Resource data"
+                                                    filename="resource-data.json"
+                                                />
+                                            </Tabs.Content>
+                                            <Tabs.Content value="activity">
+                                                {resourceActivity.length ? (
+                                                    <ul className="home-rows">
+                                                        {resourceActivity.map((event, index) => (
+                                                            <li key={`${event.at}-${index}`}>
+                                                                <span>
+                                                                    {activityLabel(event.tool)}
+                                                                    {event.ok ? '' : ' failed'}
+                                                                </span>
+                                                                <small>{timeAgo(event.at)}</small>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                ) : (
+                                                    <p>
+                                                        No agent activity has been recorded for this
+                                                        resource.
+                                                    </p>
+                                                )}
+                                            </Tabs.Content>
+                                        </Tabs.Root>
+                                    ) : (
+                                        <Button
+                                            variant="soft"
+                                            disabled={busy}
+                                            onClick={() => void inspect(resource)}
+                                        >
+                                            Manage access and view data
+                                        </Button>
+                                    )}
+                                </section>
+                            )}
                         />
                     )}
                     {panel === 'approvals' && (
@@ -1375,18 +1617,6 @@ export function AccountDashboard({
                                 </div>
                                 <div className="plan-hero-meters">
                                     <Meter
-                                        label="Active resources"
-                                        value={activeResources}
-                                        max={workspaceUsage.limits?.maxResources ?? 0}
-                                        display={`${activeResources} / ${workspaceUsage.limits?.maxResources ?? '-'}`}
-                                    />
-                                    <Meter
-                                        label="Storage"
-                                        value={storedBytes}
-                                        max={workspaceUsage.limits?.storageBytes ?? 0}
-                                        display={`${formatBytes(storedBytes)} of ${formatBytes(workspaceUsage.limits?.storageBytes ?? 0)}`}
-                                    />
-                                    <Meter
                                         label="Hosted runs today"
                                         value={workspaceUsage.runsToday ?? 0}
                                         max={workspaceUsage.limits?.runsPerDay ?? 0}
@@ -1495,141 +1725,16 @@ export function AccountDashboard({
                             if (!open) closeDetail();
                         }}
                     >
-                        <Dialog.Content className="dashboard-resource-dialog" maxWidth="700px">
-                            <Dialog.Title>
-                                {selectedResource?.name ??
-                                    (selectedResource
-                                        ? resourceTool(selectedResource).name
-                                        : 'Workspace invitation')}
-                            </Dialog.Title>
+                        <Dialog.Content maxWidth="700px">
+                            <Dialog.Title>Workspace invitation</Dialog.Title>
                             <Dialog.Description size="2">
-                                {selectedResource
-                                    ? `Manage access and inspect this ${resourceTool(selectedResource).name.toLowerCase()}.`
-                                    : 'Share this invitation only with the intended workspace member.'}
+                                Share this invitation only with the intended workspace member.
                             </Dialog.Description>
-                            {selectedResource ? (
-                                <Tabs.Root defaultValue="manage">
-                                    <Tabs.List>
-                                        <Tabs.Trigger value="manage">Manage access</Tabs.Trigger>
-                                        <Tabs.Trigger value="response">
-                                            Technical details
-                                        </Tabs.Trigger>
-                                    </Tabs.List>
-                                    <Tabs.Content value="manage">
-                                        {!['email', 'job'].includes(selectedResource.kind) &&
-                                            selectedResource.toolId !==
-                                                'mock-apis-mock-oauth-provider' && (
-                                                <SharingControl
-                                                    value={selectedResource.visibility}
-                                                    disabled={
-                                                        busy ||
-                                                        !session.scopes.includes('resources:write')
-                                                    }
-                                                    onChange={(visibility) =>
-                                                        void action(async () => {
-                                                            const result = await json(
-                                                                `/api/${paths[selectedResource.kind]}/${selectedResource.id}/sharing`,
-                                                                'POST',
-                                                                { visibility },
-                                                            );
-                                                            setSelectedResource({
-                                                                ...selectedResource,
-                                                                visibility,
-                                                            });
-                                                            setSharedAccess(
-                                                                result.accessToken ?? '',
-                                                            );
-                                                            await refresh();
-                                                            setNotice(
-                                                                visibility === 'private'
-                                                                    ? 'Private sharing enabled. Previous access tokens are revoked.'
-                                                                    : 'Public sharing enabled.',
-                                                            );
-                                                        })
-                                                    }
-                                                />
-                                            )}
-                                        {!['email', 'job'].includes(selectedResource.kind) &&
-                                            selectedResource.toolId !==
-                                                'mock-apis-mock-oauth-provider' &&
-                                            selectedResource.visibility === 'private' && (
-                                                <div className="account-secret">
-                                                    <p>
-                                                        Private access requires a sharing token or
-                                                        workspace access.
-                                                    </p>
-                                                    {selectedResource.kind === 'file' && (
-                                                        <p>
-                                                            Share the link and access token
-                                                            separately.
-                                                        </p>
-                                                    )}
-                                                    <div className="account-secret-actions">
-                                                        {selectedResource.kind === 'file' && (
-                                                            <CopyButton
-                                                                text={`${siteOrigin}/share/?id=${selectedResource.id}`}
-                                                                label="Copy share link"
-                                                            />
-                                                        )}
-                                                        {sharedAccess ? (
-                                                            <CopyButton
-                                                                text={sharedAccess}
-                                                                label="Copy access token"
-                                                            />
-                                                        ) : (
-                                                            <Button
-                                                                variant="soft"
-                                                                disabled={
-                                                                    busy ||
-                                                                    !session.scopes.includes(
-                                                                        'resources:write',
-                                                                    )
-                                                                }
-                                                                onClick={() =>
-                                                                    void action(async () => {
-                                                                        const result = await json(
-                                                                            `/api/${paths[selectedResource.kind]}/${selectedResource.id}/sharing`,
-                                                                            'POST',
-                                                                            {
-                                                                                visibility:
-                                                                                    'private',
-                                                                            },
-                                                                        );
-                                                                        setSharedAccess(
-                                                                            result.accessToken,
-                                                                        );
-                                                                    })
-                                                                }
-                                                            >
-                                                                Rotate access token
-                                                            </Button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        {selectedResource.kind === 'file' && (
-                                            <RemoteFilePreview
-                                                id={selectedResource.id}
-                                                name={selectedResource.name ?? 'download'}
-                                                accessToken={sharedAccess || undefined}
-                                            />
-                                        )}
-                                    </Tabs.Content>
-                                    <Tabs.Content value="response">
-                                        <ResultPreview
-                                            text={detail}
-                                            title="Resource data"
-                                            filename="resource-data.json"
-                                        />
-                                    </Tabs.Content>
-                                </Tabs.Root>
-                            ) : (
-                                <ResultPreview
-                                    text={detail}
-                                    title="Invitation details"
-                                    filename="workspace-invitation.json"
-                                />
-                            )}
+                            <ResultPreview
+                                text={detail}
+                                title="Invitation details"
+                                filename="workspace-invitation.json"
+                            />
                             <div className="dashboard-dialog-footer">
                                 <Dialog.Close>
                                     <Button variant="soft" color="gray">

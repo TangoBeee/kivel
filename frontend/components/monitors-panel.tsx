@@ -41,10 +41,14 @@ const every = (seconds: number) =>
 /** Uptime, SSL and heartbeat monitors for the workspace, with alerts when status changes. */
 export function MonitorsPanel({
     verifiedEmail,
+    selectedId,
+    onSelect,
     initialKind = 'http',
     onUsageChange,
 }: {
     verifiedEmail: boolean;
+    selectedId?: string;
+    onSelect?: (id?: string) => void;
     initialKind?: Monitor['kind'];
     onUsageChange?: () => void;
 }) {
@@ -90,6 +94,20 @@ export function MonitorsPanel({
         void load(controller.signal);
         return () => controller.abort();
     }, []);
+    useEffect(() => {
+        setHistory(null);
+        if (!selectedId) return;
+        const controller = new AbortController();
+        void api(`/api/monitors/${encodeURIComponent(selectedId)}`, { signal: controller.signal })
+            .then((response) => response.json())
+            .then((value) => {
+                if (!controller.signal.aborted) setHistory(value);
+            })
+            .catch((failure) => {
+                if (!controller.signal.aborted) setError(failure.message);
+            });
+        return () => controller.abort();
+    }, [selectedId]);
     const live = useLiveStream('monitors', load, paused);
     const count = monitors?.length;
     useEffect(() => {
@@ -181,7 +199,7 @@ export function MonitorsPanel({
                         </Button>
                     </div>
                 </div>
-                <Button color="green" disabled={full} onClick={start}>
+                <Button disabled={full} onClick={start}>
                     <Plus size={16} /> Add monitor
                 </Button>
             </div>
@@ -295,6 +313,10 @@ export function MonitorsPanel({
                                                     )}
                                                 <DropdownMenu.Item
                                                     onSelect={() => {
+                                                        if (onSelect) {
+                                                            onSelect(monitor.id);
+                                                            return;
+                                                        }
                                                         void api(`/api/monitors/${monitor.id}`)
                                                             .then((response) => response.json())
                                                             .then(setHistory)
@@ -324,7 +346,7 @@ export function MonitorsPanel({
                     <Pulse size={28} />
                     <strong>Nothing is being watched yet.</strong>
                     <p>Add a website, an SSL certificate or a cron job. It takes ten seconds.</p>
-                    <Button color="green" onClick={start}>
+                    <Button onClick={start}>
                         <Plus size={16} /> Add your first monitor
                     </Button>
                 </div>
@@ -350,9 +372,7 @@ export function MonitorsPanel({
                                 Shown once. To report a failure, call the same URL with /fail.
                             </p>
                             <div className="button-row">
-                                <Button color="green" onClick={() => setOpen(false)}>
-                                    Done
-                                </Button>
+                                <Button onClick={() => setOpen(false)}>Done</Button>
                             </div>
                         </div>
                     ) : (
@@ -484,7 +504,7 @@ export function MonitorsPanel({
                                         Cancel
                                     </Button>
                                 </Dialog.Close>
-                                <Button color="green" type="submit" disabled={busy}>
+                                <Button type="submit" disabled={busy}>
                                     {busy ? 'Adding…' : 'Add monitor'}
                                 </Button>
                             </div>
@@ -492,17 +512,10 @@ export function MonitorsPanel({
                     )}
                 </Dialog.Content>
             </Dialog.Root>
-            <Dialog.Root
-                open={Boolean(history)}
-                onOpenChange={(open) => {
-                    if (!open) setHistory(null);
-                }}
-            >
-                <Dialog.Content maxWidth="640px">
-                    <Dialog.Title>{history?.name} · Check history</Dialog.Title>
-                    <Dialog.Description>
-                        Latest 50 probes, measured from Kivel. These are individual check results.
-                    </Dialog.Description>
+            {history && (
+                <section className="dashboard-resource-management">
+                    <h2>{history.name}</h2>
+                    <p>Latest checks from Kivel.</p>
                     {history?.kind === 'dns' && (
                         <>
                             <h3>Baseline records</h3>
@@ -539,14 +552,18 @@ export function MonitorsPanel({
                         </table>
                     </div>
                     <div className="button-row">
-                        <Dialog.Close>
-                            <Button variant="soft" color="gray">
-                                Done
-                            </Button>
-                        </Dialog.Close>
+                        <Button
+                            variant="soft"
+                            onClick={() => {
+                                setHistory(null);
+                                onSelect?.();
+                            }}
+                        >
+                            Close history
+                        </Button>
                     </div>
-                </Dialog.Content>
-            </Dialog.Root>
+                </section>
+            )}
         </section>
     );
 }

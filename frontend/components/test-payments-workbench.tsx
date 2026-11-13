@@ -776,6 +776,13 @@ export function PaymentsPanel({
     const workspace = viewer.status === 'user' ? viewer.workspaceId : '';
     const current = useRef(workspace);
     current.current = workspace;
+    const dashboard = typeof window !== 'undefined' && location.pathname === '/payments/';
+    function writeSelection(nextKind: TestPaymentResource['kind'], id?: string) {
+        if (!dashboard) return;
+        const query = new URLSearchParams({ tab: paths[nextKind] });
+        if (id) query.set('id', id);
+        history.replaceState(null, '', `/payments/?${query}`);
+    }
     const canManage = viewer.status === 'user' && ['owner', 'admin'].includes(viewer.role);
     const canWrite = viewer.status === 'user' && viewer.role !== 'viewer';
     useEffect(() => {
@@ -844,7 +851,14 @@ export function PaymentsPanel({
                     Fake money only. No real funds, blockchain transactions or private keys.
                 </span>
             </p>
-            <Tabs.Root value={kind} onValueChange={(value) => setKind(value as typeof kind)}>
+            <Tabs.Root
+                value={kind}
+                onValueChange={(value) => {
+                    const next = value as typeof kind;
+                    writeSelection(next);
+                    setKind(next);
+                }}
+            >
                 <Tabs.List aria-label="Test payment resources">
                     {(Object.keys(paths) as (keyof typeof paths)[]).map((value) => (
                         <Tabs.Trigger key={value} value={value}>
@@ -869,6 +883,7 @@ export function PaymentsPanel({
                                 setSelected(null);
                                 setForm(false);
                                 setSecret('');
+                                writeSelection(kind);
                             }}
                         >
                             Back to {labels[kind].toLowerCase()}
@@ -1053,6 +1068,7 @@ export function PaymentsPanel({
                                                 className="payment-resource-row"
                                                 onClick={() => {
                                                     setSelected(entry);
+                                                    writeSelection(kind, entry.id);
                                                     setSecret('');
                                                 }}
                                             >

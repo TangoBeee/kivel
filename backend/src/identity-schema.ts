@@ -1,5 +1,6 @@
+import { resourceAllowanceSql } from './allocations.js';
 import type { PoolClient } from 'pg';
-import { plans } from '@kivel.io/tools/plans';
+import { plans, resourceAllowances, resourceAllowanceKeys } from '@kivel.io/tools/plans';
 export async function identitySchema(client: PoolClient) {
     await client.query(`
         CREATE TABLE accounts (
@@ -112,6 +113,10 @@ export const quotaFunction = `
             config jsonb;
             next_count integer;
             next_bytes bigint;
+            product text;
+            product_count integer;
+            product_bytes bigint;
+            count_limit integer;
             count_delta integer := 0;
             bytes_delta bigint := 0;
             resource_kind text;
@@ -143,15 +148,29 @@ export const quotaFunction = `
                 INSERT INTO principal_usage (key_hash, account_id) VALUES (principal, owner) ON CONFLICT DO NOTHING;
                 SELECT resource_count + count_delta, stored_bytes + bytes_delta INTO next_count, next_bytes FROM principal_usage WHERE key_hash = principal FOR UPDATE;
                 SELECT settings INTO config FROM usage_plans WHERE id = plan_id;
-                IF count_delta > 0 AND next_count > (config->>'maxResources')::integer THEN
-                    RAISE EXCEPTION 'account_resource_limit' USING DETAIL = json_build_object(
-                        'plan', plan_id, 'used', next_count - count_delta, 'max', (config->>'maxResources')::integer, 'adding', count_delta
-                    )::text;
-                END IF;
-                IF bytes_delta > 0 AND next_bytes > (config->>'storageBytes')::bigint THEN
-                    RAISE EXCEPTION 'account_storage_limit' USING DETAIL = json_build_object(
-                        'plan', plan_id, 'used', next_bytes - bytes_delta, 'max', (config->>'storageBytes')::bigint, 'adding', bytes_delta
-                    )::text;
+                IF count_delta > 0 OR bytes_delta > 0 THEN
+                    IF TG_TABLE_NAME = 'inboxes' THEN
+                        product := 'webhooks';
+                        SELECT count(*), COALESCE(sum(stored_bytes), 0) INTO product_count, product_bytes
+                        FROM inboxes WHERE quota_key = principal AND (owner IS NULL OR owner_id = owner) AND expires_at > clock_timestamp() AND id <> NEW.id;
+                    ELSE
+                        product := ${resourceAllowanceSql('NEW.kind', 'NEW.payload')};
+                        SELECT count(*), COALESCE(sum(stored_bytes), 0) INTO product_count, product_bytes
+                        FROM temporary_resources WHERE quota_key = principal AND (owner IS NULL OR owner_id = owner) AND expires_at > clock_timestamp() AND id <> NEW.id
+                          AND (${resourceAllowanceSql('kind', 'payload')}) = product;
+                    END IF;
+                    count_limit := CASE product ${resourceAllowanceKeys.map((key) => `WHEN '${key}' THEN CASE plan_id ${(Object.keys(plans) as (keyof typeof plans)[]).map((plan) => `WHEN '${plan}' THEN ${resourceAllowances[key].max(plan)}`).join(' ')} END`).join(' ')} END;
+                    IF count_delta > 0 AND product <> 'email' AND product_count + count_delta > count_limit THEN
+                        RAISE EXCEPTION 'account_resource_limit' USING DETAIL = json_build_object(
+                            'plan', plan_id, 'product', product, 'used', product_count, 'max', count_limit, 'adding', count_delta
+                        )::text;
+                    END IF;
+                    IF bytes_delta > 0 AND product_bytes + NEW.stored_bytes > (config->>'storageBytes')::bigint THEN
+                        RAISE EXCEPTION 'account_storage_limit' USING DETAIL = json_build_object(
+                            'plan', plan_id, 'product', product, 'used', product_bytes + NEW.stored_bytes - bytes_delta,
+                            'max', (config->>'storageBytes')::bigint, 'adding', bytes_delta
+                        )::text;
+                    END IF;
                 END IF;
                 UPDATE principal_usage SET resource_count = next_count, stored_bytes = next_bytes, updated_at = clock_timestamp() WHERE key_hash = principal;
             END IF;

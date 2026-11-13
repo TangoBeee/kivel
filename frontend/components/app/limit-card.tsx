@@ -4,7 +4,7 @@ import { Button } from '@radix-ui/themes';
 import { describeLimit, planRank, type PlanId, type UsageItem } from '@kivel.io/tools/plans';
 import { formatBytes } from '../../lib/workspace-usage';
 
-const consequences = {
+const consequences: Partial<Record<UsageItem['key'], string>> = {
     'resources.active': 'Delete a resource or let one expire to make room for another.',
     'resources.storage': 'Free up storage before adding more data.',
     'email.inboxes': 'Delete an inbox before creating a new one.',
@@ -18,7 +18,7 @@ const consequences = {
     'agents.connected': 'Replace an agent to connect another one.',
     'approvals.questions': 'New requests become available 24 hours after earlier requests.',
     'mocks.oauth': 'Delete an OAuth provider before creating another.',
-} satisfies Record<UsageItem['key'], string>;
+};
 
 export function LimitCard({
     item,
@@ -40,7 +40,12 @@ export function LimitCard({
         <aside className="limit-card">
             <div>
                 <strong>{item.label} limit reached</strong>
-                <p>{consequences[item.key] ?? 'Free up capacity to continue.'}</p>
+                <p>
+                    {consequences[item.key] ??
+                        (item.unit === 'bytes'
+                            ? 'Delete stored data to free space.'
+                            : 'Delete an item or let one expire to make room.')}
+                </p>
                 {next && more !== undefined && (
                     <p>
                         {{ free: 'Free', pro: 'Pro', team: 'Team' }[next]} includes{' '}

@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { legacyAccountLink } from '../lib/app-routes';
+import { legacyAccountLink, workspaceResource } from '../lib/app-routes';
 import { useEffect, useState } from 'react';
 import { Button, TextArea, TextField, Select, AlertDialog } from '@radix-ui/themes';
 import { api } from '../lib/api';
@@ -27,9 +27,15 @@ export function ScheduledJobWorkbench({ toolId }: { toolId: string }) {
     const [jobs, setJobs] = useState<Job[]>([]),
         [busy, setBusy] = useState(false),
         [error, setError] = useState('');
+    const [id, setId] = useState<string | null>(null);
+    useEffect(() => setId(workspaceResource(location.search)), []);
+    const endpoint = id ? `/api/scheduled-jobs/${encodeURIComponent(id)}` : '/api/scheduled-jobs';
+    async function loadJobs() {
+        const data = await (await api(endpoint)).json();
+        return id ? [data] : (data.jobs as Job[]);
+    }
     async function refresh() {
-        const response = await api('/api/scheduled-jobs');
-        setJobs((await response.json()).jobs);
+        setJobs(await loadJobs());
     }
     useEffect(() => {
         if (viewer.status !== 'user') return;
@@ -37,10 +43,9 @@ export function ScheduledJobWorkbench({ toolId }: { toolId: string }) {
         setJobs([]);
         setError('');
         const load = () => {
-            void api('/api/scheduled-jobs')
-                .then((response) => response.json())
-                .then((data) => {
-                    if (live) setJobs(data.jobs);
+            void loadJobs()
+                .then((jobs) => {
+                    if (live) setJobs(jobs);
                 })
                 .catch((failure) => {
                     if (live) setError(failure.message);
@@ -52,7 +57,7 @@ export function ScheduledJobWorkbench({ toolId }: { toolId: string }) {
             live = false;
             window.clearInterval(timer);
         };
-    }, [viewer.status, viewer.status === 'user' ? viewer.workspace : '']);
+    }, [endpoint, viewer.status, viewer.status === 'user' ? viewer.workspace : '']);
     async function create() {
         setBusy(true);
         setError('');
@@ -116,88 +121,90 @@ export function ScheduledJobWorkbench({ toolId }: { toolId: string }) {
             ) : viewer.status === 'loading' ? (
                 <p role="status">Loading your workspace…</p>
             ) : (
-                <div className="llm-workspace">
-                    <form
-                        className="email-create-form"
-                        onSubmit={(event) => {
-                            event.preventDefault();
-                            void create();
-                        }}
-                    >
-                        <label>
-                            Name
-                            <TextField.Root
-                                required
-                                maxLength={80}
-                                value={name}
-                                onChange={(event) => setName(event.target.value)}
-                            />
-                        </label>
-                        <label>
-                            Destination
-                            <TextField.Root
-                                type="url"
-                                required
-                                placeholder="https://your-app.com/webhook"
-                                value={url}
-                                onChange={(event) => setUrl(event.target.value)}
-                            />
-                        </label>
-                        <label>
-                            JSON body
-                            <TextArea
-                                required
-                                rows={6}
-                                value={body}
-                                onChange={(event) => setBody(event.target.value)}
-                            />
-                        </label>
-                        <label>
-                            First delivery in seconds
-                            <TextField.Root
-                                type="number"
-                                min={5}
-                                max={604000}
-                                required
-                                value={delay}
-                                onChange={(event) => setDelay(event.target.value)}
-                            />
-                        </label>
-                        <label>
-                            Repeat
-                            <Select.Root value={interval} onValueChange={setInterval}>
-                                <Select.Trigger />
-                                <Select.Content>
-                                    <Select.Item value="once">Once</Select.Item>
-                                    <Select.Item value="300">Every 5 minutes</Select.Item>
-                                    <Select.Item value="3600">Every hour</Select.Item>
-                                    <Select.Item value="86400">Every day</Select.Item>
-                                </Select.Content>
-                            </Select.Root>
-                        </label>
-                        {interval !== 'once' && (
+                <div className={id ? undefined : 'llm-workspace'}>
+                    {!id && (
+                        <form
+                            className="email-create-form"
+                            onSubmit={(event) => {
+                                event.preventDefault();
+                                void create();
+                            }}
+                        >
                             <label>
-                                Total deliveries
+                                Name
                                 <TextField.Root
-                                    type="number"
-                                    min={2}
-                                    max={100}
                                     required
-                                    value={runs}
-                                    onChange={(event) => setRuns(event.target.value)}
+                                    maxLength={80}
+                                    value={name}
+                                    onChange={(event) => setName(event.target.value)}
                                 />
                             </label>
-                        )}
-                        <p className="muted">
-                            Public HTTP(S) destinations only. Up to 16 KiB of JSON and 100 runs
-                            within seven days. Failed deliveries retry twice with the same
-                            X-Kivel-Delivery-Id; your receiver should deduplicate it. Delivery
-                            timing can vary by a few seconds.
-                        </p>
-                        <Button type="submit" disabled={busy}>
-                            {busy ? 'Scheduling…' : 'Schedule callback'}
-                        </Button>
-                    </form>
+                            <label>
+                                Destination
+                                <TextField.Root
+                                    type="url"
+                                    required
+                                    placeholder="https://your-app.com/webhook"
+                                    value={url}
+                                    onChange={(event) => setUrl(event.target.value)}
+                                />
+                            </label>
+                            <label>
+                                JSON body
+                                <TextArea
+                                    required
+                                    rows={6}
+                                    value={body}
+                                    onChange={(event) => setBody(event.target.value)}
+                                />
+                            </label>
+                            <label>
+                                First delivery in seconds
+                                <TextField.Root
+                                    type="number"
+                                    min={5}
+                                    max={604000}
+                                    required
+                                    value={delay}
+                                    onChange={(event) => setDelay(event.target.value)}
+                                />
+                            </label>
+                            <label>
+                                Repeat
+                                <Select.Root value={interval} onValueChange={setInterval}>
+                                    <Select.Trigger />
+                                    <Select.Content>
+                                        <Select.Item value="once">Once</Select.Item>
+                                        <Select.Item value="300">Every 5 minutes</Select.Item>
+                                        <Select.Item value="3600">Every hour</Select.Item>
+                                        <Select.Item value="86400">Every day</Select.Item>
+                                    </Select.Content>
+                                </Select.Root>
+                            </label>
+                            {interval !== 'once' && (
+                                <label>
+                                    Total deliveries
+                                    <TextField.Root
+                                        type="number"
+                                        min={2}
+                                        max={100}
+                                        required
+                                        value={runs}
+                                        onChange={(event) => setRuns(event.target.value)}
+                                    />
+                                </label>
+                            )}
+                            <p className="muted">
+                                Public HTTP(S) destinations only. Up to 16 KiB of JSON and 100 runs
+                                within seven days. Failed deliveries retry twice with the same
+                                X-Kivel-Delivery-Id; your receiver should deduplicate it. Delivery
+                                timing can vary by a few seconds.
+                            </p>
+                            <Button type="submit" disabled={busy}>
+                                {busy ? 'Scheduling…' : 'Schedule callback'}
+                            </Button>
+                        </form>
+                    )}
                     <section className="llm-preview" aria-label="Scheduled callbacks">
                         <div className="section-heading">
                             <h2>Your callbacks</h2>

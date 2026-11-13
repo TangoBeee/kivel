@@ -63,7 +63,7 @@ export function openApi(origin: string) {
                 '- **Anonymous management:** the returned inspection or management token, sent as Bearer or `X-Resource-Token` when an account key occupies Authorization.',
                 '- **Private callers:** a separate token in `X-Access-Token`, or authorized workspace access. Webhook receiving is public by default; inspection is always private. Other resources are private by default. Keep credentials out of URLs.',
                 '## Lifetimes and usage',
-                'Resources start with one hour. Renewal and persistent leases follow the plan. Read `GET /api/plans` and `GET /api/usage` for allowances. Delete resources when finished.',
+                'Resources start with one hour. Renewal and persistent leases follow the plan. Each product has its own allowance. Hosted utilities share one daily tool runs allowance. Read `GET /api/plans` for plan limits and `GET /api/usage` for the amount used and reset times. Delete resources when finished.',
                 'Browser utilities run locally. Hosted execution sends input to the server without saving execution history. Sign-in, registration and password recovery run in the workspace browser on app.kivel.io. Account administration and billing require a browser session.',
             ].join('\n\n'),
         },

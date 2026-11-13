@@ -12,21 +12,25 @@ export default function config(phase: string): NextConfig {
         poweredByHeader: false,
         ...(development
             ? {
+                  skipTrailingSlashRedirect: true,
                   async rewrites() {
-                      return [
-                          '/api/:path*',
-                          '/hooks/:path*',
-                          '/mock/:path*',
-                          '/pay/:path*',
-                          '/checkout/:path*',
-                          '/mcp/:path*',
-                          '/files/:path*',
-                          '/health',
-                          '/ready',
-                      ].map((source) => ({
+                      const proxy = (source: string) => ({
                           source,
-                          destination: `http://127.0.0.1:3000${source}`,
-                      }));
+                          destination: `http://127.0.0.1:${process.env.KIVEL_BACKEND_PORT ?? '3000'}${source}`,
+                      });
+                      return {
+                          afterFiles: [
+                              '/api/:path*',
+                              '/hooks/:path*',
+                              '/mock/:path*',
+                              '/pay/:path*',
+                              '/checkout/:path*',
+                              '/mcp/:path*',
+                              '/health',
+                              '/ready',
+                          ].map(proxy),
+                          fallback: [proxy('/files/:path*')],
+                      };
                   },
               }
             : {}),

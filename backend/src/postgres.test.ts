@@ -463,7 +463,7 @@ test('upgrading an existing webhook-only database preserves captures and enables
     );
 });
 
-test('principal limits are atomic across inboxes and resources and failed writes roll back global counters', async () => {
+test('principal limits are atomic per product across concurrent writes and failed writes roll back global counters', async () => {
     const inboxes = new PostgresInboxStore(pool),
         resources = new PostgresResourceStore(pool);
     const allocation = { quotaKey: randomBytes(32).toString('hex'), plan: 'anonymous' as const };
@@ -476,23 +476,23 @@ test('principal limits are atomic across inboxes and resources and failed writes
     );
     assert.equal(
         results.filter((result) => result.status === 'fulfilled' && result.value).length,
-        5,
+        10,
     );
     assert.equal(
         results.filter(
             (result) =>
                 result.status === 'rejected' && result.reason.message === 'account_resource_limit',
         ).length,
-        15,
+        10,
     );
     const usage = (await pool.query('SELECT * FROM principal_usage')).rows[0];
-    assert.equal(usage.resource_count, 5);
+    assert.equal(usage.resource_count, 10);
     const globals = (
         await pool.query(
             'SELECT (SELECT inbox_count FROM platform_usage) + (SELECT resource_count FROM resource_usage) AS count',
         )
     ).rows[0];
-    assert.equal(globals.count, 5);
+    assert.equal(globals.count, 10);
     const owned = (await inboxes.create({
         ...allocation,
         quotaKey: randomBytes(32).toString('hex'),
@@ -525,7 +525,7 @@ test('principal limits are atomic across inboxes and resources and failed writes
             ])
         ).rows[0].resource_count,
     );
-    assert.ok(total < 5);
+    assert.equal(total, 8);
     assert.ok(await resources.create('mcp', { name: 'Reclaimed' }, undefined, allocation));
 });
 
@@ -3487,7 +3487,7 @@ test('workspace usage reads durable counters and keeps totals behind account rea
     const counters = Object.fromEntries(
         firstUsage.items.map((item: { key: string; used: number }) => [item.key, item.used]),
     );
-    assert.equal(counters['resources.active'], 1);
+    assert.equal(counters['webhooks.active'], 1);
     assert.equal(counters['memory.bytes'], 7);
     assert.equal(counters['approvals.questions'], 1);
     assert.equal(firstUsage.period.end, firstUsage.resetsAt);
@@ -3567,10 +3567,17 @@ test('PostgreSQL resource and storage rejections report the checked limits', asy
     }
     const count = await app.inject({ method: 'POST', url: '/api/inboxes' });
     assert.equal(count.statusCode, 402, count.body);
-    assert.equal(count.json().limit, 'resources.active');
+    assert.equal(count.json().limit, 'webhooks.active');
     assert.equal(count.json().used, caps.maxResources);
     assert.equal(count.json().max, caps.maxResources);
     assert.equal(count.json().plan, 'anonymous');
+    const independent = await app.inject({
+        method: 'POST',
+        url: '/api/files',
+        headers: { 'content-type': 'application/octet-stream', 'x-file-name': 'independent.txt' },
+        payload: 'ok',
+    });
+    assert.equal(independent.statusCode, 201, independent.body);
     const original = (await pool.query("SELECT settings FROM usage_plans WHERE id='anonymous'"))
         .rows[0].settings;
     try {
@@ -3585,7 +3592,7 @@ test('PostgreSQL resource and storage rejections report the checked limits', asy
             payload: 'a'.repeat(128),
         });
         assert.equal(storage.statusCode, 402, storage.body);
-        assert.equal(storage.json().limit, 'resources.storage');
+        assert.equal(storage.json().limit, 'files.storage');
         assert.equal(storage.json().used, 0);
         assert.equal(storage.json().max, 64);
         assert.equal(storage.json().plan, 'anonymous');

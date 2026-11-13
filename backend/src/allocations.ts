@@ -1,5 +1,11 @@
-import { plans } from '@kivel.io/tools/plans';
-import type { PlanId } from '@kivel.io/tools/plans';
+import {
+    plans,
+    resourceAllowanceKeys,
+    resourceCountKey,
+    resourceStorageKey,
+} from '@kivel.io/tools/plans';
+import type { PlanId, ResourceAllowance } from '@kivel.io/tools/plans';
+import type { ResourceKind } from './resources.js';
 import { checkLimit, HttpError, LimitError } from './errors.js';
 export interface AllocationContext {
     visibility?: 'public' | 'private';
@@ -12,6 +18,35 @@ export interface AllocationContext {
     byteLimit?: number;
     maxUses?: number;
 }
+export function resourceAllowance(
+    kind: ResourceKind,
+    payload: Record<string, unknown>,
+): ResourceAllowance {
+    switch (kind) {
+        case 'mock':
+            return payload.payment ? 'payments' : 'mocks';
+        case 'mcp':
+            return 'mocks';
+        case 'email':
+            return payload.smtpCapture ? 'smtp' : 'email';
+        case 'file':
+            return 'files';
+        case 'status':
+            return 'status';
+        case 'job':
+            return 'jobs';
+    }
+}
+
+export const resourceAllowanceSql = (kind: string, payload: string) => `CASE ${kind}
+    WHEN 'mock' THEN CASE WHEN ${payload}::jsonb ? 'payment' THEN 'payments' ELSE 'mocks' END
+    WHEN 'mcp' THEN 'mocks'
+    WHEN 'email' THEN CASE WHEN ${payload}::jsonb ? 'smtpCapture' THEN 'smtp' ELSE 'email' END
+    WHEN 'file' THEN 'files'
+    WHEN 'status' THEN 'status'
+    WHEN 'job' THEN 'jobs'
+END`;
+
 export function allocationError(error: { code?: string; message?: string; detail?: string }) {
     if (error.code !== 'P0001') return;
     const limit =
@@ -33,7 +68,11 @@ export function allocationError(error: { code?: string; message?: string; detail
                 data.adding > 0
             )
                 return new LimitError(
-                    limit,
+                    resourceAllowanceKeys.includes(data.product)
+                        ? limit === 'resources.active'
+                            ? resourceCountKey(data.product)
+                            : resourceStorageKey(data.product)
+                        : limit,
                     data.used,
                     data.plan as PlanId,
                     data.adding,
@@ -46,28 +85,36 @@ export function allocationError(error: { code?: string; message?: string; detail
 }
 
 export class MemoryAllocations {
-    private usage = new Map<string, { count: number; bytes: number; plan: PlanId }>();
-    reserve(context: AllocationContext | undefined, count: number, bytes: number) {
+    private usage = new Map<string, Map<ResourceAllowance, { count: number; bytes: number }>>();
+    reserve(
+        context: AllocationContext | undefined,
+        product: ResourceAllowance,
+        count: number,
+        bytes: number,
+    ) {
         if (!context) return;
-        const usage = this.usage.get(context.quotaKey) ?? {
-            count: 0,
-            bytes: 0,
-            plan: context.plan,
-        };
-        usage.plan = context.plan;
-        if (count > 0) checkLimit(context.plan, 'resources.active', usage.count, count);
-        if (bytes > 0) checkLimit(context.plan, 'resources.storage', usage.bytes, bytes);
+        const buckets = this.usage.get(context.quotaKey) ?? new Map();
+        const usage = buckets.get(product) ?? { count: 0, bytes: 0 };
+        if (count > 0 && product !== 'email')
+            checkLimit(context.plan, resourceCountKey(product), usage.count, count);
+        if (bytes > 0) checkLimit(context.plan, resourceStorageKey(product), usage.bytes, bytes);
         usage.count += count;
         usage.bytes += bytes;
-        if (usage.count === 0 && usage.bytes === 0) this.usage.delete(context.quotaKey);
-        else this.usage.set(context.quotaKey, usage);
+        if (usage.count === 0 && usage.bytes === 0) buckets.delete(product);
+        else buckets.set(product, usage);
+        if (buckets.size === 0) this.usage.delete(context.quotaKey);
+        else this.usage.set(context.quotaKey, buckets);
     }
-    release(context: AllocationContext | undefined, bytes: number) {
-        this.reserve(context, -1, -bytes);
+    release(context: AllocationContext | undefined, product: ResourceAllowance, bytes: number) {
+        this.reserve(context, product, -1, -bytes);
     }
     info(key: string) {
-        const value = this.usage.get(key);
-        return { resourceCount: value?.count ?? 0, storedBytes: value?.bytes ?? 0 };
+        const totals = { resourceCount: 0, storedBytes: 0 };
+        for (const value of this.usage.get(key)?.values() ?? []) {
+            totals.resourceCount += value.count;
+            totals.storedBytes += value.bytes;
+        }
+        return totals;
     }
 }
 export const ownsOrToken = (

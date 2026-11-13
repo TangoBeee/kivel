@@ -43,7 +43,7 @@ const kindTools: Record<Resource['kind'], string> = {
     mcp: 'agents-mock-mcp-server',
     email: 'email-temporary-email-inbox',
     status: 'monitoring-public-status-page',
-    job: 'automation-delayed-webhooks',
+    job: 'automation-temporary-scheduled-jobs',
 };
 const kindIcons: Record<Resource['kind'], Icon> = {
     inbox: WebhooksLogo,
@@ -264,7 +264,7 @@ export function ResourceList({
                                         </DropdownMenu.Trigger>
                                         <DropdownMenu.Content align="end">
                                             <DropdownMenu.Item onSelect={() => onDetails(resource)}>
-                                                View raw details
+                                                Manage access and view data
                                             </DropdownMenu.Item>
                                             {!['email', 'job'].includes(resource.kind) && (
                                                 <DropdownMenu.Item

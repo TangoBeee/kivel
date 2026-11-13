@@ -4,6 +4,7 @@ import { checkLimit } from './errors.js';
 import { transaction } from './database.js';
 import { sharingCredentials, publicAccessAllowed, tokenHash } from './sharing.js';
 import type { PublicAccess, Sharing, SharingCredentials, Visibility } from './sharing.js';
+import { resourceAllowance } from './allocations.js';
 import { MemoryAllocations, ownsOrToken } from './allocations.js';
 import type { AllocationContext } from './allocations.js';
 
@@ -155,7 +156,7 @@ export class ResourceStore implements ResourceRepository {
         const managementToken = randomBytes(32).toString('base64url');
         const expiresAt =
             allocation?.expiresAt ?? new Date(this.now() + RESOURCE_TTL_MS).toISOString();
-        this.allocations?.reserve(allocation, 1, storedBytes);
+        this.allocations?.reserve(allocation, resourceAllowance(kind, payload), 1, storedBytes);
         const { accessToken, ...sharing } = sharingCredentials(allocation?.visibility);
         this.resources.set(id, {
             ...sharing,
@@ -237,7 +238,12 @@ export class ResourceStore implements ResourceRepository {
             const bytes = resource.data.length;
             resource.data = Buffer.alloc(0);
             resource.storedBytes -= bytes;
-            this.allocations?.reserve(resource.allocation, 0, -bytes);
+            this.allocations?.reserve(
+                resource.allocation,
+                resourceAllowance(resource.kind, resource.payload),
+                0,
+                -bytes,
+            );
         }
         return result;
     }
@@ -252,7 +258,12 @@ export class ResourceStore implements ResourceRepository {
                 this.maxBytes
         )
             return false;
-        this.allocations?.reserve(resource.allocation, 0, delta);
+        this.allocations?.reserve(
+            resource.allocation,
+            resourceAllowance(resource.kind, resource.payload),
+            0,
+            delta,
+        );
         resource.storedBytes += delta;
         return true;
     }
@@ -282,7 +293,12 @@ export class ResourceStore implements ResourceRepository {
             this.maxBytes
         )
             return 'full';
-        this.allocations?.reserve(resource.allocation, 0, storedBytes - resource.storedBytes);
+        this.allocations?.reserve(
+            resource.allocation,
+            resourceAllowance(resource.kind, resource.payload),
+            0,
+            storedBytes - resource.storedBytes,
+        );
         resource.payload = structuredClone(payload);
         resource.storedBytes = storedBytes;
         return 'updated';
@@ -319,14 +335,23 @@ export class ResourceStore implements ResourceRepository {
             this.maxBytes
         )
             return 'full';
-        this.allocations?.reserve(resource.allocation, 0, storedBytes - resource.storedBytes);
+        this.allocations?.reserve(
+            resource.allocation,
+            resourceAllowance(resource.kind, resource.payload),
+            0,
+            storedBytes - resource.storedBytes,
+        );
         resource.payload = structuredClone(next.payload);
         resource.storedBytes = storedBytes;
         resource.uses++;
         return next.result;
     }
     private remove(resource: Stored) {
-        this.allocations?.release(resource.allocation, resource.storedBytes);
+        this.allocations?.release(
+            resource.allocation,
+            resourceAllowance(resource.kind, resource.payload),
+            resource.storedBytes,
+        );
         return this.resources.delete(resource.id);
     }
     delete(id: string, kind: ResourceKind, token: string, ownerId?: string) {

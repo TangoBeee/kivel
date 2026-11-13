@@ -1,6 +1,13 @@
 import { catalog, categories } from '../../lib/catalog';
 import Link from 'next/link';
-import { plans, type PlanId } from '@kivel.io/tools/plans';
+import {
+    describeLimit,
+    plans,
+    resourceAllowances,
+    resourceAllowanceKeys,
+    type PlanId,
+    type UsageKey,
+} from '@kivel.io/tools/plans';
 import { PageIntro } from '../../components/content-layout';
 import { pageMetadata } from '../../lib/seo';
 import { Icon } from '../../components/icons';
@@ -38,9 +45,22 @@ const rows: { name: string; value: (id: PlanId) => string }[] = [
                 ? number(plans[id].approvalQuestionsPerDay)
                 : 'Not included',
     },
-    { name: 'Active resources', value: (id) => number(plans[id].maxResources) },
+    ...resourceAllowanceKeys.map((product) => ({
+        name: resourceAllowances[product].label,
+        value: (id: PlanId) => {
+            const max = resourceAllowances[product].max(id);
+            return max ? number(max) : 'Not included';
+        },
+    })),
+    ...(['mocks.oauth', 'email.sent_today', 'email.sent_month'] as UsageKey[]).map((key) => ({
+        name: describeLimit(key).label,
+        value: (id: PlanId) => {
+            const max = describeLimit(key).max(id);
+            return max ? number(max) : 'Not included';
+        },
+    })),
     {
-        name: 'Total storage',
+        name: 'Storage per product',
         value: (id) =>
             plans[id].storageBytes >= 1073741824
                 ? `${plans[id].storageBytes / 1073741824} GiB`
@@ -225,7 +245,7 @@ export default function Plans() {
                         <ul>
                             {[
                                 agents(id),
-                                `${number(plans[id].maxResources)} active resources`,
+                                `${number(resourceAllowances.webhooks.max(id))} webhook inboxes`,
                                 rows[3]!.value(id) + ' storage',
                                 `Up to ${retention(plans[id].maxRetentionSeconds)} retention`,
                                 `${number(plans[id].runsPerDay)} hosted runs / day`,

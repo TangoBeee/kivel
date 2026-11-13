@@ -160,6 +160,45 @@ export const resourceDefinitions = {
     persistent: features.persistentResource,
 } as const;
 
+export const resourceAllowances = {
+    webhooks: { label: 'Webhook inboxes', max: (plan: PlanId) => plans[plan].maxResources },
+    mocks: { label: 'Mock APIs', max: (plan: PlanId) => plans[plan].maxResources },
+    files: { label: 'Shared files', max: (plan: PlanId) => plans[plan].maxResources },
+    smtp: {
+        label: 'SMTP inboxes',
+        max: (plan: PlanId) => (plan === 'anonymous' ? 0 : plans[plan].maxResources),
+    },
+    email: { label: 'Email inboxes', max: (plan: PlanId) => plans[plan].emailInboxes },
+    jobs: {
+        label: 'Scheduled jobs',
+        max: (plan: PlanId) => (plan === 'anonymous' ? 0 : plans[plan].maxResources),
+    },
+    status: {
+        label: 'Status pages',
+        max: (plan: PlanId) => (plan === 'anonymous' ? 0 : plans[plan].maxResources),
+    },
+    payments: {
+        label: 'Test payment resources',
+        max: (plan: PlanId) => (plan === 'anonymous' ? 0 : plans[plan].maxResources),
+    },
+} as const;
+export type ResourceAllowance = keyof typeof resourceAllowances;
+export const resourceAllowanceKeys = Object.keys(resourceAllowances) as ResourceAllowance[];
+export const resourceCountKey = (product: ResourceAllowance) => `${product}.active` as const;
+export const resourceStorageKey = (product: ResourceAllowance) => `${product}.storage` as const;
+
+export function productLimits(plan: PlanId) {
+    return Object.fromEntries(
+        resourceAllowanceKeys.map((product) => [
+            product,
+            {
+                count: resourceAllowances[product].max(plan),
+                storageBytes: plans[plan].storageBytes,
+            },
+        ]),
+    ) as Record<ResourceAllowance, { count: number; storageBytes: number }>;
+}
+
 const usageDescriptions = {
     'tools.runs': {
         max: (plan: PlanId) => plans[plan].runsPerDay,
@@ -240,9 +279,28 @@ const usageDescriptions = {
         unit: 'count',
     },
 } as const;
-export type UsageKey = keyof typeof usageDescriptions;
-export function describeLimit(key: UsageKey) {
-    return usageDescriptions[key];
+export type UsageKey =
+    | keyof typeof usageDescriptions
+    | ReturnType<typeof resourceCountKey>
+    | ReturnType<typeof resourceStorageKey>;
+export function describeLimit(key: UsageKey): {
+    max: (plan: PlanId) => number;
+    label: string;
+    group: string;
+    unit: 'count' | 'bytes';
+} {
+    if (Object.hasOwn(usageDescriptions, key))
+        return usageDescriptions[key as keyof typeof usageDescriptions];
+    const [product, measure] = key.split('.') as [ResourceAllowance, 'active' | 'storage'];
+    const { label, max } = resourceAllowances[product];
+    return measure === 'active'
+        ? { max, label, group: label, unit: 'count' }
+        : {
+              max: (plan) => plans[plan].storageBytes,
+              label: `${label} storage`,
+              group: label,
+              unit: 'bytes',
+          };
 }
 export interface UsageItem {
     key: UsageKey;
@@ -254,7 +312,7 @@ export interface UsageItem {
 }
 export interface UsageResponse {
     plan: PlanId;
-    limits: (typeof plans)[PlanId];
+    limits: (typeof plans)[PlanId] & { products: ReturnType<typeof productLimits> };
     runsToday: number;
     resetsAt: string;
     period: { start: string; end: string };

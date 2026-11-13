@@ -2898,3 +2898,177 @@ html[data-view='resource'] .tool-title-name {
     grid-column: auto;
   }
 }
+
+/* Webhook tester on the public tool page */
+.webhook-tester {
+  margin-top: 24px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+.webhook-tester-empty {
+  display: grid;
+  gap: 16px;
+  justify-items: start;
+  max-width: 680px;
+}
+.webhook-tester-empty p,
+.webhook-tester-meta {
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  text-wrap: pretty;
+}
+.webhook-tester-error {
+  color: var(--ink);
+  font-size: 0.875rem;
+}
+.webhook-tester-url {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 8px 8px 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-row);
+  background: var(--accent-soft);
+}
+.webhook-tester-url code {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--mono);
+  font-size: 0.875rem;
+}
+.webhook-tester-meta {
+  margin-top: 12px;
+}
+.webhook-tester-meta .text-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+.webhook-tester-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+.webhook-tester-feed {
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-row);
+  overflow: hidden;
+}
+.webhook-tester-feed > li + li {
+  border-top: 1px solid var(--line);
+}
+.webhook-tester-waiting {
+  padding: 16px;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+.webhook-tester-row {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 16px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+}
+.webhook-tester-row:hover {
+  background: var(--accent-soft);
+}
+.webhook-tester-row:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+.webhook-tester-row code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+}
+.webhook-tester-row span:not(.webhook-tester-method),
+.webhook-tester-row time {
+  color: var(--muted);
+}
+.webhook-tester-method {
+  font-family: var(--mono);
+  font-weight: 600;
+}
+.webhook-tester-detail {
+  padding: 0 16px 16px;
+}
+.webhook-tester-detail h4 {
+  margin: 12px 0 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.webhook-tester-detail dl {
+  display: grid;
+  gap: 4px;
+  font-size: 0.75rem;
+}
+.webhook-tester-detail dl div {
+  display: grid;
+  grid-template-columns: minmax(120px, 220px) minmax(0, 1fr);
+  gap: 12px;
+}
+.webhook-tester-detail dt {
+  color: var(--muted);
+  font-family: var(--mono);
+}
+.webhook-tester-detail dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--mono);
+}
+.webhook-tester-body-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.webhook-tester-detail pre {
+  max-height: 360px;
+  overflow: auto;
+  margin: 0;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+@media (max-width: 640px) {
+  .webhook-tester {
+    padding: 16px;
+  }
+  .webhook-tester-row {
+    grid-template-columns: 56px minmax(0, 1fr) auto;
+  }
+  .webhook-tester-row span:not(.webhook-tester-method) {
+    display: none;
+  }
+  .webhook-tester-detail dl div {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}

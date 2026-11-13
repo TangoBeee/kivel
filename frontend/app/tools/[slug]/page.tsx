@@ -23,6 +23,8 @@ import { CodeExample } from '../../../components/code-example';
 import { StructuredData } from '../../../components/content-layout';
 import { breadcrumbs, pageMetadata } from '../../../lib/seo';
 import { toolSeo } from '../../../lib/tool-seo';
+import { WebhookTester } from '../../../components/webhook-tester';
+import { siteOrigin } from '../../../lib/site';
 
 function appPanel(tool: CatalogTool): WorkspacePanel | undefined {
     if (tool.status !== 'available') return undefined;
@@ -113,6 +115,23 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
                     { name: tool.name, path: toolPageHref(tool) },
                 ])}
             />
+            {tool.status === 'available' && (
+                <StructuredData
+                    value={{
+                        '@context': 'https://schema.org',
+                        '@type': 'WebApplication',
+                        name: tool.name,
+                        url: `${siteOrigin}${toolPageHref(tool)}`,
+                        description: seo?.description ?? guide.intro,
+                        applicationCategory: 'DeveloperApplication',
+                        operatingSystem: 'Any',
+                        browserRequirements: 'Requires JavaScript',
+                        isAccessibleForFree: true,
+                        offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+                        publisher: { '@type': 'Organization', name: 'Kivel', url: siteOrigin },
+                    }}
+                />
+            )}
             {seo && (
                 <StructuredData
                     value={{
@@ -129,18 +148,22 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
             {panel ? (
                 <div className="page-width work-page">
                     <ToolHeader toolId={tool.id} />
-                    <Suspense
-                        fallback={
-                            <Link
-                                className="button button-primary"
-                                href={appLink(workspaceHref(panel, { tool: tool.id }))}
-                            >
-                                Open in Kivel
-                            </Link>
-                        }
-                    >
-                        <OpenWorkspaceTool panel={panel} tool={tool.id} />
-                    </Suspense>
+                    {tool.id === 'webhooks' ? (
+                        <WebhookTester />
+                    ) : (
+                        <Suspense
+                            fallback={
+                                <Link
+                                    className="button button-primary"
+                                    href={appLink(workspaceHref(panel, { tool: tool.id }))}
+                                >
+                                    Open in Kivel
+                                </Link>
+                            }
+                        >
+                            <OpenWorkspaceTool panel={panel} tool={tool.id} />
+                        </Suspense>
+                    )}
                 </div>
             ) : (
                 <ToolWorkbench toolId={tool.id} />
@@ -228,6 +251,13 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
                             </details>
                         ))}
                     </section>
+                )}
+                {seo?.guide && (
+                    <p>
+                        <Link className="text-link" href={seo.guide.href}>
+                            {seo.guide.title} →
+                        </Link>
+                    </p>
                 )}
                 {related.length > 0 && (
                     <nav className="related-tools" aria-label="Related tools">

@@ -8,6 +8,7 @@ import type { Comparison } from './comparisons';
 import { docGroups, docPages } from './docs';
 import type { DocPage } from './docs';
 import { siteOrigin } from './site';
+import { toolSeo } from './tool-seo';
 import { paidPlansEnabled, pricing } from './pricing';
 
 const url = (path: string) => `${siteOrigin}${path}`;
@@ -22,7 +23,13 @@ const SUMMARY = `Kivel gives coding agents ${available.length} tools across ${ca
 
 export function llmsIndex() {
     const lines = [`# Kivel`, '', `> ${SUMMARY}`, ''];
-    lines.push('## Documentation', '');
+    lines.push('## Most used free tools', '');
+    for (const [id, seo] of Object.entries(toolSeo)) {
+        const tool = available.find((entry) => entry.id === id);
+        if (tool)
+            lines.push(`- [${tool.name}](${url(toolPageHref(tool))}): ${clean(seo.description)}`);
+    }
+    lines.push('', '## Documentation', '');
     for (const group of docGroups)
         for (const page of docPages.filter((item) => item.group === group))
             lines.push(

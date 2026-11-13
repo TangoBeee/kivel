@@ -5,6 +5,7 @@ import { articles } from '../lib/articles';
 import { comparisons } from '../lib/comparisons';
 import { docPages } from '../lib/docs';
 import { siteOrigin } from '../lib/site';
+import { toolSeo } from '../lib/tool-seo';
 export const dynamic = 'force-static';
 export default function sitemap(): MetadataRoute.Sitemap {
     const pages: { path: string; modified?: string }[] = [
@@ -43,7 +44,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
             .map((category) => ({ path: categoryHref(category.id) })),
         ...catalog
             .filter((tool) => tool.status === 'available')
-            .map((tool) => ({ path: toolPageHref(tool) })),
+            .map((tool) => ({ path: toolPageHref(tool), modified: toolSeo[tool.id]?.updatedAt })),
     ];
     return pages.map(({ path, modified }) => ({
         url: `${siteOrigin}${path}`,

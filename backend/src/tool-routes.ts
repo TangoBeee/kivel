@@ -92,6 +92,9 @@ const optionKeys = [
     'disambiguation',
     'userAgent',
     'domain',
+    'bin',
+    'expiry',
+    'cvc',
 ];
 export function executionGuide(id: string) {
     const definition = (

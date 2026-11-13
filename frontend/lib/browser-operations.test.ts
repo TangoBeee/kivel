@@ -198,12 +198,45 @@ test('sandbox mode preserves official provider numbers and never invents funding
     );
 });
 test('card generation rejects unsupported options and unbounded counts', async () => {
-    for (const count of ['0', '51', '-1', '1.5', 'Infinity', '', 'invalid'])
+    for (const count of ['0', '501', '-1', '1.5', 'Infinity', '', 'invalid'])
         await assert.rejects(run('developer-credit-card-generator', '', { count }));
     await assert.rejects(run('developer-prepaid-card-generator', '', { brand: 'unknown' }));
     await assert.rejects(run('developer-credit-card-generator', '', { mode: 'unknown' }));
     await assert.rejects(run('developer-credit-card-generator', '', { provider: 'unknown' }));
     await assert.rejects(run('developer-credit-card-generator', '', { address: 'maybe' }));
+    await assert.rejects(run('developer-credit-card-generator', '', { bin: '99' }));
+    await assert.rejects(run('developer-credit-card-generator', '', { expiry: '13/29' }));
+    await assert.rejects(run('developer-credit-card-generator', '', { cvc: '12' }));
+    await assert.rejects(run('developer-credit-card-generator', '', { country: 'XX' }));
+    await assert.rejects(
+        run('developer-credit-card-generator', '', { mode: 'sandbox', count: '51' }),
+    );
+});
+test('card generation honours a BIN, fixed expiry and CVV and localized billing addresses', async () => {
+    const { generateTestCards, passesLuhn } = await import('@kivel.io/tools/payment-cards');
+    const batch = generateTestCards('credit', {
+        count: '500',
+        bin: '5425 23',
+        expiry: '07/2030',
+        cvc: '321',
+        address: 'true',
+        country: 'DE',
+    });
+    assert.equal(new Set(batch.cards.map((card) => card.number)).size, 500);
+    for (const card of batch.cards) {
+        assert.equal(card.brand, 'mastercard');
+        assert.ok(card.number.startsWith('542523'));
+        assert.equal(passesLuhn(card.number), true);
+        assert.equal(card.expiryMonth, 7);
+        assert.equal(card.expiryYear, 2030);
+        assert.equal(card.cvc, '321');
+        assert.equal(card.billingAddress?.country, 'DE');
+        assert.match(card.billingAddress!.postalCode, /^\d{5}$/);
+    }
+    assert.equal(
+        generateTestCards('credit', { bin: '37', count: '3' }).cards[0]!.number.length,
+        15,
+    );
 });
 test('card validation checks exact fixtures and checksum failures without claiming a live card is valid', async () => {
     const { testCardFixtures } = await import('@kivel.io/tools/payment-cards');

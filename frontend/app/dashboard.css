@@ -257,7 +257,8 @@ body:has(.dashboard-layout) main::after {
   height: 56px;
   padding: 0 32px;
   border-bottom: 1px solid var(--line);
-  background: rgb(255 255 255 / 0.85);
+  /* Nearly solid, so headings scrolling underneath never show through where blur is unavailable */
+  background: rgb(255 255 255 / 0.97);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
 }

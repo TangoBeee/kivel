@@ -100,7 +100,7 @@ summary:focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 3px;
 }
-
+/* Menu, list and select items already show focus with their highlight fill */
 :is(
   [role='menuitem'],
   [role='menuitemcheckbox'],

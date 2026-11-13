@@ -93,12 +93,13 @@ export const dashboardPanels = [
         id: 'mocks',
         group: 'tools',
         label: 'Mock APIs',
-        description: 'Mock HTTP APIs, WebSocket servers, sign-in providers and MCP servers.',
+        description: 'Mock HTTP APIs, WebSocket servers, sign in providers and MCP servers.',
         icon: BracketsCurly,
         category: 'mock-apis',
         kinds: ['mock', 'mcp'],
         create: [
             'mock-apis-mock-rest-api',
+            'mock-apis-graphql-mock',
             'mock-apis-mock-websocket-server',
             'mock-apis-stateful-crud-api',
             'mock-apis-mock-oauth-provider',
@@ -155,7 +156,7 @@ export const dashboardPanels = [
         id: 'authenticators',
         group: 'tools',
         label: 'Authenticators',
-        description: 'Two-factor codes your agents can use to sign in.',
+        description: 'Sign in codes your agents can use to sign in.',
         icon: ShieldCheck,
         category: 'agents',
     },
@@ -407,15 +408,11 @@ export function AppShell({
         const active =
             entry.id === 'workspace'
                 ? settings && !['keys', 'billing'].includes(panel)
-                : entry.id === 'monitors'
-                  ? ['monitors', 'automation', 'status'].includes(panel)
-                  : entry.id === 'vault'
-                    ? ['vault', 'authenticators'].includes(panel)
-                    : entry.id === 'agents'
-                      ? ['agents', 'keys'].includes(panel)
-                      : entry.id === 'usage'
-                        ? ['usage', 'billing'].includes(panel)
-                        : panel === entry.id;
+                : entry.id === 'agents'
+                  ? ['agents', 'keys'].includes(panel)
+                  : entry.id === 'usage'
+                    ? ['usage', 'billing'].includes(panel)
+                    : panel === entry.id;
         const label = entry.id === 'workspace' ? 'Settings' : entry.label;
         const badge = badges[entry.id as DashboardPanel];
         if (badge?.hidden && !active) return null;
@@ -548,7 +545,7 @@ export function AppShell({
                 </DropdownMenu.Root>
                 <nav className="dashboard-nav" aria-label="Workspace sections">
                     {items('overview')}
-                    <div className="nav-group">Products</div>
+                    <div className="nav-group">Your tools</div>
                     {items(
                         'webhooks',
                         'email',
@@ -557,9 +554,13 @@ export function AppShell({
                         'monitors',
                         'approvals',
                         'vault',
+                        'authenticators',
+                        'automation',
+                        'status',
+                        'memory',
+                        'files',
                     )}
-                    <div className="nav-group">More</div>
-                    {items('memory', 'files', 'tools')}
+                    {items('tools')}
                     <div className="nav-group nav-bottom">Workspace</div>
                     {items('agents', 'usage', 'workspace')}
                 </nav>

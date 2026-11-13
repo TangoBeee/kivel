@@ -1,3 +1,4 @@
+import { allocationError } from './allocations.js';
 import { LimitError, RateLimitError } from './errors.js';
 import { oauthSchema } from '@kivel.io/tools/oauth';
 import { publicMockPayload } from './oauth.js';
@@ -2499,29 +2500,34 @@ export function registerMcp({
             return reply.send({ jsonrpc: '2.0', id: body.id, result: response });
         } catch (error) {
             log(false);
-            if (error instanceof HttpError)
+            const failure =
+                error instanceof HttpError ? error : allocationError(error as { code?: string });
+            if (failure)
                 return reply.send({
                     jsonrpc: '2.0',
                     id: body.id,
                     result: result(
                         {
-                            ...(error instanceof LimitError
-                                ? error.details(origin)
-                                : error.statusCode === 429 && error.retryAfter
+                            ...(failure instanceof LimitError
+                                ? failure.details(origin)
+                                : failure.statusCode === 429 && failure.retryAfter
                                   ? {
-                                        error: error.message,
+                                        error: failure.message,
                                         code: 'rate_limited',
-                                        message: error.message,
+                                        message: failure.message,
                                         limit:
-                                            error instanceof RateLimitError
-                                                ? error.limit
+                                            failure instanceof RateLimitError
+                                                ? failure.limit
                                                 : 'mcp.tools',
-                                        retryAfter: error.retryAfter,
+                                        retryAfter: failure.retryAfter,
                                     }
-                                  : { error: error.message }),
-                            status: error.statusCode,
-                            ...(error instanceof PlanError
-                                ? { requiredPlan: error.requiredPlan, upgradeUrl: error.upgradeUrl }
+                                  : { error: failure.message }),
+                            status: failure.statusCode,
+                            ...(failure instanceof PlanError
+                                ? {
+                                      requiredPlan: failure.requiredPlan,
+                                      upgradeUrl: failure.upgradeUrl,
+                                  }
                                 : {}),
                         },
                         true,

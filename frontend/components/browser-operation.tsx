@@ -169,452 +169,473 @@ export function BrowserOperation({
                     {hosted ? 'Runs on the server' : 'Runs in your browser'}
                 </span>
             </ToolHeader>
-            <div className="utility-panel">
-                {error && (
-                    <div className="alert" role="alert">
-                        {error}
-                    </div>
-                )}
-                {toolId === 'developer-jwt-inspector' && (
-                    <p className="tool-notice">
-                        Decoded claims are untrusted. This tool does not verify signatures or
-                        authenticate tokens.
-                    </p>
-                )}
-                {funding && (
-                    <aside className="payment-sandbox-note">
-                        <Icon name="info" size={20} />
-                        <div>
-                            <strong>Fake test data. Never use it for real payments.</strong>
-                            <p>
-                                Generated cards are for forms and fixtures; payment sandbox numbers
-                                are official test values for the selected provider only.
-                            </p>
+            <div className="utility-panel utility-workbench">
+                <div className="utility-options">
+                    {error && (
+                        <div className="alert" role="alert">
+                            {error}
                         </div>
-                    </aside>
-                )}
-                {toolId === 'developer-card-number-validator' && (
-                    <p className="tool-notice">
-                        Use test data. This checks the Luhn checksum; it does not verify an active
-                        card, ownership, funds, or payment acceptance.
-                    </p>
-                )}
-                {definition.input && (
-                    <div className="editor-panel">
-                        <div className="editor-heading">
-                            <label htmlFor="operation-input">
-                                {toolId === 'developer-card-number-validator'
-                                    ? 'Test card number'
-                                    : (extra?.inputLabel ?? inputGuide?.label ?? 'Input')}
-                            </label>
-                            {sample && (
-                                <button className="text-link" onClick={() => changeInput(sample)}>
-                                    Try example
-                                </button>
-                            )}
-                            <button
-                                className="text-link"
-                                onClick={() => {
-                                    pending.current?.abort();
-                                    operation.current++;
-                                    setInput('');
-                                    setOutput('');
-                                    setError('');
-                                    setBusy(false);
-                                }}
-                            >
-                                Clear
-                            </button>
-                        </div>
-                        {singleLine ? (
-                            <input
-                                id="operation-input"
-                                className="tool-single-input"
-                                type="text"
-                                value={input}
-                                maxLength={4096}
-                                autoComplete="off"
-                                spellCheck={false}
-                                onChange={(event) => changeInput(event.target.value)}
-                                placeholder={sample ?? 'Enter a value…'}
-                            />
-                        ) : (
-                            <textarea
-                                id="operation-input"
-                                value={input}
-                                maxLength={hosted ? 4096 : 262144}
-                                spellCheck={false}
-                                onChange={(event) => changeInput(event.target.value)}
-                                placeholder={sample ?? 'Type or paste your input…'}
-                            />
-                        )}
-                        {inputGuide?.hint && <p className="tool-input-hint">{inputGuide.hint}</p>}
-                    </div>
-                )}
-                <div
-                    className={`resource-form-fields${toolId === 'developer-timezone-converter' ? ' timezone-fields' : ''}`}
-                >
-                    {extra?.fields
-                        ?.filter(
-                            (field) =>
-                                field.key !== 'quality' ||
-                                (options.format ??
-                                    extra.fields?.find((item) => item.key === 'format')
-                                        ?.defaultValue) !== 'png',
-                        )
-                        .filter(
-                            (field) =>
-                                !field.when ||
-                                (options[field.when[0]] ??
-                                    extra.fields?.find((item) => item.key === field.when![0])
-                                        ?.defaultValue) === field.when[1],
-                        )
-                        .map((field) => (
-                            <label
-                                key={field.key}
-                                className={
-                                    field.type === 'textarea' ? 'utility-wide-field' : undefined
-                                }
-                            >
-                                {field.label}
-                                {field.choices ? (
-                                    <AppSelect
-                                        value={options[field.key] ?? field.defaultValue}
-                                        onChange={(event) => option(field.key, event.target.value)}
-                                    >
-                                        {field.choices.map(([value, label]) => (
-                                            <SelectOption key={value} value={value}>
-                                                {label}
-                                            </SelectOption>
-                                        ))}
-                                    </AppSelect>
-                                ) : field.type === 'textarea' ? (
-                                    <textarea
-                                        rows={5}
-                                        maxLength={65536}
-                                        value={options[field.key] ?? field.defaultValue}
-                                        onChange={(event) => option(field.key, event.target.value)}
-                                        spellCheck={false}
-                                    />
-                                ) : (
-                                    <input
-                                        type={field.type ?? 'text'}
-                                        min={field.min}
-                                        max={field.max}
-                                        step={field.key === 'duration' ? '0.1' : '1'}
-                                        maxLength={4096}
-                                        value={options[field.key] ?? field.defaultValue}
-                                        onChange={(event) => option(field.key, event.target.value)}
-                                    />
-                                )}
-                            </label>
-                        ))}
+                    )}
+                    {toolId === 'developer-jwt-inspector' && (
+                        <p className="tool-notice">
+                            Decoded claims are untrusted. This tool does not verify signatures or
+                            authenticate tokens.
+                        </p>
+                    )}
                     {funding && (
-                        <>
-                            <label>
-                                Mode
-                                <AppSelect
-                                    value={options.mode ?? 'generated'}
-                                    onChange={(event) => {
-                                        option('mode', event.target.value);
-                                        setOptions({ mode: event.target.value });
+                        <aside className="payment-sandbox-note">
+                            <Icon name="info" size={20} />
+                            <div>
+                                <strong>Fake test data. Never use it for real payments.</strong>
+                                <p>
+                                    Generated cards are for forms and fixtures; payment sandbox
+                                    numbers are official test values for the selected provider only.
+                                </p>
+                            </div>
+                        </aside>
+                    )}
+                    {toolId === 'developer-card-number-validator' && (
+                        <p className="tool-notice">
+                            Use test data. This checks the Luhn checksum; it does not verify an
+                            active card, ownership, funds, or payment acceptance.
+                        </p>
+                    )}
+                    {definition.input && (
+                        <div className="editor-panel">
+                            <div className="editor-heading">
+                                <label htmlFor="operation-input">
+                                    {toolId === 'developer-card-number-validator'
+                                        ? 'Test card number'
+                                        : (extra?.inputLabel ?? inputGuide?.label ?? 'Input')}
+                                </label>
+                                {sample && (
+                                    <button
+                                        className="text-link"
+                                        onClick={() => changeInput(sample)}
+                                    >
+                                        Try example
+                                    </button>
+                                )}
+                                <button
+                                    className="text-link"
+                                    onClick={() => {
+                                        pending.current?.abort();
+                                        operation.current++;
+                                        setInput('');
+                                        setOutput('');
+                                        setError('');
+                                        setBusy(false);
                                     }}
                                 >
-                                    <SelectOption value="generated">
-                                        Generated test data
-                                    </SelectOption>
-                                    <SelectOption value="sandbox">
-                                        Payment sandbox numbers
-                                    </SelectOption>
-                                </AppSelect>
-                            </label>
-                            {options.mode === 'sandbox' && (
+                                    Clear
+                                </button>
+                            </div>
+                            {singleLine ? (
+                                <input
+                                    id="operation-input"
+                                    className="tool-single-input"
+                                    type="text"
+                                    value={input}
+                                    maxLength={4096}
+                                    autoComplete="off"
+                                    spellCheck={false}
+                                    onChange={(event) => changeInput(event.target.value)}
+                                    placeholder={sample ?? 'Enter a value…'}
+                                />
+                            ) : (
+                                <textarea
+                                    id="operation-input"
+                                    value={input}
+                                    maxLength={hosted ? 4096 : 262144}
+                                    spellCheck={false}
+                                    onChange={(event) => changeInput(event.target.value)}
+                                    placeholder={sample ?? 'Type or paste your input…'}
+                                />
+                            )}
+                            {inputGuide?.hint && (
+                                <p className="tool-input-hint">{inputGuide.hint}</p>
+                            )}
+                        </div>
+                    )}
+                    <div
+                        className={`resource-form-fields${toolId === 'developer-timezone-converter' ? ' timezone-fields' : ''}`}
+                    >
+                        {extra?.fields
+                            ?.filter(
+                                (field) =>
+                                    field.key !== 'quality' ||
+                                    (options.format ??
+                                        extra.fields?.find((item) => item.key === 'format')
+                                            ?.defaultValue) !== 'png',
+                            )
+                            .filter(
+                                (field) =>
+                                    !field.when ||
+                                    (options[field.when[0]] ??
+                                        extra.fields?.find((item) => item.key === field.when![0])
+                                            ?.defaultValue) === field.when[1],
+                            )
+                            .map((field) => (
+                                <label
+                                    key={field.key}
+                                    className={
+                                        field.type === 'textarea' ? 'utility-wide-field' : undefined
+                                    }
+                                >
+                                    {field.label}
+                                    {field.choices ? (
+                                        <AppSelect
+                                            value={options[field.key] ?? field.defaultValue}
+                                            onChange={(event) =>
+                                                option(field.key, event.target.value)
+                                            }
+                                        >
+                                            {field.choices.map(([value, label]) => (
+                                                <SelectOption key={value} value={value}>
+                                                    {label}
+                                                </SelectOption>
+                                            ))}
+                                        </AppSelect>
+                                    ) : field.type === 'textarea' ? (
+                                        <textarea
+                                            rows={5}
+                                            maxLength={65536}
+                                            value={options[field.key] ?? field.defaultValue}
+                                            onChange={(event) =>
+                                                option(field.key, event.target.value)
+                                            }
+                                            spellCheck={false}
+                                        />
+                                    ) : (
+                                        <input
+                                            type={field.type ?? 'text'}
+                                            min={field.min}
+                                            max={field.max}
+                                            step={field.key === 'duration' ? '0.1' : '1'}
+                                            maxLength={4096}
+                                            value={options[field.key] ?? field.defaultValue}
+                                            onChange={(event) =>
+                                                option(field.key, event.target.value)
+                                            }
+                                        />
+                                    )}
+                                </label>
+                            ))}
+                        {funding && (
+                            <>
                                 <label>
-                                    Payment provider
+                                    Mode
                                     <AppSelect
-                                        value={options.provider ?? 'stripe'}
+                                        value={options.mode ?? 'generated'}
                                         onChange={(event) => {
-                                            option('provider', event.target.value);
-                                            setOptions((current) => ({
-                                                ...current,
-                                                brand: 'all',
-                                                count: '1',
-                                            }));
+                                            option('mode', event.target.value);
+                                            setOptions({ mode: event.target.value });
                                         }}
                                     >
-                                        {Object.keys(sandboxSources).map((provider) => (
-                                            <SelectOption key={provider} value={provider}>
-                                                {
+                                        <SelectOption value="generated">
+                                            Generated test data
+                                        </SelectOption>
+                                        <SelectOption value="sandbox">
+                                            Payment sandbox numbers
+                                        </SelectOption>
+                                    </AppSelect>
+                                </label>
+                                {options.mode === 'sandbox' && (
+                                    <label>
+                                        Payment provider
+                                        <AppSelect
+                                            value={options.provider ?? 'stripe'}
+                                            onChange={(event) => {
+                                                option('provider', event.target.value);
+                                                setOptions((current) => ({
+                                                    ...current,
+                                                    brand: 'all',
+                                                    count: '1',
+                                                }));
+                                            }}
+                                        >
+                                            {Object.keys(sandboxSources).map((provider) => (
+                                                <SelectOption key={provider} value={provider}>
                                                     {
-                                                        stripe: 'Stripe',
-                                                        adyen: 'Adyen',
-                                                        braintree: 'Braintree',
-                                                        paypal: 'PayPal',
-                                                    }[provider]
-                                                }
+                                                        {
+                                                            stripe: 'Stripe',
+                                                            adyen: 'Adyen',
+                                                            braintree: 'Braintree',
+                                                            paypal: 'PayPal',
+                                                        }[provider]
+                                                    }
+                                                </SelectOption>
+                                            ))}
+                                        </AppSelect>
+                                    </label>
+                                )}
+                                <label>
+                                    Card brand
+                                    <AppSelect
+                                        value={options.brand ?? 'all'}
+                                        onChange={(event) => {
+                                            option('brand', event.target.value);
+                                            setOptions((current) => ({ ...current, count: '1' }));
+                                        }}
+                                    >
+                                        <SelectOption value="all">
+                                            All supported brands
+                                        </SelectOption>
+                                        {brands.map((brand) => (
+                                            <SelectOption key={brand} value={brand}>
+                                                {cardBrandNames[brand]}
                                             </SelectOption>
                                         ))}
                                     </AppSelect>
                                 </label>
-                            )}
+                                <label>
+                                    Billing address
+                                    <AppSelect
+                                        value={options.address ?? 'false'}
+                                        onChange={(event) => option('address', event.target.value)}
+                                    >
+                                        <SelectOption value="false">Without address</SelectOption>
+                                        <SelectOption value="true">
+                                            Include sample address
+                                        </SelectOption>
+                                    </AppSelect>
+                                </label>
+                                <label>
+                                    Number of fixtures
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="50"
+                                        step="1"
+                                        value={options.count ?? '1'}
+                                        onChange={(event) => option('count', event.target.value)}
+                                    />
+                                </label>
+                            </>
+                        )}
+                        {toolId === 'developer-hmac-generator' && (
                             <label>
-                                Card brand
+                                Secret key
+                                <input
+                                    type="password"
+                                    autoComplete="off"
+                                    value={options.secret ?? ''}
+                                    maxLength={4096}
+                                    onChange={(event) => option('secret', event.target.value)}
+                                />
+                            </label>
+                        )}
+                        {(toolId === 'developer-hmac-generator' ||
+                            toolId === 'everyday-file-checksums') && (
+                            <label>
+                                Algorithm
                                 <AppSelect
-                                    value={options.brand ?? 'all'}
-                                    onChange={(event) => {
-                                        option('brand', event.target.value);
-                                        setOptions((current) => ({ ...current, count: '1' }));
-                                    }}
+                                    value={options.algorithm ?? 'SHA-256'}
+                                    onChange={(event) => option('algorithm', event.target.value)}
                                 >
-                                    <SelectOption value="all">All supported brands</SelectOption>
-                                    {brands.map((brand) => (
-                                        <SelectOption key={brand} value={brand}>
-                                            {cardBrandNames[brand]}
+                                    {['SHA-256', 'SHA-384', 'SHA-512'].map((value) => (
+                                        <SelectOption key={value}>{value}</SelectOption>
+                                    ))}
+                                </AppSelect>
+                            </label>
+                        )}
+                        {toolId.includes('timestamp-converter') && (
+                            <label>
+                                Input format
+                                <AppSelect
+                                    value={options.unit ?? 'seconds'}
+                                    onChange={(event) => option('unit', event.target.value)}
+                                >
+                                    <SelectOption value="seconds">Unix seconds</SelectOption>
+                                    <SelectOption value="milliseconds">
+                                        Unix milliseconds
+                                    </SelectOption>
+                                    <SelectOption value="date">ISO date</SelectOption>
+                                </AppSelect>
+                            </label>
+                        )}
+                        {toolId === 'everyday-case-converter' && (
+                            <label>
+                                Letter case
+                                <AppSelect
+                                    value={options.mode ?? 'upper'}
+                                    onChange={(event) => option('mode', event.target.value)}
+                                >
+                                    {Object.entries({
+                                        upper: 'UPPERCASE',
+                                        lower: 'lowercase',
+                                        title: 'Title Case',
+                                        camel: 'camelCase',
+                                        snake: 'snake_case',
+                                        kebab: 'kebab-case',
+                                    }).map(([value, label]) => (
+                                        <SelectOption key={value} value={value}>
+                                            {label}
                                         </SelectOption>
                                     ))}
                                 </AppSelect>
                             </label>
+                        )}
+                        {toolId === 'everyday-data-format-converter' && (
                             <label>
-                                Billing address
+                                Conversion
                                 <AppSelect
-                                    value={options.address ?? 'false'}
-                                    onChange={(event) => option('address', event.target.value)}
+                                    value={options.mode ?? 'yaml-json'}
+                                    onChange={(event) => option('mode', event.target.value)}
                                 >
-                                    <SelectOption value="false">Without address</SelectOption>
-                                    <SelectOption value="true">Include sample address</SelectOption>
+                                    <SelectOption value="yaml-json">YAML to JSON</SelectOption>
+                                    <SelectOption value="json-yaml">JSON to YAML</SelectOption>
                                 </AppSelect>
                             </label>
+                        )}
+                        {toolId === 'everyday-password-generator' && (
                             <label>
-                                Number of fixtures
+                                Password length
                                 <input
                                     type="number"
-                                    min="1"
-                                    max="50"
-                                    step="1"
-                                    value={options.count ?? '1'}
-                                    onChange={(event) => option('count', event.target.value)}
+                                    min="8"
+                                    max="128"
+                                    value={options.length ?? '20'}
+                                    onChange={(event) => option('length', event.target.value)}
                                 />
                             </label>
-                        </>
-                    )}
-                    {toolId === 'developer-hmac-generator' && (
-                        <label>
-                            Secret key
-                            <input
-                                type="password"
-                                autoComplete="off"
-                                value={options.secret ?? ''}
-                                maxLength={4096}
-                                onChange={(event) => option('secret', event.target.value)}
-                            />
-                        </label>
-                    )}
-                    {(toolId === 'developer-hmac-generator' ||
-                        toolId === 'everyday-file-checksums') && (
-                        <label>
-                            Algorithm
-                            <AppSelect
-                                value={options.algorithm ?? 'SHA-256'}
-                                onChange={(event) => option('algorithm', event.target.value)}
-                            >
-                                {['SHA-256', 'SHA-384', 'SHA-512'].map((value) => (
-                                    <SelectOption key={value}>{value}</SelectOption>
+                        )}
+                        {toolId === 'everyday-random-generator' && (
+                            <>
+                                {(['min', 'max'] as const).map((key) => (
+                                    <label key={key}>
+                                        {key === 'min' ? 'Minimum' : 'Maximum'}
+                                        <input
+                                            type="number"
+                                            step="1"
+                                            value={options[key] ?? (key === 'min' ? '1' : '100')}
+                                            onChange={(event) => option(key, event.target.value)}
+                                        />
+                                    </label>
                                 ))}
-                            </AppSelect>
-                        </label>
-                    )}
-                    {toolId.includes('timestamp-converter') && (
-                        <label>
-                            Input format
-                            <AppSelect
-                                value={options.unit ?? 'seconds'}
-                                onChange={(event) => option('unit', event.target.value)}
-                            >
-                                <SelectOption value="seconds">Unix seconds</SelectOption>
-                                <SelectOption value="milliseconds">Unix milliseconds</SelectOption>
-                                <SelectOption value="date">ISO date</SelectOption>
-                            </AppSelect>
-                        </label>
-                    )}
-                    {toolId === 'everyday-case-converter' && (
-                        <label>
-                            Letter case
-                            <AppSelect
-                                value={options.mode ?? 'upper'}
-                                onChange={(event) => option('mode', event.target.value)}
-                            >
-                                {Object.entries({
-                                    upper: 'UPPERCASE',
-                                    lower: 'lowercase',
-                                    title: 'Title Case',
-                                    camel: 'camelCase',
-                                    snake: 'snake_case',
-                                    kebab: 'kebab-case',
-                                }).map(([value, label]) => (
-                                    <SelectOption key={value} value={value}>
-                                        {label}
-                                    </SelectOption>
-                                ))}
-                            </AppSelect>
-                        </label>
-                    )}
-                    {toolId === 'everyday-data-format-converter' && (
-                        <label>
-                            Conversion
-                            <AppSelect
-                                value={options.mode ?? 'yaml-json'}
-                                onChange={(event) => option('mode', event.target.value)}
-                            >
-                                <SelectOption value="yaml-json">YAML to JSON</SelectOption>
-                                <SelectOption value="json-yaml">JSON to YAML</SelectOption>
-                            </AppSelect>
-                        </label>
-                    )}
-                    {toolId === 'everyday-password-generator' && (
-                        <label>
-                            Password length
-                            <input
-                                type="number"
-                                min="8"
-                                max="128"
-                                value={options.length ?? '20'}
-                                onChange={(event) => option('length', event.target.value)}
-                            />
-                        </label>
-                    )}
-                    {toolId === 'everyday-random-generator' && (
-                        <>
-                            {(['min', 'max'] as const).map((key) => (
-                                <label key={key}>
-                                    {key === 'min' ? 'Minimum' : 'Maximum'}
-                                    <input
-                                        type="number"
-                                        step="1"
-                                        value={options[key] ?? (key === 'min' ? '1' : '100')}
-                                        onChange={(event) => option(key, event.target.value)}
-                                    />
-                                </label>
-                            ))}
-                        </>
-                    )}
-                    {extra?.multiple ? (
-                        <MultipleFilePicker
-                            files={files}
-                            accept={
-                                toolId === 'everyday-merge-pdfs'
-                                    ? '.pdf'
-                                    : 'image/jpeg,image/png,image/webp,image/gif,image/avif,image/tiff'
-                            }
-                            onChange={(value) => {
-                                pending.current?.abort();
-                                operation.current++;
-                                setBusy(false);
-                                setFiles(value);
-                                setOutput('');
-                                setError('');
-                            }}
-                        />
-                    ) : (
-                        (toolId === 'everyday-file-checksums' || extra?.file) && (
-                            <FilePicker
-                                file={file}
-                                maxBytes={
-                                    toolId.startsWith('email-')
-                                        ? 1048576
-                                        : hosted
-                                          ? 10 * 1048576
-                                          : 25 * 1048576
+                            </>
+                        )}
+                        {extra?.multiple ? (
+                            <MultipleFilePicker
+                                files={files}
+                                accept={
+                                    toolId === 'everyday-merge-pdfs'
+                                        ? '.pdf'
+                                        : 'image/jpeg,image/png,image/webp,image/gif,image/avif,image/tiff'
                                 }
-                                allowEmpty
                                 onChange={(value) => {
+                                    pending.current?.abort();
                                     operation.current++;
                                     setBusy(false);
-                                    pending.current?.abort();
-                                    setFile(value);
+                                    setFiles(value);
                                     setOutput('');
                                     setError('');
                                 }}
                             />
+                        ) : (
+                            (toolId === 'everyday-file-checksums' || extra?.file) && (
+                                <FilePicker
+                                    file={file}
+                                    maxBytes={
+                                        toolId.startsWith('email-')
+                                            ? 1048576
+                                            : hosted
+                                              ? 10 * 1048576
+                                              : 25 * 1048576
+                                    }
+                                    allowEmpty
+                                    onChange={(value) => {
+                                        operation.current++;
+                                        setBusy(false);
+                                        pending.current?.abort();
+                                        setFile(value);
+                                        setOutput('');
+                                        setError('');
+                                    }}
+                                />
+                            )
+                        )}
+                    </div>
+                    {hosted && file && <BlobPreview blob={file} name={file.name} />}
+                    {hosted && extra?.file && (
+                        <p className="tool-notice">
+                            Files: up to 10 MiB combined. Hosted daily allowances apply. Uploads and
+                            results are processed without saving them.
+                        </p>
+                    )}
+                    <div className="utility-actions">
+                        <Button size="3" disabled={busy} onClick={() => void run()}>
+                            {busy ? 'Working…' : definition.action} <Icon name="arrow" size={16} />
+                        </Button>
+                        {hosted && busy && (
+                            <Button
+                                variant="soft"
+                                color="gray"
+                                onClick={() => {
+                                    pending.current?.abort();
+                                    operation.current++;
+                                    setBusy(false);
+                                }}
+                            >
+                                Cancel
+                            </Button>
+                        )}
+                    </div>
+                    {extra?.preview === 'file' && output && (
+                        <GeneratedFilePreview key={output.slice(0, 150)} text={output} />
+                    )}
+                    {extra?.preview === 'html' && output && (
+                        <MarkdownPreview
+                            html={output}
+                            title={
+                                toolId === 'everyday-markdown-preview'
+                                    ? 'Markdown preview'
+                                    : 'Email HTML preview'
+                            }
+                        />
+                    )}
+                    {funding && output && <PaymentCardPreview text={output} />}
+                    {toolId === 'developer-card-number-validator' && output && (
+                        <CardValidationPreview text={output} />
+                    )}
+                </div>
+                <div className="utility-output">
+                    {funding && !output && !error && (
+                        <div className="payment-empty">
+                            <Icon name="receipt" size={28} />
+                            <strong>Your test fixtures will appear here.</strong>
+                            <p>
+                                Choose a brand and generate up to 50 unique records. Copy any field
+                                or export JSON and CSV.
+                            </p>
+                        </div>
+                    )}
+                    {structured}
+                    {output &&
+                    (extra?.preview ||
+                        structured ||
+                        funding ||
+                        toolId === 'developer-card-number-validator') ? (
+                        <details className="artifact-response">
+                            <summary>
+                                {extra?.preview === 'file' ? 'API response' : 'Raw output'}
+                            </summary>
+                            <ResultPreview
+                                text={output}
+                                title={extra?.preview === 'file' ? 'Artifact JSON' : 'Raw output'}
+                                filename={`${toolId}.${output.trim().startsWith('{') || output.trim().startsWith('[') ? 'json' : extra?.preview === 'html' ? 'html' : 'txt'}`}
+                            />
+                        </details>
+                    ) : (
+                        (!funding || output) && (
+                            <ResultPreview
+                                text={output}
+                                title={funding ? 'Fixture JSON' : 'Output'}
+                                filename={`${toolId}-result.${funding || toolId === 'developer-card-number-validator' ? 'json' : 'txt'}`}
+                            />
                         )
                     )}
                 </div>
-                {hosted && file && <BlobPreview blob={file} name={file.name} />}
-                {hosted && extra?.file && (
-                    <p className="tool-notice">
-                        Files: up to 10 MiB combined. Hosted daily allowances apply. Uploads and
-                        results are processed without saving them.
-                    </p>
-                )}
-                <div className="utility-actions">
-                    <Button size="3" disabled={busy} onClick={() => void run()}>
-                        {busy ? 'Working…' : definition.action} <Icon name="arrow" size={16} />
-                    </Button>
-                    {hosted && busy && (
-                        <Button
-                            variant="soft"
-                            color="gray"
-                            onClick={() => {
-                                pending.current?.abort();
-                                operation.current++;
-                                setBusy(false);
-                            }}
-                        >
-                            Cancel
-                        </Button>
-                    )}
-                </div>
-                {extra?.preview === 'file' && output && (
-                    <GeneratedFilePreview key={output.slice(0, 150)} text={output} />
-                )}
-                {extra?.preview === 'html' && output && (
-                    <MarkdownPreview
-                        html={output}
-                        title={
-                            toolId === 'everyday-markdown-preview'
-                                ? 'Markdown preview'
-                                : 'Email HTML preview'
-                        }
-                    />
-                )}
-                {funding && output && <PaymentCardPreview text={output} />}
-                {toolId === 'developer-card-number-validator' && output && (
-                    <CardValidationPreview text={output} />
-                )}
-                {funding && !output && !error && (
-                    <div className="payment-empty">
-                        <Icon name="receipt" size={28} />
-                        <strong>Your test fixtures will appear here.</strong>
-                        <p>
-                            Choose a brand and generate up to 50 unique records. Copy any field or
-                            export JSON and CSV.
-                        </p>
-                    </div>
-                )}
-                {structured}
-                {output &&
-                (extra?.preview ||
-                    structured ||
-                    funding ||
-                    toolId === 'developer-card-number-validator') ? (
-                    <details className="artifact-response">
-                        <summary>
-                            {extra?.preview === 'file' ? 'API response' : 'Raw output'}
-                        </summary>
-                        <ResultPreview
-                            text={output}
-                            title={extra?.preview === 'file' ? 'Artifact JSON' : 'Raw output'}
-                            filename={`${toolId}.${output.trim().startsWith('{') || output.trim().startsWith('[') ? 'json' : extra?.preview === 'html' ? 'html' : 'txt'}`}
-                        />
-                    </details>
-                ) : (
-                    (!funding || output) && (
-                        <ResultPreview
-                            text={output}
-                            title={funding ? 'Fixture JSON' : 'Output'}
-                            filename={`${toolId}-result.${funding || toolId === 'developer-card-number-validator' ? 'json' : 'txt'}`}
-                        />
-                    )
-                )}
                 <p className="tool-notice">
                     <Icon name="shield" size={14} />{' '}
                     {hosted

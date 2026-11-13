@@ -4,6 +4,13 @@ import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { spawn } from 'node:child_process';
 
+const port = (name, fallback) => {
+    const value = Number(process.env[name] ?? fallback);
+    if (!Number.isInteger(value) || value < 1 || value > 65535)
+        throw new Error(`${name} must be a port between 1 and 65535.`);
+    return value;
+};
+
 const children = [];
 let database;
 let closing = false;
@@ -26,6 +33,13 @@ for (const signal of ['SIGINT', 'SIGTERM'])
         void close();
     });
 try {
+    const backendPort = port('KIVEL_BACKEND_PORT', 3000);
+    const sitePort = port('KIVEL_SITE_PORT', 3001);
+    const appPort = port('KIVEL_APP_PORT', 3002);
+    const siteUrl = `http://localhost:${sitePort}`;
+    const appUrl = `http://127.0.0.1:${appPort}`;
+    if (new Set([backendPort, sitePort, appPort]).size !== 3)
+        throw new Error('Use distinct ports for the backend, site and workspace.');
     const build = spawn('pnpm', ['build:packages'], { stdio: 'inherit' });
     const result = await new Promise((resolve, reject) => {
         build.once('error', reject);
@@ -64,18 +78,36 @@ try {
         }
         databaseUrl = 'postgres://kivel_dev:local-development-only@127.0.0.1:54329/kivel_dev';
     }
-    for (const name of ['backend', 'frontend', 'dashboard']) {
-        const child = spawn('pnpm', ['--filter', name, 'dev'], {
+    for (const [name, webPort] of [
+        ['backend', null],
+        ['frontend', sitePort],
+        ['dashboard', appPort],
+    ]) {
+        const args = webPort
+            ? [
+                  'exec',
+                  'next',
+                  'dev',
+                  '--webpack',
+                  '--hostname',
+                  '127.0.0.1',
+                  '--port',
+                  String(webPort),
+              ]
+            : ['dev'];
+        const child = spawn('pnpm', ['--filter', name, ...args], {
             stdio: 'inherit',
             env: {
                 ...process.env,
                 DATABASE_URL: databaseUrl,
-                PUBLIC_BASE_URL: 'http://localhost:3001',
-                APP_BASE_URL: 'http://127.0.0.1:3002',
-                SITE_URL: 'http://localhost:3001',
-                APP_URL: 'http://127.0.0.1:3002',
+                NODE_ENV: 'development',
+                HOST: '127.0.0.1',
+                PUBLIC_BASE_URL: siteUrl,
+                APP_BASE_URL: appUrl,
+                SITE_URL: siteUrl,
+                APP_URL: appUrl,
                 TRUSTED_PROXIES: '127.0.0.1/32',
-                PORT: '3000',
+                PORT: String(backendPort),
             },
         });
         child.once('error', (error) => {
@@ -87,7 +119,7 @@ try {
         });
         children.push(child);
     }
-    console.log('Kivel site: http://localhost:3001 · App: http://127.0.0.1:3002');
+    console.log(`Kivel site: ${siteUrl} · App: ${appUrl}`);
 } catch (error) {
     console.error(error instanceof Error ? error.message : 'Development startup failed.');
     await close(1);

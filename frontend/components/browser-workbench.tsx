@@ -85,128 +85,132 @@ export function BrowserWorkbench({ toolId }: { toolId: string }) {
                             </button>
                         ))}
                 </nav>
-                <div className="utility-panel">
-                    {error && (
-                        <div className="alert" role="alert">
-                            {error}
-                        </div>
-                    )}
-                    {selected !== 'uuid' && (
-                        <div className="editor-panel">
-                            <div className="editor-heading">
-                                <label htmlFor="tool-input">
-                                    {selected === 'json'
-                                        ? 'JSON source'
-                                        : selected === 'hash'
-                                          ? 'Text to hash'
-                                          : 'Source text'}
-                                </label>
-                                <button
-                                    className="text-link"
-                                    onClick={() => {
-                                        operation.current++;
-                                        setInput('');
+                <div className="utility-panel utility-workbench">
+                    <div className="utility-options">
+                        {error && (
+                            <div className="alert" role="alert">
+                                {error}
+                            </div>
+                        )}
+                        {selected !== 'uuid' && (
+                            <div className="editor-panel">
+                                <div className="editor-heading">
+                                    <label htmlFor="tool-input">
+                                        {selected === 'json'
+                                            ? 'JSON source'
+                                            : selected === 'hash'
+                                              ? 'Text to hash'
+                                              : 'Source text'}
+                                    </label>
+                                    <button
+                                        className="text-link"
+                                        onClick={() => {
+                                            operation.current++;
+                                            setInput('');
+                                            setOutput('');
+                                            setError('');
+                                            setBusy(false);
+                                        }}
+                                    >
+                                        Clear
+                                    </button>
+                                </div>
+                                <textarea
+                                    id="tool-input"
+                                    value={input}
+                                    maxLength={1048576}
+                                    spellCheck={false}
+                                    onChange={(event) => setInput(event.target.value)}
+                                    placeholder={
+                                        selected === 'json'
+                                            ? 'Paste your JSON here…'
+                                            : 'Type or paste your text…'
+                                    }
+                                />
+                            </div>
+                        )}
+                        <div className="utility-actions">
+                            {selected === 'uuid' && (
+                                <>
+                                    <label htmlFor="uuid-count">Number of IDs</label>
+                                    <input
+                                        className="count-input"
+                                        id="uuid-count"
+                                        type="number"
+                                        min="1"
+                                        max="100"
+                                        value={count}
+                                        onChange={(event) => setCount(event.target.value)}
+                                    />
+                                </>
+                            )}
+                            {selected === 'hash' && (
+                                <AppSelect
+                                    aria-label="Hash algorithm"
+                                    value={algorithm}
+                                    onChange={(event) => {
+                                        setAlgorithm(event.target.value);
                                         setOutput('');
-                                        setError('');
-                                        setBusy(false);
                                     }}
                                 >
-                                    Clear
-                                </button>
-                            </div>
-                            <textarea
-                                id="tool-input"
-                                value={input}
-                                maxLength={1048576}
-                                spellCheck={false}
-                                onChange={(event) => setInput(event.target.value)}
-                                placeholder={
-                                    selected === 'json'
-                                        ? 'Paste your JSON here…'
-                                        : 'Type or paste your text…'
-                                }
-                            />
+                                    {['SHA-256', 'SHA-384', 'SHA-512'].map((name) => (
+                                        <SelectOption key={name}>{name}</SelectOption>
+                                    ))}
+                                </AppSelect>
+                            )}
+                            <Button
+                                size="3"
+                                variant="solid"
+                                color="green"
+                                disabled={busy}
+                                onClick={() => void run('encode')}
+                            >
+                                {busy
+                                    ? 'Working…'
+                                    : selected === 'json'
+                                      ? 'Format JSON'
+                                      : selected === 'uuid'
+                                        ? 'Generate IDs'
+                                        : selected === 'hash'
+                                          ? 'Generate hash'
+                                          : 'Encode'}
+                                <Icon name="arrow" size={15} />
+                            </Button>
+                            {selected === 'json' && (
+                                <Button
+                                    size="2"
+                                    variant="surface"
+                                    color="gray"
+                                    disabled={busy}
+                                    onClick={() => void run('minify')}
+                                >
+                                    Minify
+                                </Button>
+                            )}
+                            {['base64', 'url'].includes(selected) && (
+                                <Button
+                                    size="2"
+                                    variant="surface"
+                                    color="gray"
+                                    disabled={busy}
+                                    onClick={() => void run('decode')}
+                                >
+                                    Decode
+                                </Button>
+                            )}
                         </div>
-                    )}
-                    <div className="utility-actions">
-                        {selected === 'uuid' && (
-                            <>
-                                <label htmlFor="uuid-count">Number of IDs</label>
-                                <input
-                                    className="count-input"
-                                    id="uuid-count"
-                                    type="number"
-                                    min="1"
-                                    max="100"
-                                    value={count}
-                                    onChange={(event) => setCount(event.target.value)}
-                                />
-                            </>
-                        )}
-                        {selected === 'hash' && (
-                            <AppSelect
-                                aria-label="Hash algorithm"
-                                value={algorithm}
-                                onChange={(event) => {
-                                    setAlgorithm(event.target.value);
-                                    setOutput('');
-                                }}
-                            >
-                                {['SHA-256', 'SHA-384', 'SHA-512'].map((name) => (
-                                    <SelectOption key={name}>{name}</SelectOption>
-                                ))}
-                            </AppSelect>
-                        )}
-                        <Button
-                            size="3"
-                            variant="solid"
-                            color="green"
-                            disabled={busy}
-                            onClick={() => void run('encode')}
-                        >
-                            {busy
-                                ? 'Working…'
-                                : selected === 'json'
-                                  ? 'Format JSON'
-                                  : selected === 'uuid'
-                                    ? 'Generate IDs'
-                                    : selected === 'hash'
-                                      ? 'Generate hash'
-                                      : 'Encode'}
-                            <Icon name="arrow" size={15} />
-                        </Button>
-                        {selected === 'json' && (
-                            <Button
-                                size="2"
-                                variant="surface"
-                                color="gray"
-                                disabled={busy}
-                                onClick={() => void run('minify')}
-                            >
-                                Minify
-                            </Button>
-                        )}
-                        {['base64', 'url'].includes(selected) && (
-                            <Button
-                                size="2"
-                                variant="surface"
-                                color="gray"
-                                disabled={busy}
-                                onClick={() => void run('decode')}
-                            >
-                                Decode
-                            </Button>
+                    </div>
+                    <div className="utility-output">
+                        {structured}
+                        {structured ? (
+                            <details className="artifact-response">
+                                <summary>Raw output</summary>
+                                <ResultPreview text={output} filename={`${selected}-result.txt`} />
+                            </details>
+                        ) : (
+                            <ResultPreview text={output} filename={`${selected}-result.txt`} />
                         )}
                     </div>
-                    {structured}
-                    {structured ? (
-                        <details className="artifact-response">
-                            <summary>Raw output</summary>
-                            <ResultPreview text={output} filename={`${selected}-result.txt`} />
-                        </details>
-                    ) : (
-                        <ResultPreview text={output} filename={`${selected}-result.txt`} />
-                    )}
                     <p className="work-note">
                         <Icon name="shield" size={13} /> Your input stays in this browser and is
                         never sent to our servers.

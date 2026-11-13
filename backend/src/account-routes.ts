@@ -1,7 +1,7 @@
 import { clientKey } from './security.js';
 import { randomBytes } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
-import { plans } from '@kivel.io/tools/plans';
+import { plans, productLimits } from '@kivel.io/tools/plans';
 import { passwordHash, verifyPassword, publicIdentity, scopes } from './identity.js';
 import type { Scope, Role } from './identity.js';
 import { Access, HttpError } from './access.js';
@@ -106,7 +106,14 @@ export function registerAccounts(
     app.get('/api/account', async (request) =>
         publicIdentity(await access.require(request, 'account:read')),
     );
-    app.get('/api/plans', async () => ({ plans }));
+    app.get('/api/plans', async () => ({
+        plans: Object.fromEntries(
+            (Object.keys(plans) as (keyof typeof plans)[]).map((plan) => [
+                plan,
+                { ...plans[plan], products: productLimits(plan) },
+            ]),
+        ),
+    }));
     app.get('/api/account/keys', async (request) => ({
         keys: await identities.listKeys(await access.require(request, 'account:read', true)),
     }));

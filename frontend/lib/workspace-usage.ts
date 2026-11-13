@@ -11,8 +11,6 @@ export interface WorkspaceUsage {
     error?: string;
     limits?: {
         runsPerDay: number;
-        maxResources: number;
-        storageBytes: number;
         memoryBytes: number;
         emailInboxes: number;
         authenticators: number;

@@ -3,10 +3,15 @@ import type { Pool } from 'pg';
 import {
     describeLimit,
     plans,
+    productLimits,
+    resourceAllowanceKeys,
+    resourceCountKey,
+    resourceStorageKey,
     type UsageItem,
     type UsageKey,
     type UsageResponse,
 } from '@kivel.io/tools/plans';
+import { resourceAllowance, resourceAllowanceSql } from './allocations.js';
 import type { Access } from './access.js';
 import type { AgentRepository } from './agents.js';
 import type { ApprovalRepository } from './approvals.js';
@@ -19,7 +24,10 @@ import type { MemoryRepository } from './kv.js';
 import type { MonitorRepository } from './monitors.js';
 import type { ResourceRepository } from './resources.js';
 
-type Counts = Record<Exclude<UsageKey, 'tools.runs'>, number>;
+type Counts = Record<
+    Exclude<UsageKey, 'tools.runs' | 'resources.active' | 'resources.storage'>,
+    number
+>;
 interface UsageStores {
     agents: AgentRepository;
     approvals: ApprovalRepository;
@@ -43,16 +51,24 @@ async function postgresCounts(
 ): Promise<Counts> {
     const { rows } = await pool.query<Record<keyof Counts, string | number>>(
         `WITH active_resources AS (
-             SELECT kind, payload, stored_bytes FROM temporary_resources WHERE owner_id = $1 AND expires_at > $2
+             SELECT kind, payload, stored_bytes, ${resourceAllowanceSql('kind', 'payload')} AS product FROM temporary_resources WHERE owner_id = $1 AND expires_at > $2
          ), active_webhooks AS (
              SELECT stored_bytes FROM inboxes WHERE owner_id = $1 AND expires_at > $2
+         ), active_products AS (
+             SELECT product, stored_bytes FROM active_resources
+             UNION ALL SELECT 'webhooks', stored_bytes FROM active_webhooks
          ), sent AS (
              SELECT created_at, jsonb_array_length(job->'recipients') AS recipients
              FROM email_send_jobs WHERE owner_id = $1 AND created_at >= $5 AND job->>'status' != 'failed'
          )
          SELECT
-             (SELECT count(*) FROM active_resources) + (SELECT count(*) FROM active_webhooks) AS "resources.active",
-             COALESCE((SELECT sum(stored_bytes) FROM active_resources), 0) + COALESCE((SELECT sum(stored_bytes) FROM active_webhooks), 0) AS "resources.storage",
+             ${resourceAllowanceKeys
+                 .map(
+                     (product) => `
+             (SELECT count(*) FROM active_products WHERE product = '${product}') AS "${resourceCountKey(product)}",
+             (SELECT COALESCE(sum(stored_bytes), 0) FROM active_products WHERE product = '${product}') AS "${resourceStorageKey(product)}"`,
+                 )
+                 .join(',')},
              (SELECT count(*) FROM agents a JOIN api_keys k ON k.id = a.key_id AND k.account_id = a.account_id
                  WHERE a.account_id = $1 AND k.revoked_at IS NULL AND k.expires_at > $2) AS "agents.connected",
              (SELECT count(*) FROM monitors WHERE account_id = $1) AS "monitors.active",
@@ -106,12 +122,26 @@ async function memoryCounts(
         stores.approvals.countSince(owner, since.toISOString()),
     ]);
     const activeKeys = new Set(keys.map((key) => key.id));
+    const products = Object.fromEntries(
+        resourceAllowanceKeys.flatMap((product) => {
+            const rows =
+                product === 'webhooks'
+                    ? webhooks
+                    : resources.filter(
+                          (resource) =>
+                              resourceAllowance(resource.kind, resource.payload) === product,
+                      );
+            return [
+                [resourceCountKey(product), rows.length],
+                [
+                    resourceStorageKey(product),
+                    rows.reduce((total, row) => total + row.storedBytes, 0),
+                ],
+            ];
+        }),
+    ) as Pick<Counts, ReturnType<typeof resourceCountKey> | ReturnType<typeof resourceStorageKey>>;
     return {
-        'resources.active': webhooks.length + resources.length,
-        'resources.storage': [...webhooks, ...resources].reduce(
-            (total, row) => total + row.storedBytes,
-            0,
-        ),
+        ...products,
         'agents.connected': agents.filter((agent) => activeKeys.has(agent.keyId)).length,
         'monitors.active': monitors,
         'memory.bytes': memory,
@@ -135,7 +165,7 @@ export function registerWorkspaceUsage(
 ) {
     app.get('/api/usage', async (request): Promise<UsageResponse> => {
         const actor = await access.actor(request);
-        const limits = plans[actor.plan];
+        const limits = { ...plans[actor.plan], products: productLimits(actor.plan) };
         const now = new Date();
         const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
         const end = new Date(start.getTime() + 86400000).toISOString();
@@ -168,8 +198,11 @@ export function registerWorkspaceUsage(
         }
         add('tools.runs', runsToday, end);
         if (counts) {
-            add('resources.active', counts['resources.active']);
-            add('resources.storage', counts['resources.storage']);
+            for (const product of resourceAllowanceKeys) {
+                if (product !== 'email')
+                    add(resourceCountKey(product), counts[resourceCountKey(product)]);
+                add(resourceStorageKey(product), counts[resourceStorageKey(product)]);
+            }
             add('agents.connected', counts['agents.connected']);
             add('monitors.active', counts['monitors.active']);
             add('memory.bytes', counts['memory.bytes']);

@@ -429,7 +429,15 @@ function CredentialDetail({
     );
 }
 
-export function VaultPanel({ onChange }: { onChange?: () => void }) {
+export function VaultPanel({
+    onChange,
+    selectedId,
+    onSelect,
+}: {
+    onChange?: () => void;
+    selectedId?: string;
+    onSelect?: (id?: string) => void;
+}) {
     const viewer = useViewer();
     const [entries, setEntries] = useState<Credential[]>([]);
     const [limit, setLimit] = useState(0);
@@ -437,6 +445,12 @@ export function VaultPanel({ onChange }: { onChange?: () => void }) {
     const [form, setForm] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(true);
+    useEffect(() => {
+        if (onSelect) {
+            setSelected(entries.find((entry) => entry.id === selectedId) ?? null);
+            setForm(false);
+        }
+    }, [selectedId, entries, Boolean(onSelect)]);
     const workspace = viewer.status === 'user' ? viewer.workspaceId : '';
     const currentWorkspace = useRef(workspace);
     currentWorkspace.current = workspace;
@@ -498,6 +512,7 @@ export function VaultPanel({ onChange }: { onChange?: () => void }) {
                     color="gray"
                     onClick={() => {
                         setSelected(null);
+                        onSelect?.();
                         setForm(false);
                     }}
                 >
@@ -537,6 +552,7 @@ export function VaultPanel({ onChange }: { onChange?: () => void }) {
                         if (currentWorkspace.current !== workspace) return;
                         setEntries((items) => items.filter((item) => item.id !== selected.id));
                         setSelected(null);
+                        onSelect?.();
                         onChange?.();
                     }}
                 />
@@ -561,7 +577,9 @@ export function VaultPanel({ onChange }: { onChange?: () => void }) {
                                     <button
                                         type="button"
                                         className="vault-row"
-                                        onClick={() => setSelected(entry)}
+                                        onClick={() =>
+                                            onSelect ? onSelect(entry.id) : setSelected(entry)
+                                        }
                                     >
                                         <strong>{entry.name}</strong>
                                         <span>{entry.url}</span>

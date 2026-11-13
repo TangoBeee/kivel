@@ -9,6 +9,7 @@ import type { DashboardPanel } from './dashboard-shell';
 import { resourceTool } from './dashboard-resources';
 import type { Resource } from './dashboard-resources';
 import { ToolWorkbench } from './tool-workbench';
+import { DashboardToolSnippets } from './dashboard-tool-snippets';
 import { UsageMeter } from './app/usage-meter';
 import { LimitCard } from './app/limit-card';
 import type { UsageKey } from '@kivel.io/tools/plans';
@@ -52,105 +53,47 @@ export const panelResources = (panel: ToolPanel, resources: Resource[]) => {
     );
 };
 
-type Reading = { label: string; used: number; limit?: number; show: string; note?: string };
+type Reading = { label: string; used: number; limit: number; show: string; note?: string };
 
-/** The limits that matter for one tool, as label, amount used and the plan limit. */
+const productAllowances: Record<ToolPanel, UsageKey[]> = {
+    email: [
+        'email.inboxes',
+        'email.storage',
+        'smtp.active',
+        'smtp.storage',
+        'email.sent_today',
+        'email.sent_month',
+    ],
+    webhooks: ['webhooks.active', 'webhooks.storage'],
+    mocks: ['mocks.active', 'mocks.storage', 'mocks.oauth'],
+    files: ['files.active', 'files.storage'],
+    monitors: ['monitors.active'],
+    memory: ['memory.bytes'],
+    payments: ['payments.active', 'payments.storage'],
+    vault: ['vault.entries'],
+    authenticators: ['authenticators.entries'],
+    automation: ['jobs.active', 'jobs.storage'],
+    status: ['status.active', 'status.storage'],
+};
+
 export function readings(panel: ToolPanel, usage: WorkspaceUsage): Reading[] {
-    const active = usage.items?.find((item) => item.key === 'resources.active');
-    const stored = usage.items?.find((item) => item.key === 'resources.storage');
-    const inboxes = usage.items?.find((item) => item.key === 'email.inboxes');
-    const oauth = usage.items?.find((item) => item.key === 'mocks.oauth');
-    const pool = active && {
-        label: 'All resources',
-        used: active.used,
-        limit: active.max,
-        show: `${active.used} / ${active.max}`,
-        note: 'Shared across products',
-    };
-    const storage = stored && {
-        label: 'Storage',
-        used: stored.used,
-        limit: stored.max,
-        show: `${formatBytes(stored.used)} / ${formatBytes(stored.max)}`,
-    };
-    const list: (Reading | undefined)[] =
-        panel === 'email'
-            ? [
-                  inboxes && {
-                      label: 'Inboxes',
-                      used: inboxes.used,
-                      limit: inboxes.max,
-                      show: `${inboxes.used} / ${inboxes.max}`,
-                  },
-                  usage.email && {
-                      label: 'Sent this month',
-                      used: usage.email.month,
-                      limit: usage.email.perMonth,
-                      show: `${usage.email.month} / ${usage.email.perMonth}`,
-                      note: 'Resets on the 1st (UTC)',
-                  },
-                  usage.email && {
-                      label: 'Sent today',
-                      used: usage.email.day,
-                      limit: usage.email.perDay,
-                      show: `${usage.email.day} / ${usage.email.perDay}`,
-                      note: 'Resets at midnight UTC',
-                  },
-              ]
-            : panel === 'webhooks'
-              ? [pool, storage]
-              : panel === 'payments'
-                ? [pool, storage]
-                : panel === 'mocks'
-                  ? [
-                        pool,
-                        oauth && {
-                            label: oauth.label,
-                            used: oauth.used,
-                            limit: oauth.max,
-                            show: `${oauth.used} / ${oauth.max}`,
-                        },
-                    ]
-                  : panel === 'files'
-                    ? [storage, pool]
-                    : panel === 'automation' || panel === 'status'
-                      ? [pool]
-                      : panel === 'monitors'
-                        ? [
-                              usage.monitors && {
-                                  label: 'Monitors',
-                                  used: usage.monitors.used,
-                                  limit: usage.monitors.limit,
-                                  show: `${usage.monitors.used} / ${usage.monitors.limit}`,
-                              },
-                          ]
-                        : panel === 'memory'
-                          ? [
-                                usage.memory && {
-                                    label: 'Memory used',
-                                    used: usage.memory.used,
-                                    limit: usage.memory.limit,
-                                    show: `${formatBytes(usage.memory.used)} / ${formatBytes(usage.memory.limit)}`,
-                                },
-                            ]
-                          : panel === 'vault'
-                            ? [
-                                  usage.vault && {
-                                      label: 'Vault entries',
-                                      used: usage.vault.used,
-                                      limit: usage.vault.limit,
-                                      show: `${usage.vault.used} / ${usage.vault.limit}`,
-                                  },
-                              ]
-                            : [
-                                  usage.authenticators && {
-                                      label: 'Authenticators',
-                                      used: usage.authenticators.used,
-                                      limit: usage.authenticators.limit,
-                                      show: `${usage.authenticators.used} / ${usage.authenticators.limit}`,
-                                  },
-                              ];
-    return list.filter((item): item is Reading => !!item);
+    return productAllowances[panel].flatMap((key) => {
+        const item = usage.items?.find((entry) => entry.key === key);
+        if (!item) return [];
+        const format =
+            item.unit === 'bytes' ? formatBytes : (value: number) => value.toLocaleString();
+        return [
+            {
+                label: item.label,
+                used: item.used,
+                limit: item.max,
+                show: `${format(item.used)} / ${format(item.max)}`,
+                note: item.resetsAt
+                    ? `Resets ${new Date(item.resetsAt).toLocaleString()}`
+                    : undefined,
+            },
+        ];
+    });
 }
 
 function Meters({ items, onPlans }: { items: Reading[]; onPlans: () => void }) {
@@ -189,24 +132,13 @@ function Meters({ items, onPlans }: { items: Reading[]; onPlans: () => void }) {
     );
 }
 
-const productAllowances: Partial<Record<ToolPanel, UsageKey[]>> = {
-    email: ['email.inboxes', 'resources.active', 'resources.storage'],
-    webhooks: ['resources.active', 'resources.storage'],
-    mocks: ['resources.active', 'resources.storage', 'mocks.oauth'],
-    files: ['resources.storage', 'resources.active'],
-    monitors: ['monitors.active'],
-    memory: ['memory.bytes'],
-    payments: ['resources.active', 'resources.storage'],
-    vault: ['vault.entries'],
-    authenticators: ['authenticators.entries'],
-    automation: ['resources.active', 'resources.storage'],
-    status: ['resources.active', 'resources.storage'],
-};
-
 function fullAllowances(panel: ToolPanel, usage: WorkspaceUsage) {
     return (usage.items ?? []).filter(
         (item) =>
-            productAllowances[panel]?.includes(item.key) && item.max > 0 && item.used >= item.max,
+            productAllowances[panel].includes(item.key) &&
+            !item.key.startsWith('email.sent_') &&
+            item.max > 0 &&
+            item.used >= item.max,
     );
 }
 
@@ -221,14 +153,28 @@ export function ToolNew({
     onNew: (toolId: string) => void;
 }) {
     const full = fullAllowances(panel, usage);
-    if (full.some(({ key }) => !['email.inboxes', 'mocks.oauth'].includes(key))) return null;
+    if (
+        full.some(
+            ({ key }) =>
+                ![
+                    'email.inboxes',
+                    'email.storage',
+                    'smtp.active',
+                    'smtp.storage',
+                    'mocks.oauth',
+                ].includes(key),
+        )
+    )
+        return null;
     const create = (panelInfo(panel).create ?? []) as string[];
     const tools = create
         .filter(
             (id) =>
                 !full.some(
                     ({ key }) =>
-                        (key === 'email.inboxes' && id === 'email-temporary-email-inbox') ||
+                        (['email.inboxes', 'email.storage'].includes(key) &&
+                            id === 'email-temporary-email-inbox') ||
+                        (key.startsWith('smtp.') && id === 'email-mock-smtp') ||
                         (key === 'mocks.oauth' && id === 'mock-apis-mock-oauth-provider'),
                 ),
         )
@@ -272,6 +218,7 @@ export function EmbeddedTool({
     backLabel?: string;
     onBack?: () => void;
 }) {
+    const tool = catalog.find((entry) => entry.id === toolId);
     return (
         <div className="dashboard-embed">
             {onBack && (
@@ -279,6 +226,12 @@ export function EmbeddedTool({
                     <ArrowLeft size={14} />
                     {backLabel}
                 </button>
+            )}
+            {tool && onBack && (
+                <div className="dashboard-workbench-heading">
+                    <h2>{tool.name}</h2>
+                    <p>{tool.description}</p>
+                </div>
             )}
             <ToolWorkbench toolId={toolId} />
         </div>
@@ -294,6 +247,7 @@ export function ToolPage({
     onBack,
     onPlans,
     list,
+    details,
     children,
 }: {
     panel: ToolPanel;
@@ -306,6 +260,7 @@ export function ToolPage({
     onPlans: () => void;
     /** The page's own list when nothing is open. */
     list: React.ReactNode;
+    details?: (resource: Resource) => React.ReactNode;
     children?: React.ReactNode;
 }) {
     const info = panelInfo(panel);
@@ -322,18 +277,22 @@ export function ToolPage({
                     <LimitCard key={item.key} item={item} plan={usage.plan!} onPlans={onPlans} />
                 ))}
             {toolId ? (
-                <EmbeddedTool
-                    key={`${open.resource ?? ''}-${toolId}`}
-                    toolId={toolId}
-                    backLabel={`Back to ${info.label}`}
-                    onBack={onBack}
-                />
+                <>
+                    <EmbeddedTool
+                        key={`${open.resource ?? ''}-${toolId}`}
+                        toolId={toolId}
+                        backLabel={`Back to ${info.label}`}
+                        onBack={onBack}
+                    />
+                    {opened && details?.(opened)}
+                </>
             ) : (
                 <>
                     {list}
                     {children}
                 </>
             )}
+            <DashboardToolSnippets panel={panel} resource={opened} />
         </div>
     );
 }

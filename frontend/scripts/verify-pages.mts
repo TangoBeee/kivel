@@ -1,3 +1,4 @@
+import { resourceAllowanceKeys, resourceAllowances } from '@kivel.io/tools/plans';
 import { useCases } from '../lib/use-cases';
 import assert from 'node:assert/strict';
 import { readFile, stat } from 'node:fs/promises';
@@ -183,6 +184,12 @@ assert.deepEqual(
     paidPlansEnabled ? [0, pricing.pro.monthly, pricing.team.monthly] : [0],
     'Only enabled prices appear in structured offers',
 );
+for (const product of resourceAllowanceKeys) {
+    assert.ok(
+        plansHtml.includes(resourceAllowances[product].label),
+        `Missing allowance for ${product}`,
+    );
+}
 assert.equal(plansHtml.includes(earlyPriceNote), paidPlansEnabled && pricing.early);
 for (const plan of ['pro', 'team'] as const)
     assert.ok(plansHtml.includes(`<strong>${money(pricing[plan].monthly)}</strong>`));

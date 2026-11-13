@@ -18,8 +18,12 @@ pnpm install
 pnpm dev
 ```
 
-Open http://localhost:3001. Development starts a local PostgreSQL instance with
-data in `.data/`; set `DATABASE_URL` to use an existing database.
+Open the site at http://localhost:3001 and create a local account at
+http://127.0.0.1:3002/signup/. Use the exact workspace address for sign in so
+the browser sends its session cookie. `pnpm dev` starts a loopback backend and
+a PostgreSQL instance with data in `.data/`. Set `DATABASE_URL` to use another
+development database. If a port is occupied, set `KIVEL_BACKEND_PORT`,
+`KIVEL_SITE_PORT`, or `KIVEL_APP_PORT` before running `pnpm dev`.
 
 ```sh
 pnpm check

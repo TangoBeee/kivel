@@ -118,11 +118,11 @@ test('sessions enforce CSRF, scoped keys are revocable, and owned resources reje
         401,
     );
 });
-test('anonymous allocations share one limit across resource types and deletion restores capacity', async (t) => {
+test('anonymous allowances are separate for each product and deletion restores capacity', async (t) => {
     const app = buildApp();
     t.after(() => app.close());
     const inboxes = [];
-    for (let index = 0; index < 4; index++)
+    for (let index = 0; index < 5; index++)
         inboxes.push((await app.inject({ method: 'POST', url: '/api/inboxes' })).json());
     const mock = {
         name: 'Quota test',
@@ -132,17 +132,19 @@ test('anonymous allocations share one limit across resource types and deletion r
         (await app.inject({ method: 'POST', url: '/api/mocks', payload: mock })).statusCode,
         201,
     );
-    const full = await app.inject({
+    const file = await app.inject({
         method: 'POST',
         url: '/api/files',
         headers: { 'content-type': 'application/octet-stream', 'x-file-name': 'test.txt' },
         payload: 'x',
     });
+    assert.equal(file.statusCode, 201, file.body);
+    const full = await app.inject({ method: 'POST', url: '/api/inboxes' });
     assert.equal(full.statusCode, 402);
     assert.equal(full.json().code, 'limit_reached');
     assert.equal(full.json().error, full.json().message);
     assert.match(full.json().error, /allowance/);
-    assert.equal(full.json().limit, 'resources.active');
+    assert.equal(full.json().limit, 'webhooks.active');
     assert.equal(full.json().used, full.json().max);
     const inbox = inboxes[0];
     await app.inject({
@@ -150,10 +152,7 @@ test('anonymous allocations share one limit across resource types and deletion r
         url: `/api/inboxes/${inbox.id}`,
         headers: { authorization: `Bearer ${inbox.inspectionToken}` },
     });
-    assert.equal(
-        (await app.inject({ method: 'POST', url: '/api/mocks', payload: mock })).statusCode,
-        201,
-    );
+    assert.equal((await app.inject({ method: 'POST', url: '/api/inboxes' })).statusCode, 201);
     assert.equal((await app.inject({ url: '/api/account/resources' })).statusCode, 401);
 });
 test('SDK, CLI, HTTP and MCP execute one precision-preserving engine with shared usage', async (t) => {

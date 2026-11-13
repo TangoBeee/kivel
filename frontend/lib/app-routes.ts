@@ -7,11 +7,11 @@ export const workspaceRoutes = {
     mocks: '/mocks/',
     payments: '/payments/',
     monitors: '/monitors/',
-    automation: '/monitors/?tab=jobs',
-    status: '/monitors/?tab=status-pages',
+    automation: '/jobs/',
+    status: '/status-pages/',
     approvals: '/approvals/',
     vault: '/credentials/',
-    authenticators: '/credentials/?tab=authenticators',
+    authenticators: '/authenticators/',
     memory: '/memory/',
     files: '/files/',
     tools: '/utilities/',
@@ -32,6 +32,9 @@ export const workspaceSections = [...paths.filter((path) => path !== '/'), ...au
 export function workspacePanel(path: string, query: URLSearchParams): WorkspacePanel {
     const base = path.endsWith('/') ? path : `${path}/`;
     const tab = query.get('tab');
+    if (base === '/monitors/' && tab === 'jobs') return 'automation';
+    if (base === '/monitors/' && tab === 'status-pages') return 'status';
+    if (base === '/credentials/' && tab === 'authenticators') return 'authenticators';
     const matched =
         Object.entries(workspaceRoutes).find(([, route]) => route === `${base}?tab=${tab}`) ??
         Object.entries(workspaceRoutes).find(([, route]) => route === base);

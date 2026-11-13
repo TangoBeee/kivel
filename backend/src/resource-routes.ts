@@ -331,7 +331,7 @@ export function registerResources(
     });
     app.route<IdRoute>({
         method: ['GET', 'HEAD'],
-        url: '/files/:id',
+        url: '/files/:id([a-fA-F0-9-]{36})',
         onRequest: transferLimit,
         handler: async (request, reply) => {
             const accessCredential = await access.publicCredential(request);

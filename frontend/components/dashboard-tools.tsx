@@ -10,14 +10,15 @@ import { EmbeddedTool } from './tool-page';
 
 const available = catalog.filter((tool) => tool.status === 'available');
 
-/** Utilities: pick a tool on the left, it runs on the right. Saved and recent come first. */
 export function DashboardTools({
     selected,
     onSelect,
+    onBack,
     glyphs = {},
 }: {
     selected?: string;
     onSelect: (toolId: string) => void;
+    onBack: () => void;
     glyphs?: Record<string, React.ReactNode>;
 }) {
     const [query, setQuery] = useState('');
@@ -29,7 +30,6 @@ export function DashboardTools({
             key={tool.id}
             type="button"
             className="utility-item"
-            aria-current={selected === tool.id ? 'true' : undefined}
             onClick={() => onSelect(tool.id)}
         >
             <span
@@ -43,6 +43,16 @@ export function DashboardTools({
         </button>
     );
     const tool = catalog.find((entry) => entry.id === selected);
+    if (tool) {
+        return (
+            <EmbeddedTool
+                key={tool.id}
+                toolId={tool.id}
+                backLabel="All utilities"
+                onBack={onBack}
+            />
+        );
+    }
     return (
         <div className="utilities">
             <div className="utility-list">
@@ -96,19 +106,6 @@ export function DashboardTools({
                         </>
                     )}
                 </div>
-            </div>
-            <div className="utility-run">
-                {tool ? (
-                    <EmbeddedTool key={tool.id} toolId={tool.id} />
-                ) : (
-                    <div className="utility-pick">
-                        <strong>Pick a tool on the left</strong>
-                        <p>
-                            It runs right here. Tools you open often show up under Recent, and the
-                            ones you save stay at the top.
-                        </p>
-                    </div>
-                )}
             </div>
         </div>
     );

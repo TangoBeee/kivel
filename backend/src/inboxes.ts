@@ -237,7 +237,7 @@ export class InboxStore implements InboxRepository {
 
     private remove(inbox: Inbox): void {
         this.totalBytes -= inbox.storedBytes;
-        this.ledger?.release(inbox.allocation, inbox.storedBytes);
+        this.ledger?.release(inbox.allocation, 'webhooks', inbox.storedBytes);
         this.inboxes.delete(inbox.id);
     }
 
@@ -295,7 +295,7 @@ export class InboxStore implements InboxRepository {
         const expiresAt = allocation?.expiresAt
             ? Date.parse(allocation.expiresAt)
             : this.now() + INBOX_TTL_MS;
-        this.ledger?.reserve(allocation, 1, 0);
+        this.ledger?.reserve(allocation, 'webhooks', 1, 0);
 
         const { accessToken, ...sharing } = sharingCredentials(allocation?.visibility);
         this.inboxes.set(id, {
@@ -362,7 +362,7 @@ export class InboxStore implements InboxRepository {
             return { status: 'storage-full' } as const;
         }
 
-        this.ledger?.reserve(inbox.allocation, 0, bytes);
+        this.ledger?.reserve(inbox.allocation, 'webhooks', 0, bytes);
         inbox.requests.push(captured);
         inbox.storedBytes += bytes;
         this.totalBytes += bytes;

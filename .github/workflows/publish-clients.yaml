@@ -122,7 +122,7 @@ jobs:
           name: npm-clients
           path: release/
       - name: Publish verified SDK then CLI with npm OIDC
-        run: node scripts/publish-clients.mjs --publish beta
+        run: node scripts/publish-clients.mjs --publish latest
   tag:
     needs: publish
     runs-on: ubuntu-latest
@@ -140,7 +140,7 @@ jobs:
         with:
           name: npm-clients
           path: release/
-      - name: Record package tags and beta release notes
+      - name: Record package tags and release notes
         run: node scripts/tag-client-releases.mjs
         env:
           GH_TOKEN: ${{ github.token }}

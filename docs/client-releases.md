@@ -67,13 +67,14 @@ For a manual emergency release of already-tested tarballs:
 ```sh
 npm login --registry=https://registry.npmjs.org
 pnpm test:packages
-node scripts/publish-clients.mjs --publish beta
+node scripts/publish-clients.mjs --publish latest
 ```
 
-The npm package READMEs cover installation. `@beta` selects the current test
-channel; npm also assigned latest on the initial 0.3.0 publication. Stable
-promotion remains deliberate: change the workflow tag and package publishConfig
-settings together after beta acceptance, and verify dist-tags in npm.
+The npm package READMEs cover installation. Releases publish to the `latest` tag, so
+`npm install @kivel.io/sdk` and `npm install --global @kivel.io/cli` get the newest version.
+The `beta` tag stays at 0.10.0, the last beta release. Prerelease versions (with a `-` suffix)
+still require `--publish beta`; to use that channel again, change the workflow tag and both
+packages' `publishConfig.tag` together and verify dist-tags in npm.
 
 References: [Changesets automation](https://changesets.dev/guide/automating),
 [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/).

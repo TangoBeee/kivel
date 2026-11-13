@@ -48,7 +48,7 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/",
-    "tag": "beta"
+    "tag": "latest"
   },
   "main": "./dist/commands.js",
   "types": "./dist/commands.d.ts"

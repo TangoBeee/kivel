@@ -26,7 +26,7 @@ for (const entry of plan.flat()) {
     const name = entry.name.endsWith('/sdk') ? 'sdk' : 'cli';
     const changelog = await readFile(`packages/${name}/CHANGELOG.md`, 'utf8');
     const section = changelog.split(`## ${entry.version}\n`)[1]?.split('\n## ')[0]?.trim();
-    const notes = section || `Published ${tag} under the npm beta tag.`;
+    const notes = section || `Published ${tag} under the npm latest tag.`;
     const created = spawnSync(
         'gh',
         [
@@ -37,7 +37,6 @@ for (const entry of plan.flat()) {
             process.env.GITHUB_SHA,
             '--title',
             tag,
-            '--prerelease',
             '--notes-file',
             '-',
         ],

@@ -184,8 +184,8 @@ export default function Connect() {
                 <ClientTabs clients={clients} />
                 <p className="connect-packages">
                     Prefer a terminal or code? The same tools ship as{' '}
-                    <code>npm install --global @kivel.io/cli@beta</code> and{' '}
-                    <code>npm install @kivel.io/sdk@beta</code>. See the{' '}
+                    <code>npm install --global @kivel.io/cli</code> and{' '}
+                    <code>npm install @kivel.io/sdk</code>. See the{' '}
                     <Link href="/docs/cli/">CLI</Link> and <Link href="/docs/sdk/">SDK</Link> docs.
                 </p>
             </section>

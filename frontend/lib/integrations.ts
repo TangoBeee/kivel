@@ -36,7 +36,7 @@ const kivel = new Kivel({
 const inbox = await kivel.createEmailInbox();
 const mail = await kivel.waitForEmail(inbox.id);
 await kivel.memorySet('build', 'verification', mail.messages[0]?.codes ?? []);`,
-        note: 'Install npm install @kivel.io/sdk@beta (or pin an exact version). Requires Node.js 22.13+; ESM import and TypeScript declarations are included. The package uses your configured API origin.',
+        note: 'Install npm install @kivel.io/sdk (or pin an exact version). Requires Node.js 22.13+; ESM import and TypeScript declarations are included. The package uses your configured API origin.',
     },
     {
         id: 'cli',
@@ -50,7 +50,7 @@ kivel email create
 kivel memory list build
 kivel monitor list
 kivel approval pending`,
-        note: 'Install npm install --global @kivel.io/cli@beta, or run npx --package=@kivel.io/cli@beta kivel --help. Requires Node.js 22.13+. Set KIVEL_URL for your installation. Errors go to stderr with a nonzero exit code.',
+        note: 'Install npm install --global @kivel.io/cli, or run npx --package=@kivel.io/cli kivel --help. Requires Node.js 22.13+. Set KIVEL_URL for your installation. Errors go to stderr with a nonzero exit code.',
     },
     {
         id: 'ssh',

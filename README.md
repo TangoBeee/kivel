@@ -131,7 +131,10 @@ runtime checkout agree. `DODO_PAYMENTS_ENVIRONMENT` defaults to
 Use two distinct fixed recurring products with no trials, discounts or usage meters.
 Set the subscription duration to 20 years, as required by this integration, with
 a monthly payment frequency. Annual billing is not offered. Prices come from Dodo.
-Register `/billing/webhook` for subscription lifecycle events, using the endpoint’s
+Register `https://<your domain>/billing/webhook` (for production, exactly
+`https://kivel.io/billing/webhook`) for subscription lifecycle events. Dodo does not
+follow redirects, so an old domain or `http://` URL fails every delivery with 308;
+`node scripts/production-check.mjs` checks the endpoint answers directly. Use the endpoint’s
 Standard Webhooks signing secret. Entitlements follow verified events and a fresh
 subscription retrieval, never the checkout return URL. The customer portal is
 available to workspace owners. When replacing a Dodo product, add its old ID to

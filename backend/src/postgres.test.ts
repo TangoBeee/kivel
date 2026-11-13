@@ -653,6 +653,12 @@ test('billing events are idempotent, fetch current subscription state, and exten
     ]);
     assert.equal(loads, 1);
     assert.equal((await identities.account(account.id))?.plan, 'pro');
+    // A resend after the retry window re-reads the live subscription instead of being ignored.
+    await pool.query(
+        "UPDATE dodo_events SET processed_at = clock_timestamp() - interval '1 hour' WHERE id = 'evt_test'",
+    );
+    await repository.process('evt_test', 10, 'cus_test', load);
+    assert.equal(loads, 2);
     assert.ok(
         Date.parse((await resources.read(resource.id, 'mock', '', account.id))!.expiresAt) >
             Date.now() + 30 * 86400000,

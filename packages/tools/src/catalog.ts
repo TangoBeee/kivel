@@ -90,20 +90,20 @@ export const categories: Category[] = [
     },
 ];
 
-// A muted tint per category, so the board reads as a patchwork of neighbourhoods.
+// One colour per category, drawn from the site's landscapes: sky, lake, meadow, dunes and dusk.
 export const categoryTints: Record<Category['id'], string> = {
-    network: '#3a6f8f',
-    'mock-apis': '#6a5a9e',
-    agents: '#8a4f86',
-    files: '#9a6b3a',
-    everyday: '#4f7d5a',
-    email: '#a0564f',
-    domains: '#2f7c84',
-    monitoring: '#7d7530',
-    databases: '#4f64a0',
-    'test-media': '#94566b',
-    developer: '#286747',
-    automation: '#9a7424',
+    network: '#2f5fc4', // open sky
+    'mock-apis': '#5a6fb0', // evening sky
+    agents: '#7a6aa8', // dusk
+    files: '#a8834a', // dune sand
+    everyday: '#4f8a3a', // meadow
+    email: '#c06f5e', // dawn
+    domains: '#3d8590', // lake shallows
+    monitoring: '#a88a2a', // golden hour
+    databases: '#1f45a8', // deep sky
+    'test-media': '#b06a86', // wildflowers
+    developer: '#3f7d3a', // hillside
+    automation: '#b07a2c', // late sun
 };
 
 export interface CatalogTool {

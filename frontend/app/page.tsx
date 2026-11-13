@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import {
     ArrowRight,
+    Check,
     Code,
     Folder,
     HandPalm,
@@ -42,30 +43,48 @@ export const metadata: Metadata = {
     twitter: { card: 'summary_large_image', title, description, images: [shareImage.url] },
 };
 
-// The three main products, each shown on a painting with a piece of the real product.
+// The three main products, each shown on a landscape with a piece of the real product.
 const showcase = [
     {
-        title: 'Email inboxes',
-        body: 'Send and receive email on socketspace.xyz. Extract one-time codes and verification links automatically.',
+        eyebrow: 'Email',
+        title: 'An inbox your agent can read.',
+        body: 'Sign up to anything, wait for the email and carry on. No copying codes by hand.',
+        points: [
+            'Addresses on socketspace.xyz',
+            'Codes and links pulled out for you',
+            'Replies can wait for your approval',
+        ],
+        link: 'Explore email tools',
         href: '/catalog/email/',
-        art: '/art/monet-japanese-footbridge.webp',
-        credit: 'Claude Monet, The Japanese Footbridge, 1899',
+        scene: 'meadow',
         snippet: 'email',
     },
     {
-        title: 'Webhook inboxes',
-        body: 'Capture webhooks from Stripe, GitHub, Slack or your own app. Inspect, replay and forward requests.',
-        href: '/webhooks/',
-        art: '/art/hokusai-great-wave.webp',
-        credit: 'Katsushika Hokusai, The Great Wave, c. 1830–32',
+        eyebrow: 'Webhooks',
+        title: 'A public URL in one call.',
+        body: 'Point Stripe, GitHub or your own app at it and let your agent wait for the next request.',
+        points: [
+            'Every header and body captured',
+            'Signatures checked for Stripe, GitHub, Shopify and Slack',
+            'Custom responses and delays',
+        ],
+        link: 'Try the webhook tester',
+        href: '/tools/webhook-inbox/',
+        scene: 'lake',
         snippet: 'webhook',
     },
     {
-        title: 'Mock APIs',
-        body: 'Mock REST, GraphQL and OAuth endpoints. Set routes, responses, delays and errors.',
+        eyebrow: 'Mock APIs',
+        title: 'The API that isn\u2019t built yet.',
+        body: 'Mock REST, GraphQL and OAuth endpoints so your agent can build against them today.',
+        points: [
+            'Routes, responses, delays and errors',
+            'Stateful collections with seeded data',
+            'Every call recorded for review',
+        ],
+        link: 'Explore mock APIs',
         href: '/catalog/mock-apis/',
-        art: '/art/gris-fantomas.webp',
-        credit: 'Juan Gris, Fantômas, 1915',
+        scene: 'dunes',
         snippet: 'mock',
     },
 ] as const;
@@ -250,77 +269,101 @@ export default function Home() {
                 }}
             />
 
-            <div className="home-first">
-                <section className="home-wrap home-hero" aria-labelledby="hero-heading">
+            <section className="home-sky" aria-labelledby="hero-heading">
+                <img
+                    className="home-sky-scene"
+                    src="/art/hills-1600.webp"
+                    srcSet="/art/hills-1600.webp 1600w, /art/hills-1672.webp 1672w"
+                    sizes="100vw"
+                    alt=""
+                    width={1600}
+                    height={900}
+                    fetchPriority="high"
+                />
+                <div className="home-sky-copy">
                     <h1 id="hero-heading">Email, webhooks and mock APIs for your coding agent.</h1>
-                    <div className="home-hero-side">
-                        <p>
-                            Real inboxes, webhook URLs and API endpoints for Claude Code, Cursor and
-                            Codex, over one MCP connection. Use them in development, CI and
-                            production. Kivel asks you before risky steps.
-                        </p>
-                        <div className="home-actions">
-                            <CopyPrompt prompt={setupPrompt} />
-                            <Link href="/docs/" className="home-link">
-                                Read the docs
+                    <p>Real inboxes, webhook URLs and API endpoints over one MCP connection.</p>
+                    <div className="home-sky-actions">
+                        <CopyPrompt prompt={setupPrompt} className="sky-cta" />
+                        <Link href="/docs/" className="sky-ghost">
+                            Read the docs
+                        </Link>
+                    </div>
+                </div>
+            </section>
+
+            <section className="home-wrap mid-steps" aria-labelledby="steps-heading">
+                <p className="mid-eyebrow">How it works</p>
+                <h2 id="steps-heading">Set up in one minute.</h2>
+                <ol>
+                    <li>
+                        <span>1</span>
+                        <strong>Paste the prompt</strong>
+                        <p>Into Claude Code, Cursor, Codex or any MCP client.</p>
+                    </li>
+                    <li>
+                        <span>2</span>
+                        <strong>Approve it</strong>
+                        <p>Your agent asks to join your workspace. You say yes in the browser.</p>
+                    </li>
+                    <li>
+                        <span>3</span>
+                        <strong>Ask your agent</strong>
+                        <p>It finds the right tool for the job by itself.</p>
+                    </li>
+                </ol>
+            </section>
+
+            <section className="home-wrap mid-products" aria-label="Products">
+                {showcase.map((item, index) => (
+                    <article
+                        key={item.title}
+                        className={`mid-row ${index % 2 ? 'is-flipped' : ''}`}
+                    >
+                        <div className="mid-copy">
+                            <p className="mid-eyebrow">{item.eyebrow}</p>
+                            <h2>{item.title}</h2>
+                            <p>{item.body}</p>
+                            <ul>
+                                {item.points.map((point) => (
+                                    <li key={point}>
+                                        <Check size={16} weight="bold" aria-hidden="true" />
+                                        {point}
+                                    </li>
+                                ))}
+                            </ul>
+                            <Link href={item.href} className="mid-link">
+                                {item.link}
+                                <ArrowRight size={16} aria-hidden="true" />
                             </Link>
                         </div>
-                        <p className="home-hero-facts">
-                            Free to start
-                            {paidPlansEnabled && ` · Pro ${money(pricing.pro.monthly)}/mo`}
-                            {` · ${toolTotal} tools`}
-                        </p>
-                    </div>
-                </section>
+                        <div className={`mid-scene is-${item.scene}`}>
+                            <Snippet kind={item.snippet} />
+                        </div>
+                    </article>
+                ))}
+            </section>
 
-                <figure className="home-wrap home-art">
-                    <img
-                        src="/art/klint-youth.webp"
-                        alt="Hilma af Klint, The Ten Largest, No. 3, Youth, 1907: spirals and circles in yellow, blue and pink on orange."
-                        width={1600}
-                        height={895}
-                        fetchPriority="high"
-                    />
-                    <figcaption>Hilma af Klint, The Ten Largest, No. 3, 1907</figcaption>
-                </figure>
-            </div>
-
-            <section className="home-wrap home-products" aria-labelledby="products-heading">
-                <h2 id="products-heading">Everything your agent can&apos;t do alone.</h2>
-                <div className="home-showcase">
-                    {showcase.map((item) => (
-                        <Link key={item.title} href={item.href} className="home-show">
-                            <div className="home-show-art">
-                                <img src={item.art} alt="" loading="lazy" />
-                                <Snippet kind={item.snippet} />
-                                <small>{item.credit}</small>
-                            </div>
-                            <h3>
-                                {item.title}
-                                <ArrowRight size={18} aria-hidden="true" />
-                            </h3>
-                            <p>{item.body}</p>
-                        </Link>
-                    ))}
-                </div>
-                <ul className="home-more-list">
+            <section className="home-wrap mid-more" aria-labelledby="more-heading">
+                <p className="mid-eyebrow">And everything else</p>
+                <h2 id="more-heading">{toolTotal} tools, one connection.</h2>
+                <ul>
                     {more.map(({ title, body, href, Icon }) => (
                         <li key={title}>
                             <Link href={href}>
-                                <Icon size={22} aria-hidden="true" />
-                                <span>
-                                    <strong>{title}</strong>
-                                    <small>{body}</small>
+                                <span className="mid-icon">
+                                    <Icon size={22} aria-hidden="true" />
                                 </span>
+                                <strong>{title}</strong>
+                                <small>{body}</small>
                             </Link>
                         </li>
                     ))}
                 </ul>
-                <nav className="home-categories" aria-label="Explore tool categories">
-                    <span>{toolTotal} tools in all:</span>
+                <nav className="mid-categories" aria-label="Explore tool categories">
                     {categories.map((category) => (
                         <Link key={category.id} href={categoryHref(category.id)}>
-                            {category.name}{' '}
+                            {category.name}
                             <span>
                                 {
                                     catalog.filter(
@@ -335,37 +378,25 @@ export default function Home() {
                 </nav>
             </section>
 
-            <section className="home-wrap home-split" aria-labelledby="try-heading">
-                <div>
-                    <h2 id="try-heading">Try it now.</h2>
-                    <p>
-                        This is a real webhook inbox, the same one your agent gets. Send it a
-                        request.
-                    </p>
-                    <p className="home-credit">Vincent van Gogh, Flower Beds in Holland, c. 1883</p>
+            <section className="mid-try" aria-labelledby="try-heading">
+                <div className="mid-try-copy">
+                    <p className="mid-eyebrow">Try it now</p>
+                    <h2 id="try-heading">A real webhook URL, right here.</h2>
+                    <p>The same inbox your agent gets. Create one and send it a request.</p>
                 </div>
-                <div className="home-try-art">
-                    <img src="/art/van-gogh-flower-beds.webp" alt="" loading="lazy" />
-                    <LiveWebhook />
-                </div>
+                <LiveWebhook />
             </section>
 
-            <section className="home-wrap home-split" aria-labelledby="pricing-heading">
-                <div>
-                    <h2 id="pricing-heading">Pricing</h2>
-                    <p>
-                        {paidPlansEnabled
-                            ? 'Start free. Upgrade when you need more agents.'
-                            : 'Start free. The paid plans below are a preview.'}{' '}
-                        <Link href="/pricing/" className="home-link">
-                            See every limit
-                        </Link>
-                    </p>
-                    {paidPlansEnabled && pricing.early && <p>{earlyPriceNote}</p>}
-                </div>
-                <div className="home-plans">
+            <section className="home-wrap mid-pricing" aria-labelledby="pricing-heading">
+                <p className="mid-eyebrow">Pricing</p>
+                <h2 id="pricing-heading">Start free. Grow when you need to.</h2>
+                {paidPlansEnabled && pricing.early && <p className="mid-note">{earlyPriceNote}</p>}
+                {!paidPlansEnabled && (
+                    <p className="mid-note">The paid plans below are a preview.</p>
+                )}
+                <div className="mid-plans">
                     {plans.map((plan) => (
-                        <div key={plan.name}>
+                        <div key={plan.name} className={plan.name === 'Pro' ? 'is-featured' : ''}>
                             <span>
                                 {plan.name}
                                 {plan.name === 'Pro' &&
@@ -384,13 +415,16 @@ export default function Home() {
                         </div>
                     ))}
                 </div>
+                <Link href="/pricing/" className="mid-link">
+                    See every limit
+                    <ArrowRight size={16} aria-hidden="true" />
+                </Link>
             </section>
 
-            <section className="home-wrap home-split" aria-labelledby="faq-heading">
+            <section className="home-wrap mid-faq" aria-labelledby="faq-heading">
+                <p className="mid-eyebrow">Questions</p>
+                <h2 id="faq-heading">Good to know.</h2>
                 <div>
-                    <h2 id="faq-heading">Questions</h2>
-                </div>
-                <div className="home-faq">
                     {faqs.map((faq) => (
                         <details key={faq.question}>
                             <summary>
@@ -401,11 +435,6 @@ export default function Home() {
                         </details>
                     ))}
                 </div>
-            </section>
-
-            <section className="home-wrap home-close" aria-labelledby="close-heading">
-                <h2 id="close-heading">Give your agent the internet.</h2>
-                <CopyPrompt prompt={setupPrompt} />
             </section>
             <CookieJar />
         </div>

@@ -35,6 +35,20 @@ assert.doesNotMatch(
 );
 const billing = await (await request('/api/billing')).json();
 assert.equal(billing.enabled, true, 'Paid plans must be open for checkout');
+// Dodo does not follow redirects. The webhook must answer on this exact URL (an unsigned test
+// is rejected with 400), or paid plans never activate. Point Dodo at https://<domain>/billing/webhook.
+const webhook = await fetch(new URL('/billing/webhook', origin), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: '{}',
+    redirect: 'manual',
+    signal: AbortSignal.timeout(20000),
+});
+assert.equal(
+    webhook.status,
+    400,
+    `/billing/webhook: expected 400 for an unsigned test, got HTTP ${webhook.status}. Dodo webhooks will fail.`,
+);
 assert.equal(
     (await (await request('/api/auth/recovery')).json()).enabled,
     true,

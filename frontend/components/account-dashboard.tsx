@@ -218,21 +218,38 @@ export function AccountDashboard({
         planName = plan[0]!.toUpperCase() + plan.slice(1),
         signedIn = !!session;
     useEffect(() => {
-        if (checkout !== 'activating' || !signedIn) return;
+        if ((checkout !== 'activating' && checkout !== 'delayed') || !signedIn) return;
         if (subscribed) {
             setCheckout('active');
             refreshViewer();
             return;
         }
-        // The webhook usually lands within seconds of the redirect; check for about half a minute.
-        let tries = 0;
-        const timer = setInterval(() => {
-            if (++tries > 15) {
-                clearInterval(timer);
+        // Dodo's webhook can land a minute or more after the redirect. Check every 2 seconds for
+        // half a minute, then every 5 seconds up to two minutes. After that, say it is still being
+        // confirmed and keep checking every 15 seconds for ten more minutes, so the page switches
+        // to the new plan by itself whenever the payment is confirmed.
+        const started = Date.now();
+        let stopped = false;
+        let timer: ReturnType<typeof setTimeout>;
+        const check = () => {
+            if (stopped) return;
+            const elapsed = Date.now() - started;
+            if (checkout === 'activating' && elapsed >= 120_000) {
                 setCheckout('delayed');
-            } else void refresh();
-        }, 2000);
-        return () => clearInterval(timer);
+                return;
+            }
+            if (checkout === 'delayed' && elapsed >= 600_000) return;
+            void refresh();
+            timer = setTimeout(
+                check,
+                checkout === 'delayed' ? 15_000 : elapsed < 30_000 ? 2000 : 5000,
+            );
+        };
+        timer = setTimeout(check, checkout === 'delayed' ? 15_000 : 2000);
+        return () => {
+            stopped = true;
+            clearTimeout(timer);
+        };
     }, [checkout, signedIn, subscribed]);
     // Refreshing updates the data in place; only the refresh icon shows that it is working.
     const [refreshing, setRefreshing] = useState(false);
@@ -1554,7 +1571,7 @@ export function AccountDashboard({
                                     aria-live="polite"
                                 >
                                     <span className="checkout-result-icon" aria-hidden="true">
-                                        {checkout === 'activating' ? (
+                                        {checkout === 'activating' || checkout === 'delayed' ? (
                                             <ArrowsClockwise size={20} className="spin" />
                                         ) : checkout === 'active' ? (
                                             <Check size={20} weight="bold" />
@@ -1571,7 +1588,7 @@ export function AccountDashboard({
                                                 : checkout === 'active'
                                                   ? `Welcome to ${planName}!`
                                                   : checkout === 'delayed'
-                                                    ? 'Payment not confirmed yet'
+                                                    ? 'Still confirming your payment'
                                                     : checkout === 'failed'
                                                       ? 'Payment didn’t go through'
                                                       : 'Checkout cancelled'}
@@ -1582,7 +1599,7 @@ export function AccountDashboard({
                                                 : checkout === 'active'
                                                   ? `Your workspace now has the ${planName} limits below. Dodo Payments will email your receipt, and you can change or cancel anytime from Manage billing.`
                                                   : checkout === 'delayed'
-                                                    ? 'We haven’t received a successful payment yet. If you were charged, your plan switches automatically within a few minutes. If not, the payment didn’t complete and you can try again. Questions? Email support@kivel.io.'
+                                                    ? 'Dodo Payments hasn’t confirmed it yet. If you completed checkout, your plan switches automatically, usually within a few minutes, and this page updates by itself. If nothing changes after 10 minutes, email support@kivel.io and we’ll sort it out.'
                                                     : checkout === 'failed'
                                                       ? 'You weren’t charged and your plan hasn’t changed. Try again, or use a different card.'
                                                       : 'No payment was taken and your plan has not changed.'}

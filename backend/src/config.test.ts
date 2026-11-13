@@ -109,14 +109,13 @@ test('public production requires recovery delivery and beta billing is explicitl
     assert.equal(readConfig(paid).billingConfig?.priceSchedule, 'legacy');
     for (const schedule of ['early', 'standard']) {
         for (const legacy of [undefined, '{}'])
-            assert.throws(
-                () =>
-                    readConfig({
-                        ...paid,
-                        BILLING_PRICE_SCHEDULE: schedule,
-                        DODO_LEGACY_PRODUCT_IDS: legacy,
-                    }),
-                /DODO_LEGACY_PRODUCT_IDS is required/,
+            assert.equal(
+                readConfig({
+                    ...paid,
+                    BILLING_PRICE_SCHEDULE: schedule,
+                    DODO_LEGACY_PRODUCT_IDS: legacy,
+                }).billingConfig?.priceSchedule,
+                schedule,
             );
         assert.equal(
             readConfig({

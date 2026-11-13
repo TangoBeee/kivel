@@ -7,6 +7,8 @@ import { LiveLogo } from './live-logo';
 import { SearchLaunch } from './toolbox-provider';
 import { supportEmail, supportHref } from '../lib/support';
 import { appLink } from '../lib/app-routes';
+import { CopyPrompt } from './home/copy-prompt';
+import { setupPrompt } from '../lib/setup-prompt';
 
 const links = [
     {
@@ -72,7 +74,9 @@ export function Header() {
 
     return (
         <>
-            <header className={`island ${open ? 'is-open' : ''}`}>
+            <header
+                className={`island ${pathname === '' ? 'is-home' : ''} ${open ? 'is-open' : ''}`}
+            >
                 <Link href="/" className="island-brand" aria-label="Kivel home">
                     <LiveLogo size={28} />
                     <span>Kivel</span>
@@ -174,6 +178,21 @@ const legalLinks = [
 export function Footer() {
     return (
         <footer className="site-footer">
+            <div className="footer-scene">
+                <img
+                    src="/art/hills-1600.webp"
+                    srcSet="/art/hills-1600.webp 1600w, /art/hills-1672.webp 1672w"
+                    sizes="100vw"
+                    alt=""
+                    width={1672}
+                    height={941}
+                    loading="lazy"
+                />
+                <div className="footer-scene-copy">
+                    <p className="footer-scene-title">Give your agent the internet.</p>
+                    <CopyPrompt prompt={setupPrompt} className="sky-cta" />
+                </div>
+            </div>
             <div className="footer-inner">
                 <div className="footer-about">
                     <Link href="/" className="footer-brand" aria-label="Kivel home">

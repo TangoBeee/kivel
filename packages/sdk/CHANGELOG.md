@@ -1,5 +1,11 @@
 # @kivel.io/sdk
 
+## 0.10.0
+
+### Minor Changes
+
+- ad5805c: Add live event streams to the SDK and use them in the webhook listener.
+
 ## 0.9.0
 
 ### Minor Changes

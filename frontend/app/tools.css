@@ -2,9 +2,9 @@
 brand green for Radix controls,
 and calmer editors. Loaded last. */
 .radix-themes {
-  --green-9: #111312;
-  --green-10: #2b2f2d;
-  --green-11: #111312;
+  --green-9: #1a5ce6;
+  --green-10: #1248bf;
+  --green-11: #1a5ce6;
 }
 .work-page {
   padding-top: 48px;
@@ -47,7 +47,12 @@ and calmer editors. Loaded last. */
   height: 56px;
   border: 1px solid color-mix(in srgb, var(--tint) 24%, var(--surface));
   border-radius: 16px;
-  background: color-mix(in srgb, var(--tint) 10%, var(--surface));
+  /* A little sky: tinted at the top, fading to white like a horizon */
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--tint) 18%, var(--surface)) 0%,
+    color-mix(in srgb, var(--tint) 4%, var(--surface)) 100%
+  );
   color: var(--tint);
 }
 .tool-header-copy {
@@ -129,12 +134,20 @@ and calmer editors. Loaded last. */
   height: 40px;
   border: 1px solid color-mix(in srgb, var(--tint) 18%, var(--surface));
   border-radius: 12px;
-  background: color-mix(in srgb, var(--tint) 8%, var(--surface));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--tint) 15%, var(--surface)) 0%,
+    color-mix(in srgb, var(--tint) 3%, var(--surface)) 100%
+  );
   color: var(--tint);
 }
 .catalog-tool-icon.is-ready {
   border-color: color-mix(in srgb, var(--tint) 32%, var(--surface));
-  background: color-mix(in srgb, var(--tint) 14%, var(--surface));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--tint) 20%, var(--surface)) 0%,
+    color-mix(in srgb, var(--tint) 5%, var(--surface)) 100%
+  );
   color: var(--tint);
 }
 .catalog-tool-row {

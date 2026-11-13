@@ -288,7 +288,7 @@
 .content-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-card);
   margin: 24px 0;
   background: var(--surface);
   scrollbar-width: thin;
@@ -325,7 +325,7 @@
 .content-table td {
   color: var(--muted);
 }
-.content-table tbody tr:nth-child(even) {
+.content-table tbody tr:hover {
   background: var(--subtle);
 }
 .explanation-grid {
@@ -357,12 +357,13 @@
   flex-direction: column;
   border: 1px solid var(--line);
   background: var(--surface);
-  border-radius: 12px;
+  border-radius: var(--radius-card);
   padding: 24px 20px;
 }
 .pricing-card.is-featured {
   border-color: var(--accent-line);
-  background: var(--subtle);
+  background: #f6f9ff;
+  box-shadow: var(--shadow-md);
 }
 .pricing-card-top {
   display: flex;
@@ -1420,9 +1421,9 @@ a brand dot pattern with its icon in a raised tile */
   color: var(--ink);
 }
 .blog-filters button[aria-pressed='true'] {
-  border-color: var(--ink);
-  background: var(--ink);
-  color: var(--bg);
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #ffffff;
 }
 .article-meta {
   font-family: var(--mono);
@@ -1865,8 +1866,8 @@ a brand dot pattern with its icon in a raised tile */
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 .plans-page .pricing-card.is-featured {
-  border-color: var(--ink);
-  box-shadow: 0 16px 40px rgb(20 20 20 / 0.08);
+  border-color: var(--accent-line);
+  box-shadow: 0 16px 40px -12px rgb(26 92 230 / 0.18);
 }
 .pricing-after {
   margin-top: 20px;
@@ -1955,4 +1956,136 @@ a brand dot pattern with its icon in a raised tile */
   font-size: 1rem;
   line-height: 1.7;
   margin: 0 0 40px;
+}
+
+/* Section headers that sit on a landscape. The wash keeps the copy readable over any sky. */
+/* Page header: open sky with clouds that dissolve into the page */
+.content-page:has(> .page-sky) {
+  padding-top: 0;
+}
+.content-intro.page-sky {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 0;
+  width: 100vw;
+  min-height: 560px;
+  margin: 0 0 24px calc(50% - 50vw);
+  padding: 152px 24px 216px;
+  overflow: hidden;
+  background: #3f7fd8;
+  color: #ffffff;
+  text-align: center;
+  box-sizing: border-box;
+}
+.content-intro.page-sky::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  z-index: -1;
+  height: 45%;
+  background: linear-gradient(
+    180deg,
+    rgb(255 255 255 / 0) 0%,
+    rgb(255 255 255 / 0.55) 55%,
+    #ffffff 100%
+  );
+  pointer-events: none;
+}
+.content-intro.page-sky > * {
+  max-width: 720px;
+}
+.page-sky-scene {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  max-width: none !important;
+  object-fit: cover;
+  object-position: 50% 100%;
+}
+.content-intro.page-sky h1 {
+  margin: 0 0 16px;
+  font-size: 3.5rem;
+  line-height: 1.05;
+  color: #ffffff;
+  text-shadow: 0 1px 24px rgb(10 40 120 / 0.25);
+}
+.content-intro.page-sky > p {
+  max-width: 580px;
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+  color: rgb(255 255 255 / 0.92);
+}
+.content-intro.page-sky > .content-meta {
+  margin-top: 12px;
+  font-size: 0.875rem;
+  color: rgb(255 255 255 / 0.8);
+}
+.page-sky-back {
+  margin-bottom: 20px;
+  padding: 4px 12px;
+  border: 1px solid rgb(255 255 255 / 0.3);
+  border-radius: 9999px;
+  background: rgb(255 255 255 / 0.12);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #ffffff;
+}
+.page-sky-back:hover {
+  background: rgb(255 255 255 / 0.2);
+}
+.page-sky .content-actions {
+  justify-content: center;
+  margin-top: 32px;
+}
+/* Buttons on the sky: the primary is the white pill, everything else frosted glass */
+.content-page .page-sky .button {
+  min-height: 48px;
+  padding: 0 22px;
+  border: 1px solid rgb(255 255 255 / 0.7);
+  background: rgb(255 255 255 / 0.4);
+  color: #0b2d8f;
+  font-size: 1rem;
+  box-shadow: none;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+.content-page .page-sky .button:hover {
+  background: rgb(255 255 255 / 0.6);
+}
+.content-page .page-sky .button-primary,
+.content-page .page-sky .button-primary:hover {
+  border-color: #ffffff;
+  background: #ffffff;
+  color: #0b2d8f;
+  box-shadow:
+    0 2px 4px rgb(6 22 80 / 0.12),
+    0 12px 32px -8px rgb(6 22 80 / 0.4);
+}
+.content-page .page-sky .button-primary:hover {
+  background: #f4f8ff;
+}
+.content-page .page-sky .button-primary svg {
+  color: #1a5ce6;
+}
+@media (max-width: 640px) {
+  .content-intro.page-sky {
+    min-height: 0;
+    padding: 120px 16px 176px;
+  }
+  .content-intro.page-sky h1 {
+    font-size: 2.5rem;
+  }
+  .content-intro.page-sky > p {
+    font-size: 1rem;
+    line-height: 1.625rem;
+  }
+}
+.docs-intro {
+  padding-bottom: 0;
+}
+.docs-intro .page-sky {
+  margin-bottom: 16px;
 }

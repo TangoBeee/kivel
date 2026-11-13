@@ -1,22 +1,22 @@
 :root {
   color-scheme: light;
-  /* Editorial light: white page, near-black ink, the brand green kept for small accents */
+  /* Sky light: white page, deep navy ink, sky blue for actions, cool airy greys */
   /* Surfaces */
   --bg: #ffffff;
   --surface: #ffffff;
-  --subtle: #f5f5f4;
+  --subtle: #f3f6fb;
   /* Text: muted stays above 4.5:1 on every surface */
-  --ink: #141414;
-  --muted: #5b5b5b;
-  --line: #e8e8e8;
-  --line-strong: #d4d4d4;
+  --ink: #0f1a33;
+  --muted: #525d73;
+  --line: #e3e8f0;
+  --line-strong: #cfd7e3;
   /* Brand */
-  --accent: #141414;
-  --accent-hover: #444444;
-  --accent-soft: #f5f5f4;
-  --accent-line: #d4d4d4;
+  --accent: #1a5ce6;
+  --accent-hover: #1248bf;
+  --accent-soft: #edf3fe;
+  --accent-line: #c7d8fa;
   --accent-ink: #ffffff;
-  --brand: #111312;
+  --brand: #0f1a33;
   --danger: #ad3f3b;
   --danger-bg: #fff2ef;
   --warning: #9a5a0c;
@@ -27,9 +27,9 @@
   --radius-row: 12px;
   --radius-card: 16px;
   --radius-panel: 24px;
-  /* Depth: shadows tinted to the ink */
-  --shadow-sm: 0 1px 2px rgb(17 19 18 / 0.05);
-  --shadow-md: 0 1px 2px rgb(17 19 18 / 0.04), 0 8px 24px rgb(17 19 18 / 0.08);
+  /* Depth: soft shadows tinted to the sky */
+  --shadow-sm: 0 1px 2px rgb(15 35 90 / 0.05);
+  --shadow-md: 0 1px 2px rgb(15 35 90 / 0.04), 0 12px 32px -8px rgb(15 35 90 / 0.12);
   --ease: cubic-bezier(0.32, 0.72, 0, 1);
   --mono: var(--font-geist-mono), ui-monospace, monospace;
 }
@@ -37,7 +37,7 @@ body {
   --display: var(--font-sans), -apple-system, sans-serif;
 }
 ::selection {
-  background: #e5e5e5;
+  background: #d6e4fd;
   color: var(--ink);
 }
 html {

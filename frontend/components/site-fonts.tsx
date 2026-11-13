@@ -14,6 +14,8 @@ export function SiteFonts({ children }: { children: React.ReactNode }) {
             lang="en"
             data-theme="light"
             data-scroll-behavior="smooth"
+            // Extensions such as Dark Reader and Grammarly add attributes to <html> before React loads
+            suppressHydrationWarning
         >
             <body>{children}</body>
         </html>

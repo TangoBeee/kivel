@@ -45,6 +45,19 @@ if has_mail; then
 fi
 release_mail_image=${MAIL_IMAGE:-}
 previous_schema=
+# Keep the exact images that are running now. Tags follow commits, so redeploying the same commit
+# with different build settings replaces the tag on Docker Hub; rolling back by tag would then
+# start the new image again.
+snapshot=false
+snapshot_images() {
+    local service id
+    for service in app database proxy; do
+        id=$(compose ps -q "$service")
+        [ -n "$id" ] || return 1
+        docker tag "$(docker inspect --format '{{.Image}}' "$id")" "kivel-rollback:$service" || return 1
+    done
+}
+if snapshot_images; then snapshot=true; fi
 
 # A backup before every release; the newest seven are kept.
 install -d -m 700 backups
@@ -60,7 +73,12 @@ if ! start_release; then
     compose logs --tail=50 app >&2 || true
     current_schema=$(compose exec -T database psql -U socket_admin -d socket -Atc 'SELECT MAX(version) FROM schema_migrations' 2>/dev/null || true)
     echo "Database schema before release: ${previous_schema:-unknown}; after failure: ${current_schema:-unknown}. The database will not be restored automatically." >&2
-    if [[ "$previous" =~ ^[a-f0-9]{12}$ ]]; then
+    if "$snapshot"; then
+        export APP_IMAGE=kivel-rollback:app DATABASE_IMAGE=kivel-rollback:database PROXY_IMAGE=kivel-rollback:proxy
+        if start_release; then
+            echo "Rolled back to the images that were running before $TAG; the additive database migrations were kept." >&2
+        else echo 'Rollback also failed. Inspect the app logs before changing the database.' >&2; fi
+    elif [[ "$previous" =~ ^[a-f0-9]{12}$ ]]; then
         use "$previous"
         if has_mail; then
             if ! docker manifest inspect "$MAIL_IMAGE" >/dev/null 2>&1 || ! compose pull --quiet mail; then

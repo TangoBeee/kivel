@@ -1,5 +1,11 @@
 # @kivel.io/sdk
 
+## 0.10.1
+
+### Patch Changes
+
+- 10de14b: Publish releases to the npm latest tag, so `npm install @kivel.io/sdk` and `npm install --global @kivel.io/cli` install the newest version. Install instructions no longer need `@beta`.
+
 ## 0.10.0
 
 ### Minor Changes

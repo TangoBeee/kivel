@@ -242,18 +242,24 @@ export function AccountDashboard({
         const start = (
             document as Document & {
                 startViewTransition?: (callback: () => Promise<void>) => {
+                    ready: Promise<void>;
                     finished: Promise<void>;
                 };
             }
         ).startViewTransition;
-        if (!start || matchMedia('(prefers-reduced-motion: reduce)').matches) return update();
-        await start.call(document, async () => {
+        // Hidden tabs skip view transitions and never fire animation frames, so update directly.
+        if (!start || document.hidden || matchMedia('(prefers-reduced-motion: reduce)').matches)
+            return update();
+        const transition = start.call(document, async () => {
             await update();
             // Let React paint the new screen before the browser captures it.
             await new Promise((resolve) =>
                 requestAnimationFrame(() => requestAnimationFrame(resolve)),
             );
-        }).finished;
+        });
+        // A skipped transition rejects ready; the update itself still runs, so ignore that.
+        transition.ready.catch(() => {});
+        await transition.finished;
     }
     async function action(work: () => Promise<void>) {
         setBusy(true);

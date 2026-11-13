@@ -178,8 +178,11 @@ export function AgentLink() {
                                 Connect <em>{request.name}</em>?
                             </h1>
                             <p>
-                                It asked to use the <strong>{request.workspace.name}</strong>{' '}
-                                workspace
+                                It asked to use <strong>{request.workspace.name}</strong>
+                                {/* Default names already end in "workspace"; don't say it twice. */}
+                                {/workspace$/i.test(request.workspace.name.trim())
+                                    ? ''
+                                    : ' workspace'}
                                 {request.client ? ` from ${request.client}` : ''}. It will be able
                                 to create inboxes, mocks and monitors, run tools and read your
                                 usage. You can remove it any time.

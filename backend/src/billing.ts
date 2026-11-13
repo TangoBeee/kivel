@@ -238,6 +238,8 @@ export class BillingRepository {
         created: number,
         customerId: string,
         load: () => Promise<SubscriptionState>,
+        /** Called with the reason when an event leaves the workspace unchanged. */
+        skipped: (reason: string) => void = () => {},
     ) {
         return transaction(this.pool, async (client) => {
             const account = (
@@ -246,16 +248,24 @@ export class BillingRepository {
                     [customerId],
                 )
             ).rows[0];
-            if (
-                !account ||
-                (await client.query('SELECT id FROM dodo_events WHERE id = $1', [eventId])).rowCount
-            )
+            if (!account) {
+                skipped('no workspace is linked to this Dodo customer');
                 return false;
+            }
+            if (
+                (await client.query('SELECT id FROM dodo_events WHERE id = $1', [eventId])).rowCount
+            ) {
+                skipped('event already processed');
+                return false;
+            }
             const state = await load();
             if (state.accountId !== account.id || state.customerId !== customerId)
                 throw new HttpError(400, 'Subscription does not belong to this workspace.');
             // A second subscription must not replace an existing active subscription.
             if (account.dodo_subscription_id && account.dodo_subscription_id !== state.id) {
+                skipped(
+                    `workspace already has subscription ${account.dodo_subscription_id}; ignoring ${state.id}`,
+                );
                 await client.query(
                     'INSERT INTO dodo_events (id, created) VALUES ($1, $2) ON CONFLICT DO NOTHING',
                     [eventId, created],
@@ -649,13 +659,24 @@ export function registerBilling(
                 )
                     throw new HttpError(400, 'Invalid subscription event.');
                 const subscriptionId = data.subscription_id;
-                await repository.process(
+                let observed: Record<string, unknown> = {};
+                const applied = await repository.process(
                     headers['webhook-id']!,
                     Number(headers['webhook-timestamp']),
                     data.customer.customer_id,
                     async () => {
                         const current = await dodo.subscriptions.retrieve(subscriptionId);
                         const state = resolveSubscription(current, config);
+                        // The fields that decide whether the subscription counts as active.
+                        observed = {
+                            subscriptionStatus: current.status,
+                            productId: current.product_id,
+                            amount: current.recurring_pre_tax_amount,
+                            nextBillingDate: current.next_billing_date,
+                            trialDays: current.trial_period_days,
+                            quantity: current.quantity,
+                            resolvedPlan: state.plan,
+                        };
                         if (!state.accountId) {
                             const customer = await dodo.customers.retrieve(
                                 current.customer.customer_id,
@@ -667,6 +688,14 @@ export function registerBilling(
                         }
                         return state;
                     },
+                    (reason) => {
+                        observed.skipped = reason;
+                    },
+                );
+                // One line per delivery, so a plan that does not switch can be explained from the logs.
+                app.log.info(
+                    { billingEvent: event.type, subscriptionId, applied, ...observed },
+                    applied ? 'Billing event applied' : 'Billing event left the plan unchanged',
                 );
             }
             return reply.send({ received: true });

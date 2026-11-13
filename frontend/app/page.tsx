@@ -251,7 +251,7 @@ export default function Home() {
                 <img
                     className="home-sky-scene"
                     src="/art/hills-1600.webp"
-                    srcSet="/art/hills-1600.webp 1600w, /art/hills-3200.webp 3200w"
+                    srcSet="/art/hills-1600.webp 1600w, /art/hills-1672.webp 1672w"
                     sizes="100vw"
                     alt=""
                     width={1600}

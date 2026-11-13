@@ -72,7 +72,7 @@
 }
 
 /* First screen: the hero and the painting fill the window together */
-/* First screen: a clear sky over one green hill. The scene is rendered from assets/hills.svg. */
+/* First screen: a clear sky over one green hill. */
 .home-sky {
   position: relative;
   display: grid;
@@ -82,7 +82,7 @@
   max-height: 1100px;
   padding: 64px 24px 18vh;
   overflow: hidden;
-  background: #2238a0;
+  background: #0c32aa;
   color: #ffffff;
   text-align: center;
   box-sizing: border-box;
@@ -328,7 +328,7 @@
   margin-top: 160px;
   padding: 96px 24px 160px;
   overflow: hidden;
-  background: #2238a0 url('/art/hills-1600.webp') 30% 100% / cover no-repeat;
+  background: #0c32aa url('/art/hills-1600.webp') 30% 100% / cover no-repeat;
   color: #ffffff;
   text-align: center;
 }
@@ -820,7 +820,7 @@
   border-radius: 6px;
 }
 .home-show-art {
-  background-color: #2238a0;
+  background-color: #0c32aa;
   background-image: url('/art/hills-1600.webp');
   background-size: 190% auto;
   background-repeat: no-repeat;
@@ -971,7 +971,7 @@
 /* Try it now: the live inbox sits on the sky */
 .home-try-art {
   position: relative;
-  background: #2238a0 url('/art/hills-1600.webp') 85% 100% / cover no-repeat;
+  background: #0c32aa url('/art/hills-1600.webp') 85% 100% / cover no-repeat;
   display: grid;
   align-items: center;
   min-height: 420px;

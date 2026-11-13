@@ -456,6 +456,17 @@ export function AccountDashboard({
         <div className={`page-width ${session ? 'dashboard-page' : 'account-page'}`}>
             {!session ? (
                 <>
+                    {/* The homepage sky and hill, behind the whole sign in screen */}
+                    <img
+                        className="auth-sky-scene"
+                        src="/art/hills-1600.webp"
+                        srcSet="/art/hills-1600.webp 1600w, /art/hills-1672.webp 1672w"
+                        sizes="100vw"
+                        alt=""
+                        width={1600}
+                        height={900}
+                        fetchPriority="high"
+                    />
                     <div className="app-standalone-brand">
                         <Link href={siteOrigin} aria-label="Kivel home">
                             <LiveLogo size={28} />
@@ -615,6 +626,19 @@ export function AccountDashboard({
                                                   ? 'Sign in'
                                                   : 'Create free account'}
                                         </button>
+                                        {mode === 'register' && (
+                                            <p className="auth-legal">
+                                                By creating an account, you agree to the{' '}
+                                                <a href={`${siteOrigin}/terms/`}>
+                                                    Terms of Service
+                                                </a>{' '}
+                                                and{' '}
+                                                <a href={`${siteOrigin}/privacy/`}>
+                                                    Privacy Policy
+                                                </a>
+                                                .
+                                            </p>
+                                        )}
                                     </form>
                                     <p className="auth-switch">
                                         {mode === 'login'
@@ -641,16 +665,6 @@ export function AccountDashboard({
                                 </section>
                             )}
                         </div>
-                        <figure className="auth-art">
-                            <img
-                                src="/art/auth-path.webp"
-                                alt=""
-                                width={1020}
-                                height={1352}
-                                loading="lazy"
-                            />
-                            <figcaption>Hilma af Klint, The Ten Largest, No. 1, 1907</figcaption>
-                        </figure>
                     </div>
                 </>
             ) : (

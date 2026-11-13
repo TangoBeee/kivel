@@ -63,7 +63,7 @@ test('Dodo entitlements require a configured, active, paid fixed subscription', 
         { quantity: 2 },
         { trial_period_days: 7 },
         { on_demand: true },
-        { recurring_pre_tax_amount: 0 },
+        { recurring_pre_tax_amount: -1 },
         { next_billing_date: new Date(0).toISOString() },
         { next_billing_date: 'invalid' },
     ])
@@ -72,6 +72,11 @@ test('Dodo entitlements require a configured, active, paid fixed subscription', 
             'free',
             JSON.stringify(override),
         );
+});
+test('a fully discounted active subscription still grants its plan', () => {
+    const state = subscriptionState(subscription({ recurring_pre_tax_amount: 0 }), products);
+    assert.equal(state.plan, 'pro');
+    assert.ok(state.validUntil);
 });
 test('an unmapped paid product cannot revoke access even with a nonstandard quantity', () => {
     assert.throws(

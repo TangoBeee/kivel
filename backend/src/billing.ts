@@ -52,7 +52,9 @@ export function subscriptionState(
         subscription.quantity === 1 &&
         !subscription.on_demand &&
         subscription.trial_period_days === 0 &&
-        subscription.recurring_pre_tax_amount > 0 &&
+        // A $0 recurring amount means a full discount code the merchant created, which still
+        // grants the plan. The product must be a known plan product for that to happen.
+        subscription.recurring_pre_tax_amount >= 0 &&
         Number.isFinite(end) &&
         end > Date.now();
     if (

@@ -83,7 +83,8 @@ try {
         'docker',
         `import fs from 'node:fs';
 const args = process.argv.slice(2); fs.appendFileSync(process.env.OPS_TEST_LOG, JSON.stringify({args,app:process.env.APP_IMAGE,mail:process.env.MAIL_IMAGE})+'\\n');
-if (args.includes('config')) { if(args.includes('--services')) console.log('app\\ndatabase\\nproxy'+(process.env.HAS_MAIL==='false'?'':'\\nmail')); else console.log('EMAIL_SENDING_ENABLED='+process.env.EMAIL_SENDING_ENABLED); }
+if (args[0]==='tag' && process.env.SNAPSHOT==='false') process.exit(1);
+else if (args.includes('config')) { if(args.includes('--services')) console.log('app\\ndatabase\\nproxy'+(process.env.HAS_MAIL==='false'?'':'\\nmail')); else console.log('EMAIL_SENDING_ENABLED='+process.env.EMAIL_SENDING_ENABLED); }
 else if (args.includes('manifest')) { if(process.env.PREVIOUS_MAIL==='missing')process.exit(1);console.log('{}'); }
 else if (args.includes('psql') && process.env.RESTORE_TEST==='true') {
  const query=args[args.indexOf('-c')+1]??'', db=args[args.indexOf('-d')+1];
@@ -107,7 +108,9 @@ else if (args.includes('up')) {
     ]) {
         writeFileSync(join(temporary, '.release'), '000000000011');
         rmSync(join(temporary, 'query-count'), { force: true });
+        // Without a snapshot of the running images, the deploy falls back to the previous release tag.
         const result = run('bash', ['deploy/server-deploy.sh', '000000000012'], {
+            SNAPSHOT: 'false',
             SCHEMA_BEFORE: '13',
             SCHEMA_AFTER: changed ? '15' : '13',
             HAS_MAIL: String(hasMail),
@@ -129,6 +132,24 @@ else if (args.includes('up')) {
         ),
     );
     assert.ok(commands.some((entry) => entry.args.includes('up') && entry.mail === undefined));
+    {
+        // With a snapshot, the deploy restores the exact images that were running before the release.
+        writeFileSync(join(temporary, '.release'), '000000000011');
+        rmSync(join(temporary, 'query-count'), { force: true });
+        const result = run('bash', ['deploy/server-deploy.sh', '000000000012'], {
+            SCHEMA_BEFORE: '13',
+            SCHEMA_AFTER: '13',
+        });
+        assert.equal(result.status, 1, result.stderr);
+        assert.equal(
+            result.stderr.includes(
+                'Rolled back to the images that were running before 000000000012',
+            ),
+            true,
+            result.stderr,
+        );
+        assert.equal(readFileSync(join(temporary, '.release'), 'utf8'), '000000000011');
+    }
     for (const sending of [false, true]) {
         writeFileSync(join(temporary, '.release'), '000000000011');
         rmSync(join(temporary, 'query-count'), { force: true });

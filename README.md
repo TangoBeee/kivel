@@ -106,6 +106,19 @@ and are excluded from search indexing.
 Set `SITE_URL` at build time for custom SEO canonicals; the HTTPS Compose stack
 uses `DOMAIN` automatically.
 
+## MCP Registry
+
+Kivel is listed on the official [MCP Registry](https://registry.modelcontextprotocol.io/)
+as `io.kivel/kivel`, from `server.json`. The `io.kivel` namespace is verified by a DNS TXT
+record on kivel.io, signed with an Ed25519 key kept outside the repository. To publish a
+new version, bump `version` in `server.json` to match the server's reported version, then:
+
+```sh
+mcp-publisher validate server.json
+mcp-publisher login dns --domain kivel.io --private-key "<hex private key>"
+mcp-publisher publish server.json
+```
+
 ## Clients and billing
 
 `pnpm build:packages` builds the shared engine, TypeScript SDK, and CLI.

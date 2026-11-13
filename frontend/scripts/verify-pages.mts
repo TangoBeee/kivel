@@ -231,7 +231,7 @@ for (const path of ['/', '/connect/', '/pricing/', '/docs/']) {
         assert.ok(text.toLowerCase().includes(term.toLowerCase()), `${path}: ${term}`);
 }
 const home = await readFile('out/index.html', 'utf8');
-assert.ok(home.includes('/art/klint-youth.webp'), 'Home preserves the Gallery hero');
+assert.ok(home.includes('/art/hills-1600.webp'), 'Home shows the sky and hill hero');
 assert.ok(home.includes('href="/pricing/"'), 'Home links to the current pricing URL');
 assert.ok(home.includes('mailto:support@kivel.io'), 'Home preserves the support contact');
 for (const category of categories)

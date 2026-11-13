@@ -27,6 +27,7 @@ import type { RecoveryRepository } from './recovery-store.js';
 import type { MailSender } from './mail.js';
 import type DodoPayments from 'dodopayments';
 import { isUtf8 } from 'node:buffer';
+import { resolve, sep } from 'node:path';
 import { METHODS } from 'node:http';
 import { randomUUID, randomBytes } from 'node:crypto';
 import fastify, { LogController } from 'fastify';
@@ -1013,6 +1014,17 @@ export function buildApp({
     });
 
     if (frontendDir) {
+        // The public site is the same for every visitor, so Cloudflare may keep pages for a minute
+        // and absorb launch traffic. The workspace shell stays revalidated on every load, and API,
+        // MCP, webhook and mock routes never reach this handler (they send no-store).
+        const siteRoot = resolve(frontendDir);
+        const staticCacheControl = (path: string) => {
+            if (path.includes('/_next/static/')) return 'public, max-age=31536000, immutable';
+            if (!resolve(path).startsWith(siteRoot + sep)) return 'no-cache';
+            return /\.(?:html|txt|xml|json)$|\/[^./]+$/.test(path)
+                ? 'public, max-age=0, s-maxage=60, stale-while-revalidate=30'
+                : 'public, max-age=3600, s-maxage=3600';
+        };
         const staticOptions = {
             index: 'index.html',
             redirect: true,
@@ -1020,12 +1032,7 @@ export function buildApp({
             cacheControl: false,
             setHeaders(response: FastifyReply, path: string) {
                 if (path.endsWith('/opengraph-image')) response.header('Content-Type', 'image/png');
-                response.header(
-                    'Cache-Control',
-                    path.includes('/_next/static/')
-                        ? 'public, max-age=31536000, immutable'
-                        : 'no-cache',
-                );
+                response.header('Cache-Control', staticCacheControl(path));
             },
         } as const;
         app.register(fastifyStatic, { ...staticOptions, root: frontendDir });

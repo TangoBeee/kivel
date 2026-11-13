@@ -438,7 +438,7 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                                         value={localPart}
                                         placeholder="qa-bot-42"
                                         aria-label="Custom address name"
-                                        pattern="[a-z0-9-]{3,48}"
+                                        pattern="[a-z0-9\-]{3,48}"
                                         onChange={(event) => setLocalPart(event.target.value)}
                                     />
                                     <small>

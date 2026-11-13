@@ -262,6 +262,9 @@ test('fake data placeholders render fresh JSON-safe sample values', async (t) =>
     ).json();
     const first = (await app.inject({ url: `/mock/${mock.id}/users/7` })).json();
     assert.equal(first.id, '7');
+    // One response is one person: the email belongs to the name.
+    const [given, family] = first.name.toLowerCase().split(' ');
+    assert.equal(first.email, `${given}.${family}@example.com`);
     assert.match(first.name, /^\S+ \S+$/);
     assert.match(first.email, /^[a-z]+\.[a-z]+@example\.com$/);
     assert.match(
@@ -296,4 +299,32 @@ test('routes can fail a share of calls on purpose and reject impossible rates', 
     assert.equal(failed.headers['x-mock-simulated-failure'], 'true');
     const never = (await create({ failureRate: 0 })).json();
     assert.equal((await app.inject({ url: `/mock/${never.id}/pay` })).statusCode, 200);
+});
+
+test('mock routes explain wrong bodies and placeholders when they are saved', async (t) => {
+    const app = buildApp();
+    t.after(() => app.close());
+    const create = (route: Record<string, unknown>) =>
+        app.inject({
+            method: 'POST',
+            url: '/api/mocks',
+            payload: {
+                name: 'Checks',
+                routes: [{ method: 'GET', path: '/users/:id', status: 200, ...route }],
+            },
+        });
+    const objectBody = await create({ body: { id: 1 } });
+    assert.equal(objectBody.statusCode, 400);
+    assert.match(objectBody.json().error, /Route 1: body must be a string/);
+    const express = await create({ template: true, body: '{"id":"{{params.id}}"}' });
+    assert.equal(express.statusCode, 400);
+    assert.match(express.json().error, /Use \{\{path\.id\}\} for the :id route segment/);
+    const segment = await create({ template: true, body: '{"id":"{{path.userId}}"}' });
+    assert.equal(segment.statusCode, 400);
+    assert.match(segment.json().error, /has no matching :userId segment in \/users\/:id/);
+    const lowercase = await create({ method: 'get', body: '{}' });
+    assert.equal(lowercase.statusCode, 400);
+    assert.match(lowercase.json().error, /method must be one of GET/);
+    // Without template: true, braces are plain text and stay allowed.
+    assert.equal((await create({ body: '{"note":"{{params.id}}"}' })).statusCode, 201);
 });

@@ -545,7 +545,7 @@ export function AccountDashboard({
                                                 size="3"
                                                 name="username"
                                                 autoComplete="username"
-                                                pattern="[a-z0-9][a-z0-9_.-]{2,31}"
+                                                pattern="[a-z0-9][a-z0-9_.\-]{2,31}"
                                                 minLength={3}
                                                 maxLength={32}
                                                 aria-describedby={

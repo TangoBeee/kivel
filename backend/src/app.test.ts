@@ -611,6 +611,11 @@ test('static hosting applies exact script hashes, immutable assets, and safe 404
         String((await app.inject({ url: '/_next/static/test.js' })).headers['cache-control']),
         /immutable/,
     );
+    // Public pages are shared, so a CDN may keep them briefly; browsers always revalidate.
+    assert.equal(
+        response.headers['cache-control'],
+        'public, max-age=0, s-maxage=60, stale-while-revalidate=30',
+    );
     assert.equal((await app.inject({ url: '/.env' })).statusCode, 404);
     const missing = await app.inject({ url: '/missing', headers: { accept: 'text/html' } });
     assert.equal(missing.statusCode, 404);
@@ -802,6 +807,13 @@ test('the app host uses its own export, CSP and browser sessions while public AP
         const asset = await app.inject({ url: '/_next/static/site.js', headers });
         assert.equal(asset.body, script);
         assert.equal(asset.headers['cache-control'], 'public, max-age=31536000, immutable');
+        // The workspace shell is never cached by a CDN; the public site may be, briefly.
+        assert.equal(
+            response.headers['cache-control'],
+            site === 'app'
+                ? 'no-cache'
+                : 'public, max-age=0, s-maxage=60, stale-while-revalidate=30',
+        );
     }
     const filesPage = await app.inject({ url: '/files/', headers: appHeaders });
     assert.equal(filesPage.statusCode, 200, filesPage.body);

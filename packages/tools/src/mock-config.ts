@@ -1,3 +1,4 @@
+import { checkTemplate } from './mock-behavior.js';
 import { validateLlmMock } from './llm-mock.js';
 import type { LlmMockConfig } from './llm-mock.js';
 import { validateCrud, initialCrud } from './mock-crud.js';
@@ -164,7 +165,18 @@ export function validateMock(value: unknown): MockConfig {
     )
         throw new Error('Echo mode requires echo: true, empty routes and no CRUD collection.');
     const seen = new Set<string>();
-    const routes = value.routes.map((item): MockRoute => {
+    const routes = value.routes.map((item, index): MockRoute => {
+        // Name the most common mistakes before the general rule, so an agent can fix them in one try.
+        if (object(item) && item.body !== undefined && typeof item.body !== 'string')
+            throw new Error(
+                `Route ${index + 1}: body must be a string. JSON encode objects, for example "{\\"id\\":\\"{{path.id}}\\"}".`,
+            );
+        if (object(item) && typeof item.method === 'string' && !methods.includes(item.method))
+            throw new Error(
+                `Route ${index + 1}: method must be one of ${methods.join(', ')} in uppercase.`,
+            );
+        if (object(item) && item.template === true && typeof item.body === 'string')
+            checkTemplate(item.body, typeof item.path === 'string' ? item.path : '', index);
         if (
             !object(item) ||
             typeof item.method !== 'string' ||

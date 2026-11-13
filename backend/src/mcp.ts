@@ -761,9 +761,13 @@ export const platformTools = [
                             path: stringProperty('Route path, for example /users/:id.'),
                             status: { type: 'integer', minimum: 200, maximum: 599 },
                             body: stringProperty(
-                                'Response body; templates insert path, query or top-level JSON body values inside strings.',
+                                'Response body as a string; JSON encode objects. With template: true, insert {{path.id}} for a :id segment, {{query.name}}, {{body.name}} (top level JSON field) or {{fake.name}} (firstName, lastName, name, email, username, phone, company, city, country, uuid, id, int, price, bool, word, sentence, url, date, datetime, now) inside JSON strings. Example: "{\\"id\\":\\"{{path.id}}\\",\\"name\\":\\"{{fake.name}}\\"}".',
                             ),
-                            template: { type: 'boolean' },
+                            template: {
+                                type: 'boolean',
+                                description:
+                                    'Set true to fill {{...}} placeholders in body on every call.',
+                            },
                             condition: {
                                 type: 'object',
                                 additionalProperties: false,

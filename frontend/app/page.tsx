@@ -42,30 +42,27 @@ export const metadata: Metadata = {
     twitter: { card: 'summary_large_image', title, description, images: [shareImage.url] },
 };
 
-// The three main products, each shown on a painting with a piece of the real product.
+// The three main products, each shown on a piece of the same sky with a piece of the real product.
 const showcase = [
     {
         title: 'Email inboxes',
         body: 'Send and receive email on socketspace.xyz. Extract one-time codes and verification links automatically.',
         href: '/catalog/email/',
-        art: '/art/monet-japanese-footbridge.webp',
-        credit: 'Claude Monet, The Japanese Footbridge, 1899',
+        crop: 'left',
         snippet: 'email',
     },
     {
         title: 'Webhook inboxes',
         body: 'Capture webhooks from Stripe, GitHub, Slack or your own app. Inspect, replay and forward requests.',
         href: '/webhooks/',
-        art: '/art/hokusai-great-wave.webp',
-        credit: 'Katsushika Hokusai, The Great Wave, c. 1830–32',
+        crop: 'center',
         snippet: 'webhook',
     },
     {
         title: 'Mock APIs',
         body: 'Mock REST, GraphQL and OAuth endpoints. Set routes, responses, delays and errors.',
         href: '/catalog/mock-apis/',
-        art: '/art/gris-fantomas.webp',
-        credit: 'Juan Gris, Fantômas, 1915',
+        crop: 'right',
         snippet: 'mock',
     },
 ] as const;
@@ -250,50 +247,47 @@ export default function Home() {
                 }}
             />
 
-            <div className="home-first">
-                <section className="home-wrap home-hero" aria-labelledby="hero-heading">
+            <section className="home-sky" aria-labelledby="hero-heading">
+                <img
+                    className="home-sky-scene"
+                    src="/art/hills-1600.webp"
+                    srcSet="/art/hills-1600.webp 1600w, /art/hills-3200.webp 3200w"
+                    sizes="100vw"
+                    alt=""
+                    width={1600}
+                    height={900}
+                    fetchPriority="high"
+                />
+                <div className="home-sky-copy">
+                    <p className="home-sky-kicker">
+                        For Claude Code, Cursor, Codex and any MCP agent
+                    </p>
                     <h1 id="hero-heading">Email, webhooks and mock APIs for your coding agent.</h1>
-                    <div className="home-hero-side">
-                        <p>
-                            Real inboxes, webhook URLs and API endpoints for Claude Code, Cursor and
-                            Codex, over one MCP connection. Use them in development, CI and
-                            production. Kivel asks you before risky steps.
-                        </p>
-                        <div className="home-actions">
-                            <CopyPrompt prompt={setupPrompt} />
-                            <Link href="/docs/" className="home-link">
-                                Read the docs
-                            </Link>
-                        </div>
-                        <p className="home-hero-facts">
-                            Free to start
-                            {paidPlansEnabled && ` · Pro ${money(pricing.pro.monthly)}/mo`}
-                            {` · ${toolTotal} tools`}
-                        </p>
+                    <p>
+                        Real inboxes, webhook URLs and API endpoints over one MCP connection. Use
+                        them in development, CI and production.
+                    </p>
+                    <div className="home-sky-actions">
+                        <CopyPrompt prompt={setupPrompt} className="home-sky-cta" />
+                        <Link href="/docs/" className="home-sky-link">
+                            Read the docs
+                        </Link>
                     </div>
-                </section>
-
-                <figure className="home-wrap home-art">
-                    <img
-                        src="/art/klint-youth.webp"
-                        alt="Hilma af Klint, The Ten Largest, No. 3, Youth, 1907: spirals and circles in yellow, blue and pink on orange."
-                        width={1600}
-                        height={895}
-                        fetchPriority="high"
-                    />
-                    <figcaption>Hilma af Klint, The Ten Largest, No. 3, 1907</figcaption>
-                </figure>
-            </div>
+                    <p className="home-sky-facts">
+                        Free to start
+                        {paidPlansEnabled && ` · Pro ${money(pricing.pro.monthly)}/mo`}
+                        {` · ${toolTotal} tools`}
+                    </p>
+                </div>
+            </section>
 
             <section className="home-wrap home-products" aria-labelledby="products-heading">
                 <h2 id="products-heading">Everything your agent can&apos;t do alone.</h2>
                 <div className="home-showcase">
                     {showcase.map((item) => (
                         <Link key={item.title} href={item.href} className="home-show">
-                            <div className="home-show-art">
-                                <img src={item.art} alt="" loading="lazy" />
+                            <div className={`home-show-art is-${item.crop}`}>
                                 <Snippet kind={item.snippet} />
-                                <small>{item.credit}</small>
                             </div>
                             <h3>
                                 {item.title}
@@ -342,10 +336,8 @@ export default function Home() {
                         This is a real webhook inbox, the same one your agent gets. Send it a
                         request.
                     </p>
-                    <p className="home-credit">Vincent van Gogh, Flower Beds in Holland, c. 1883</p>
                 </div>
                 <div className="home-try-art">
-                    <img src="/art/van-gogh-flower-beds.webp" alt="" loading="lazy" />
                     <LiveWebhook />
                 </div>
             </section>
@@ -403,9 +395,11 @@ export default function Home() {
                 </div>
             </section>
 
-            <section className="home-wrap home-close" aria-labelledby="close-heading">
-                <h2 id="close-heading">Give your agent the internet.</h2>
-                <CopyPrompt prompt={setupPrompt} />
+            <section className="home-close" aria-labelledby="close-heading">
+                <div className="home-close-copy">
+                    <h2 id="close-heading">Give your agent the internet.</h2>
+                    <CopyPrompt prompt={setupPrompt} className="home-sky-cta" />
+                </div>
             </section>
             <CookieJar />
         </div>

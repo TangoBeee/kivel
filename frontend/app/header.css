@@ -303,3 +303,52 @@ html.menu-open {
     display: none;
   }
 }
+
+/* Homepage: the header floats over the sky. Links left, logo centred, the app on the right. */
+.island.is-home:not(.is-open) {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-bottom-color: rgb(255 255 255 / 0.16);
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.island.is-home:not(.is-open) .island-brand,
+.island.is-home:not(.is-open) .island-brand svg,
+.island.is-home:not(.is-open) .island-nav a {
+  color: #ffffff;
+}
+.island.is-home:not(.is-open) .island-nav a {
+  color: rgb(255 255 255 / 0.88);
+}
+.island.is-home:not(.is-open) .island-nav a:hover {
+  background: rgb(255 255 255 / 0.12);
+  color: #ffffff;
+}
+.island.is-home:not(.is-open) .header-search {
+  border-color: rgb(255 255 255 / 0.28);
+  background: rgb(255 255 255 / 0.1);
+  color: rgb(255 255 255 / 0.85);
+}
+.island.is-home:not(.is-open) .island-cta {
+  background: #ffffff;
+  color: #141414;
+}
+.island.is-home:not(.is-open) .island-cta:hover {
+  background: rgb(255 255 255 / 0.88);
+}
+.island.is-home:not(.is-open) .island-toggle-line {
+  background: #ffffff;
+}
+@media (min-width: 1081px) {
+  .island.is-home .island-brand {
+    position: absolute;
+    left: 50%;
+    margin: 0;
+    transform: translateX(-50%);
+  }
+  .island.is-home .island-nav {
+    order: -1;
+  }
+}

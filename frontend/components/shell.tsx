@@ -72,7 +72,9 @@ export function Header() {
 
     return (
         <>
-            <header className={`island ${open ? 'is-open' : ''}`}>
+            <header
+                className={`island ${pathname === '' ? 'is-home' : ''} ${open ? 'is-open' : ''}`}
+            >
                 <Link href="/" className="island-brand" aria-label="Kivel home">
                     <LiveLogo size={28} />
                     <span>Kivel</span>

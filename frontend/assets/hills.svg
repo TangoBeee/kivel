@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3200 1800" width="3200" height="1800">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2238a0"/>
+      <stop offset="0.38" stop-color="#2a44a9"/>
+      <stop offset="0.7" stop-color="#3b5bbb"/>
+      <stop offset="0.9" stop-color="#5677c9"/>
+      <stop offset="1" stop-color="#6f8fd3"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.3" cy="1" r="0.75">
+      <stop offset="0" stop-color="#9fb8ec" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#9fb8ec" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="hillLight" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9ccb57"/>
+      <stop offset="0.45" stop-color="#7fb440"/>
+      <stop offset="1" stop-color="#5e9530"/>
+    </linearGradient>
+    <linearGradient id="hillShade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.18"/>
+      <stop offset="0.25" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="1" stop-color="#2d5a12" stop-opacity="0.25"/>
+    </linearGradient>
+    <linearGradient id="field" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#93c255"/>
+      <stop offset="0.35" stop-color="#86b94a"/>
+      <stop offset="1" stop-color="#9cc860"/>
+    </linearGradient>
+    <linearGradient id="farHill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8fbf63"/>
+      <stop offset="1" stop-color="#7aae4a"/>
+    </linearGradient>
+    <filter id="grass" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="1.1 0.22" numOctaves="3" seed="11" result="n"/>
+      <feColorMatrix in="n" type="matrix" values="0 0 0 0 0.12  0 0 0 0 0.28  0 0 0 0 0.04  0 0 0 0.6 -0.22" result="dark"/>
+      <feTurbulence type="fractalNoise" baseFrequency="1.4 0.3" numOctaves="2" seed="4" result="n2"/>
+      <feColorMatrix in="n2" type="matrix" values="0 0 0 0 0.85  0 0 0 0 0.95  0 0 0 0 0.6  0 0 0 0.45 -0.24" result="light"/>
+      <feComposite in="dark" in2="SourceAlpha" operator="in" result="darkIn"/>
+      <feComposite in="light" in2="SourceAlpha" operator="in" result="lightIn"/>
+      <feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="darkIn"/><feMergeNode in="lightIn"/></feMerge>
+    </filter>
+    <filter id="soft" x="-5%" y="-20%" width="110%" height="140%">
+      <feGaussianBlur stdDeviation="14"/>
+    </filter>
+  </defs>
+
+  <rect width="3200" height="1800" fill="url(#sky)"/>
+  <rect width="3200" height="1800" fill="url(#glow)"/>
+
+  <!-- distant meadow on the horizon -->
+  <g filter="url(#grass)"><path d="M0 1672 C 600 1655 1100 1658 1500 1672 S 2400 1682 3200 1672 L3200 1800 L0 1800 Z" fill="#a3cc6c"/></g>
+
+  <!-- the main hill, lit from the upper left -->
+  <g filter="url(#grass)">
+    <path d="M0 1790 C 900 1770 1450 1660 1950 1470 C 2200 1375 2420 1318 2620 1318 C 2850 1322 3050 1385 3200 1440 L3200 1800 Z" fill="url(#hillLight)"/>
+  </g>
+  <path d="M0 1790 C 900 1770 1450 1660 1950 1470 C 2200 1375 2420 1318 2620 1318 C 2850 1322 3050 1385 3200 1440 L3200 1800 Z" fill="url(#hillShade)"/>
+  <!-- rim light along the ridge -->
+  <path d="M1200 1700 C 1500 1620 1750 1545 1950 1470 C 2200 1375 2420 1318 2620 1318 C 2850 1322 3050 1385 3200 1440" fill="none" stroke="#d6f0a4" stroke-width="5" opacity="0.55" filter="url(#soft)"/>
+
+  <!-- foreground meadow -->
+  <g filter="url(#grass)">
+    <path d="M0 1722 C 800 1708 1500 1718 2100 1738 C 2600 1752 2900 1750 3200 1740 L3200 1800 L0 1800 Z" fill="url(#field)"/>
+  </g>
+  <path d="M0 1722 C 800 1708 1500 1718 2100 1738 C 2600 1752 2900 1750 3200 1740" fill="none" stroke="#3f6f1c" stroke-width="16" opacity="0.18" filter="url(#soft)"/>
+</svg>

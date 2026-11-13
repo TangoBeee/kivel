@@ -254,10 +254,18 @@ export class BillingRepository {
                 skipped('no workspace is linked to this Dodo customer');
                 return false;
             }
+            // Overlapping retries of one delivery are handled once. A resend later than that (for
+            // example "Resend" in the Dodo dashboard) runs again: processing always re-reads the
+            // live subscription, so it re-syncs the plan rather than replaying old data.
             if (
-                (await client.query('SELECT id FROM dodo_events WHERE id = $1', [eventId])).rowCount
+                (
+                    await client.query(
+                        "SELECT id FROM dodo_events WHERE id = $1 AND processed_at > clock_timestamp() - interval '10 minutes'",
+                        [eventId],
+                    )
+                ).rowCount
             ) {
-                skipped('event already processed');
+                skipped('event already processed in the last 10 minutes');
                 return false;
             }
             const state = await load();
@@ -269,7 +277,7 @@ export class BillingRepository {
                     `workspace already has subscription ${account.dodo_subscription_id}; ignoring ${state.id}`,
                 );
                 await client.query(
-                    'INSERT INTO dodo_events (id, created) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+                    'INSERT INTO dodo_events (id, created) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET processed_at = clock_timestamp()',
                     [eventId, created],
                 );
                 return false;
@@ -293,7 +301,7 @@ export class BillingRepository {
                     state.plan,
                 );
             await client.query(
-                'INSERT INTO dodo_events (id, created) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+                'INSERT INTO dodo_events (id, created) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET processed_at = clock_timestamp()',
                 [eventId, created],
             );
             return true;

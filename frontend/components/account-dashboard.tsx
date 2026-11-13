@@ -820,7 +820,13 @@ export function AccountDashboard({
                                         }
                                     />
                                 ) : panel === 'authenticators' ? (
-                                    <AuthenticatorsPanel onUsageChange={updateUsage} />
+                                    <AuthenticatorsPanel
+                                        onUsageChange={updateUsage}
+                                        selectedId={open.resource}
+                                        onSelect={(id) =>
+                                            navigate('authenticators', id ? { resource: id } : {})
+                                        }
+                                    />
                                 ) : panel === 'memory' ? (
                                     <EmbeddedTool toolId="databases-agent-state-store" />
                                 ) : (

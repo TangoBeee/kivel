@@ -52,8 +52,8 @@
   color: var(--ink);
 }
 .island-nav a[aria-current='page'] {
-  color: var(--ink);
-  background: var(--subtle);
+  color: var(--accent);
+  background: var(--accent-soft);
 }
 .island-nav a:active,
 .island-brand:active,
@@ -265,17 +265,20 @@ html.menu-open {
   gap: 8px;
   padding: 6px 12px;
   border-radius: 9999px;
-  background: var(--ink);
+  background: var(--accent);
   font-size: 0.875rem;
   line-height: 1.25rem;
   font-weight: 600;
-  color: var(--bg);
+  color: #ffffff;
+  box-shadow:
+    0 1px 2px rgb(15 50 140 / 0.2),
+    inset 0 1px 0 rgb(255 255 255 / 0.18);
   transition:
     background-color 300ms var(--island-ease),
     transform 300ms var(--island-ease);
 }
 .island-cta:hover {
-  background: #2b2f2d;
+  background: var(--accent-hover);
 }
 .island-cta:active {
   transform: scale(0.98);
@@ -304,8 +307,8 @@ html.menu-open {
   }
 }
 
-/* Homepage: the header floats over the sky. Links left, logo centred, the app on the right. */
-.island.is-home:not(.is-open) {
+/* Homepage and every page that opens on the sky: the header floats over it. Links left, logo centred, the app on the right. */
+:is(.island.is-home, body:has(.page-sky) .island):not(.is-open) {
   position: absolute;
   left: 0;
   right: 0;
@@ -314,41 +317,47 @@ html.menu-open {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
-.island.is-home:not(.is-open) .island-brand,
-.island.is-home:not(.is-open) .island-brand svg,
-.island.is-home:not(.is-open) .island-nav a {
+:is(.island.is-home, body:has(.page-sky) .island):not(.is-open) .island-brand,
+:is(.island.is-home, body:has(.page-sky) .island):not(.is-open) .island-brand svg,
+:is(.island.is-home, body:has(.page-sky) .island):not(.is-open) .island-nav a {
   color: #ffffff;
 }
-.island.is-home:not(.is-open) .island-nav a {
+:is(.island.is-home, body:has(.page-sky) .island):not(.is-open) .island-nav a {
   color: rgb(255 255 255 / 0.88);
 }
-.island.is-home:not(.is-open) .island-nav a:hover {
+:is(.island.is-home, body:has(.page-sky) .island):not(.is-open) .island-nav a:hover {
   background: rgb(255 255 255 / 0.12);
   color: #ffffff;
 }
-.island.is-home:not(.is-open) .header-search {
+:is(.island.is-home, body:has(.page-sky) .island):not(.is-open) .header-search {
   border-color: rgb(255 255 255 / 0.28);
   background: rgb(255 255 255 / 0.1);
   color: rgb(255 255 255 / 0.85);
 }
-.island.is-home:not(.is-open) .island-cta {
+:is(.island.is-home, body:has(.page-sky) .island):not(.is-open) .island-cta {
   background: #ffffff;
-  color: #141414;
+  color: #0b2d8f;
+  box-shadow: 0 4px 14px -4px rgb(6 22 80 / 0.35);
 }
-.island.is-home:not(.is-open) .island-cta:hover {
+:is(.island.is-home, body:has(.page-sky) .island):not(.is-open) .island-cta:hover {
   background: rgb(255 255 255 / 0.88);
 }
-.island.is-home:not(.is-open) .island-toggle-line {
+:is(.island.is-home, body:has(.page-sky) .island):not(.is-open) .island-toggle-line {
   background: #ffffff;
 }
 @media (min-width: 1081px) {
-  .island.is-home .island-brand {
+  :is(.island.is-home, body:has(.page-sky) .island) .island-brand {
     position: absolute;
     left: 50%;
     margin: 0;
     transform: translateX(-50%);
   }
-  .island.is-home .island-nav {
+  :is(.island.is-home, body:has(.page-sky) .island) .island-nav {
     order: -1;
   }
+}
+
+:is(.island.is-home, body:has(.page-sky) .island):not(.is-open) .island-nav a[aria-current='page'] {
+  background: rgb(255 255 255 / 0.16);
+  color: #ffffff;
 }

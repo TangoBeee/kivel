@@ -27,15 +27,19 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  height: 46px;
+  height: 48px;
   padding: 0 24px;
   border: 0;
   border-radius: 9999px;
-  background: var(--ink);
+  background: var(--accent);
   color: #ffffff;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    0 1px 2px rgb(15 50 140 / 0.2),
+    0 8px 20px -8px rgb(26 92 230 / 0.5);
   font: inherit;
-  font-size: 0.9375rem;
-  font-weight: 500;
+  font-size: 1rem;
+  font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
   transition:
@@ -43,7 +47,7 @@
     transform 300ms var(--home-ease);
 }
 .home-pill:hover {
-  background: #333333;
+  background: var(--accent-hover);
 }
 .home-pill:active {
   transform: scale(0.98);
@@ -71,7 +75,6 @@
   gap: 24px;
 }
 
-/* First screen: the hero and the painting fill the window together */
 /* First screen: a clear sky over one green hill. */
 .home-sky {
   position: relative;
@@ -99,12 +102,8 @@
   position: relative;
   display: grid;
   justify-items: center;
-  gap: 20px;
-  max-width: 760px;
-}
-.home-sky-kicker {
-  font-size: 0.9375rem;
-  color: rgb(255 255 255 / 0.85);
+  gap: 16px;
+  max-width: 720px;
 }
 .home .home-sky h1 {
   font-size: 3.75rem;
@@ -113,8 +112,8 @@
   letter-spacing: -0.035em;
   color: #ffffff;
 }
-.home-sky-copy > p:not(.home-sky-kicker, .home-sky-facts) {
-  max-width: 600px;
+.home-sky-copy > p {
+  max-width: 520px;
   font-size: 1.25rem;
   line-height: 1.75rem;
   color: rgb(255 255 255 / 0.92);
@@ -124,223 +123,8 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 24px;
-  margin-top: 12px;
-}
-/* A glossy pill, the kind of button the sky asks for */
-.home-sky-cta {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  height: 56px;
-  padding: 0 32px;
-  border: 1px solid rgb(255 255 255 / 0.35);
-  border-radius: 9999px;
-  background: linear-gradient(180deg, #3d8bff 0%, #1667f2 55%, #0f58dc 100%);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.45),
-    0 10px 30px -8px rgb(9 30 110 / 0.6);
-  color: #ffffff;
-  font: inherit;
-  font-size: 1.0625rem;
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-  transition:
-    transform 300ms var(--home-ease),
-    box-shadow 300ms var(--home-ease),
-    filter 300ms var(--home-ease);
-}
-.home-sky-cta:hover {
-  filter: brightness(1.08);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.5),
-    0 14px 36px -8px rgb(9 30 110 / 0.7);
-}
-.home-sky-cta:active {
-  transform: scale(0.98);
-}
-.home-sky-cta:focus-visible,
-.home-sky-link:focus-visible {
-  outline: 2px solid #ffffff;
-  outline-offset: 3px;
-}
-.home-sky-link {
-  font-size: 1rem;
-  font-weight: 500;
-  color: #ffffff;
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 4px;
-}
-.home-sky-link:hover {
-  color: rgb(255 255 255 / 0.8);
-}
-.home-sky-facts {
-  font-size: 0.875rem;
-  color: rgb(255 255 255 / 0.8);
-}
-
-/* Three short lines */
-.home-features {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 40px 48px;
-  padding-top: 72px;
-}
-.home-more {
-  margin: 40px auto 0 !important;
-  font-size: 0.9375rem;
-  line-height: 1.5rem;
-  color: var(--muted);
-}
-.home-features > a {
-  display: grid;
-  align-content: start;
-  gap: 8px;
-  padding-top: 18px;
-  border-top: 1px solid var(--ink);
-  transition: border-color 160ms ease;
-}
-.home-features > a:hover {
-  border-top-color: var(--accent, var(--ink));
-}
-.home-features > a:hover h2 {
-  text-decoration: underline;
-  text-underline-offset: 4px;
-}
-.home-features h2 {
-  font-size: 1.0625rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-.home-features p {
-  font-size: 0.9375rem;
-  line-height: 1.5rem;
-  color: var(--muted);
-}
-
-/* Split sections: a short heading on the left, the content on the right */
-.home-split {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
-  align-items: start;
-  gap: 64px;
-  padding-top: 160px;
-}
-.home-split h2 {
-  font-size: 2.75rem;
-  line-height: 1;
-}
-.home-split > div:first-child p {
-  max-width: 360px;
+  gap: 12px;
   margin-top: 16px;
-  font-size: 1rem;
-  line-height: 1.625rem;
-  color: var(--muted);
-}
-
-/* Plans */
-.home-plans {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 32px;
-}
-.home-plans > div {
-  display: grid;
-  align-content: start;
-  gap: 8px;
-  padding-top: 18px;
-  border-top: 1px solid var(--ink);
-}
-.home-plans span {
-  font-size: 0.9375rem;
-  font-weight: 600;
-}
-.home-plans strong {
-  font-size: 2.5rem;
-  font-weight: 500;
-  line-height: 1;
-  letter-spacing: -0.03em;
-}
-.home-plans :is(del, small) {
-  margin-inline-end: 4px;
-  color: var(--muted);
-  font-size: 0.75rem;
-  font-weight: 400;
-}
-.home-plans small {
-  margin-inline: 3px 0;
-}
-.home-plans p {
-  font-size: 0.875rem;
-  line-height: 1.375rem;
-  color: var(--muted);
-}
-
-/* Questions */
-.home-faq details {
-  border-bottom: 1px solid var(--line);
-}
-.home-faq details:first-child {
-  border-top: 1px solid var(--line);
-}
-.home-faq summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 18px 0;
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  list-style: none;
-}
-.home-faq summary::-webkit-details-marker {
-  display: none;
-}
-.home-faq summary svg {
-  flex: none;
-  color: var(--muted);
-  transition: transform 300ms var(--home-ease);
-}
-.home-faq details[open] summary svg {
-  transform: rotate(45deg);
-}
-.home-faq summary:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 4px;
-}
-.home-faq details p {
-  max-width: 600px;
-  padding-bottom: 18px;
-  font-size: 0.9375rem;
-  line-height: 1.5rem;
-  color: var(--muted);
-}
-
-/* Close */
-.home-close {
-  position: relative;
-  display: grid;
-  place-items: center;
-  min-height: 520px;
-  margin-top: 160px;
-  padding: 96px 24px 160px;
-  overflow: hidden;
-  background: #0c32aa url('/art/hills-1600.webp') 30% 100% / cover no-repeat;
-  color: #ffffff;
-  text-align: center;
-}
-.home-close-copy {
-  display: grid;
-  justify-items: center;
-  gap: 32px;
-}
-.home .home-close h2 {
-  font-size: 3rem;
-  line-height: 1.05;
-  color: #ffffff;
 }
 
 /* Live webhook inbox */
@@ -560,10 +344,6 @@
 }
 
 @media (max-width: 960px) {
-  .home-split {
-    grid-template-columns: 1fr;
-    gap: 32px;
-  }
   .home .home-sky h1 {
     font-size: 3rem;
   }
@@ -576,41 +356,24 @@
     min-height: 600px;
     padding-bottom: 22vh;
   }
+  /* On narrow screens keep the hill below the copy: pin the scene to the bottom at a fixed
+     scale and let the sky colour fill the space above it. */
   .home-sky-scene {
-    object-position: 80% 100%;
+    top: auto;
+    right: auto;
+    left: 50%;
+    width: 175%;
+    max-width: none;
+    height: auto;
+    transform: translateX(-62%);
   }
   .home .home-sky h1 {
     font-size: 2.25rem;
     line-height: 1.1;
   }
-  .home-sky-copy > p:not(.home-sky-kicker, .home-sky-facts) {
+  .home-sky-copy > p {
     font-size: 1.0625rem;
     line-height: 1.625rem;
-  }
-  .home-close {
-    min-height: 420px;
-    padding-bottom: 120px;
-  }
-  .home .home-close h2 {
-    font-size: 2.25rem;
-  }
-  .home-features,
-  .home-plans {
-    grid-template-columns: 1fr;
-    gap: 28px;
-  }
-  .home-features {
-    padding-top: 48px;
-  }
-  .home-split {
-    padding-top: 96px;
-  }
-  .home-split h2,
-  .home-close h2 {
-    font-size: 2.25rem;
-  }
-  .home-close {
-    margin-top: 96px !important;
   }
 }
 
@@ -769,110 +532,18 @@
   text-decoration: underline;
 }
 
-.home-categories {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px 24px;
-  margin-top: 24px;
-  font-size: 0.9375rem;
-}
-.home-categories a {
-  text-underline-offset: 4px;
-}
-.home-categories a:hover {
-  text-decoration: underline;
-}
-.home-categories span {
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-  margin-left: 4px;
-}
-
-/* Products: three paintings, each holding a piece of the real product */
-.home-products {
-  padding-top: 144px;
-}
-.home-products > h2 {
-  max-width: 14ch;
-  font-size: 2.75rem;
-  line-height: 1.05;
-}
-.home-showcase {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 24px;
-  margin-top: 48px;
-}
-.home-show {
-  display: grid;
-  align-content: start;
-  gap: 8px;
-  color: var(--ink);
-}
-.home-show-art {
-  position: relative;
-  display: grid;
-  place-items: center;
-  aspect-ratio: 4 / 3.4;
-  margin-bottom: 12px;
-  padding: 24px;
-  overflow: hidden;
-  border-radius: 6px;
-}
-.home-show-art {
-  background-color: #0c32aa;
-  background-image: url('/art/hills-1600.webp');
-  background-size: 190% auto;
-  background-repeat: no-repeat;
-  transition: background-size 900ms var(--home-ease);
-}
-.home-show-art.is-left {
-  background-position: 0% 100%;
-}
-.home-show-art.is-center {
-  background-position: 50% 100%;
-}
-.home-show-art.is-right {
-  background-position: 100% 100%;
-}
-.home-show:hover .home-show-art {
-  background-size: 200% auto;
-}
-.home-show h3 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  font-size: 1.25rem;
-  font-weight: 500;
-  letter-spacing: -0.02em;
-}
-.home-show h3 svg {
-  transition: transform 300ms var(--home-ease);
-}
-.home-show:hover h3 svg {
-  transform: translateX(4px);
-}
-.home-show p {
-  font-size: 0.9375rem;
-  line-height: 1.5rem;
-  color: var(--muted);
-}
-
-/* The product piece that sits on each painting */
+/* The product piece that sits on each landscape */
 .home-snip {
   position: relative;
   width: 100%;
   max-width: 300px;
   overflow: hidden;
-  border-radius: 10px;
+  border-radius: 16px;
   background: #ffffff;
-  box-shadow: 0 24px 48px -16px rgb(20 20 20 / 0.35);
+  box-shadow: 0 24px 48px -16px rgb(20 40 80 / 0.3);
   transition: transform 600ms var(--home-ease);
 }
-.home-show:hover .home-snip {
-  transform: translateY(-6px);
-}
+
 .home-snip-head {
   display: flex;
   justify-content: space-between;
@@ -919,89 +590,420 @@
   color: var(--ink);
 }
 
-/* The other products: one short line each */
-.home-more-list {
+/* Middle of the page: centred, airy sections between the sky and the footer */
+.mid-eyebrow {
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #1667f2;
+}
+.mid-steps,
+.mid-more,
+.mid-pricing,
+.mid-faq {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  text-align: center;
+}
+.mid-steps h2,
+.mid-more h2,
+.mid-pricing h2,
+.mid-faq h2,
+.mid-row h2,
+.mid-try h2 {
+  font-size: 3rem;
+  line-height: 1.05;
+}
+
+/* How it works */
+.mid-steps {
+  padding-top: 128px;
+}
+.mid-steps ol {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0 48px;
-  margin: 72px 0 0;
+  gap: 48px;
+  margin: 48px 0 0;
   padding: 0;
   list-style: none;
 }
-.home-more-list a {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 20px 0;
-  border-top: 1px solid var(--ink);
-  color: var(--ink);
-}
-.home-more-list svg {
-  flex: none;
-  transition: transform 300ms var(--home-ease);
-}
-.home-more-list a:hover svg {
-  transform: scale(1.12);
-}
-.home-more-list span {
+.mid-steps li {
   display: grid;
-  gap: 2px;
+  justify-items: center;
+  gap: 8px;
 }
-.home-more-list strong {
-  font-size: 1rem;
+.mid-steps li span {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 8px;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, #e7efff 0%, #f6f9ff 100%);
+  border: 1px solid #d6e2fb;
+  font-weight: 600;
+  color: #1667f2;
+}
+.mid-steps li strong {
+  font-size: 1.125rem;
   font-weight: 600;
 }
-.home-more-list small {
+.mid-steps li p {
+  max-width: 280px;
+  color: var(--muted);
+}
+
+/* Product rows */
+.mid-products {
+  display: grid;
+  gap: 128px;
+  padding-top: 160px;
+}
+.mid-row {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  align-items: center;
+  gap: 64px;
+}
+.mid-row.is-flipped {
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+}
+.mid-row.is-flipped .mid-copy {
+  order: 2;
+}
+.mid-copy {
+  display: grid;
+  justify-items: start;
+  gap: 16px;
+}
+.mid-copy > p:not(.mid-eyebrow) {
+  max-width: 440px;
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+  color: var(--muted);
+}
+.mid-copy ul {
+  display: grid;
+  gap: 10px;
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+}
+.mid-copy li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9375rem;
+}
+.mid-copy li svg {
+  flex-shrink: 0;
+  color: #1667f2;
+}
+.mid-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: #1667f2;
+}
+.mid-link svg {
+  transition: transform 400ms var(--home-ease);
+}
+.mid-link:hover svg {
+  transform: translateX(3px);
+}
+.mid-link:focus-visible {
+  outline: 2px solid #1667f2;
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.mid-scene {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 5 / 4;
+  padding: 40px;
+  border-radius: 32px;
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.35),
+    0 30px 60px -36px rgb(20 50 110 / 0.35);
+  background-color: #8daec6;
+  background-size: cover;
+  background-position: 50% 100%;
+  box-sizing: border-box;
+}
+.mid-scene.is-meadow {
+  background-image: url('/art/meadow-960.webp');
+}
+.mid-scene.is-lake {
+  background-image: url('/art/lake-960.webp');
+}
+.mid-scene.is-dunes {
+  background-image: url('/art/dunes-960.webp');
+}
+.mid-scene .home-snip {
+  width: min(100%, 420px);
+  box-shadow: 0 30px 60px -24px rgb(20 40 80 / 0.45);
+}
+
+/* Everything else */
+.mid-more {
+  padding-top: 160px;
+}
+.mid-more ul {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  width: 100%;
+  margin: 40px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.mid-more li a {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  height: 100%;
+  padding: 32px 24px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  color: var(--ink);
+  transition:
+    border-color 400ms var(--home-ease),
+    transform 400ms var(--home-ease);
+  box-sizing: border-box;
+}
+.mid-more li a:hover {
+  border-color: #c9d8f7;
+  transform: translateY(-2px);
+}
+.mid-more li a:focus-visible {
+  outline: 2px solid #1667f2;
+  outline-offset: 2px;
+}
+.mid-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 8px;
+  border: 1px solid #d6e2fb;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #e7efff 0%, #f8fbff 100%);
+  color: #1667f2;
+}
+.mid-more strong {
+  font-weight: 600;
+}
+.mid-more small {
   font-size: 0.875rem;
   color: var(--muted);
 }
-.home-more-list a:hover strong {
-  text-decoration: underline;
-  text-underline-offset: 4px;
+.mid-categories {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  max-width: 900px;
+  margin-top: 32px;
 }
-.home-products .home-categories {
-  margin-top: 40px;
-  padding: 0;
+.mid-categories a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  color: var(--ink);
 }
-.home-categories > span {
-  margin-left: 0;
+.mid-categories a:hover {
+  border-color: #c9d8f7;
+  background: #f6f9ff;
+}
+.mid-categories span {
   color: var(--muted);
 }
 
-/* Try it now: the live inbox sits on the sky */
-.home-try-art {
-  position: relative;
-  background: #0c32aa url('/art/hills-1600.webp') 85% 100% / cover no-repeat;
+/* Try it now: a full-width golden meadow */
+.mid-try {
   display: grid;
-  align-items: center;
-  min-height: 420px;
-  padding: 48px;
-  overflow: hidden;
-  border-radius: 6px;
+  justify-items: center;
+  gap: 40px;
+  margin-top: 160px;
+  padding: 96px 24px 160px;
+  background: #b4b6b3 url('/art/path-1672.webp') 50% 100% / cover no-repeat;
+  text-align: center;
+}
+.mid-try-copy {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+}
+.mid-try-copy > p:last-child {
+  max-width: 460px;
+  font-size: 1.125rem;
+  color: var(--ink);
+}
+.mid-try .home-live {
+  width: min(100%, 560px);
+  text-align: left;
+  box-shadow: 0 30px 60px -24px rgb(60 50 20 / 0.45);
 }
 
-.home-try-art .home-live {
-  position: relative;
-  border: 0;
-  box-shadow: 0 30px 60px -20px rgb(20 20 20 / 0.45);
+/* Pricing */
+.mid-pricing {
+  padding-top: 160px;
+}
+.mid-note {
+  max-width: 520px;
+  color: var(--muted);
+}
+.mid-plans {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  width: 100%;
+  margin: 32px 0 16px;
+  text-align: left;
+}
+.mid-plans > div {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 32px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+}
+.mid-plans > div.is-featured {
+  border-color: #c9d8f7;
+  background: linear-gradient(180deg, #eef3ff 0%, #ffffff 70%);
+}
+.mid-plans span {
+  font-weight: 600;
+}
+.mid-plans strong {
+  font-size: 2.5rem;
+  line-height: 1;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+}
+.mid-plans del {
+  margin-right: 8px;
+  font-size: 1.5rem;
+  color: var(--muted);
+}
+.mid-plans small {
+  font-size: 1rem;
+  color: var(--muted);
+}
+.mid-plans p {
+  color: var(--muted);
+}
+
+/* FAQ */
+.mid-faq {
+  padding-top: 160px;
+}
+.mid-faq > div {
+  width: 100%;
+  max-width: 760px;
+  margin-top: 32px;
+  text-align: left;
+}
+.mid-faq details {
+  border-bottom: 1px solid var(--line);
+}
+.mid-faq details:first-child {
+  border-top: 1px solid var(--line);
+}
+.mid-faq summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 0;
+  font-size: 1.0625rem;
+  font-weight: 500;
+  cursor: pointer;
+  list-style: none;
+}
+.mid-faq summary::-webkit-details-marker {
+  display: none;
+}
+.mid-faq summary svg {
+  flex-shrink: 0;
+  transition: transform 400ms var(--home-ease);
+}
+.mid-faq details[open] summary svg {
+  transform: rotate(45deg);
+}
+.mid-faq summary:focus-visible {
+  outline: 2px solid #1667f2;
+  outline-offset: 2px;
+}
+.mid-faq details p {
+  padding-bottom: 20px;
+  color: var(--muted);
+  line-height: 1.625rem;
 }
 
 @media (max-width: 960px) {
-  .home-showcase,
-  .home-more-list {
-    grid-template-columns: minmax(0, 1fr);
+  .mid-row,
+  .mid-row.is-flipped {
+    grid-template-columns: 1fr;
+    gap: 32px;
   }
-  .home-showcase {
-    gap: 40px;
+  .mid-row.is-flipped .mid-copy {
+    order: 0;
   }
-  .home-products {
-    padding-top: 96px;
+  .mid-more ul,
+  .mid-plans {
+    grid-template-columns: 1fr 1fr;
   }
-  .home-products > h2 {
+}
+@media (max-width: 640px) {
+  .mid-steps h2,
+  .mid-more h2,
+  .mid-pricing h2,
+  .mid-faq h2,
+  .mid-row h2,
+  .mid-try h2 {
     font-size: 2.25rem;
   }
-  .home-try-art {
-    min-height: 0;
+  .mid-steps {
+    padding-top: 96px;
+  }
+  .mid-steps ol,
+  .mid-plans {
+    grid-template-columns: 1fr;
+  }
+  .mid-more ul {
+    gap: 12px;
+  }
+  .mid-more li a {
+    padding: 20px 12px;
+    border-radius: 16px;
+  }
+  .mid-steps ol {
+    gap: 32px;
+  }
+  .mid-products {
+    gap: 96px;
+    padding-top: 112px;
+  }
+  .mid-scene {
+    aspect-ratio: 4 / 3.4;
     padding: 20px;
+    border-radius: 16px;
+  }
+  .mid-more,
+  .mid-pricing,
+  .mid-faq {
+    padding-top: 112px;
+  }
+  .mid-try {
+    margin-top: 112px;
+    padding: 72px 16px 120px;
   }
 }

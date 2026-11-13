@@ -1,4 +1,4 @@
-// Each article gets one of twelve crops from Hilma af Klint's The Ten Largest (1907, public domain),
+// Each article gets one of twelve landscape crops (meadow, lake, dunes, path, portal and hill),
 // chosen from its slug so the same article always shows the same banner.
 const BANNERS = 12;
 

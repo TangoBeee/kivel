@@ -643,10 +643,10 @@ export function AccountDashboard({
                         </div>
                         <figure className="auth-art">
                             <img
-                                src="/art/klint-childhood.webp"
+                                src="/art/auth-path.webp"
                                 alt=""
-                                width={1275}
-                                height={1690}
+                                width={1020}
+                                height={1352}
                                 loading="lazy"
                             />
                             <figcaption>Hilma af Klint, The Ten Largest, No. 1, 1907</figcaption>

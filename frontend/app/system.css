@@ -123,14 +123,24 @@ sentence case label above a page heading */
 }
 .button-primary,
 .button-primary:hover {
-  border-color: var(--ink);
-  background: var(--ink);
-  color: var(--bg);
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    0 1px 2px rgb(15 50 140 / 0.2),
+    0 6px 16px -6px rgb(26 92 230 / 0.45);
   filter: none;
 }
 .button-primary:hover {
-  border-color: #2b2f2d;
-  background: #2b2f2d;
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+}
+.button:focus-visible,
+.sky-cta:focus-visible,
+.sky-ghost:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 .button:active {
   transform: scale(0.98);
@@ -145,31 +155,30 @@ sentence case label above a page heading */
   border-radius: 9999px;
   font-weight: 500;
 }
-/* Radix solid buttons follow the same rule: near-black,
-with green kept for soft accents */
+/* Radix solid buttons follow the same rule: sky blue */
 .radix-themes[data-accent-color='green'],
 .radix-themes [data-accent-color='green'] {
-  /* The interface is ink and grey; colour comes from the art */
-  --accent-2: #fafafa;
-  --accent-3: #f2f2f1;
-  --accent-4: #ebebea;
-  --accent-5: #e2e2e1;
-  --accent-6: #d6d6d5;
-  --accent-7: #c4c4c3;
-  --accent-8: #a3a3a2;
-  --accent-9: var(--ink);
-  --accent-10: #2b2f2d;
-  --accent-11: var(--ink);
+  /* Actions are sky blue, the same blue as the homepage */
+  --accent-2: #f6f9ff;
+  --accent-3: #edf3fe;
+  --accent-4: #e1ebfd;
+  --accent-5: #d3e1fc;
+  --accent-6: #c7d8fa;
+  --accent-7: #a9c3f6;
+  --accent-8: #7fa5ef;
+  --accent-9: #1a5ce6;
+  --accent-10: #1248bf;
+  --accent-11: #1a5ce6;
   --accent-12: var(--ink);
-  --accent-a3: rgb(20 20 20 / 0.05);
-  --accent-a4: rgb(20 20 20 / 0.08);
-  --accent-a5: rgb(20 20 20 / 0.11);
-  --accent-a6: rgb(20 20 20 / 0.16);
-  --accent-a7: rgb(20 20 20 / 0.24);
-  --accent-a8: rgb(20 20 20 / 0.36);
-  --accent-a11: var(--ink);
-  --accent-contrast: var(--bg);
-  --accent-surface: #fafafa;
+  --accent-a3: rgb(26 92 230 / 0.07);
+  --accent-a4: rgb(26 92 230 / 0.11);
+  --accent-a5: rgb(26 92 230 / 0.16);
+  --accent-a6: rgb(26 92 230 / 0.22);
+  --accent-a7: rgb(26 92 230 / 0.32);
+  --accent-a8: rgb(26 92 230 / 0.48);
+  --accent-a11: #1a5ce6;
+  --accent-contrast: #ffffff;
+  --accent-surface: #f6f9ff;
 }
 .text-link {
   font-weight: 600;
@@ -448,4 +457,128 @@ and depth on every page */
   clip: rect(0 0 0 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* Buttons that sit on the sky: a white pill that reads instantly against blue, and a frosted
+   glass partner for the secondary action */
+.sky-cta,
+.sky-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 52px;
+  padding: 0 24px;
+  border-radius: 9999px;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    transform 500ms var(--ease),
+    background-color 300ms var(--ease),
+    box-shadow 500ms var(--ease);
+}
+.sky-cta {
+  border: 0;
+  background: #ffffff;
+  color: #0b2d8f;
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.6) inset,
+    0 2px 4px rgb(6 22 80 / 0.12),
+    0 12px 32px -8px rgb(6 22 80 / 0.45);
+}
+.sky-cta svg {
+  color: #1a5ce6;
+}
+.sky-cta:hover {
+  transform: translateY(-1px);
+  background: #f4f8ff;
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.6) inset,
+    0 2px 4px rgb(6 22 80 / 0.14),
+    0 16px 40px -8px rgb(6 22 80 / 0.55);
+}
+.sky-ghost {
+  border: 1px solid rgb(255 255 255 / 0.35);
+  background: rgb(255 255 255 / 0.12);
+  color: #ffffff;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+.sky-ghost:hover {
+  transform: translateY(-1px);
+  background: rgb(255 255 255 / 0.2);
+}
+.sky-cta:active,
+.sky-ghost:active {
+  transform: translateY(0) scale(0.98);
+}
+.sky-cta:focus-visible,
+.sky-ghost:focus-visible {
+  outline-color: #ffffff;
+}
+
+/* Footer scene: the homepage sky and hill, so every page ends where the homepage begins */
+.site-footer:has(.footer-scene) {
+  border-top: 0;
+}
+.footer-scene {
+  position: relative;
+  display: grid;
+  align-items: start;
+  height: 440px;
+  overflow: hidden;
+  background: #0c32aa;
+}
+.footer-scene img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 72% 100%;
+}
+.footer-scene-copy {
+  position: relative;
+  display: grid;
+  justify-items: start;
+  gap: 24px;
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 72px 32px 0;
+  box-sizing: border-box;
+}
+.footer-scene-title {
+  margin: 0;
+  max-width: 14ch;
+  font-size: 3rem;
+  line-height: 1.05;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  color: #ffffff;
+  text-wrap: balance;
+}
+@media (max-width: 640px) {
+  .footer-scene {
+    height: 380px;
+  }
+  .footer-scene img {
+    object-position: 74% 100%;
+  }
+  .footer-scene-copy {
+    padding: 48px 16px 0;
+  }
+  .footer-scene-title {
+    font-size: 2.25rem;
+  }
+}
+
+/* Full width bands (the page sky) must never cause sideways scrolling */
+main {
+  overflow-x: clip;
 }

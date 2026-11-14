@@ -25,7 +25,6 @@ import {
     EmbeddedTool,
     isToolPanel,
     panelResources,
-    ToolCards,
     ToolNew,
     ToolPage,
     toolPanels,
@@ -447,7 +446,7 @@ export function AccountDashboard({
                 </p>
             )}
             {notice && (
-                <p className="account-message" role="status">
+                <p className="account-message workspace-toast" role="status">
                     {notice}
                 </p>
             )}
@@ -724,6 +723,7 @@ export function AccountDashboard({
                     onSignOut={signOut}
                     busy={busy}
                     badges={badges}
+                    runs={workspaceUsage.items?.find((item) => item.key === 'tools.runs')}
                     search={
                         <DashboardSearch
                             resources={resources}
@@ -758,6 +758,8 @@ export function AccountDashboard({
                     {messages}
                     {panel === 'overview' && (
                         <AgentOverview
+                            key={session.account.id}
+                            username={session.user.username}
                             onOpen={changePanel}
                             needs={
                                 recoveryEmail.verifiedAt
@@ -776,13 +778,7 @@ export function AccountDashboard({
                                           },
                                       ]
                             }
-                        >
-                            <ToolCards
-                                resources={resources}
-                                usage={workspaceUsage}
-                                onOpen={changePanel}
-                            />
-                        </AgentOverview>
+                        />
                     )}
                     {panel === 'tools' && (
                         <DashboardTools
@@ -1742,7 +1738,7 @@ export function AccountDashboard({
                             if (!open) closeDetail();
                         }}
                     >
-                        <Dialog.Content maxWidth="700px">
+                        <Dialog.Content className="workspace-detail-drawer">
                             <Dialog.Title>Workspace invitation</Dialog.Title>
                             <Dialog.Description size="2">
                                 Share this invitation only with the intended workspace member.

@@ -285,6 +285,17 @@ export function accountOpenApi() {
                 parameters: [id],
             },
         },
+        '/api/account/overview': {
+            get: {
+                ...operation(
+                    'getWorkspaceOverview',
+                    'Read workspace activity trends and latest inbound email',
+                    'Accounts',
+                ),
+                description:
+                    'Requires resources:read. Counts reflect retained events for the last seven UTC calendar days. Uptime uses retained monitor checks. No email body or attachment is returned.',
+            },
+        },
         '/api/account/resources': {
             get: operation(
                 'listResources',

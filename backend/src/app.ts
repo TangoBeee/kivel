@@ -77,6 +77,7 @@ import type { IdentityRepository } from './identity.js';
 import { registerAccounts } from './account-routes.js';
 import { ToolService, registerTools } from './tool-routes.js';
 import type { Pool } from 'pg';
+import { registerWorkspaceOverview } from './workspace-overview.js';
 import { registerWorkspaceUsage } from './workspace-usage.js';
 import { registerLifecycle } from './lifecycle-routes.js';
 import { registerBilling } from './billing.js';
@@ -1008,6 +1009,18 @@ export function buildApp({
         mockCalls,
         activity,
     });
+    registerWorkspaceOverview(
+        app,
+        access,
+        {
+            resources: resourceStore,
+            inboxes: inboxStore,
+            messages: emailMessages,
+            calls: mockCalls,
+            monitors: monitorStore,
+        },
+        databasePool,
+    );
     app.get('/api/account/activity', async (request) => {
         const identity = await access.require(request, 'account:read');
         return { activity: await activity.list(identity.account.id) };

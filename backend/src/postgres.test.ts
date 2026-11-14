@@ -3865,3 +3865,77 @@ test('agent approvals and replacements respect workspace caps across replicas', 
         assert.equal((await agents.agents(accountId)).length, max);
     }
 });
+
+test('workspace overview counts retained events and only projects the owner’s latest inbound email', async (t) => {
+    const identities = new PostgresIdentityRepository(pool);
+    const resources = new PostgresResourceStore(pool);
+    const messages = new PostgresEmailMessages(pool);
+    const inboxes = new PostgresInboxStore(pool);
+    const app = buildApp({
+        identityStore: identities,
+        recoveryStore: new PostgresRecoveryRepository(pool),
+        databasePool: pool,
+        resourceStore: resources,
+        emailMessages: messages,
+        inboxStore: inboxes,
+    });
+    t.after(() => app.close());
+    const setup = async (name: string) => {
+        const user = (await identities.register(name, 'unused'))!;
+        const token = randomBytes(32).toString('base64url');
+        await identities.createSession(user.id, user.personalAccountId, token);
+        const identity = (await identities.authenticateSession(token))!;
+        const key = await identities.createKey(
+            identity,
+            name,
+            ['resources:read'],
+            new Date(Date.now() + 60000).toISOString(),
+        );
+        return {
+            ownerId: user.personalAccountId,
+            quotaKey: identity.account.quotaKey,
+            headers: { authorization: `Bearer ${key.key}` },
+        };
+    };
+    const owner = await setup('overview-owner');
+    const other = await setup('overview-other');
+    const allocation = {
+        ownerId: owner.ownerId,
+        quotaKey: owner.quotaKey,
+        plan: 'free' as const,
+        visibility: 'public' as const,
+    };
+    const mail = (await resources.create(
+        'email',
+        { address: 'agent@example.com' },
+        undefined,
+        allocation,
+    ))!;
+    const webhook = (await inboxes.create(allocation))!;
+    await inboxes.capture(webhook.id, input);
+    await messages.record(mail.id, {
+        id: 'overview-message',
+        receivedAt: new Date().toISOString(),
+        from: 'sender@example.com',
+        to: 'agent@example.com',
+        subject: 'Your code',
+        text: 'private body',
+        codes: ['482901'],
+        links: [{ url: 'https://example.com/verify', kind: 'verification' }],
+        attachments: [],
+    });
+    const response = await app.inject({ url: '/api/account/overview', headers: owner.headers });
+    assert.equal(response.statusCode, 200, response.body);
+    const { latestEmail, series } = response.json();
+    assert.equal(latestEmail.inboxId, mail.id);
+    assert.deepEqual(latestEmail.codes, ['482901']);
+    assert.equal(latestEmail.link, 'https://example.com/verify');
+    assert.equal('text' in latestEmail, false);
+    assert.equal(series.email[6], 1);
+    assert.equal(series.webhooks[6], 1);
+    const isolated = await app.inject({ url: '/api/account/overview', headers: other.headers });
+    assert.equal(isolated.statusCode, 200, isolated.body);
+    assert.equal(isolated.json().latestEmail, null);
+    assert.equal(isolated.json().series.webhooks[6], 0);
+    assert.equal((await app.inject('/api/account/overview')).statusCode, 401);
+});

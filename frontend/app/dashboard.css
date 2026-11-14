@@ -3010,8 +3010,8 @@ button.resource-title {
   margin: 2px 0 0;
   overflow-wrap: anywhere;
 }
-.workspace-waiting a,
-.workspace-waiting button {
+.workspace-waiting > a,
+.workspace-waiting > button {
   display: grid;
   place-items: center;
   width: 38px;
@@ -3019,6 +3019,14 @@ button.resource-title {
   border-radius: 50%;
   background: var(--surface);
   color: var(--accent);
+}
+.workspace-waiting-all {
+  display: inline-block;
+  margin-top: 6px;
+  color: inherit;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .workspace-waiting :is(a, button):focus-visible {
   outline-color: var(--accent-ink);
@@ -3091,6 +3099,11 @@ button.resource-title {
 .workspace-stat line {
   stroke: currentColor;
   stroke-width: 2;
+}
+.workspace-stat .workspace-stat-baseline {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+  stroke-dasharray: 4 5;
 }
 .workspace-stat circle {
   fill: currentColor;
@@ -3230,6 +3243,9 @@ button.resource-title {
   .dashboard-content:has(.workspace-overview) {
     padding: 20px 16px calc(88px + env(safe-area-inset-bottom));
     background: var(--subtle);
+  }
+  html:has(.dashboard-mobile-tabs) {
+    scroll-padding-bottom: calc(72px + env(safe-area-inset-bottom));
   }
   .dashboard-mobile-tabs {
     position: fixed;

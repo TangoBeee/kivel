@@ -123,6 +123,7 @@ export function AgentOverview({
     const reminder = needs[0];
     const name = username.replace(/[_.-]+/g, ' ');
     const { overview, agents = [], activity = [] } = snapshot ?? {};
+    const feed = activity.filter((event) => event.tool !== 'workspace_status');
     const checks = overview ? total(overview.series.checks) : 0;
     const uptime =
         overview && checks
@@ -177,6 +178,16 @@ export function AgentOverview({
                             {question ? `${question.agentName} needs you` : reminder?.title}
                         </strong>
                         <p>{question?.question ?? reminder?.detail}</p>
+                        {question && waiting > 1 && (
+                            <Link className="workspace-waiting-all" href="/approvals/">
+                                Review all approvals
+                            </Link>
+                        )}
+                        {!question && needs.length > 1 && (
+                            <Link className="workspace-waiting-all" href="/settings/?tab=security">
+                                Open account security
+                            </Link>
+                        )}
                     </div>
                     {question ? (
                         <Link
@@ -268,9 +279,9 @@ export function AgentOverview({
                             </span>
                         }
                     >
-                        {activity.length ? (
+                        {feed.length ? (
                             <ul className="workspace-feed">
-                                {activity.slice(0, 7).map((event, index) => {
+                                {feed.slice(0, 7).map((event, index) => {
                                     const [, tone, Icon] =
                                         activityStyles.find(([pattern]) =>
                                             pattern.test(event.tool),
@@ -301,7 +312,7 @@ export function AgentOverview({
                                 Tool calls appear here as your agents work.
                             </WorkspaceEmpty>
                         )}
-                        {activity.length > 0 && (
+                        {feed.length > 0 && (
                             <button
                                 className="text-link workspace-card-action"
                                 onClick={() => onOpen('agents')}
@@ -335,7 +346,11 @@ export function AgentOverview({
                                     <div className="workspace-email-code">
                                         <div>
                                             <small>Code found</small>
-                                            <code>{mail.codes[0]}</code>
+                                            <code>
+                                                {/^\d{6}$/.test(mail.codes[0])
+                                                    ? mail.codes[0].replace(/^(...)/, '$1 ')
+                                                    : mail.codes[0]}
+                                            </code>
                                         </div>
                                         <CopyButton
                                             compact
@@ -383,14 +398,6 @@ export function AgentOverview({
                         </Link>
                     </div>
                 </WorkspaceCard>
-            )}
-            {waiting > 1 && (
-                <button
-                    className="text-link workspace-card-action"
-                    onClick={() => onOpen(question ? 'approvals' : 'security')}
-                >
-                    {question ? 'Review all approvals' : 'Open account security'}
-                </button>
             )}
         </div>
     );

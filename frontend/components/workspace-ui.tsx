@@ -62,6 +62,8 @@ export function WorkspaceStat({
     max?: number;
     onOpen: () => void;
 }) {
+    const empty =
+        max === undefined ? !series.some(Boolean) : series.every((point) => point === null);
     const peak = max ?? Math.max(1, ...series.map((point) => point ?? 0));
     const points = series.map(
         (point, index) =>
@@ -78,25 +80,36 @@ export function WorkspaceStat({
             </span>
             <span className="workspace-stat-value">
                 <strong>{value}</strong>
-                <small>{note}</small>
+                <small>{empty ? 'No activity yet' : note}</small>
             </span>
             <svg viewBox="0 0 200 28" preserveAspectRatio="none" aria-hidden="true">
-                {points.map(([x, y], i) => {
-                    const previous = points[i - 1];
-                    if (y === null) return null;
-                    if (!previous || previous[1] === null)
-                        return <circle key={x} cx={x} cy={y} r="1.6" />;
-                    return (
-                        <line
-                            key={x}
-                            x1={previous[0]}
-                            y1={previous[1]}
-                            x2={x}
-                            y2={y}
-                            vectorEffect="non-scaling-stroke"
-                        />
-                    );
-                })}
+                {empty ? (
+                    <line
+                        className="workspace-stat-baseline"
+                        x1="0"
+                        x2="200"
+                        y1="24"
+                        y2="24"
+                        vectorEffect="non-scaling-stroke"
+                    />
+                ) : (
+                    points.map(([x, y], i) => {
+                        const previous = points[i - 1];
+                        if (y === null) return null;
+                        if (!previous || previous[1] === null)
+                            return <circle key={x} cx={x} cy={y} r="1.6" />;
+                        return (
+                            <line
+                                key={x}
+                                x1={previous[0]}
+                                y1={previous[1]}
+                                x2={x}
+                                y2={y}
+                                vectorEffect="non-scaling-stroke"
+                            />
+                        );
+                    })
+                )}
             </svg>
         </button>
     );

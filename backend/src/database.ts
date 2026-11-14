@@ -328,6 +328,14 @@ export async function migrate(pool: Pool): Promise<void> {
             await client.query(liveEventSchema);
             await client.query('INSERT INTO schema_migrations (version) VALUES (20)');
         }
+        // Older releases do not recognize the kve_ key prefix.
+        await client.query('ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS email_inbox_id uuid');
+        await client.query(`
+            ALTER TABLE email_messages ADD COLUMN IF NOT EXISTS forward_delivery jsonb,
+                ADD COLUMN IF NOT EXISTS forward_due bigint;
+            CREATE INDEX IF NOT EXISTS email_messages_forward_due
+                ON email_messages(forward_due, sequence) WHERE forward_due IS NOT NULL;
+        `);
         // The function adds error details without changing the schema used by older releases.
         if (version >= 5) await client.query(quotaFunction);
     });

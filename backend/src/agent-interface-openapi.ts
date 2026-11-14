@@ -56,6 +56,35 @@ const emailContent = {
     html: { type: 'string' },
     replyTo: { type: 'string', format: 'uuid' },
 };
+const emailQueryParameters = [
+    ...['from', 'mailFrom', 'subject', 'text', 'label'].map((name) => ({
+        name,
+        in: 'query',
+        schema: { type: 'string', maxLength: 254 },
+        description:
+            name === 'from' || name === 'mailFrom'
+                ? 'Exact mailbox, case insensitive.'
+                : name === 'label'
+                  ? 'Exact label, case insensitive.'
+                  : 'Literal case insensitive text match.',
+    })),
+    ...['hasCode', 'hasLink', 'hasAttachment', 'read'].map((name) => ({
+        name,
+        in: 'query',
+        schema: { type: 'boolean' },
+    })),
+    {
+        name: 'cursor',
+        in: 'query',
+        schema: { type: 'string' },
+        description: 'Use nextCursor from the same inbox, operation and filters.',
+    },
+    {
+        name: 'limit',
+        in: 'query',
+        schema: { type: 'integer', minimum: 1, maximum: 50, default: 20 },
+    },
+];
 const threadPage = {
     parameters: [
         { name: 'cursor', in: 'query', schema: { type: 'string' } },
@@ -399,7 +428,44 @@ export function agentInterfaceOpenApi() {
                 'listEmails',
                 'Email inboxes',
                 'Read messages with codes, links and attachment IDs for private downloads',
+                { security: token, parameters: emailQueryParameters },
+            ),
+        },
+        '/api/email-inboxes/{id}/messages/{messageId}': {
+            parameters: [
+                ...id,
+                {
+                    name: 'messageId',
+                    in: 'path',
+                    required: true,
+                    schema: { type: 'string', format: 'uuid' },
+                },
+            ],
+            get: operation(
+                'emailMessage',
+                'Email inboxes',
+                'Inspect a message without attachment content',
                 { security: token },
+            ),
+            patch: operation(
+                'updateEmailMessage',
+                'Email inboxes',
+                'Set message read state or replace labels',
+                {
+                    description:
+                        'Requires resources:write. Provide read or labels. Use an empty labels array to remove all labels.',
+                    requestBody: body(
+                        {
+                            read: { type: 'boolean' },
+                            labels: {
+                                type: 'array',
+                                maxItems: 10,
+                                items: { type: 'string', minLength: 1, maxLength: 32 },
+                            },
+                        },
+                        [],
+                    ),
+                },
             ),
         },
         '/api/email-inboxes/{id}/wait': {
@@ -407,6 +473,14 @@ export function agentInterfaceOpenApi() {
             get: operation('waitForEmail', 'Email inboxes', 'Wait for new messages', {
                 security: token,
                 parameters: [
+                    ...emailQueryParameters,
+                    {
+                        name: 'checkpoint',
+                        in: 'query',
+                        schema: { type: 'boolean' },
+                        description:
+                            'Take a cursor before triggering mail. Do not combine with cursor or after.',
+                    },
                     { name: 'after', in: 'query', schema: { type: 'string', format: 'uuid' } },
                     {
                         name: 'timeoutSeconds',
@@ -597,6 +671,67 @@ export function agentInterfaceOpenApi() {
                 },
             ),
         },
+        '/api/email-inboxes/{id}/keys': {
+            parameters: id,
+            get: operation(
+                'listEmailInboxKeys',
+                'Email inboxes',
+                'List API keys assigned to this inbox',
+                { security: session },
+            ),
+            post: operation(
+                'createEmailInboxKey',
+                'Email inboxes',
+                'Create an API key for this inbox',
+                {
+                    security: session,
+                    description:
+                        'Requires a signed-in owner or admin. The key is shown once. Revoke it from API keys in the dashboard.',
+                    requestBody: body(
+                        {
+                            name: { type: 'string', minLength: 1, maxLength: 80 },
+                            write: { type: 'boolean', default: false },
+                            expiresInDays: {
+                                type: 'integer',
+                                minimum: 1,
+                                maximum: 365,
+                                default: 90,
+                            },
+                        },
+                        ['name'],
+                    ),
+                    responses: { '201': json(), ...errors },
+                },
+            ),
+        },
+        '/api/email-inboxes/{id}/keys/{keyId}': {
+            parameters: [
+                ...id,
+                {
+                    name: 'keyId',
+                    in: 'path',
+                    required: true,
+                    schema: { type: 'string', format: 'uuid' },
+                },
+            ],
+            delete: operation(
+                'revokeEmailInboxKey',
+                'Email inboxes',
+                'Revoke a key assigned to this inbox',
+                {
+                    security: session,
+                    responses: { '204': { description: 'Revoked' }, ...errors },
+                },
+            ),
+        },
+        '/api/email-inboxes/{id}/deliveries': {
+            parameters: id,
+            get: operation(
+                'listEmailDeliveries',
+                'Email inboxes',
+                'List forwarding attempts for retained messages',
+            ),
+        },
         '/api/email-inboxes/{id}/forwarding': {
             parameters: id,
             put: operation(
@@ -610,7 +745,7 @@ export function agentInterfaceOpenApi() {
                             url: {
                                 type: ['string', 'null'],
                                 description:
-                                    'Requires Pro or Team and pauses when the plan lapses. Public HTTP(S) URL, or null to disable. Latest delivery status is shown on inbox metadata; forwarding is best effort without retries.',
+                                    'Requires Pro or Team and pauses when the plan lapses. Public HTTP(S) URL, or null to disable. Returns signingSecret when enabled. Requests are signed and retried on network failures, 429s, and 5xx responses.',
                             },
                         },
                         ['url'],

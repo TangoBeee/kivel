@@ -6,6 +6,7 @@ import type { Access } from './access.js';
 import { emailApprovalRequired } from './email-threading.js';
 import type { EmailRules } from './email-threading.js';
 import { HttpError } from './errors.js';
+import { requireEmailInbox } from './access.js';
 import { effectivePlan } from './identity.js';
 import { isUuid } from './security.js';
 import type { ResourceRepository } from './resources.js';
@@ -32,6 +33,7 @@ export function registerEmailDrafts(
         const job = resource && (await jobs.get(id));
         if (!job || !job.emailDraft || job.ownerId !== ownerId || job.status === 'cancelled')
             throw new HttpError(404, 'Email draft unavailable.');
+        requireEmailInbox(actor.identity, job.emailDraft.inboxId);
         return { job, actor, content: resource.payload.emailContent as EmailContent };
     }
     async function view(job: ScheduledJob, content?: EmailContent) {

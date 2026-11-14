@@ -35,6 +35,10 @@ export const resourceToken = (request: FastifyRequest) => {
         ? separate
         : (/^Bearer ([A-Za-z0-9_-]{43})$/i.exec(request.headers.authorization ?? '')?.[1] ?? '');
 };
+export function requireEmailInbox(identity: Identity | undefined, id: string) {
+    if (identity?.emailInboxId && identity.emailInboxId !== id.toLowerCase())
+        throw new HttpError(404, 'Email inbox unavailable or access denied.');
+}
 export class Access {
     private actors = new WeakMap<FastifyRequest, Actor>();
     readonly cookieName: string;
@@ -88,8 +92,8 @@ export class Access {
             return actor;
         }
         // New keys start with kv_; sh_ keys from before the rename keep working.
-        if (authorization && /^Bearer (?:kv|sh)_/i.test(authorization)) {
-            const key = /^Bearer ((?:kv|sh)_[A-Za-z0-9_-]{43})$/i.exec(authorization)?.[1];
+        if (authorization && /^Bearer (?:kve|kv|sh)_/i.test(authorization)) {
+            const key = /^Bearer ((?:kve|kv|sh)_[A-Za-z0-9_-]{43})$/i.exec(authorization)?.[1];
             identity = key ? await this.identities.authenticateKey(key) : undefined;
             if (!identity) throw new HttpError(401, 'API key is invalid, expired, or revoked.');
         } else if (this.isAppHost(request)) {

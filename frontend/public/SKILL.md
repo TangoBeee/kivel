@@ -24,11 +24,12 @@ webhooks, mocks, files and utilities, but cannot create email inboxes or memory.
    waiting always need workspace credentials or the private inspection token.
    Use visibility=private only when senders can add X-Access-Token. Other
    resources default to private. Keep management and access credentials separate.
-2. Use `wait_for_webhook` or `wait_for_email`; preserve the last ID as `after`.
+2. Use `wait_for_webhook` or `wait_for_email`; preserve the last ID as `after` for the legacy wait. For an email matching particular criteria, call `wait_for_email` with `checkpoint: true` and the desired filters before triggering mail. Pass its `nextCursor` and the same filters when you wait.
    `wait_for_event` waits for any webhook, email, human approval, scheduled job or SMS source in one call.
    Check /api/capabilities before using operator-enabled services such as phones.
    Its events return one cursor per source. Waits stop after at most 30 seconds;
    `timedOut` means no new data, not success. Resume with the cursor.
+   For email triage, use `email_message` with the inbox and message IDs. Pass `read` or `labels` to update it with a write key. Set `replyTo` when creating a draft reply. Read email forwarding history with `resource_request` (kind `email-inboxes`, action `deliveries`). An owner or admin can issue an inbox key in the dashboard; that key only accesses its assigned inbox.
 3. Inspect structured results and delete resources when finished. Free email has
    one random inbox for 1–7 days (default three); Pro has 10 and Team 50 while
    subscribed, with optional `localPart`. Retired addresses are never reassigned.

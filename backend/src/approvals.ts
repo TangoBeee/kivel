@@ -454,7 +454,11 @@ export function registerApprovals({
     app.get<{ Params: { id: string } }>('/api/approvals/:id', async (request) => {
         const identity = (await account(request, false)).identity!;
         const approval = await approvals.get(identity.account.id, request.params.id);
-        if (!approval) throw new HttpError(404, 'Approval request not found.');
+        if (
+            !approval ||
+            (identity.emailInboxId && (!approval.emailDraft || approval.keyId !== identity.keyId))
+        )
+            throw new HttpError(404, 'Approval request not found.');
         return view(approval);
     });
     app.get<{ Params: { id: string }; Querystring: { timeoutSeconds?: string } }>(
@@ -468,7 +472,12 @@ export function registerApprovals({
             return waiters.run(actor.quotaKey, async () => {
                 for (;;) {
                     const approval = await approvals.get(accountId, request.params.id);
-                    if (!approval) throw new HttpError(404, 'Approval request not found.');
+                    if (
+                        !approval ||
+                        (actor.identity?.emailInboxId &&
+                            (!approval.emailDraft || approval.keyId !== actor.identity.keyId))
+                    )
+                        throw new HttpError(404, 'Approval request not found.');
                     if (approval.status !== 'pending')
                         return { timedOut: false, ...view(approval) };
                     if (abort.signal.aborted || Date.now() + 1000 > deadline)

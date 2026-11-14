@@ -3333,3 +3333,15 @@ button.resource-title {
     bottom: calc(76px + env(safe-area-inset-bottom));
   }
 }
+
+.email-subject-search {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px;
+}
+.email-subject-search .rt-TextFieldRoot {
+  flex: 1 1 120px;
+  min-width: 0;
+}

@@ -156,7 +156,7 @@ export function EmailDrafts({
     canResubmit,
 }: {
     id: string;
-    replyTo?: string;
+    replyTo?: { id: string; from: string; subject: string };
     canWrite: boolean;
     canSend: boolean;
     requireApproval: boolean;
@@ -253,7 +253,19 @@ export function EmailDrafts({
                                 variant="soft"
                                 disabled={busy}
                                 onClick={() => {
-                                    setContent({ ...empty, replyTo });
+                                    setContent({
+                                        ...empty,
+                                        replyTo: replyTo.id,
+                                        to: [
+                                            (
+                                                /<([^<>]+)>\s*$/.exec(replyTo.from)?.[1] ??
+                                                replyTo.from
+                                            ).trim(),
+                                        ].filter(Boolean),
+                                        subject: /^re:/i.test(replyTo.subject)
+                                            ? replyTo.subject
+                                            : `Re: ${replyTo.subject}`,
+                                    });
                                     setCreating(true);
                                     setSelected(null);
                                 }}

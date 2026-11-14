@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHmac, randomBytes } from 'node:crypto';
 import { test } from 'node:test';
+import { setTimeout as delay } from 'node:timers/promises';
 import { buildApp } from './app.js';
 import { MemoryIdentityRepository } from './identity.js';
 import { MemoryEmailAddresses } from './email-addresses.js';
@@ -370,37 +371,46 @@ test('paid custom addresses reject reserved names and cannot be reused after del
     );
 });
 
-test('email forwarding requires Pro and stops delivering as soon as the owner downgrades', async (t) => {
+test('forwarding signs the original event and records retryable attempts without delaying ingest', async (t) => {
     const identities = new MemoryIdentityRepository();
-    let deliveries = 0;
+    const sends: { body: string; headers: Record<string, string> }[] = [];
+    let release!: () => void;
+    const hold = new Promise<void>((resolve) => {
+        release = resolve;
+    });
     const app = buildApp({
         identityStore: identities,
         mailDomain: 'socketspace.xyz',
         emailIngestSecret: secret,
-        forwardSend: async () => {
-            deliveries++;
-            return { status: 204 } as never;
+        forwardDelays: [0, 0],
+        forwardSend: async (_url, _signal, options) => {
+            sends.push({ body: options.requestBody!, headers: options.headers });
+            if (sends.length === 1) await hold;
+            return { status: sends.length === 1 ? 503 : 204 };
         },
     });
-    t.after(() => app.close());
+    t.after(() => {
+        release();
+        return app.close();
+    });
     const headers = await workspace(identities);
     const identity = identities.authenticateKey(headers.authorization.slice(7))!;
     const inbox = (await app.inject({ method: 'POST', url: '/api/email-inboxes', headers })).json();
+    const path = `/api/email-inboxes/${inbox.id}`;
     const config = {
         method: 'PUT' as const,
-        url: `/api/email-inboxes/${inbox.id}/forwarding`,
+        url: `${path}/forwarding`,
         headers,
         payload: { url: 'https://example.com/mail' },
     };
-    const denied = await app.inject(config);
-    assert.equal(denied.statusCode, 402);
-    assert.equal(denied.json().requiredPlan, 'pro');
+    assert.equal((await app.inject(config)).statusCode, 402);
     identities.setEntitlement(
         identity.account.id,
         'pro',
         new Date(Date.now() + 86400000).toISOString(),
     );
-    assert.equal((await app.inject(config)).statusCode, 200);
+    const configured = await app.inject(config);
+    assert.equal(configured.statusCode, 200, configured.body);
     const receive = () =>
         app.inject({
             method: 'POST',
@@ -408,16 +418,194 @@ test('email forwarding requires Pro and stops delivering as soon as the owner do
             ...signed({
                 to: inbox.address,
                 from: 'sender@example.com',
-                subject: 'Test',
-                text: 'A message',
+                subject: 'Update',
+                text: 'Hello',
             }),
         });
     assert.equal((await receive()).statusCode, 202);
-    assert.equal(deliveries, 1);
+    const read = () => app.inject({ url: `${path}/deliveries`, headers });
+    const initial = (await read()).json().deliveries[0];
+    assert.equal(initial.pending, true);
+    release();
+    let delivery = initial;
+    const deadline = Date.now() + 3500;
+    while (delivery.pending && Date.now() < deadline) {
+        await delay(25);
+        delivery = (await read()).json().deliveries[0];
+    }
+    assert.equal(delivery.pending, false);
+    assert.deepEqual(
+        delivery.attempts.map((attempt: { status: number }) => attempt.status),
+        [503, 204],
+    );
+    assert.equal(sends.length, 2);
+    assert.equal(sends[0]!.body, sends[1]!.body);
+    for (const send of sends) {
+        assert.equal(send.headers['x-kivel-email-id'], delivery.messageId);
+        assert.equal(
+            send.headers['x-kivel-signature'],
+            'sha256=' +
+                createHmac('sha256', configured.json().signingSecret)
+                    .update(`${send.headers['x-kivel-timestamp']}.${send.body}`)
+                    .digest('hex'),
+        );
+    }
     identities.setEntitlement(identity.account.id, 'free', null);
     assert.equal((await receive()).statusCode, 202);
-    assert.equal(deliveries, 1);
-    assert.equal((await app.inject(config)).statusCode, 402);
+    assert.equal((await read()).json().deliveries.length, 1);
+});
+
+test('inbox keys enforce scope across HTTP, MCP, draft, attachment and event operations', async (t) => {
+    const identities = new MemoryIdentityRepository();
+    const app = buildApp({
+        identityStore: identities,
+        mailDomain: 'socketspace.xyz',
+        emailIngestSecret: secret,
+    });
+    t.after(() => app.close());
+    const user = (await identities.register('inbox-owner', 'unused'))!;
+    const session = randomBytes(32).toString('base64url');
+    await identities.createSession(user.id, user.personalAccountId, session);
+    const origin = 'http://localhost:3000';
+    const human = { cookie: `kivel_session=${session}`, origin };
+    const create = async (localPart: string) => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/email-inboxes',
+            headers: human,
+            payload: { localPart },
+        });
+        assert.equal(response.statusCode, 201, response.body);
+        return response.json();
+    };
+    await identities.setEntitlement(
+        user.personalAccountId,
+        'pro',
+        new Date(Date.now() + 86400000).toISOString(),
+    );
+    const first = await create('first-inbox');
+    const second = await create('second-inbox');
+    const base = `/api/email-inboxes/${first.id}`;
+    const other = `/api/email-inboxes/${second.id}`;
+    const make = (headers: typeof human | { authorization: string }, write = false) =>
+        app.inject({
+            method: 'POST',
+            url: `${base}/keys`,
+            headers,
+            payload: { name: write ? 'Writer' : 'Reader', write },
+        });
+    const reader = await make(human);
+    const writer = await make(human, true);
+    assert.equal(reader.statusCode, 201, reader.body);
+    assert.equal(writer.statusCode, 201, writer.body);
+    const read = { authorization: `Bearer ${reader.json().key}` };
+    const write = { authorization: `Bearer ${writer.json().key}` };
+    assert.equal((await make(write)).statusCode, 403);
+    assert.deepEqual(
+        (await app.inject({ url: '/api/email-inboxes', headers: read }))
+            .json()
+            .inboxes.map((item: { id: string }) => item.id),
+        [first.id],
+    );
+    for (const path of [
+        other,
+        `${other}/messages`,
+        `${other}/wait?checkpoint=true`,
+        `${other}/threads`,
+        `${other}/deliveries`,
+        `${other}/messages/${crypto.randomUUID()}/attachments/${crypto.randomUUID()}`,
+    ]) {
+        assert.equal((await app.inject({ url: path, headers: write })).statusCode, 404, path);
+    }
+    for (const path of ['/api/account/overview', '/api/account/resources']) {
+        assert.equal((await app.inject({ url: path, headers: write })).statusCode, 403, path);
+    }
+    assert.equal(
+        (await app.inject({ method: 'PUT', url: `${base}/rules`, headers: write, payload: {} }))
+            .statusCode,
+        403,
+    );
+    const wrongTopic = await app.inject({
+        method: 'POST',
+        url: '/api/events/wait',
+        headers: write,
+        payload: { sources: [{ kind: 'email', id: second.id }], timeoutSeconds: 1 },
+    });
+    assert.equal(wrongTopic.statusCode, 403, wrongTopic.body);
+    const content = { to: ['someone@example.com'], subject: 'Update', text: 'Hello' };
+    const draft = await app.inject({
+        method: 'POST',
+        url: `${other}/drafts`,
+        headers: human,
+        payload: content,
+    });
+    assert.equal(draft.statusCode, 201, draft.body);
+    assert.equal(
+        (await app.inject({ url: `/api/email-drafts/${draft.json().id}`, headers: write }))
+            .statusCode,
+        404,
+    );
+    const ingest = await app.inject({
+        method: 'POST',
+        url: '/hooks/email',
+        ...signed({
+            to: first.address,
+            from: 'sender@example.com',
+            subject: 'Your code',
+            text: 'Your code is 482901.',
+        }),
+    });
+    assert.equal(ingest.statusCode, 202, ingest.body);
+    const mail = (await app.inject({ url: `${base}/messages`, headers: read })).json().messages[0];
+    const update = (headers: typeof read) =>
+        app.inject({
+            method: 'PATCH',
+            url: `${base}/messages/${mail.id}`,
+            headers,
+            payload: { read: true, labels: ['Work', 'Work'] },
+        });
+    assert.equal((await update(read)).statusCode, 403);
+    assert.deepEqual((await update(write)).json().labels, ['Work']);
+    assert.equal(
+        (await app.inject({ url: `${base}/messages?read=true&label=work`, headers: read })).json()
+            .messages.length,
+        1,
+    );
+    const call = async (name: string, args: object) => {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/mcp',
+            headers: {
+                ...read,
+                accept: 'application/json, text/event-stream',
+            },
+            payload: {
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'tools/call',
+                params: { name, arguments: args },
+            },
+        });
+        assert.equal(response.statusCode, 200, response.body);
+        return response.json().result;
+    };
+    const mcp = await call('email_message', { id: first.id, messageId: mail.id });
+    assert.deepEqual(JSON.parse(mcp.content[0].text).labels, ['Work']);
+    assert.equal((await call('list_emails', { id: second.id })).isError, true);
+    assert.equal((await call('workspace_status', {})).isError, true);
+    const denied = await call('email_message', { id: first.id, messageId: mail.id, read: false });
+    assert.equal(denied.isError, true);
+    assert.equal(
+        (
+            await app.inject({
+                method: 'DELETE',
+                url: `${base}/keys/${reader.json().info.id}`,
+                headers: human,
+            })
+        ).statusCode,
+        204,
+    );
+    assert.equal((await app.inject({ url: base, headers: read })).statusCode, 401);
 });
 
 test('email lifecycle upgrades, downgrades, pauses lapsed plans and retires after grace without reusing addresses', async () => {

@@ -97,6 +97,18 @@ export function registerEvents({
         const actor = await access.scope(request, 'resources:read');
         const body = request.body as { sources?: unknown; timeoutSeconds?: unknown } | null;
         const inputs = sources(body?.sources);
+        if (
+            actor.identity?.emailInboxId &&
+            inputs.some(
+                (source) =>
+                    source.kind !== 'email' ||
+                    source.id.toLowerCase() !== actor.identity!.emailInboxId,
+            )
+        )
+            throw new HttpError(
+                403,
+                'This key can only wait for events in its assigned email inbox.',
+            );
         const topics = inputs.flatMap((source): LiveTopic[] => {
             if (source.kind === 'webhook' || source.kind === 'email')
                 return [{ topic: source.kind, scopeId: source.id.toLowerCase() }];

@@ -1,3 +1,24 @@
+export interface EmailFilters {
+    from?: string | undefined;
+    mailFrom?: string | undefined;
+    subject?: string | undefined;
+    text?: string | undefined;
+    hasCode?: boolean | undefined;
+    hasLink?: boolean | undefined;
+    hasAttachment?: boolean | undefined;
+    read?: boolean | undefined;
+    label?: string | undefined;
+}
+export interface EmailSearchOptions extends EmailFilters {
+    token?: string | undefined;
+    cursor?: string | undefined;
+    limit?: number | undefined;
+}
+export interface EmailWaitOptions extends WaitOptions, EmailFilters {
+    cursor?: string | undefined;
+    limit?: number | undefined;
+    checkpoint?: boolean | undefined;
+}
 export interface WaitOptions {
     token?: string;
     after?: string;
@@ -20,6 +41,11 @@ export interface AgentTrial {
     limits: string;
     claim: { userCode: string; claimUrl: string; deviceCode: string; humanNotified: boolean };
     instructions: string;
+}
+export interface EmailDelivery {
+    messageId: string;
+    pending: boolean;
+    attempts: { at: string; status?: number; error?: string }[];
 }
 export interface EmailInbox {
     id: string;
@@ -73,10 +99,13 @@ export interface EmailMessage {
     attachments: { id?: string; filename: string; mimeType: string; size: number }[];
     direction?: 'inbound' | 'outbound';
     deliveryStatus?: 'pending' | 'sent';
+    read?: boolean;
+    labels?: string[];
     messageId?: string;
     inReplyTo?: string;
     references?: string[];
 }
+export type EmailMessageUpdate = Pick<EmailMessage, 'read' | 'labels'>;
 export interface EmailContent {
     to: string[];
     cc?: string[];
@@ -95,6 +124,11 @@ export interface EmailThreadSummary {
     lastAt: string;
     from: string;
     messageCount: number;
+    unread?: boolean;
+    hasCode?: boolean;
+    hasLink?: boolean;
+    hasAttachment?: boolean;
+    labels?: string[];
 }
 export interface EmailThread extends EmailThreadSummary {
     messages: EmailMessage[];

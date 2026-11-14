@@ -469,6 +469,29 @@ export function buildApp({
                 );
             return;
         }
+        if (/^Bearer kve_/i.test(request.headers.authorization ?? '')) {
+            const { identity } = await access.actor(request);
+            if (identity?.emailInboxId) {
+                const read = ['GET', 'HEAD'].includes(request.method);
+                const inboxMail = read
+                    ? /^\/api\/email-inboxes(?:\/:id(?:\/(?:wait|messages|threads|drafts|rules|deliveries|messages\/:messageId(?:\/attachments\/:attachmentId)?|threads\/:threadId))?)?$/
+                    : /^\/api\/email-inboxes\/:id\/(?:messages\/:messageId|send|drafts)$/;
+                const draft = /^\/api\/email-drafts\/:id(?:\/send)?$/;
+                if (
+                    !inboxMail.test(route) &&
+                    !draft.test(route) &&
+                    ![
+                        '/mcp',
+                        '/api/events/wait',
+                        '/api/stream',
+                        '/api/email-threads',
+                        '/api/approvals/:id',
+                        '/api/approvals/:id/wait',
+                    ].includes(route)
+                )
+                    throw new HttpError(403, 'This key can only access its assigned email inbox.');
+            }
+        }
         if (request.url.startsWith('/api/') || request.url.split('?')[0] === '/mcp') {
             await access.rate(request);
             if (
@@ -886,6 +909,8 @@ export function buildApp({
                 input,
             ),
         ...(forwardSend ? { forwardSend } : {}),
+        ...(forwardDelays ? { forwardDelays: forwardDelays.slice(1) } : {}),
+        ...(authSecret ? { authSecret } : {}),
         waiters,
         ...(mailDomain ? { mailDomain } : {}),
         ...(emailIngestSecret ? { ingestSecret: emailIngestSecret } : {}),

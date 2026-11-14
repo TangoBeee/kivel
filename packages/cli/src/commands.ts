@@ -32,13 +32,16 @@ kivel credential inspect|delete <id>
 kivel credential update <id> < changes.json
 kivel credential reveal <id> [--approval-id <id>]
 kivel password generate [--length <n>]
+kivel email message <inbox-id> <message-id>
+kivel email message-update <inbox-id> <message-id> < update.json
+kivel email deliveries <inbox-id>
 kivel email threads [inbox-id] [--cursor <cursor>] [--limit <n>]
 kivel email thread <inbox-id> <thread-id>
 kivel email drafts|rules <inbox-id>
 kivel email draft-create <inbox-id> < content.json
 kivel email draft-inspect|draft-delete <draft-id>
 kivel email draft-submit <draft-id> [< settings.json]
-kivel email messages|wait <id> [--cursor <cursor>] [--limit <n>] [--from <address>] [--mail-from <address>] [--subject <text>] [--text <text>] [--has-code true|false] [--has-link true|false] [--has-attachment true|false]
+kivel email messages|wait <id> [--cursor <cursor>] [--limit <n>] [--from <address>] [--mail-from <address>] [--subject <text>] [--text <text>] [--has-code true|false] [--has-link true|false] [--has-attachment true|false] [--read true|false] [--label <label>]
 kivel email wait <id> [--checkpoint] [--after <id>] [--timeout-seconds <n>] [--token <token>]
 kivel memory set <namespace> <key> [--ttl-seconds <n>] < value.json
 kivel memory get|delete <namespace> <key>

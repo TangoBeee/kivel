@@ -12,7 +12,8 @@ export function needsInput(args: string[]) {
         (args[0] === 'credential' && ['save', 'update'].includes(args[1] ?? '')) ||
         (args[0] === 'approval' && args[1] === 'ask') ||
         (args[0] === 'monitor' && args[1] === 'create') ||
-        (args[0] === 'email' && ['draft-create', 'draft-submit'].includes(args[1] ?? '')) ||
+        (args[0] === 'email' &&
+            ['draft-create', 'draft-submit', 'message-update'].includes(args[1] ?? '')) ||
         (args[0] === 'event' && args[1] === 'wait') ||
         (['oauth', 'mock', 'mcp-server', 'status-page', 'job'].includes(args[0] ?? '') &&
             ['create', 'update'].includes(args[1] ?? '')) ||
@@ -63,6 +64,8 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
             '--has-code',
             '--has-link',
             '--has-attachment',
+            '--read',
+            '--label',
             '--cursor',
             '--limit',
         ])
@@ -142,6 +145,8 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
         hasCode: boolean('--has-code'),
         hasLink: boolean('--has-link'),
         hasAttachment: boolean('--has-attachment'),
+        read: boolean('--read'),
+        label: take('--label'),
     };
     const checkpoint = boolean('--checkpoint');
     const approvalId = take('--approval-id');
@@ -295,6 +300,13 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
             return client.listPhoneNumbers();
         }
         if (action === 'release') return client.releasePhoneNumber(id());
+        if (action === 'message' || action === 'message-update') {
+            exact(2);
+            const [inboxId, messageId] = positional as [string, string];
+            return action === 'message'
+                ? client.emailMessage(inboxId, messageId, token)
+                : client.updateEmailMessage(inboxId, messageId, json());
+        }
         if (action === 'messages') return client.listSms(id());
         if (action === 'wait')
             return client.waitForSms(id(), {
@@ -373,6 +385,7 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
         if (action === 'deliveries') return client.inboxDeliveries(id(), token);
     }
     if (group === 'email') {
+        if (action === 'deliveries') return client.emailDeliveries(id());
         if (action === 'threads') {
             if (positional.length > 1) throw new Error('Provide at most one inbox ID.');
             return client.emailThreads(positional[0], threadPage);

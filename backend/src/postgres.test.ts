@@ -2077,11 +2077,7 @@ test('email bytes share workspace/global budgets, survive metadata updates and m
     } finally {
         await pool.query("UPDATE usage_plans SET settings=$1 WHERE id='free'", [original]);
     }
-    await messages.replace(created.id, message.id, {
-        ...message,
-        direction: 'outbound',
-        deliveryStatus: 'sent',
-    });
+    await messages.patch(created.id, message.id, { deliveryStatus: 'sent' });
     await messages.delete(created.id);
     const empty = (await resources.read(created.id, 'email', '', account.id))!.storedBytes;
     assert.ok(empty < renamed);
@@ -2543,7 +2539,10 @@ test('owned attachment bytes persist, reserve workspace storage atomically and a
         ),
         stored,
     );
-    await restarted.replace(inbox.id, message.id, { ...preview, text: 'Updated body' });
+    const updated = await restarted.patch(inbox.id, message.id, { read: true, labels: ['Work'] });
+    assert.equal(updated?.read, true);
+    assert.deepEqual(updated?.labels, ['Work']);
+    assert.equal(Object.hasOwn(updated!, 'attachmentBodies'), false);
     assert.equal(
         (
             await restarted.attachment(inbox.id, message.id, input.attachments[0]!.id!)
@@ -3866,6 +3865,70 @@ test('agent approvals and replacements respect workspace caps across replicas', 
     }
 });
 
+test('email forwarding leases and attempt history survive repository restart', async () => {
+    const messages = new PostgresEmailMessages(pool);
+    const identities = new PostgresIdentityRepository(pool);
+    const user = (await identities.register('forwarding-owner', 'unused'))!;
+    const owner = (await identities.account(user.personalAccountId))!;
+    const resources = new PostgresResourceStore(pool);
+    const inbox = (await resources.create('email', {}, undefined, {
+        ownerId: owner.id,
+        quotaKey: owner.quotaKey,
+        plan: 'free',
+        visibility: 'private',
+    }))!;
+    const now = Date.now();
+    const id = crypto.randomUUID();
+    assert.equal(
+        await messages.record(
+            inbox.id,
+            {
+                id,
+                receivedAt: new Date(now).toISOString(),
+                to: 'inbox@example.com',
+                from: 'service@example.net',
+                subject: 'Verify',
+                text: 'Hello',
+                codes: [],
+                links: [],
+                attachments: [],
+            },
+            [],
+            { url: 'https://example.com/mail', ownerId: owner.id, dueAt: now, attempts: [] },
+        ),
+        'stored',
+    );
+    const restarted = new PostgresEmailMessages(pool);
+    const [one, two] = await Promise.all([
+        messages.claimForward(now, 'first'),
+        restarted.claimForward(now, 'second'),
+    ]);
+    assert.equal(Number(Boolean(one)) + Number(Boolean(two)), 1);
+    const initial = (one ?? two)!;
+    assert.equal(initial.message.id, id);
+    assert.equal(await restarted.claimForward(now + 29_999, 'restarted'), undefined);
+    const recovered = (await restarted.claimForward(now + 30_001, 'restarted'))!;
+    assert.equal(recovered.message.id, id);
+    const attempt = { at: new Date(now).toISOString(), status: 204 };
+    await messages.finishForward(inbox.id, id, initial.state.lease!, {
+        ...initial.state,
+        dueAt: null,
+        attempts: [],
+    });
+    assert.equal((await messages.deliveries(inbox.id))[0]!.pending, true);
+    await restarted.finishForward(inbox.id, id, 'restarted', {
+        ...recovered.state,
+        dueAt: null,
+        attempts: [attempt],
+    });
+    assert.deepEqual(await messages.deliveries(inbox.id), [
+        { messageId: id, pending: false, attempts: [attempt] },
+    ]);
+    assert.equal(await messages.claimForward(now + 60_000, 'done'), undefined);
+    await messages.delete(inbox.id);
+    assert.deepEqual(await restarted.deliveries(inbox.id), []);
+});
+
 test('workspace overview counts retained events and only projects the owner’s latest inbound email', async (t) => {
     const identities = new PostgresIdentityRepository(pool);
     const resources = new PostgresResourceStore(pool);
@@ -3934,6 +3997,40 @@ test('workspace overview counts retained events and only projects the owner’s 
     assert.equal(series.email[6], 1);
     assert.equal(series.webhooks[6], 1);
     const url = `/api/email-inboxes/${mail.id}`;
+    const scopedSession = randomBytes(32).toString('base64url');
+    const scopedUser = (await identities.findUser('overview-owner'))!;
+    await identities.createSession(scopedUser.id, owner.ownerId, scopedSession);
+    const scopedKey = await identities.createKey(
+        (await identities.authenticateSession(scopedSession))!,
+        'Inbox key',
+        ['resources:read'],
+        new Date(Date.now() + 60000).toISOString(),
+        'manual',
+        mail.id,
+    );
+    const scopedHeaders = { authorization: `Bearer ${scopedKey.key}` };
+    assert.equal(
+        (await app.inject({ url: `${url}/messages`, headers: scopedHeaders })).statusCode,
+        200,
+    );
+    assert.equal(
+        (await app.inject({ url: '/api/account/overview', headers: scopedHeaders })).statusCode,
+        403,
+    );
+    assert.equal(
+        (
+            await app.inject({
+                url: `/api/stream?topics=email:${crypto.randomUUID()}`,
+                headers: scopedHeaders,
+            })
+        ).statusCode,
+        404,
+    );
+    assert.equal(
+        (await app.inject({ url: `/api/stream?topics=approvals`, headers: scopedHeaders }))
+            .statusCode,
+        404,
+    );
     const query = 'from=SENDER%40example.com&subject=code&hasCode=true&limit=1';
     const rest = await app.inject({ url: `${url}/messages?${query}`, headers: owner.headers });
     assert.equal(rest.statusCode, 200, rest.body);

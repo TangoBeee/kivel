@@ -10,9 +10,11 @@ export const emailFilterFields = [
     'hasCode',
     'hasLink',
     'hasAttachment',
+    'read',
+    'label',
 ] as const;
 const textFields = ['from', 'mailFrom', 'subject', 'text'] as const;
-const booleanFields = ['hasCode', 'hasLink', 'hasAttachment'] as const;
+const booleanFields = ['hasCode', 'hasLink', 'hasAttachment', 'read'] as const;
 
 export function emailQuery(
     inboxId: string,
@@ -69,6 +71,9 @@ export function emailQuery(
                 Boolean(message.codes?.length) === (filters.hasCode === 'true')) &&
             (filters.hasLink === undefined ||
                 Boolean(message.links?.length) === (filters.hasLink === 'true')) &&
+            (filters.read === undefined || Boolean(message.read) === (filters.read === 'true')) &&
+            (filters.label === undefined ||
+                message.labels?.some((label) => label.toLowerCase() === filters.label)) &&
             (filters.hasAttachment === undefined ||
                 Boolean(message.attachments?.length) === (filters.hasAttachment === 'true'))
         );

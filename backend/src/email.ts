@@ -1,3 +1,5 @@
+import { startEmailForwarding } from './email-forwarding.js';
+import type { EmailForwardState } from './email-forwarding.js';
 import { emailQuery, emailFilterFields } from './email-query.js';
 import type { ThreadMessage } from './email-threading.js';
 import {
@@ -18,7 +20,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { Pool } from 'pg';
-import { HttpError, resourceToken } from './access.js';
+import { HttpError, requireEmailInbox, resourceToken } from './access.js';
 import type { Access } from './access.js';
 import type { ResourceRepository } from './resources.js';
 import { MAX_RESOURCE_BYTES } from './resources.js';
@@ -98,6 +100,8 @@ export interface EmailMessage {
     attachments: EmailAttachment[];
     direction?: 'inbound' | 'outbound';
     deliveryStatus?: 'pending' | 'sent';
+    read?: boolean;
+    labels?: string[];
     messageId?: string;
     inReplyTo?: string;
     references?: string[];
@@ -133,6 +137,8 @@ export function extractFromEmail(subject: string, text: string, html = '') {
     return { codes: codes.slice(0, 5), links };
 }
 
+type MessagePatch = Partial<Pick<EmailMessage, 'deliveryStatus' | 'read' | 'labels'>>;
+
 type MaybePromise<T> = T | Promise<T>;
 export interface EmailMessageRepository {
     attachment(
@@ -144,6 +150,7 @@ export interface EmailMessageRepository {
         resourceId: string,
         message: EmailMessage,
         bodies?: AttachmentBody[],
+        forward?: EmailForwardState,
     ): MaybePromise<'stored' | 'full'>;
     list(resourceId: string): MaybePromise<EmailMessage[]>;
     ordered(
@@ -155,7 +162,30 @@ export interface EmailMessageRepository {
     count(resourceId: string): MaybePromise<number>;
     cursor(resourceId: string): MaybePromise<string>;
     delete(resourceId: string): MaybePromise<void>;
-    replace(resourceId: string, id: string, message: EmailMessage): MaybePromise<void>;
+    message(resourceId: string, id: string): MaybePromise<EmailMessage | undefined>;
+    claimForward(
+        now: number,
+        lease: string,
+    ): MaybePromise<
+        { resourceId: string; message: EmailMessage; state: EmailForwardState } | undefined
+    >;
+    finishForward(
+        resourceId: string,
+        id: string,
+        lease: string,
+        state: EmailForwardState,
+    ): MaybePromise<void>;
+    deliveries(
+        resourceId: string,
+    ): MaybePromise<
+        { messageId: string; pending: boolean; attempts: EmailForwardState['attempts'] }[]
+    >;
+
+    patch(
+        resourceId: string,
+        id: string,
+        patch: MessagePatch,
+    ): MaybePromise<EmailMessage | undefined>;
 }
 
 interface StoredEmailMessage extends EmailMessage {
@@ -177,6 +207,7 @@ const bodyBytes = (bodies: AttachmentBody[] = []) =>
 export class MemoryEmailMessages implements EmailMessageRepository {
     private readonly messages = new Map<string, StoredEmailMessage[]>();
     private sequence = 0n;
+    private forwarding = new WeakMap<StoredEmailMessage, EmailForwardState>();
     private readonly sequences = new WeakMap<StoredEmailMessage, bigint>();
     private budget?: (id: string, bytes: number) => boolean;
     private live?: (id: string) => boolean;
@@ -198,6 +229,7 @@ export class MemoryEmailMessages implements EmailMessageRepository {
         resourceId: string,
         input: EmailMessage,
         bodies: AttachmentBody[] = [],
+        forward?: EmailForwardState,
     ): MaybePromise<'stored' | 'full'> {
         const message: StoredEmailMessage = {
             ...input,
@@ -220,6 +252,7 @@ export class MemoryEmailMessages implements EmailMessageRepository {
         }
         const stored = structuredClone(message);
         this.sequences.set(stored, ++this.sequence);
+        if (forward) this.forwarding.set(stored, structuredClone(forward));
         list.push(stored);
         this.messages.set(resourceId, list);
         return 'stored' as const;
@@ -257,25 +290,59 @@ export class MemoryEmailMessages implements EmailMessageRepository {
         if (bytes) this.budget?.(resourceId, -bytes);
         this.messages.delete(resourceId);
     }
-    replace(resourceId: string, id: string, message: EmailMessage) {
+    claimForward(now: number, lease: string) {
+        for (const [resourceId, list] of this.messages) {
+            for (const message of list) {
+                const state = this.forwarding.get(message);
+                if (state?.dueAt == null || state.dueAt > now) continue;
+                const claimed = { ...state, dueAt: now + 30_000, lease };
+                this.forwarding.set(message, claimed);
+                return { resourceId, message: publicMessage(message), state: claimed };
+            }
+        }
+    }
+    finishForward(resourceId: string, id: string, lease: string, state: EmailForwardState) {
+        const message = this.messages.get(resourceId)?.find((item) => item.id === id);
+        if (message && this.forwarding.get(message)?.lease === lease)
+            this.forwarding.set(message, state);
+    }
+    deliveries(resourceId: string) {
+        return (this.messages.get(resourceId) ?? [])
+            .slice()
+            .reverse()
+            .flatMap((message) => {
+                const state = this.forwarding.get(message);
+                return state
+                    ? [
+                          {
+                              messageId: message.id,
+                              pending: state.dueAt !== null,
+                              attempts: state.attempts,
+                          },
+                      ]
+                    : [];
+            });
+    }
+    message(resourceId: string, id: string) {
+        const message = this.messages.get(resourceId)?.find((item) => item.id === id);
+        return message && publicMessage(message);
+    }
+    patch(resourceId: string, id: string, patch: MessagePatch) {
         const list = this.messages.get(resourceId);
         const index = list?.findIndex((item) => item.id === id) ?? -1;
-        if (list && index !== -1) {
-            const stored = {
-                ...message,
-                ...(list[index]?.attachmentBodies
-                    ? { attachmentBodies: list[index]!.attachmentBodies }
-                    : {}),
-            };
-            const delta =
-                Buffer.byteLength(JSON.stringify(stored)) -
-                Buffer.byteLength(JSON.stringify(list[index]));
-            if (this.budget && !this.budget(resourceId, delta))
-                throw new HttpError(429, 'Mail storage allowance reached.');
-            const updated = structuredClone(stored);
-            this.sequences.set(updated, this.sequences.get(list[index]!)!);
-            list[index] = updated;
-        }
+        if (!list || index === -1) return;
+        const previous = list[index]!;
+        const updated = structuredClone({ ...previous, ...patch });
+        const delta =
+            Buffer.byteLength(JSON.stringify(updated)) -
+            Buffer.byteLength(JSON.stringify(previous));
+        if (delta && this.budget && !this.budget(resourceId, delta))
+            throw new HttpError(429, 'Mail storage allowance reached.');
+        this.sequences.set(updated, this.sequences.get(previous)!);
+        const forward = this.forwarding.get(previous);
+        if (forward) this.forwarding.set(updated, forward);
+        list[index] = updated;
+        return publicMessage(updated);
     }
 }
 
@@ -293,7 +360,12 @@ export class PostgresEmailMessages implements EmailMessageRepository {
         ).rows[0];
         return attachmentFile(row?.message, attachmentId);
     }
-    async record(resourceId: string, input: EmailMessage, bodies: AttachmentBody[] = []) {
+    async record(
+        resourceId: string,
+        input: EmailMessage,
+        bodies: AttachmentBody[] = [],
+        forward?: EmailForwardState,
+    ) {
         const message = { ...input, ...(bodies.length ? { attachmentBodies: bodies } : {}) };
         return transaction(this.pool, async (client) => {
             await client.query('SELECT id FROM resource_usage WHERE id=1 FOR UPDATE');
@@ -343,11 +415,17 @@ export class PostgresEmailMessages implements EmailMessageRepository {
                 [resourceId, bytes],
             );
             const result = await client.query(
-                `INSERT INTO email_messages (resource_id, message, stored_bytes)
-             SELECT id, $2::jsonb, octet_length($2::jsonb::text) FROM temporary_resources
+                `INSERT INTO email_messages (resource_id, message, stored_bytes, forward_delivery, forward_due)
+             SELECT id, $2::jsonb, octet_length($2::jsonb::text), $4, $5 FROM temporary_resources
              WHERE id = $1 AND kind = 'email' AND expires_at > clock_timestamp()
                AND (SELECT count(*) FROM email_messages WHERE resource_id = $1) < $3`,
-                [resourceId, JSON.stringify(message), EMAIL_MESSAGE_LIMIT],
+                [
+                    resourceId,
+                    JSON.stringify(message),
+                    EMAIL_MESSAGE_LIMIT,
+                    forward ?? null,
+                    forward?.dueAt ?? null,
+                ],
             );
             if (!result.rowCount) throw new Error('Mail storage reservation lost.');
             return 'stored' as const;
@@ -378,7 +456,10 @@ export class PostgresEmailMessages implements EmailMessageRepository {
             `SELECT jsonb_build_object('id', message->'id', 'receivedAt', message->'receivedAt',
                 'from', message->'from', 'to', message->'to', 'cc', message->'cc',
                 'subject', message->'subject', 'direction', message->'direction', 'messageId', message->'messageId',
-                'inReplyTo', message->'inReplyTo', 'references', message->'references') AS message
+                'inReplyTo', message->'inReplyTo', 'references', message->'references',
+                'read', message->'read', 'labels', message->'labels', 'hasCode', COALESCE(jsonb_array_length(message->'codes'),0) > 0,
+                'hasLink', COALESCE(jsonb_array_length(message->'links'),0) > 0,
+                'hasAttachment', COALESCE(jsonb_array_length(message->'attachments'),0) > 0) AS message
              FROM email_messages WHERE resource_id = $1 ORDER BY sequence`,
             [resourceId],
         );
@@ -423,41 +504,84 @@ export class PostgresEmailMessages implements EmailMessageRepository {
             }
         });
     }
-    async replace(resourceId: string, id: string, message: EmailMessage) {
-        await transaction(this.pool, async (client) => {
+    async claimForward(now: number, lease: string) {
+        const { rows } = await this.pool.query<{
+            resourceId: string;
+            message: EmailMessage;
+            state: EmailForwardState;
+        }>(
+            `WITH next AS (
+                SELECT sequence FROM email_messages WHERE forward_due <= $1
+                ORDER BY forward_due, sequence LIMIT 1 FOR UPDATE SKIP LOCKED
+            )
+            UPDATE email_messages m SET forward_due=$2, forward_delivery=m.forward_delivery || $3::jsonb
+            FROM next WHERE m.sequence=next.sequence
+            RETURNING resource_id AS "resourceId", message - 'attachmentBodies' AS message, forward_delivery AS state`,
+            [now, now + 30_000, { lease, dueAt: now + 30_000 }],
+        );
+        return rows[0];
+    }
+    async finishForward(resourceId: string, id: string, lease: string, state: EmailForwardState) {
+        await this.pool.query(
+            "UPDATE email_messages SET forward_delivery=$4,forward_due=$5 WHERE resource_id=$1 AND message->>'id'=$2 AND forward_delivery->>'lease'=$3",
+            [resourceId, id, lease, state, state.dueAt],
+        );
+    }
+    async deliveries(resourceId: string) {
+        const { rows } = await this.pool.query<{
+            messageId: string;
+            pending: boolean;
+            attempts: EmailForwardState['attempts'];
+        }>(
+            `SELECT message->>'id' AS "messageId", forward_due IS NOT NULL AS pending,
+                forward_delivery->'attempts' AS attempts FROM email_messages
+                WHERE resource_id=$1 AND forward_delivery IS NOT NULL ORDER BY sequence DESC`,
+            [resourceId],
+        );
+        return rows;
+    }
+    async message(resourceId: string, id: string) {
+        const { rows } = await this.pool.query<{ message: EmailMessage }>(
+            "SELECT message - 'attachmentBodies' AS message FROM email_messages WHERE resource_id=$1 AND message->>'id'=$2",
+            [resourceId, id],
+        );
+        return rows[0]?.message;
+    }
+    async patch(resourceId: string, id: string, patch: MessagePatch) {
+        return transaction(this.pool, async (client) => {
             await client.query('SELECT id FROM resource_usage WHERE id=1 FOR UPDATE');
             const parent = await client.query(
                 'SELECT id FROM temporary_resources WHERE id=$1 FOR UPDATE',
                 [resourceId],
             );
             if (!parent.rowCount) return;
-            const old = (
-                await client.query(
-                    "SELECT stored_bytes,message->'attachmentBodies' AS bodies FROM email_messages WHERE resource_id=$1 AND message->>'id'=$2",
-                    [resourceId, id],
+            const updated = await client.query<{ message: EmailMessage; delta: string }>(
+                `WITH current AS (
+                    SELECT sequence, message || $3::jsonb AS value, stored_bytes
+                    FROM email_messages WHERE resource_id=$1 AND message->>'id'=$2
+                ), sized AS (
+                    SELECT *, octet_length(value::text) AS bytes FROM current
                 )
-            ).rows[0];
-            if (!old) return;
-            if (old.bodies)
-                message = { ...message, attachmentBodies: old.bodies } as StoredEmailMessage;
-            const bytes = Number(
-                (await client.query('SELECT octet_length($1::jsonb::text) AS bytes', [message]))
-                    .rows[0].bytes,
+                UPDATE email_messages AS mail SET message=sized.value,stored_bytes=sized.bytes
+                FROM sized WHERE mail.sequence=sized.sequence
+                RETURNING mail.message - 'attachmentBodies' AS message,
+                    sized.bytes-sized.stored_bytes AS delta`,
+                [resourceId, id, patch],
             );
-            const delta = bytes - Number(old.stored_bytes);
-            const reserved = await client.query(
-                'UPDATE resource_usage SET stored_bytes=stored_bytes+$1 WHERE id=1 AND stored_bytes+$1 <= $2 RETURNING id',
-                [delta, this.maxBytes],
-            );
-            if (!reserved.rowCount) throw new HttpError(429, 'Mail storage allowance reached.');
-            await client.query(
-                'UPDATE temporary_resources SET stored_bytes=stored_bytes+$2 WHERE id=$1',
-                [resourceId, delta],
-            );
-            await client.query(
-                "UPDATE email_messages SET message=$3,stored_bytes=$4 WHERE resource_id=$1 AND message->>'id'=$2",
-                [resourceId, id, message, bytes],
-            );
+            const row = updated.rows[0];
+            if (!row) return;
+            if (Number(row.delta)) {
+                const reserved = await client.query(
+                    'UPDATE resource_usage SET stored_bytes=stored_bytes+$1 WHERE id=1 AND stored_bytes+$1 <= $2 RETURNING id',
+                    [row.delta, this.maxBytes],
+                );
+                if (!reserved.rowCount) throw new HttpError(429, 'Mail storage allowance reached.');
+                await client.query(
+                    'UPDATE temporary_resources SET stored_bytes=stored_bytes+$2 WHERE id=$1',
+                    [resourceId, row.delta],
+                );
+            }
+            return row.message;
         });
     }
 }
@@ -493,6 +617,8 @@ interface EmailContext {
     ingestSecret?: string;
     addresses: EmailAddressRepository;
     forwardSend?: ForwardSend;
+    forwardDelays?: number[];
+    authSecret?: string;
     sendingEnabled?: boolean;
     feedback?: (input: Record<string, unknown>) => Promise<boolean>;
 }
@@ -507,10 +633,22 @@ export function registerEmail({
     ingestSecret,
     addresses,
     forwardSend = (url, signal, options) => publicRequest(url, signal, { ...options, body: false }),
+    forwardDelays,
+    authSecret,
     sendingEnabled = false,
     feedback,
 }: EmailContext) {
     const lifecycle = new EmailLifecycle(addresses, resources, access.identities, messages);
+    const forwarding = startEmailForwarding(
+        app,
+        messages,
+        resources,
+        access.identities,
+        forwardSend,
+        authSecret,
+        forwardDelays,
+    );
+
     const cleanup = setInterval(() => {
         void lifecycle
             .reconcile()
@@ -536,7 +674,15 @@ export function registerEmail({
         token = resourceToken(request),
     ) {
         const actor = await access.actor(request);
-        return { ...(await resolveInbox(id, actor.identity?.account.id, token)), actor };
+        requireEmailInbox(actor.identity, id);
+        return {
+            ...(await resolveInbox(
+                id,
+                actor.identity?.account.id,
+                actor.identity?.emailInboxId ? '' : token,
+            )),
+            actor,
+        };
     }
     async function resolveInbox(id: string, ownerId?: string, token = '') {
         if (ownerId) await lifecycle.reconcile(ownerId);
@@ -636,11 +782,83 @@ export function registerEmail({
             persistent: inbox.persistent,
             status: row?.pausedAt ? 'paused' : 'active',
             forwardingUrl: inbox.payload.forwardingUrl ?? null,
-            lastForward: inbox.payload.lastForward ?? null,
+            lastForward:
+                (await messages.deliveries(inbox.id))
+                    .find((item) => item.attempts.length)
+                    ?.attempts.at(-1) ??
+                inbox.payload.lastForward ??
+                null,
             messageCount: await messages.count(inbox.id),
             messageLimit: EMAIL_MESSAGE_LIMIT,
             sendingEnabled: sendingEnabled && !inbox.payload.smtpCapture,
         };
+    });
+
+    async function keyPolicy(request: FastifyRequest, id: string) {
+        const human = await access.require(request, 'resources:write', true);
+        if (!['owner', 'admin'].includes(human.role))
+            throw new HttpError(403, 'Only workspace owners and admins can manage inbox keys.');
+        const { inbox, row } = await owned(request, id);
+        if (!row || inbox.ownerId !== human.account.id)
+            throw new HttpError(404, 'Use an owned email inbox.');
+        return { human, inbox, row };
+    }
+    app.get<{ Params: { id: string } }>('/api/email-inboxes/:id/keys', async (request) => {
+        const { inbox, human } = await keyPolicy(request, request.params.id);
+        return {
+            keys: (await access.identities.accountKeys(human.account.id)).filter(
+                (key) => key.emailInboxId === inbox.id,
+            ),
+        };
+    });
+    app.delete<{ Params: { id: string; keyId: string } }>(
+        '/api/email-inboxes/:id/keys/:keyId',
+        async (request, reply) => {
+            const { inbox, human } = await keyPolicy(request, request.params.id);
+            if (
+                !(await access.identities.accountKeys(human.account.id)).some(
+                    (key) => key.id === request.params.keyId && key.emailInboxId === inbox.id,
+                ) ||
+                !(await access.identities.revokeAccountKey(human.account.id, request.params.keyId))
+            )
+                throw new HttpError(404, 'Inbox key not found.');
+            return reply.code(204).send();
+        },
+    );
+    app.post<{ Params: { id: string } }>('/api/email-inboxes/:id/keys', async (request, reply) => {
+        const { human, inbox, row } = await keyPolicy(request, request.params.id);
+        if (row.pausedAt) throw new HttpError(409, 'Restore this inbox before creating a key.');
+        const input = request.body as {
+            name?: unknown;
+            write?: unknown;
+            expiresInDays?: unknown;
+        } | null;
+        const name = typeof input?.name === 'string' ? input.name.trim() : '';
+        const days = input?.expiresInDays ?? 90;
+        if (
+            !name ||
+            name.length > 80 ||
+            !Number.isInteger(days) ||
+            Number(days) < 1 ||
+            Number(days) > 365 ||
+            (input?.write !== undefined && typeof input.write !== 'boolean')
+        )
+            throw new HttpError(
+                400,
+                'Provide a key name, optional write flag, and an expiry from 1 to 365 days.',
+            );
+        return reply
+            .code(201)
+            .send(
+                await access.identities.createKey(
+                    human,
+                    name,
+                    input?.write ? ['resources:read', 'resources:write'] : ['resources:read'],
+                    new Date(Date.now() + Number(days) * 86400000).toISOString(),
+                    'manual',
+                    inbox.id,
+                ),
+            );
     });
 
     app.get('/api/email-inboxes', async (request) => {
@@ -648,7 +866,11 @@ export function registerEmail({
         await lifecycle.reconcile(identity.account.id);
         return {
             inboxes: (await addresses.list(identity.account.id))
-                .filter((row) => row.resourceId)
+                .filter(
+                    (row) =>
+                        row.resourceId &&
+                        (!identity.emailInboxId || row.resourceId === identity.emailInboxId),
+                )
                 .map((row) => ({
                     id: row.resourceId,
                     address: row.address,
@@ -703,7 +925,9 @@ export function registerEmail({
         const actor = await access.workspace(request, 'resources:read');
         await lifecycle.reconcile(actor.identity.account.id);
         const inboxes = (await addresses.list(actor.identity.account.id)).filter(
-            (row) => row.resourceId,
+            (row) =>
+                row.resourceId &&
+                (!actor.identity.emailInboxId || row.resourceId === actor.identity.emailInboxId),
         );
         const all = [];
         for (const inbox of inboxes) all.push(...(await threads(inbox.resourceId!)));
@@ -754,7 +978,16 @@ export function registerEmail({
             actor.identity?.account.id,
             true,
         );
-        return { forwardingUrl: url };
+        return {
+            forwardingUrl: url,
+            ...(url ? { signingSecret: forwarding.secret(inbox.id) } : {}),
+        };
+    });
+
+    app.get<{ Params: { id: string } }>('/api/email-inboxes/:id/deliveries', async (request) => {
+        await access.require(request, 'resources:read');
+        const { inbox } = await owned(request, request.params.id);
+        return { deliveries: await messages.deliveries(inbox.id) };
     });
 
     app.post<{ Params: { id: string } }>('/api/email-inboxes/:id/renew', async (request) => {
@@ -776,6 +1009,54 @@ export function registerEmail({
             const { inbox } = await owned(request, request.params.id);
             await messages.delete(inbox.id);
             return reply.code(204).send();
+        },
+    );
+    app.get<{ Params: { id: string; messageId: string } }>(
+        '/api/email-inboxes/:id/messages/:messageId',
+        async (request) => {
+            await access.scope(request, 'resources:read');
+            const { inbox } = await owned(request, request.params.id);
+            const message = await messages.message(inbox.id, request.params.messageId);
+            if (!message) throw new HttpError(404, 'Email message unavailable.');
+            return message;
+        },
+    );
+    app.patch<{ Params: { id: string; messageId: string } }>(
+        '/api/email-inboxes/:id/messages/:messageId',
+        async (request) => {
+            await access.require(request, 'resources:write');
+            const { inbox } = await owned(request, request.params.id);
+            const input = request.body as Record<string, unknown> | null;
+            if (
+                !input ||
+                Object.keys(input).some((key) => !['read', 'labels'].includes(key)) ||
+                (input.read === undefined && input.labels === undefined)
+            )
+                throw new HttpError(400, 'Provide read or labels to update the message.');
+            const patch: MessagePatch = {};
+            if (input.read !== undefined) {
+                if (typeof input.read !== 'boolean')
+                    throw new HttpError(400, 'Read must be true or false.');
+                patch.read = input.read;
+            }
+            if (input.labels !== undefined) {
+                if (
+                    !Array.isArray(input.labels) ||
+                    input.labels.length > 10 ||
+                    input.labels.some(
+                        (label) =>
+                            typeof label !== 'string' ||
+                            !label.trim() ||
+                            label.trim().length > 32 ||
+                            /[\x00-\x1f\x7f]/.test(label),
+                    )
+                )
+                    throw new HttpError(400, 'Provide up to 10 labels of 1 to 32 characters each.');
+                patch.labels = [...new Set<string>(input.labels.map((label) => label.trim()))];
+            }
+            const message = await messages.patch(inbox.id, request.params.messageId, patch);
+            if (!message) throw new HttpError(404, 'Email message unavailable.');
+            return message;
         },
     );
     app.get<{ Params: { id: string }; Querystring: Record<string, unknown> }>(
@@ -1032,50 +1313,21 @@ export function registerEmail({
                 ...extractFromEmail(subject, body, html),
                 attachments: attachmentInput.attachments,
             };
-            const stored = await messages.record(id, message, attachmentInput.bodies);
-            const owner = exists.ownerId
-                ? await access.identities.account(exists.ownerId)
-                : undefined;
-            if (
-                stored === 'stored' &&
-                typeof exists.payload.forwardingUrl === 'string' &&
-                owner &&
-                ['pro', 'team'].includes(effectivePlan(owner))
-            ) {
-                let outcome: Record<string, unknown>;
-                try {
-                    const response = await forwardSend(
-                        exists.payload.forwardingUrl,
-                        AbortSignal.timeout(5000),
-                        {
-                            method: 'POST',
-                            headers: {
-                                'content-type': 'application/json',
-                                'x-kivel-email-id': message.id,
-                            },
-                            requestBody: JSON.stringify({
-                                type: 'email.received',
-                                inboxId: id,
-                                message,
-                            }),
-                        },
-                    );
-                    outcome = { status: response.status, at: new Date().toISOString() };
-                } catch {
-                    outcome = {
-                        error: 'Webhook delivery failed. Read the message from this inbox; forwarding is not retried.',
-                        at: new Date().toISOString(),
-                    };
-                }
-                await resources.update(
-                    id,
-                    'email',
-                    '',
-                    { lastForward: outcome },
-                    exists.ownerId,
-                    true,
-                );
-            }
+            const owner =
+                typeof exists.payload.forwardingUrl === 'string' && exists.ownerId
+                    ? await access.identities.account(exists.ownerId)
+                    : undefined;
+            const forward =
+                owner && effectivePlan(owner) !== 'free'
+                    ? {
+                          url: exists.payload.forwardingUrl as string,
+                          ownerId: owner.id,
+                          dueAt: Date.now(),
+                          attempts: [],
+                      }
+                    : undefined;
+            const stored = await messages.record(id, message, attachmentInput.bodies, forward);
+            if (stored === 'stored' && forward) forwarding.kick();
             return stored === 'stored'
                 ? reply.code(202).send({ stored: true })
                 : reply.code(429).send({ error: 'This inbox is full.' });

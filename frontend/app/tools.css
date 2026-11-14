@@ -3072,3 +3072,202 @@ html[data-view='resource'] .tool-title-name {
     gap: 0;
   }
 }
+
+.email-list > button .email-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  white-space: normal;
+}
+.email-list > button .email-tag {
+  max-width: 100%;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--email-soft);
+  color: var(--email-ink);
+}
+.email-action-row,
+.email-action-row form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.email-action-row {
+  margin-bottom: 16px;
+}
+.email-settings {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.email-address-card {
+  display: grid;
+  gap: 9px;
+  margin: 16px;
+  padding: 16px;
+  color: var(--accent-ink);
+  background: linear-gradient(125deg, var(--sky-deep), var(--accent));
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-md);
+  min-width: 0;
+}
+.email-address-card > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.email-address-card code {
+  overflow-wrap: anywhere;
+}
+.email-address-card button {
+  color: inherit;
+}
+.email-address-card small,
+.email-inbox-meter {
+  font-size: 0.8125rem;
+}
+.email-inbox-meter {
+  display: grid;
+  gap: 4px;
+  margin: 0 16px 12px;
+  color: var(--muted);
+}
+.email-inbox-meter progress {
+  width: 100%;
+  height: 6px;
+  accent-color: var(--accent);
+}
+.email-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 14px 16px;
+}
+.email-extracted {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
+}
+.email-code,
+.email-link {
+  align-content: start;
+  align-items: center;
+  min-width: 0;
+  padding: 16px;
+  border-radius: var(--radius-card);
+}
+.email-code span,
+.email-link span {
+  flex-basis: 100%;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.email-code strong {
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  letter-spacing: 0.02em;
+}
+.email-link {
+  background: var(--surface);
+  border-color: var(--line);
+  box-shadow: var(--shadow-sm);
+}
+.email-link code {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.email-timeline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  padding: 14px;
+  margin: 16px 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  list-style: none;
+}
+.email-timeline li {
+  display: grid;
+  gap: 2px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent-line);
+  font-size: 0.8125rem;
+}
+.email-timeline time {
+  color: var(--muted);
+}
+.email-skeleton {
+  display: grid;
+  gap: 14px;
+}
+.email-skeleton span {
+  max-width: 100%;
+  width: 320px;
+  height: 48px;
+  border-radius: var(--radius-row);
+  background: var(--subtle);
+}
+@media (max-width: 760px) {
+  .email-layout .email-list {
+    max-height: none;
+  }
+  .email-layout .email-detail {
+    padding: 16px;
+  }
+}
+
+.email-inbox-controls > button {
+  min-width: 0;
+  max-width: 100%;
+}
+.email-message-heading {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  overflow-wrap: anywhere;
+}
+.email-message-heading > div {
+  min-width: 0;
+}
+.email-message-heading .email-from {
+  margin-bottom: 0;
+}
+.email-message-heading h2 {
+  font-size: clamp(1.25rem, 2.4vw, 1.75rem);
+}
+.email-sender-mark {
+  display: grid;
+  flex: 0 0 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--email-soft);
+  color: var(--email-ink);
+  font-weight: 650;
+}
+.email-detail .email-from {
+  overflow-wrap: anywhere;
+}
+.email-address-card button {
+  background: transparent;
+  border-color: var(--accent-line);
+}
+.email-inbox-meter progress {
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--accent-soft);
+}
+.email-inbox-meter progress::-moz-progress-bar {
+  background: var(--accent);
+}
+.email-inbox-meter progress::-webkit-progress-bar {
+  background: var(--accent-soft);
+}
+.email-inbox-meter progress::-webkit-progress-value {
+  background: var(--accent);
+}

@@ -554,8 +554,33 @@ X-Request-Id: 1e3e28f5-fb64-474f-845f-b06c17f52eef
                 id: 'filters',
                 title: 'Find messages',
                 paragraphs: [
-                    'Use GET /api/email-inboxes/{id}/messages with from, mailFrom, subject, text, hasCode, hasLink or hasAttachment. All supplied filters must match. Sender filters match the whole mailbox without regard to case. Subject and text filters match literal text.',
+                    'Use GET /api/email-inboxes/{id}/messages with from, mailFrom, subject, text, hasCode, hasLink, hasAttachment, read or label. All supplied filters must match. Sender filters match the whole mailbox without regard to case. Subject and text filters match literal text.',
                     'Filtered results are newest first. Pass nextCursor with the same filters to get the next page. The default page has 20 messages. With no query options, the endpoint still returns the original message list.',
+                ],
+            },
+            {
+                id: 'triage',
+                title: 'Inspect and organize messages',
+                paragraphs: [
+                    'Open one message with GET /api/email-inboxes/{id}/messages/{messageId}, email_message over MCP, emailMessage in the SDK, or kivel email message INBOX_ID MESSAGE_ID. Attachment contents have their own download endpoint.',
+                    'Use PATCH on the same path, updateEmailMessage in the SDK, or kivel email message-update INBOX_ID MESSAGE_ID. In MCP, pass read or labels to email_message. Labels replace the existing list and an empty array clears it. Updates require write access. Set replyTo to the received message ID when sending or creating a reply draft.',
+                ],
+            },
+            {
+                id: 'inbox-access',
+                title: 'Give an agent access to one inbox',
+                paragraphs: [
+                    'A signed in owner or admin can open Inbox access in the dashboard to create a read key or a write key for that inbox. Use the key like any API key with MCP, HTTP, the SDK or the CLI. It cannot open other inboxes or change rules. A write key can submit drafts and wait for its own approval. It cannot approve them.',
+                    'Copy the key when it is created. Revoke it from Inbox access to block new requests. A download link already issued lasts up to two minutes. Existing live streams close within 55 seconds.',
+                ],
+            },
+            {
+                id: 'forwarding',
+                title: 'Verify and inspect forwarded mail',
+                paragraphs: [
+                    'Save a public webhook URL in the dashboard or send PUT /api/email-inboxes/{id}/forwarding. The response includes the inbox signing secret. Copy it into your receiver and keep it private.',
+                    'Verify x-kivel-signature against HMAC SHA256 of x-kivel-timestamp, a period and the raw body. Use the returned secret as a string, check the timestamp is recent and compare in constant time. Deduplicate with x-kivel-email-id. Network errors, HTTP 429 and HTTP 5xx can be retried twice. The message stays in the inbox.',
+                    'View attempts in the dashboard, GET /api/email-inboxes/{id}/deliveries, resource_request with kind email-inboxes and action deliveries, emailDeliveries in the SDK, or kivel email deliveries INBOX_ID. History follows the stored message.',
                 ],
             },
             {

@@ -440,8 +440,7 @@ export function registerEmailSending({
                 }
                 job.status = 'sent';
                 await session.save(job);
-                await messages.replace(inbox.id, job.id, {
-                    ...message,
+                await messages.patch(inbox.id, job.id, {
                     deliveryStatus: 'sent',
                 });
                 return {

@@ -31,6 +31,7 @@ export interface Identity {
     role: Role;
     keyId?: string;
     keyName?: string;
+    emailInboxId?: string;
     keyScopes: Scope[];
     sessionHash?: string;
 }
@@ -42,6 +43,7 @@ export interface KeyInfo {
     createdAt: string;
     expiresAt: string;
     lastUsedAt: string | null;
+    emailInboxId?: string;
 }
 type MaybePromise<T> = T | Promise<T>;
 export interface IdentityRepository {
@@ -62,6 +64,7 @@ export interface IdentityRepository {
         keyScopes: Scope[],
         expiresAt: string,
         kind?: 'manual' | 'agent',
+        emailInboxId?: string,
     ): MaybePromise<{ key: string; info: KeyInfo }>;
     listKeys(identity: Identity): MaybePromise<KeyInfo[]>;
     revokeKey(identity: Identity, id: string): MaybePromise<boolean>;
@@ -222,10 +225,22 @@ export class MemoryIdentityRepository implements IdentityRepository {
     }
     authenticateKey(token: string) {
         const key = this.keys.get(digest(token).toString('hex'));
-        if (!key || Date.parse(key.info.expiresAt) <= Date.now()) return undefined;
+        if (
+            !key ||
+            (token.startsWith('kve_') && !key.info.emailInboxId) ||
+            Date.parse(key.info.expiresAt) <= Date.now()
+        )
+            return undefined;
         key.info.lastUsedAt = new Date().toISOString();
         const identity = this.identity(key.userId, key.accountId, key.info.scopes);
-        return identity ? { ...identity, keyId: key.info.id, keyName: key.info.name } : undefined;
+        return identity
+            ? {
+                  ...identity,
+                  keyId: key.info.id,
+                  keyName: key.info.name,
+                  ...(key.info.emailInboxId ? { emailInboxId: key.info.emailInboxId } : {}),
+              }
+            : undefined;
     }
     revokeSession(token: string) {
         this.sessions.delete(digest(token).toString('hex'));
@@ -236,6 +251,7 @@ export class MemoryIdentityRepository implements IdentityRepository {
         keyScopes: Scope[],
         expiresAt: string,
         kind: 'manual' | 'agent' = 'manual',
+        emailInboxId?: string,
     ) {
         if (identity.sessionHash && !this.sessions.has(identity.sessionHash))
             throw Object.assign(new Error('Session expired. Sign in again.'), { statusCode: 401 });
@@ -253,12 +269,13 @@ export class MemoryIdentityRepository implements IdentityRepository {
                     { statusCode: 409 },
                 );
         }
-        const key = `kv_${randomBytes(32).toString('base64url')}`;
+        const key = `${emailInboxId ? 'kve' : 'kv'}_${randomBytes(32).toString('base64url')}`;
         const info: KeyInfo = {
             id: randomUUID(),
             name,
             prefix: key.slice(0, 10),
             scopes: keyScopes,
+            ...(emailInboxId ? { emailInboxId } : {}),
             createdAt: new Date().toISOString(),
             expiresAt,
             lastUsedAt: null,
@@ -512,11 +529,12 @@ export class PostgresIdentityRepository implements IdentityRepository {
         token: string,
     ): Promise<Identity | undefined> {
         const result = await this.pool.query(
-            `SELECT u.id AS user_id, u.username, a.id AS account_id, a.name, a.plan, a.plan_valid_until, a.quota_key, a.dodo_customer_id, m.role, t.${table === 'api_keys' ? 'id, t.scopes, t.name AS key_name' : 'token_hash'} FROM ${table} t JOIN users u ON u.id = t.user_id JOIN accounts a ON a.id = t.account_id JOIN account_members m ON m.user_id = u.id AND m.account_id = a.id WHERE t.token_hash = $1 AND t.expires_at > clock_timestamp() AND u.disabled_at IS NULL ${table === 'api_keys' ? 'AND t.revoked_at IS NULL' : ''}`,
+            `SELECT u.id AS user_id, u.username, a.id AS account_id, a.name, a.plan, a.plan_valid_until, a.quota_key, a.dodo_customer_id, m.role, t.${table === 'api_keys' ? 'id, t.scopes, t.name AS key_name, t.email_inbox_id' : 'token_hash'} FROM ${table} t JOIN users u ON u.id = t.user_id JOIN accounts a ON a.id = t.account_id JOIN account_members m ON m.user_id = u.id AND m.account_id = a.id WHERE t.token_hash = $1 AND t.expires_at > clock_timestamp() AND u.disabled_at IS NULL ${table === 'api_keys' ? 'AND t.revoked_at IS NULL' : ''}`,
             [digest(token)],
         );
         const row = result.rows[0];
-        if (!row) return undefined;
+        if (!row || (table === 'api_keys' && token.startsWith('kve_') && !row.email_inbox_id))
+            return undefined;
         if (table === 'api_keys')
             await this.pool.query(
                 'UPDATE api_keys SET last_used_at = clock_timestamp() WHERE id = $1',
@@ -531,7 +549,11 @@ export class PostgresIdentityRepository implements IdentityRepository {
                 (scope) => !row.scopes || row.scopes.includes(scope),
             ),
             ...(table === 'api_keys'
-                ? { keyId: row.id, keyName: row.key_name }
+                ? {
+                      keyId: row.id,
+                      keyName: row.key_name,
+                      ...(row.email_inbox_id ? { emailInboxId: row.email_inbox_id } : {}),
+                  }
                 : { sessionHash: digest(token).toString('hex') }),
         } satisfies Identity;
     }
@@ -550,8 +572,9 @@ export class PostgresIdentityRepository implements IdentityRepository {
         keyScopes: Scope[],
         expiresAt: string,
         kind: 'manual' | 'agent' = 'manual',
+        emailInboxId?: string,
     ) {
-        const key = `kv_${randomBytes(32).toString('base64url')}`,
+        const key = `${emailInboxId ? 'kve' : 'kv'}_${randomBytes(32).toString('base64url')}`,
             id = randomUUID();
         const result = await transaction(this.pool, async (client) => {
             await client.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [identity.userId]);
@@ -582,7 +605,7 @@ export class PostgresIdentityRepository implements IdentityRepository {
                     );
             }
             return client.query(
-                'INSERT INTO api_keys (id, token_hash, user_id, account_id, name, prefix, scopes, expires_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING created_at',
+                'INSERT INTO api_keys (id, token_hash, user_id, account_id, name, prefix, scopes, expires_at, email_inbox_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING created_at',
                 [
                     id,
                     digest(key),
@@ -592,6 +615,7 @@ export class PostgresIdentityRepository implements IdentityRepository {
                     key.slice(0, 10),
                     keyScopes,
                     expiresAt,
+                    emailInboxId ?? null,
                 ],
             );
         });
@@ -602,6 +626,7 @@ export class PostgresIdentityRepository implements IdentityRepository {
                 name,
                 prefix: key.slice(0, 10),
                 scopes: keyScopes,
+                ...(emailInboxId ? { emailInboxId } : {}),
                 createdAt: result.rows[0].created_at.toISOString(),
                 expiresAt,
                 lastUsedAt: null,
@@ -618,6 +643,7 @@ export class PostgresIdentityRepository implements IdentityRepository {
             name: row.name,
             prefix: row.prefix,
             scopes: row.scopes,
+            ...(row.email_inbox_id ? { emailInboxId: row.email_inbox_id } : {}),
             createdAt: row.created_at.toISOString(),
             expiresAt: row.expires_at.toISOString(),
             lastUsedAt: row.last_used_at?.toISOString() ?? null,
@@ -634,6 +660,7 @@ export class PostgresIdentityRepository implements IdentityRepository {
             name: row.name,
             prefix: row.prefix,
             scopes: row.scopes,
+            ...(row.email_inbox_id ? { emailInboxId: row.email_inbox_id } : {}),
             createdAt: row.created_at.toISOString(),
             expiresAt: row.expires_at.toISOString(),
             lastUsedAt: row.last_used_at?.toISOString() ?? null,

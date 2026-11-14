@@ -29,6 +29,7 @@ webhooks, mocks, files and utilities, but cannot create email inboxes or memory.
    Check /api/capabilities before using operator-enabled services such as phones.
    Its events return one cursor per source. Waits stop after at most 30 seconds;
    `timedOut` means no new data, not success. Resume with the cursor.
+   For email triage, use `email_message` with the inbox and message IDs. Pass `read` or `labels` to update it with a write key. Set `replyTo` when creating a draft reply. Read email forwarding history with `resource_request` (kind `email-inboxes`, action `deliveries`). An owner or admin can issue an inbox key in the dashboard; that key only accesses its assigned inbox.
 3. Inspect structured results and delete resources when finished. Free email has
    one random inbox for 1–7 days (default three); Pro has 10 and Team 50 while
    subscribed, with optional `localPart`. Retired addresses are never reassigned.

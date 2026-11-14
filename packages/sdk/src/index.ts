@@ -658,11 +658,17 @@ export class Kivel {
         );
     }
     emailForwarding(id: string, url: string | null, token?: string) {
-        return this.request<{ forwardingUrl: string | null }>(
+        return this.request<{ forwardingUrl: string | null; signingSecret?: string }>(
             'PUT',
             `/api/email-inboxes/${encodeURIComponent(id)}/forwarding`,
             { url },
             token,
+        );
+    }
+    emailDeliveries(id: string) {
+        return this.request<{ deliveries: import('./types.js').EmailDelivery[] }>(
+            'GET',
+            `/api/email-inboxes/${encodeURIComponent(id)}/deliveries`,
         );
     }
     emailInbox(id: string, token?: string) {
@@ -682,6 +688,25 @@ export class Kivel {
             `/api/email-inboxes/${encodeURIComponent(id)}/messages${query(filters)}`,
             undefined,
             token,
+        );
+    }
+    emailMessage(id: string, messageId: string, token?: string) {
+        return this.request<EmailMessage>(
+            'GET',
+            `/api/email-inboxes/${encodeURIComponent(id)}/messages/${encodeURIComponent(messageId)}`,
+            undefined,
+            token,
+        );
+    }
+    updateEmailMessage(
+        id: string,
+        messageId: string,
+        update: import('./types.js').EmailMessageUpdate,
+    ) {
+        return this.request<EmailMessage>(
+            'PATCH',
+            `/api/email-inboxes/${encodeURIComponent(id)}/messages/${encodeURIComponent(messageId)}`,
+            update,
         );
     }
     waitForEmail(id: string, options: EmailWaitOptions = {}) {

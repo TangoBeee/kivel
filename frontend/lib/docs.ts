@@ -542,6 +542,46 @@ X-Request-Id: 1e3e28f5-fb64-474f-845f-b06c17f52eef
         ],
     },
     {
+        slug: 'custom-email-address',
+        title: 'Receive mail at your own address',
+        navTitle: 'Custom receiving address',
+        group: 'Resources',
+        description:
+            'Route a single Cloudflare Email Routing address into an existing Kivel email inbox.',
+        updatedAt,
+        sections: [
+            {
+                id: 'verify',
+                title: 'Verify your subdomain',
+                paragraphs: [
+                    'On Pro or Team, open Email in the dashboard. Select an existing inbox and open Custom receiving address. Enter an exact address such as agent@agents.example.com. Use a dedicated subdomain so the MX records for your existing mail stay as they are.',
+                    'Cloudflare must serve DNS for the zone and support Email Routing on the subdomain. If Cloudflare asks you to replace MX records used by your current provider, stop and choose a different zone. Add the TXT record shown in Kivel and choose Verify DNS after the record is visible. Keep the TXT record published while the route is active. Verification checks DNS; send a test email to confirm that Cloudflare is forwarding to the right Worker.',
+                ],
+            },
+            {
+                id: 'worker',
+                title: 'Deploy the routing Worker',
+                paragraphs: [
+                    'Follow the Worker deployment instructions in the Kivel repository. In your Cloudflare account, set INGEST_URL and CUSTOM_ROUTE_ADDRESS to the values shown in the dashboard. Set CUSTOM_ROUTE_KEY as a Worker secret. Use a separate Worker for each address. In Cloudflare Email Routing, create an exact address rule with Send to a Worker and select this Worker.',
+                    'Send a test message from a separate account and check that it appears in the selected Kivel inbox. This address receives mail only. Replies and outgoing mail still use the original Kivel address. Remove the custom address to stop accepting mail without deleting the inbox or its history.',
+                ],
+            },
+            {
+                id: 'agent-access',
+                title: 'Find the address from an agent',
+                paragraphs: [
+                    'Use resource_request with kind email-inboxes and action inspect. The result includes customAddress when one is configured. You can also use emailCustomAddress in the SDK or kivel email custom-address INBOX_ID. Agents read and wait on the same inbox ID as before. Only a signed in workspace owner or admin can configure or remove the route.',
+                ],
+            },
+        ],
+        related: [
+            {
+                title: 'Email Worker deployment instructions',
+                href: 'https://github.com/TangoBeee/kivel/tree/main/deploy/email-worker',
+            },
+        ],
+    },
+    {
         slug: 'email-search',
         title: 'Search and wait for email',
         navTitle: 'Email search',

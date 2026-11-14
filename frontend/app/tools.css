@@ -3271,3 +3271,23 @@ html[data-view='resource'] .tool-title-name {
 .email-inbox-meter progress::-webkit-progress-value {
   background: var(--accent);
 }
+
+.email-route-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: min(100%, 440px);
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  background: var(--subtle);
+}
+.email-route-field > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.email-route-field span {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}

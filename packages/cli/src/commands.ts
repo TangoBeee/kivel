@@ -35,6 +35,7 @@ kivel password generate [--length <n>]
 kivel email message <inbox-id> <message-id>
 kivel email message-update <inbox-id> <message-id> < update.json
 kivel email deliveries <inbox-id>
+kivel email custom-address <inbox-id>
 kivel email threads [inbox-id] [--cursor <cursor>] [--limit <n>]
 kivel email thread <inbox-id> <thread-id>
 kivel email drafts|rules <inbox-id>

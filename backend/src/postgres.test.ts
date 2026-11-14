@@ -443,7 +443,7 @@ test('upgrading an existing webhook-only database preserves captures and enables
     await pool.query(
         `DROP TRIGGER inbox_quota ON inboxes; DROP FUNCTION enforce_resource_quota() CASCADE;
          ALTER TABLE inboxes DROP COLUMN owner_id, DROP COLUMN quota_key, DROP COLUMN created_at, DROP COLUMN persistent, DROP COLUMN request_limit, DROP COLUMN byte_limit, DROP COLUMN visibility, DROP COLUMN access_token_hash, DROP COLUMN access_version, DROP COLUMN response, DROP COLUMN forward_url;
-         DROP FUNCTION record_live_event() CASCADE; DROP TABLE live_stream_leases, live_events, phone_messages, phone_numbers, scheduled_jobs, email_send_jobs, email_sender_suspensions, email_suppressions, email_addresses, mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors, cookie_coupons, approvals, agent_trials, agent_logins, agents, user_contact_emails, auth_mail_outbox, auth_challenges, user_recovery_emails, temporary_resources, resource_usage, account_members, auth_sessions, api_keys, account_invites, users, accounts, usage_plans, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events CASCADE; DELETE FROM schema_migrations WHERE version > 1`,
+         DROP FUNCTION record_live_event() CASCADE; DROP TABLE IF EXISTS email_custom_addresses; DROP TABLE live_stream_leases, live_events, phone_messages, phone_numbers, scheduled_jobs, email_send_jobs, email_sender_suspensions, email_suppressions, email_addresses, mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors, cookie_coupons, approvals, agent_trials, agent_logins, agents, user_contact_emails, auth_mail_outbox, auth_challenges, user_recovery_emails, temporary_resources, resource_usage, account_members, auth_sessions, api_keys, account_invites, users, accounts, usage_plans, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events CASCADE; DELETE FROM schema_migrations WHERE version > 1`,
     );
     await Promise.all([migrate(pool), migrate(pool)]);
     assert.equal(
@@ -1228,7 +1228,7 @@ test('Dodo migration preserves legacy Stripe data without adopting its customer 
         user.personalAccountId,
     ]);
     await pool.query(
-        'ALTER TABLE accounts DROP COLUMN phone_allowance, DROP COLUMN dodo_customer_id, DROP COLUMN dodo_subscription_id, DROP COLUMN dodo_event_created, DROP COLUMN dodo_checkout_id, DROP COLUMN dodo_checkout_url, DROP COLUMN dodo_checkout_plan; DROP TABLE dodo_events; ALTER TABLE inboxes DROP COLUMN response, DROP COLUMN forward_url; DROP FUNCTION record_live_event() CASCADE; DROP TABLE live_stream_leases, live_events, phone_messages, phone_numbers, scheduled_jobs, email_send_jobs, email_sender_suspensions, email_suppressions, email_addresses, mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors, cookie_coupons, approvals, agent_trials, agent_logins, agents; DELETE FROM schema_migrations WHERE version >= 8',
+        'ALTER TABLE accounts DROP COLUMN phone_allowance, DROP COLUMN dodo_customer_id, DROP COLUMN dodo_subscription_id, DROP COLUMN dodo_event_created, DROP COLUMN dodo_checkout_id, DROP COLUMN dodo_checkout_url, DROP COLUMN dodo_checkout_plan; DROP TABLE dodo_events; ALTER TABLE inboxes DROP COLUMN response, DROP COLUMN forward_url; DROP FUNCTION record_live_event() CASCADE; DROP TABLE IF EXISTS email_custom_addresses; DROP TABLE live_stream_leases, live_events, phone_messages, phone_numbers, scheduled_jobs, email_send_jobs, email_sender_suspensions, email_suppressions, email_addresses, mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors, cookie_coupons, approvals, agent_trials, agent_logins, agents; DELETE FROM schema_migrations WHERE version >= 8',
     );
     await Promise.all([migrate(pool), migrate(pool)]);
     const row = (
@@ -3863,6 +3863,35 @@ test('agent approvals and replacements respect workspace caps across replicas', 
         assert.ok(!keys.some(({ id }) => id === old));
         assert.equal((await agents.agents(accountId)).length, max);
     }
+});
+
+test('custom address uniqueness, rotation and deletion persist in PostgreSQL', async () => {
+    const { CustomEmailAddresses } = await import('./email-custom-address.js');
+    const identities = new PostgresIdentityRepository(pool);
+    const resources = new PostgresResourceStore(pool);
+    const user = (await identities.register('custom-inbox-owner', 'unused'))!;
+    const owner = (await identities.account(user.personalAccountId))!;
+    const allocation = {
+        ownerId: owner.id,
+        quotaKey: owner.quotaKey,
+        plan: 'pro' as const,
+        visibility: 'private' as const,
+    };
+    const first = (await resources.create('email', {}, undefined, allocation))!;
+    const second = (await resources.create('email', {}, undefined, allocation))!;
+    const store = new CustomEmailAddresses(pool);
+    const address = 'agent@agents.example.com';
+    const claims = await Promise.allSettled(
+        [first, second].map((inbox) => store.set(inbox.id, owner.id, address)),
+    );
+    assert.equal(claims.filter((result) => result.status === 'fulfilled').length, 1);
+    const initial = (await new CustomEmailAddresses(pool).find(address))!;
+    const same = await store.set(initial.inboxId, owner.id, address);
+    assert.equal(same.version, initial.version);
+    const rotated = await store.set(initial.inboxId, owner.id, address, true);
+    assert.notEqual(rotated.version, same.version);
+    await resources.delete(initial.inboxId, 'email', '', owner.id);
+    assert.equal(await store.find(address), undefined);
 });
 
 test('email forwarding leases and attempt history survive repository restart', async () => {

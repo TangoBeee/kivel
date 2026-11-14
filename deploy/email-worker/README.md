@@ -31,3 +31,28 @@ The backend rollout does not redeploy the email worker. The ingest endpoint acce
 8 MiB of signed JSON for Base64 transport. At most four large or unknown-size requests
 are admitted at once; messages with a declared body size up to 256 KiB use a separate
 lane so large deliveries do not block verification emails.
+
+## Custom receiving address
+
+For a workspace using its own Cloudflare subdomain, start in **Email → Custom receiving
+address** in Kivel. Use a dedicated subdomain, enable Cloudflare Email Routing there,
+and publish the TXT record Kivel gives you. Choose **Verify DNS**. If Cloudflare
+requires you to replace MX records used by your current provider, choose a different
+zone. See [Cloudflare’s subdomain setup](https://developers.cloudflare.com/email-service/configuration/subdomains/).
+
+Deploy this source to a separate Worker per exact address. In a local copy of
+`wrangler.toml`, set a distinct Worker name and add `CUSTOM_ROUTE_ADDRESS` under
+`[vars]`. Set `INGEST_URL` to the URL shown in Kivel. Run:
+
+```sh
+npm install
+npx wrangler secret put CUSTOM_ROUTE_KEY
+npx wrangler deploy
+```
+
+Create a rule for the exact address in Cloudflare and select **Send to a Worker**.
+Keep the ownership TXT record published. Send a test mail from another account and
+check that it appears in the target inbox. Never install the server's
+`EMAIL_INGEST_SECRET` on a customer Worker. Deleting the route or rotating its key
+in Kivel stops the old key from working. Outgoing mail stays on the inbox's
+original address.

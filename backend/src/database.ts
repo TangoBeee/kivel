@@ -335,6 +335,13 @@ export async function migrate(pool: Pool): Promise<void> {
                 ADD COLUMN IF NOT EXISTS forward_due bigint;
             CREATE INDEX IF NOT EXISTS email_messages_forward_due
                 ON email_messages(forward_due, sequence) WHERE forward_due IS NOT NULL;
+            CREATE TABLE IF NOT EXISTS email_custom_addresses (
+                inbox_id uuid PRIMARY KEY REFERENCES temporary_resources(id) ON DELETE CASCADE,
+                owner_id uuid NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                address text UNIQUE NOT NULL,
+                version uuid NOT NULL,
+                verified_at timestamptz NOT NULL
+            );
         `);
         // The function adds error details without changing the schema used by older releases.
         if (version >= 5) await client.query(quotaFunction);

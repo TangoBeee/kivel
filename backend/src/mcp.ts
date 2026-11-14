@@ -965,7 +965,7 @@ export const platformTools = [
     {
         name: 'resource_request',
         description:
-            'Manage webhook, email, mock API, file, authenticator, vault, test payment and mock MCP resources through HTTP lifecycle routes. Authenticators support create, inspect, list, update (name) and delete only; use them only for accounts your human asked you to create or operate. Use calls for mock history; response or forward with config to configure a webhook (config.reset=true restores defaults); deliveries reads forwarding history. Email supports create, inspect, delete and renew; mail reading stays private.',
+            'Manage webhook, email, mock API, file, authenticator, vault, test payment and mock MCP resources through HTTP lifecycle routes. Authenticators support create, inspect, list, update (name) and delete only; use them only for accounts your human asked you to create or operate. Use calls for mock history; response or forward with config to configure a webhook (config.reset=true restores defaults); deliveries reads forwarding history. Email supports create, inspect, delete and renew. Inspect shows the verified custom receiving address when one is attached. Custom address setup requires a workspace owner or admin in the dashboard.',
         inputSchema: schema(
             {
                 kind: {

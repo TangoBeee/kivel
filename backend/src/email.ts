@@ -1,3 +1,11 @@
+import {
+    customAddress,
+    checkCustomAddress,
+    ownershipRecord,
+    routeKey,
+    routedMessageId,
+} from './email-custom-address.js';
+import type { CustomEmailAddresses } from './email-custom-address.js';
 import { startEmailForwarding } from './email-forwarding.js';
 import type { EmailForwardState } from './email-forwarding.js';
 import { emailQuery, emailFilterFields } from './email-query.js';
@@ -616,6 +624,8 @@ interface EmailContext {
     mailDomain?: string;
     ingestSecret?: string;
     addresses: EmailAddressRepository;
+    customAddresses: CustomEmailAddresses;
+    customDns?: typeof checkCustomAddress;
     forwardSend?: ForwardSend;
     forwardDelays?: number[];
     authSecret?: string;
@@ -632,6 +642,8 @@ export function registerEmail({
     mailDomain,
     ingestSecret,
     addresses,
+    customAddresses,
+    customDns = checkCustomAddress,
     forwardSend = (url, signal, options) => publicRequest(url, signal, { ...options, body: false }),
     forwardDelays,
     authSecret,
@@ -781,6 +793,9 @@ export function registerEmail({
             expiresAt: row ? row.expiresAt : inbox.expiresAt,
             persistent: inbox.persistent,
             status: row?.pausedAt ? 'paused' : 'active',
+            customAddress: row
+                ? ((await customAddresses.find(inbox.id, 'inboxId'))?.address ?? null)
+                : null,
             forwardingUrl: inbox.payload.forwardingUrl ?? null,
             lastForward:
                 (await messages.deliveries(inbox.id))
@@ -859,6 +874,80 @@ export function registerEmail({
                     inbox.id,
                 ),
             );
+    });
+
+    const customSettings = async (request: FastifyRequest, id: string) => {
+        const human = await access.require(request, 'resources:write', true);
+        if (!['owner', 'admin'].includes(human.role))
+            throw new HttpError(
+                403,
+                'Only workspace owners and admins can manage custom addresses.',
+            );
+        entitlement(human, 'customEmailAddress', access.origin);
+        const { inbox, row } = await owned(request, id);
+        if (!row || row.pausedAt || inbox.ownerId !== human.account.id)
+            throw new HttpError(404, 'Use an active, owned email inbox.');
+        if (!authSecret || !mailDomain)
+            throw new HttpError(503, 'Custom email routing is not configured.');
+        return { id: inbox.id, ownerId: human.account.id, secret: authSecret, domain: mailDomain };
+    };
+    type CustomRoute = { Params: { id: string }; Querystring: { address?: string } };
+    const customPath = '/api/email-inboxes/:id/custom-address';
+    app.get<CustomRoute>(customPath, async (request) => {
+        const caller = await access.require(request, 'resources:read');
+        const { inbox, row } = await owned(request, request.params.id);
+        if (!row || inbox.ownerId !== caller.account.id)
+            throw new HttpError(404, 'Email inbox unavailable or access denied.');
+        const current = await customAddresses.find(inbox.id, 'inboxId');
+        if (request.query.address !== undefined) {
+            const { id, secret, domain } = await customSettings(request, request.params.id);
+            const address = customAddress(request.query.address, domain);
+            return { address, dns: ownershipRecord(secret, id, address) };
+        }
+        return {
+            customAddress: current
+                ? { address: current.address, verifiedAt: current.verifiedAt }
+                : null,
+        };
+    });
+    app.put<CustomRoute>(customPath, async (request) => {
+        const { id, ownerId, secret, domain } = await customSettings(request, request.params.id);
+        const input = request.body as { address?: unknown; rotate?: unknown } | null;
+        if (input?.rotate !== undefined && typeof input.rotate !== 'boolean')
+            throw new HttpError(400, 'Rotate must be true or false.');
+        const address = customAddress(input?.address, domain);
+        const dns = ownershipRecord(secret, id, address);
+        await access.rate(request, true);
+        const checks = await customDns(dns);
+        if (!checks.ownership)
+            throw new HttpError(
+                409,
+                'Publish the Kivel TXT record for this address, then verify again.',
+            );
+        if (!checks.routing)
+            throw new HttpError(
+                409,
+                'Enable Cloudflare Email Routing on this subdomain, then verify again.',
+            );
+        const current = await customAddresses.set(id, ownerId, address, input?.rotate === true);
+        return {
+            customAddress: { address, verifiedAt: current.verifiedAt },
+            ingestUrl: `${access.origin}/hooks/email`,
+            routingKey: routeKey(secret, current),
+        };
+    });
+    app.delete<CustomRoute>(customPath, async (request, reply) => {
+        const human = await access.require(request, 'resources:write', true);
+        if (!['owner', 'admin'].includes(human.role))
+            throw new HttpError(
+                403,
+                'Only workspace owners and admins can manage custom addresses.',
+            );
+        const { inbox } = await owned(request, request.params.id);
+        if (inbox.ownerId !== human.account.id)
+            throw new HttpError(404, 'Email inbox unavailable or access denied.');
+        await customAddresses.delete(inbox.id);
+        return reply.code(204).send();
     });
 
     app.get('/api/email-inboxes', async (request) => {
@@ -1163,9 +1252,10 @@ export function registerEmail({
         });
     });
     app.delete<{ Params: { id: string } }>('/api/email-inboxes/:id', async (request, reply) => {
-        const { actor, row } = await owned(request, request.params.id);
+        const { actor, inbox, row } = await owned(request, request.params.id);
         if (row) {
             await lifecycle.retire(row);
+            await customAddresses.delete(inbox.id);
             return reply.code(204).send();
         }
         const deleted = await resources.delete(
@@ -1211,30 +1301,40 @@ export function registerEmail({
             if (!ingestSecret || !mailDomain)
                 return reply.code(503).send({ error: 'Email ingest is not configured.' });
             const raw = Buffer.isBuffer(request.body) ? request.body : Buffer.alloc(0);
+            const custom = request.headers['x-kivel-email-route'] === 'custom';
+            const timestamp = request.headers['x-kivel-timestamp'];
+            const signature = request.headers['x-kivel-signature'];
             if (
-                !verifyIngest(
-                    ingestSecret,
-                    request.headers['x-kivel-timestamp'],
-                    request.headers['x-kivel-signature'],
-                    raw,
-                )
+                custom &&
+                (typeof timestamp !== 'string' ||
+                    !/^\d{10}$/.test(timestamp) ||
+                    Math.abs(Date.now() - Number(timestamp) * 1000) > 300000 ||
+                    typeof signature !== 'string' ||
+                    !/^sha256=[a-f0-9]{64}$/.test(signature))
             )
+                return reply.code(401).send({ error: 'Invalid signature.' });
+            const verify = (secret: string) => verifyIngest(secret, timestamp, signature, raw);
+            if (!custom && !verify(ingestSecret))
                 return reply.code(401).send({ error: 'Invalid signature.' });
             let input: Record<string, unknown>;
             try {
                 input = JSON.parse(raw.toString('utf8'));
+                if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error();
             } catch {
                 return reply.code(400).send({ error: 'Invalid JSON.' });
             }
+            const to = text(input.to, 320).toLowerCase();
+            const routed = custom && authSecret ? await customAddresses.find(to) : undefined;
+            if (custom && (!routed || !authSecret || !verify(routeKey(authSecret, routed))))
+                return reply.code(401).send({ error: 'Invalid signature.' });
             if (input.rawSize !== undefined) {
                 if (!Number.isSafeInteger(input.rawSize) || Number(input.rawSize) < 0)
                     throw new HttpError(400, 'rawSize must be a nonnegative integer.');
                 if (Number(input.rawSize) > MESSAGE_ATTACHMENT_BYTES)
                     throw new HttpError(413, 'Message exceeds 5 MiB.');
             }
-            if (feedback && (await feedback(input)))
+            if (!custom && feedback && (await feedback(input)))
                 return reply.code(202).send({ received: true });
-            const to = text(input.to, 320).toLowerCase();
             const [local, domain] = to.split('@');
             const row = domain === mailDomain ? await addresses.find(to) : undefined;
             if (row) await lifecycle.reconcile(row.ownerId);
@@ -1242,14 +1342,45 @@ export function registerEmail({
             if (current?.retiredAt || current?.pausedAt)
                 return reply.code(404).send({ error: 'Unknown address.' });
             const id =
+                routed?.inboxId ??
                 current?.resourceId ??
                 (local && domain === mailDomain && !row ? emailInboxId(local) : undefined);
             if (!id) return reply.code(404).send({ error: 'Unknown address.' });
-            const exists = await resources.peek(
-                id,
-                'email',
-                current ? { ownerId: current.ownerId } : {},
-            );
+            let exists;
+            if (routed && authSecret) {
+                const identity = await access.identities.account(routed.ownerId);
+                if (!identity || effectivePlan(identity) === 'free')
+                    return reply.code(404).send({ error: 'Unknown address.' });
+                const destination = await resources.read(id, 'email', '', routed.ownerId);
+                if (!destination || destination.ownerId !== routed.ownerId)
+                    return reply.code(404).send({ error: 'Unknown address.' });
+                const registration =
+                    typeof destination.payload.address === 'string'
+                        ? await addresses.find(destination.payload.address)
+                        : undefined;
+                if (
+                    !registration ||
+                    registration.resourceId !== id ||
+                    registration.retiredAt ||
+                    registration.pausedAt
+                )
+                    return reply.code(404).send({ error: 'Unknown address.' });
+                const checks = await customDns(ownershipRecord(authSecret, id, routed.address));
+                if (!checks.ownership || !checks.routing)
+                    return reply
+                        .code(404)
+                        .send({ error: 'Custom address DNS is no longer verified.' });
+                const activeRoute = await customAddresses.find(to);
+                if (activeRoute?.version !== routed.version || activeRoute?.inboxId !== id)
+                    return reply.code(401).send({ error: 'Invalid signature.' });
+                exists = destination;
+            } else {
+                exists = await resources.peek(
+                    id,
+                    'email',
+                    current ? { ownerId: current.ownerId } : {},
+                );
+            }
             if (!exists) return reply.code(404).send({ error: 'Unknown address.' });
             const from = typeof input.from === 'string' ? input.from : '';
             const mailFrom = typeof input.mailFrom === 'string' ? input.mailFrom : '';
@@ -1272,7 +1403,7 @@ export function registerEmail({
             )
                 throw new HttpError(413, 'Message exceeds 5 MiB.');
             const message: EmailMessage = {
-                id: crypto.randomUUID(),
+                id: routed ? routedMessageId(id, raw) : crypto.randomUUID(),
                 receivedAt: new Date().toISOString(),
                 from: from.slice(0, 320),
                 ...(typeof input.mailFrom === 'string' ? { mailFrom: mailFrom.slice(0, 320) } : {}),

@@ -671,6 +671,12 @@ export class Kivel {
             `/api/email-inboxes/${encodeURIComponent(id)}/deliveries`,
         );
     }
+    emailCustomAddress(id: string) {
+        return this.request<{ customAddress: { address: string; verifiedAt: string } | null }>(
+            'GET',
+            `/api/email-inboxes/${encodeURIComponent(id)}/custom-address`,
+        );
+    }
     emailInbox(id: string, token?: string) {
         return this.request<EmailInbox>(
             'GET',

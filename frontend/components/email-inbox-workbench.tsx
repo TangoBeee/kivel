@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import { AlertDialog, Button, Select, TextArea, TextField } from '@radix-ui/themes';
 import { api, ApiError, resourceHeaders } from '../lib/api';
 import { useViewer } from '../lib/viewer';
+import { EmailCustomAddress } from './email-custom-address';
 import { EmailInboxAccess } from './email-inbox-access';
 import { EmailDrafts } from './email-drafts';
 import { EmailInboxRules } from './email-inbox-rules';
@@ -1303,6 +1304,9 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                         onApprovalChange={setRequireApproval}
                     />
                     {canManage && <EmailInboxAccess key={inbox.id} id={inbox.id} />}
+                    {canManage && paid && inbox.status !== 'paused' && (
+                        <EmailCustomAddress key={inbox.id} id={inbox.id} />
+                    )}
                     <details className="connection-details">
                         <summary>Forward mail to a webhook · Pro</summary>
                         {!paid ? (

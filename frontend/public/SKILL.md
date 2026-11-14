@@ -32,7 +32,10 @@ webhooks, mocks, files and utilities, but cannot create email inboxes or memory.
    For email triage, use `email_message` with the inbox and message IDs. Pass `read` or `labels` to update it with a write key. Set `replyTo` when creating a draft reply. Read email forwarding history with `resource_request` (kind `email-inboxes`, action `deliveries`). An owner or admin can issue an inbox key in the dashboard; that key only accesses its assigned inbox.
 3. Inspect structured results and delete resources when finished. Free email has
    one random inbox for 1–7 days (default three); Pro has 10 and Team 50 while
-   subscribed, with optional `localPart`. Retired addresses are never reassigned.
+   subscribed, with optional `localPart`. Retired Kivel addresses are never reassigned.
+   If a human connected a custom receiving address, inspect the inbox to read
+   `customAddress`. Use the same inbox ID to wait for mail. Custom addresses do
+   not send mail.
 4. `send_email` exists only as an operator-enabled capability: verify availability
    and recipient intent first. It needs a unique `idempotencyKey`. Keep that key
    for uncertain retries; never create a new key to bypass limits or suspension.

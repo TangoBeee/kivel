@@ -379,6 +379,7 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
     }
     if (group === 'email') {
         if (action === 'deliveries') return client.emailDeliveries(id());
+        if (action === 'custom-address') return client.emailCustomAddress(id());
         if (action === 'threads') {
             if (positional.length > 1) throw new Error('Provide at most one inbox ID.');
             return client.emailThreads(positional[0], threadPage);

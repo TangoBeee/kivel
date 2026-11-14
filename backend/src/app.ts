@@ -1,3 +1,5 @@
+import { CustomEmailAddresses } from './email-custom-address.js';
+import type { checkCustomAddress } from './email-custom-address.js';
 import { LiveEvents } from './live-events.js';
 import { registerLiveStream } from './live-stream.js';
 import { LimitError, RateLimitError } from './errors.js';
@@ -120,6 +122,7 @@ interface AppOptions {
     agentEmailSend?: AgentEmailSend;
     mailDomain?: string;
     emailIngestSecret?: string;
+    emailCustomDns?: typeof checkCustomAddress;
     activity?: ActivityRepository;
     memory?: MemoryRepository;
     monitorStore?: MonitorRepository;
@@ -188,6 +191,7 @@ export function buildApp({
     agentEmailSend,
     mailDomain,
     emailIngestSecret,
+    emailCustomDns,
     activity = new MemoryActivity(),
     memory = new MemoryKv(),
     monitorStore = new MemoryMonitors(),
@@ -474,7 +478,7 @@ export function buildApp({
             if (identity?.emailInboxId) {
                 const read = ['GET', 'HEAD'].includes(request.method);
                 const inboxMail = read
-                    ? /^\/api\/email-inboxes(?:\/:id(?:\/(?:wait|messages|threads|drafts|rules|deliveries|messages\/:messageId(?:\/attachments\/:attachmentId)?|threads\/:threadId))?)?$/
+                    ? /^\/api\/email-inboxes(?:\/:id(?:\/(?:wait|messages|threads|drafts|rules|deliveries|custom-address|messages\/:messageId(?:\/attachments\/:attachmentId)?|threads\/:threadId))?)?$/
                     : /^\/api\/email-inboxes\/:id\/(?:messages\/:messageId|send|drafts)$/;
                 const draft = /^\/api\/email-drafts\/:id(?:\/send)?$/;
                 if (
@@ -901,6 +905,8 @@ export function buildApp({
         resources: resourceStore,
         messages: emailMessages,
         addresses: emailAddresses,
+        customAddresses: new CustomEmailAddresses(databasePool),
+        ...(emailCustomDns ? { customDns: emailCustomDns } : {}),
         sendingEnabled: agentEmailConfig?.enabled ?? false,
         feedback: (input) =>
             receiveEmailFeedback(

@@ -53,6 +53,7 @@ export interface EmailInbox {
     expiresAt: string | null;
     persistent: boolean;
     status?: 'active' | 'paused';
+    customAddress?: string | null;
     forwardingUrl?: string | null;
     managementToken?: string;
     messageCount?: number;

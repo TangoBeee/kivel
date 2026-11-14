@@ -29,6 +29,14 @@ async function sign(secret, payload) {
 export function createEmailWorker(parse) {
     return {
         async email(message, env) {
+            const custom = env.CUSTOM_ROUTE_KEY;
+            if (
+                custom &&
+                String(message.to).toLowerCase() !== env.CUSTOM_ROUTE_ADDRESS?.toLowerCase()
+            ) {
+                message.setReject('No such mailbox.');
+                return;
+            }
             if (message.rawSize > MAX_RAW) {
                 message.setReject('Message too large.');
                 return;
@@ -69,11 +77,13 @@ export function createEmailWorker(parse) {
                 headers: {
                     'content-type': 'application/json',
                     'x-kivel-timestamp': timestamp,
-                    'x-kivel-signature': `sha256=${await sign(env.EMAIL_INGEST_SECRET, `${timestamp}.${body}`)}`,
+                    ...(custom ? { 'x-kivel-email-route': 'custom' } : {}),
+                    'x-kivel-signature': `sha256=${await sign(custom || env.EMAIL_INGEST_SECRET, `${timestamp}.${body}`)}`,
                 },
                 body,
             });
-            if (response.status === 404) message.setReject('No such mailbox.');
+            if (response.status === 404 || (custom && response.status === 401))
+                message.setReject('No such mailbox.');
             else if (response.status === 429) message.setReject('Mailbox is full.');
             else if (response.status === 413)
                 message.setReject('Message or attachment storage limit exceeded.');

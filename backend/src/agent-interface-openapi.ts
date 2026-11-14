@@ -671,6 +671,51 @@ export function agentInterfaceOpenApi() {
                 },
             ),
         },
+        '/api/email-inboxes/{id}/custom-address': {
+            parameters: id,
+            get: operation(
+                'getCustomEmailAddress',
+                'Email inboxes',
+                'Read the custom receiving address',
+                {
+                    description:
+                        'A workspace owner or admin signed in to the dashboard can supply address to generate a DNS proof. Without it, reads only public address metadata for the owned inbox.',
+                    parameters: [
+                        {
+                            name: 'address',
+                            in: 'query',
+                            schema: { type: 'string', format: 'email' },
+                        },
+                    ],
+                },
+            ),
+            put: operation(
+                'verifyCustomEmailAddress',
+                'Email inboxes',
+                'Verify DNS and configure email routing',
+                {
+                    security: session,
+                    description:
+                        'Requires a signed-in workspace owner or admin on Pro or Team. Returns routingKey, which can ingest only to this exact receiving address. Use rotate=true to replace the key.',
+                    requestBody: body(
+                        {
+                            address: { type: 'string', format: 'email' },
+                            rotate: { type: 'boolean' },
+                        },
+                        ['address'],
+                    ),
+                },
+            ),
+            delete: operation(
+                'removeCustomEmailAddress',
+                'Email inboxes',
+                'Remove the custom receiving address and revoke its routing key',
+                {
+                    security: session,
+                    responses: { '204': { description: 'Removed' }, ...errors },
+                },
+            ),
+        },
         '/api/email-inboxes/{id}/keys': {
             parameters: id,
             get: operation(

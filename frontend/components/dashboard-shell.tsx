@@ -4,8 +4,6 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { LiveLogo } from './live-logo';
 import { siteOrigin } from '../lib/site';
-import { setupPrompt } from '../lib/setup-prompt';
-import { CopyButton } from './copy-button';
 import { Button, Dialog, DropdownMenu, IconButton } from '@radix-ui/themes';
 import {
     Toolbox,
@@ -20,11 +18,9 @@ import {
     UploadSimple,
     WebhooksLogo,
     BracketsCurly,
-    Plugs,
     Check,
     BookOpen,
     House,
-    List,
     Robot,
     Pulse,
     X,
@@ -35,10 +31,21 @@ import {
     Lightning,
     ChartBar,
     SidebarSimple,
+    DotsThree,
     ChatCircleDots,
 } from '@phosphor-icons/react';
+import type { UsageItem } from '@kivel.io/tools/plans';
 import { categoryTints } from '../lib/catalog';
 import type { Icon } from '@phosphor-icons/react';
+import type { WorkspaceTone } from './workspace-ui';
+
+const panelTones: Partial<Record<DashboardPanel, WorkspaceTone>> = {
+    email: 'email',
+    webhooks: 'webhooks',
+    mocks: 'mocks',
+    monitors: 'monitors',
+    approvals: 'approvals',
+};
 
 type Section = {
     id: string;
@@ -357,6 +364,7 @@ export function AppShell({
     onSignOut,
     busy,
     badges,
+    runs,
     search,
     title,
     actions,
@@ -374,6 +382,7 @@ export function AppShell({
     busy: boolean;
     /** Usage next to each sidebar item, such as "1/1"; full ones are highlighted. */
     badges: Partial<Record<DashboardPanel, { text: string; full?: boolean; hidden?: boolean }>>;
+    runs?: UsageItem;
     search: ReactNode;
     title?: string;
     actions?: ReactNode;
@@ -395,11 +404,13 @@ export function AppShell({
     const [collapsed, setCollapsed] = useState(false);
     const [navOpen, setNavOpen] = useState(false);
     useEffect(() => {
-        if (!navOpen) return;
-        const onKey = (event: KeyboardEvent) => event.key === 'Escape' && setNavOpen(false);
-        addEventListener('keydown', onKey);
-        return () => removeEventListener('keydown', onKey);
-    }, [navOpen]);
+        const desktop = matchMedia('(min-width: 901px)');
+        const close = () => {
+            if (desktop.matches) setNavOpen(false);
+        };
+        desktop.addEventListener('change', close);
+        return () => desktop.removeEventListener('change', close);
+    }, []);
     const go = (next: DashboardPanel) => {
         onPanelChange(next);
         setNavOpen(false);
@@ -427,6 +438,7 @@ export function AppShell({
                 {entry.category ? (
                     <span
                         className="nav-chip"
+                        data-tone={panelTones[entry.id as DashboardPanel]}
                         style={{ '--tint': categoryTints[entry.category] } as React.CSSProperties}
                     >
                         <entry.icon size={13} />
@@ -480,199 +492,219 @@ export function AppShell({
             </DropdownMenu.Content>
         </DropdownMenu.Root>
     );
-    return (
-        <div
-            className={`dashboard-layout ${navOpen ? 'is-nav-open' : ''} ${collapsed ? 'is-sidebar-collapsed' : ''}`}
-        >
-            <aside className="dashboard-sidebar" aria-label="Dashboard">
-                <div className="dashboard-sidebar-top">
-                    <Link href="/" className="dashboard-brand" aria-label="Kivel workspace">
-                        <LiveLogo size={26} />
-                        <span>Kivel</span>
-                    </Link>
+    const sidebar = (
+        <>
+            <div className="dashboard-sidebar-top">
+                <Link href="/" className="dashboard-brand" aria-label="Kivel workspace">
+                    <LiveLogo size={26} />
+                    <span>Kivel</span>
+                </Link>
+                <Dialog.Close>
                     <IconButton
                         className="dashboard-close"
                         variant="ghost"
-                        color="gray"
                         aria-label="Close navigation"
-                        onClick={() => setNavOpen(false)}
                     >
                         <X size={18} />
                     </IconButton>
-                </div>
-                <DropdownMenu.Root>
-                    <DropdownMenu.Trigger>
-                        <button
-                            className="dashboard-workspace"
-                            aria-label={workspace.name}
-                            disabled={busy}
-                        >
-                            <span className="dashboard-workspace-mark">
-                                {workspace.name[0]?.toUpperCase()}
-                            </span>
-                            <span>
-                                <strong>{workspace.name}</strong>
-                                <small>
-                                    {plan[0]!.toUpperCase() + plan.slice(1)} plan · {role}
-                                </small>
-                            </span>
-                            <CaretUpDown size={16} />
-                        </button>
-                    </DropdownMenu.Trigger>
-                    <DropdownMenu.Content align="start" className="dashboard-workspace-menu">
-                        <DropdownMenu.Label>Workspaces</DropdownMenu.Label>
-                        {workspaces.map((space) => (
-                            <DropdownMenu.Item
-                                key={space.id}
-                                onSelect={() =>
-                                    space.id !== workspace.id && onSwitchWorkspace(space.id)
-                                }
-                            >
-                                <span className="dashboard-workspace-option">{space.name}</span>
-                                {space.id === workspace.id && <Check size={15} />}
-                            </DropdownMenu.Item>
-                        ))}
-                        <DropdownMenu.Separator />
-                        <DropdownMenu.Item onSelect={() => go('workspace')}>
-                            <UsersThree size={16} />
-                            Workspace settings
-                        </DropdownMenu.Item>
-                        <DropdownMenu.Item onSelect={() => go('workspace')}>
-                            <Plus size={16} />
-                            Join with an invitation
-                        </DropdownMenu.Item>
-                    </DropdownMenu.Content>
-                </DropdownMenu.Root>
-                <nav className="dashboard-nav" aria-label="Workspace sections">
-                    {items('overview')}
-                    <div className="nav-group">Your tools</div>
-                    {items(
-                        'webhooks',
-                        'email',
-                        'mocks',
-                        'payments',
-                        'monitors',
-                        'approvals',
-                        'vault',
-                        'authenticators',
-                        'automation',
-                        'status',
-                        'memory',
-                        'files',
-                    )}
-                    {items('tools')}
-                    <div className="nav-group nav-bottom">Workspace</div>
-                    {items('agents', 'usage', 'workspace')}
-                </nav>
-            </aside>
-            <button
-                className="dashboard-scrim"
-                aria-label="Close navigation"
-                tabIndex={navOpen ? 0 : -1}
-                onClick={() => setNavOpen(false)}
-            />
-            <div className="dashboard-main">
-                <div className="dashboard-topbar">
-                    <IconButton
-                        className="dashboard-menu"
-                        variant="ghost"
-                        color="gray"
-                        aria-label="Open navigation"
-                        aria-expanded={navOpen}
-                        onClick={() => setNavOpen(true)}
-                    >
-                        <List size={20} />
-                    </IconButton>
-                    <IconButton
-                        className="sidebar-collapse"
-                        variant="ghost"
-                        color="gray"
-                        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                        aria-pressed={collapsed}
-                        onClick={() => setCollapsed(!collapsed)}
-                    >
-                        <SidebarSimple size={19} />
-                    </IconButton>
-                    <span className="dashboard-breadcrumb">
-                        {current.group === 'tools' && (
-                            <>
-                                <span>Your tools</span>
-                                <span aria-hidden="true">/</span>
-                            </>
-                        )}
-                        <strong>{settings ? 'Settings' : current.label}</strong>
-                    </span>
-                    <div className="dashboard-topbar-actions">
-                        {search}
-                        <Dialog.Root>
-                            <Dialog.Trigger>
-                                <Button variant="soft" size="2">
-                                    <Plugs size={16} />{' '}
-                                    <span>
-                                        Connect<span className="app-connect-label"> an agent</span>
-                                    </span>
-                                </Button>
-                            </Dialog.Trigger>
-                            <Dialog.Content maxWidth="520px">
-                                <Dialog.Title>Connect an agent</Dialog.Title>
-                                <Dialog.Description>
-                                    Copy the setup prompt or add the MCP server to your client.
-                                </Dialog.Description>
-                                <div className="app-connect-copy">
-                                    <code>{siteOrigin}/mcp</code>
-                                    <CopyButton label="Copy MCP URL" text={`${siteOrigin}/mcp`} />
-                                </div>
-                                <CopyButton label="Copy setup prompt" text={setupPrompt} />
-                                <p className="app-connect-guide">
-                                    <Link className="text-link" href={`${siteOrigin}/connect/`}>
-                                        Read the setup guide
-                                    </Link>
-                                </p>
-                            </Dialog.Content>
-                        </Dialog.Root>
-                        {userMenu}
-                    </div>
-                </div>
-                <div className="dashboard-content">
-                    <header key={`h-${panel}`} className="dashboard-heading">
-                        <div className="dashboard-heading-title">
-                            {current.category && (
-                                <span
-                                    className="nav-chip is-large"
-                                    style={
-                                        {
-                                            '--tint': categoryTints[current.category],
-                                        } as React.CSSProperties
-                                    }
-                                >
-                                    <current.icon size={19} />
-                                </span>
-                            )}
-                            <div>
-                                <h1>{title ?? (settings ? 'Settings' : current.label)}</h1>
-                                <p>{current.description}</p>
-                            </div>
-                        </div>
-                        {actions}
-                    </header>
-                    {tabs.length > 0 && (
-                        <nav className="dashboard-tabs" aria-label="Section tabs">
-                            {tabs.map((id) => (
-                                <button
-                                    key={id}
-                                    aria-current={panel === id ? 'page' : undefined}
-                                    onClick={() => go(id)}
-                                >
-                                    {panelInfo(id).label}
-                                </button>
-                            ))}
-                        </nav>
-                    )}
-                    <div key={panel} className="dashboard-panel-enter">
-                        {children}
-                    </div>
-                </div>
+                </Dialog.Close>
             </div>
-        </div>
+            <DropdownMenu.Root>
+                <DropdownMenu.Trigger>
+                    <button
+                        className="dashboard-workspace"
+                        aria-label={workspace.name}
+                        disabled={busy}
+                    >
+                        <span className="dashboard-workspace-mark">
+                            {workspace.name[0]?.toUpperCase()}
+                        </span>
+                        <span>
+                            <strong>{workspace.name}</strong>
+                            <small>
+                                {plan[0]!.toUpperCase() + plan.slice(1)} plan · {role}
+                            </small>
+                        </span>
+                        <CaretUpDown size={16} />
+                    </button>
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Content align="start" className="dashboard-workspace-menu">
+                    <DropdownMenu.Label>Workspaces</DropdownMenu.Label>
+                    {workspaces.map((space) => (
+                        <DropdownMenu.Item
+                            key={space.id}
+                            onSelect={() =>
+                                space.id !== workspace.id && onSwitchWorkspace(space.id)
+                            }
+                        >
+                            <span className="dashboard-workspace-option">{space.name}</span>
+                            {space.id === workspace.id && <Check size={15} />}
+                        </DropdownMenu.Item>
+                    ))}
+                    <DropdownMenu.Separator />
+                    <DropdownMenu.Item onSelect={() => go('workspace')}>
+                        <UsersThree size={16} />
+                        Workspace settings
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Item onSelect={() => go('workspace')}>
+                        <Plus size={16} />
+                        Join with an invitation
+                    </DropdownMenu.Item>
+                </DropdownMenu.Content>
+            </DropdownMenu.Root>
+            <nav className="dashboard-nav" aria-label="Workspace sections">
+                {items('overview', 'agents')}
+                <div className="nav-group">Your tools</div>
+                {items(
+                    'webhooks',
+                    'email',
+                    'mocks',
+                    'payments',
+                    'monitors',
+                    'approvals',
+                    'vault',
+                    'authenticators',
+                    'automation',
+                    'status',
+                    'memory',
+                    'files',
+                )}
+                {items('tools')}
+                <div className="nav-group nav-bottom">Workspace</div>
+                {items('usage', 'workspace')}
+            </nav>
+            {runs && (
+                <button
+                    className="dashboard-plan-progress"
+                    type="button"
+                    onClick={() => go('usage')}
+                >
+                    <strong>{plan.charAt(0).toUpperCase() + plan.slice(1)} plan</strong>
+                    <span>
+                        {runs.used.toLocaleString()} of {runs.max.toLocaleString()} tool runs today
+                    </span>
+                    <progress
+                        value={Math.min(runs.used, runs.max)}
+                        max={runs.max}
+                        aria-label="Daily tool runs used"
+                    />
+                </button>
+            )}
+        </>
+    );
+    return (
+        <Dialog.Root open={navOpen} onOpenChange={setNavOpen}>
+            <div className={`dashboard-layout ${collapsed ? 'is-sidebar-collapsed' : ''}`}>
+                <aside className="dashboard-sidebar" aria-label="Dashboard">
+                    {sidebar}
+                </aside>
+                <Dialog.Content className="dashboard-nav-sheet">
+                    <Dialog.Title className="sr-only">Workspace navigation</Dialog.Title>
+                    <Dialog.Description className="sr-only">
+                        Choose a tool or open workspace settings.
+                    </Dialog.Description>
+                    {sidebar}
+                </Dialog.Content>
+                <div className="dashboard-main">
+                    <div className="dashboard-topbar">
+                        <Link href="/" className="dashboard-mobile-brand" aria-label="Kivel home">
+                            <LiveLogo size={23} /> Kivel
+                        </Link>
+                        <IconButton
+                            className="sidebar-collapse"
+                            variant="ghost"
+                            color="gray"
+                            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                            aria-pressed={collapsed}
+                            onClick={() => setCollapsed(!collapsed)}
+                        >
+                            <SidebarSimple size={19} />
+                        </IconButton>
+                        <span className="dashboard-breadcrumb">
+                            <span>{workspace.name}</span>
+                            <span aria-hidden="true">/</span>
+                            {current.group === 'tools' && (
+                                <>
+                                    <span>Your tools</span>
+                                    <span aria-hidden="true">/</span>
+                                </>
+                            )}
+                            <strong>{settings ? 'Settings' : current.label}</strong>
+                        </span>
+                        <div className="dashboard-topbar-actions">
+                            {search}
+                            {actions}
+                            {userMenu}
+                        </div>
+                    </div>
+                    <div className="dashboard-content">
+                        {panel !== 'overview' && (
+                            <header key={`h-${panel}`} className="dashboard-heading">
+                                <div className="dashboard-heading-title">
+                                    {(current.category || panelTones[panel]) && (
+                                        <span
+                                            className="nav-chip is-large"
+                                            data-tone={panelTones[panel]}
+                                            style={
+                                                {
+                                                    '--tint': current.category
+                                                        ? categoryTints[current.category]
+                                                        : undefined,
+                                                } as React.CSSProperties
+                                            }
+                                        >
+                                            <current.icon size={19} />
+                                        </span>
+                                    )}
+                                    <div>
+                                        <h1>{title ?? (settings ? 'Settings' : current.label)}</h1>
+                                        <p>{current.description}</p>
+                                    </div>
+                                </div>
+                            </header>
+                        )}
+                        {tabs.length > 0 && (
+                            <nav className="dashboard-tabs" aria-label="Section tabs">
+                                {tabs.map((id) => (
+                                    <button
+                                        key={id}
+                                        aria-current={panel === id ? 'page' : undefined}
+                                        onClick={() => go(id)}
+                                    >
+                                        {panelInfo(id).label}
+                                    </button>
+                                ))}
+                            </nav>
+                        )}
+                        <div key={panel} className="dashboard-panel-enter">
+                            {children}
+                        </div>
+                    </div>
+                </div>
+                <nav className="dashboard-mobile-tabs" aria-label="Quick navigation">
+                    {(['overview', 'agents', 'email', 'webhooks'] as const).map((id) => {
+                        const entry = panelInfo(id);
+                        const active = panel === id || (id === 'agents' && panel === 'keys');
+                        return (
+                            <button
+                                key={id}
+                                type="button"
+                                aria-current={active ? 'page' : undefined}
+                                onClick={() => go(id)}
+                            >
+                                <entry.icon size={22} weight={active ? 'fill' : 'regular'} />
+                                {id === 'agents' ? 'Agents' : entry.label}
+                            </button>
+                        );
+                    })}
+                    <Dialog.Trigger>
+                        <button type="button">
+                            <DotsThree size={23} weight="bold" />
+                            More
+                        </button>
+                    </Dialog.Trigger>
+                </nav>
+            </div>
+        </Dialog.Root>
     );
 }

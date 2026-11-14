@@ -1,7 +1,7 @@
 'use client';
 import { DropdownMenu, Button } from '@radix-ui/themes';
 import { ArrowLeft, CaretDown, Plus } from '@phosphor-icons/react';
-import { catalog, categoryTints } from '../lib/catalog';
+import { catalog } from '../lib/catalog';
 import type { WorkspaceUsage } from '../lib/workspace-usage';
 import { formatBytes } from '../lib/workspace-usage';
 import { panelInfo } from './dashboard-shell';
@@ -294,72 +294,5 @@ export function ToolPage({
             )}
             <DashboardToolSnippets panel={panel} resource={opened} />
         </div>
-    );
-}
-
-/** Overview cards: one per tool, with what it holds and how full it is. */
-export function ToolCards({
-    resources,
-    usage,
-    onOpen,
-}: {
-    resources: Resource[];
-    usage: WorkspaceUsage;
-    onOpen: (panel: ToolPanel) => void;
-}) {
-    return (
-        <section className="home-section" aria-labelledby="tools-heading">
-            <div className="home-section-head">
-                <h2 id="tools-heading">Your tools</h2>
-            </div>
-            <div className="tool-cards">
-                {toolPanels.map((panel) => {
-                    const info = panelInfo(panel);
-                    const limit = readings(panel, usage)[0];
-                    const listed = info.kinds ? panelResources(panel, resources).length : undefined;
-                    if (panel === 'automation' && !listed) return null;
-                    const main =
-                        listed === undefined
-                            ? limit
-                            : {
-                                  label: limit ? `${limit.label}: ${limit.show}` : '',
-                                  used: limit?.used ?? 0,
-                                  limit: limit?.limit,
-                                  show: String(listed),
-                              };
-                    return (
-                        <button
-                            key={panel}
-                            type="button"
-                            className="tool-card"
-                            onClick={() => onOpen(panel)}
-                        >
-                            <span className="tool-card-name">
-                                <span
-                                    className="nav-chip"
-                                    style={
-                                        {
-                                            '--tint': categoryTints[info.category!],
-                                        } as React.CSSProperties
-                                    }
-                                >
-                                    <info.icon size={14} />
-                                </span>
-                                {info.label}
-                            </span>
-                            <strong>{main?.show ?? '–'}</strong>
-                            {main?.limit !== undefined && (
-                                <UsageMeter
-                                    label={main.label}
-                                    used={main.used}
-                                    limit={main.limit}
-                                />
-                            )}
-                            <small>{main?.label ?? ''}</small>
-                        </button>
-                    );
-                })}
-            </div>
-        </section>
     );
 }

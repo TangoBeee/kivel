@@ -1,19 +1,50 @@
 'use client';
 
 import Link from 'next/link';
-import { siteOrigin } from '../lib/site';
 import { useEffect, useState } from 'react';
-import { Button } from '@radix-ui/themes';
-import { Check, Copy } from '@phosphor-icons/react';
-import { api } from '../lib/api';
+import {
+    ArrowRight,
+    At,
+    BracketsCurly,
+    Clock,
+    EnvelopeSimple,
+    HandPalm,
+    LinkSimple,
+    Pulse,
+    Robot,
+    WebhooksLogo,
+} from '@phosphor-icons/react';
+import { siteOrigin } from '../lib/site';
+import { api, ApiError } from '../lib/api';
 import { setupPrompt } from '../lib/setup-prompt';
 import { activityLabel, timeAgo } from '../lib/activity-labels';
+import { CopyButton } from './copy-button';
+import {
+    WorkspaceCard,
+    WorkspaceEmpty,
+    WorkspaceIcon,
+    WorkspaceStat,
+    type WorkspaceTone,
+} from './workspace-ui';
 import type { DashboardPanel } from './dashboard-shell';
 
+interface Overview {
+    series: Record<'email' | 'webhooks' | 'mocks' | 'checks', number[]>;
+    uptime: (number | null)[];
+    latestEmail: {
+        inboxId: string;
+        from: string;
+        to: string;
+        subject: string;
+        receivedAt: string;
+        codes: string[];
+        link?: string;
+    } | null;
+}
 interface Agent {
     id: string;
+    keyId?: string;
     name: string;
-    client?: string;
     lastUsedAt: string | null;
 }
 interface Activity {
@@ -21,193 +52,353 @@ interface Activity {
     tool: string;
     ok: boolean;
     keyId?: string;
+    agentName?: string;
 }
 interface Question {
     id: string;
     agentName: string;
     question: string;
 }
+type Reminder = { id: string; title: string; detail: string; action: string; onAction: () => void };
 
-function CopySetup({
-    label = 'Copy setup prompt',
-    quiet = false,
-}: {
-    label?: string;
-    quiet?: boolean;
-}) {
-    const [copied, setCopied] = useState(false);
-    return (
-        <Button
-            size={quiet ? '2' : '3'}
-            variant={quiet ? 'soft' : 'solid'}
-            color={quiet ? 'gray' : undefined}
-            onClick={async () => {
-                try {
-                    await navigator.clipboard.writeText(setupPrompt);
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 2200);
-                } catch {}
-            }}
-        >
-            {copied ? <Check size={16} weight="bold" /> : <Copy size={16} weight="bold" />}
-            <span aria-live="polite">{copied ? 'Copied. Paste it into your agent' : label}</span>
-        </Button>
-    );
-}
+const activityStyles: [RegExp, WorkspaceTone, typeof Robot][] = [
+    [/email/, 'email', EnvelopeSimple],
+    [/webhook/, 'webhooks', WebhooksLogo],
+    [/mock|oauth/, 'mocks', BracketsCurly],
+    [/monitor|heartbeat/, 'monitors', Pulse],
+    [/approval|ask_human/, 'approvals', HandPalm],
+];
+const total = (values: number[]) => values.reduce((sum, value) => sum + value, 0);
 
-/** Overview: what needs you, your tools (passed in as children), and what your agents did. */
 export function AgentOverview({
+    username,
     onOpen,
     needs = [],
-    children,
 }: {
+    username: string;
     onOpen: (panel: DashboardPanel) => void;
-    /** Other things waiting on the person, such as verifying their email. */
-    needs?: { id: string; title: string; detail: string; action: string; onAction: () => void }[];
-    children?: React.ReactNode;
+    needs?: Reminder[];
 }) {
-    const [agents, setAgents] = useState<Agent[] | null>(null);
-    const [limit, setLimit] = useState(0);
-    const [questions, setQuestions] = useState<Question[]>([]);
-    const [activity, setActivity] = useState<Activity[]>([]);
-
+    const [snapshot, setSnapshot] = useState<{
+        overview: Overview;
+        agents: Agent[];
+        questions: Question[];
+        activity: Activity[];
+    }>();
+    const [error, setError] = useState('');
+    const [revision, setRevision] = useState(0);
     useEffect(() => {
-        let live = true;
+        const controller = new AbortController();
         let timer: ReturnType<typeof setTimeout>;
+        const read = (path: string) =>
+            api(path, { signal: controller.signal }).then((response) => response.json());
         async function load() {
+            let delay = 15000;
             try {
-                const [list, asked, log] = await Promise.all([
-                    api('/api/agents').then((response) => response.json()),
-                    api('/api/approvals?status=pending').then((response) => response.json()),
-                    api('/api/account/activity').then((response) => response.json()),
+                const [overview, { agents }, { approvals }, { activity }] = await Promise.all([
+                    read('/api/account/overview'),
+                    read('/api/agents'),
+                    read('/api/approvals?status=pending'),
+                    read('/api/account/activity'),
                 ]);
-                if (!live) return;
-                setAgents(list.agents);
-                setLimit(list.limit);
-                setQuestions(asked.approvals);
-                setActivity(log.activity.slice(0, 6));
-            } catch {
-                if (live) setAgents((current) => current ?? []);
+                if (controller.signal.aborted) return;
+                setSnapshot({ overview, agents, questions: approvals, activity });
+                setError('');
+            } catch (failure) {
+                if (controller.signal.aborted) return;
+                setError('Workspace activity could not be refreshed.');
+                if (failure instanceof ApiError) delay = Math.max(delay, failure.retryAfter * 1000);
             }
-            if (live) timer = setTimeout(load, 15000);
+            timer = setTimeout(load, delay);
         }
         void load();
         return () => {
-            live = false;
+            controller.abort();
             clearTimeout(timer);
         };
-    }, []);
+    }, [revision]);
 
-    if (agents === null)
-        return (
-            <div className="home-panels" role="status" aria-label="Loading your workspace">
-                <span className="skeleton" style={{ height: 120 }} />
-                <span className="skeleton" style={{ height: 200 }} />
-            </div>
-        );
-    const waiting = questions.length + needs.length;
+    const waiting = (snapshot?.questions.length ?? 0) + needs.length;
+    const question = snapshot?.questions[0];
+    const reminder = needs[0];
+    const name = username.replace(/[_.-]+/g, ' ');
+    const { overview, agents = [], activity = [] } = snapshot ?? {};
+    const feed = activity.filter((event) => event.tool !== 'workspace_status');
+    const checks = overview ? total(overview.series.checks) : 0;
+    const uptime =
+        overview && checks
+            ? overview.uptime.reduce<number>(
+                  (sum, rate, i) => sum + (rate ?? 0) * overview.series.checks[i]!,
+                  0,
+              ) / checks
+            : null;
+    const mail = overview?.latestEmail;
     return (
-        <div className="home-panels">
-            {agents.length === 0 && (
-                <section className="home-connect" aria-labelledby="connect-heading">
-                    <div>
-                        <h2 id="connect-heading">Connect your first agent</h2>
-                        <p>
-                            Paste the setup prompt into Claude Code, Cursor or Codex. Your agent
-                            asks to join, and you approve it here.
-                        </p>
-                    </div>
-                    <div className="home-panel-actions">
-                        <CopySetup />
-                        <Link href={`${siteOrigin}/connect/`} className="home-panel-link">
-                            Set it up by hand
-                        </Link>
-                    </div>
-                </section>
-            )}
-            {waiting > 0 && (
-                <section className="home-section" aria-labelledby="waiting-heading">
-                    <div className="home-section-head">
-                        <h2 id="waiting-heading">
-                            Needs you <span className="home-count">{waiting}</span>
-                        </h2>
-                    </div>
-                    <ul className="home-rows">
-                        {questions.map((item) => (
-                            <li key={item.id}>
-                                <span className="home-row-main">
-                                    <strong>{item.question}</strong>
-                                    <small>{item.agentName} is waiting for your answer</small>
-                                </span>
-                                <Link
-                                    className="button button-primary button-small"
-                                    href={`/approvals/?id=${item.id}`}
-                                >
-                                    Answer
-                                </Link>
-                            </li>
-                        ))}
-                        {needs.map((item) => (
-                            <li key={item.id}>
-                                <span className="home-row-main">
-                                    <strong>{item.title}</strong>
-                                    <small>{item.detail}</small>
-                                </span>
-                                <button className="button button-small" onClick={item.onAction}>
-                                    {item.action}
+        <div className="workspace-overview">
+            <header className="workspace-greeting">
+                <div>
+                    <h1>Hello, {name.charAt(0).toUpperCase() + name.slice(1)}</h1>
+                    <p>
+                        {activity.length > 0 &&
+                            `${activity.filter((event) => Date.now() - Date.parse(event.at) < 86400000).length} recorded tool calls in the last 24 hours. `}
+                        {waiting === 1
+                            ? 'One thing is waiting for you.'
+                            : waiting > 1
+                              ? `${waiting} things are waiting for you.`
+                              : 'You’re all caught up.'}
+                    </p>
+                </div>
+                {agents.length > 0 && (
+                    <ul className="workspace-agents" aria-label="Connected agents">
+                        {agents.slice(0, 3).map((agent) => (
+                            <li key={agent.id}>
+                                <button type="button" onClick={() => onOpen('agents')}>
+                                    <Robot size={17} /> <strong>{agent.name}</strong>
+                                    <small>
+                                        {agent.lastUsedAt ? timeAgo(agent.lastUsedAt) : 'Connected'}
+                                    </small>
                                 </button>
                             </li>
                         ))}
+                        {agents.length > 3 && (
+                            <li>
+                                <button type="button" onClick={() => onOpen('agents')}>
+                                    All {agents.length} agents
+                                </button>
+                            </li>
+                        )}
                     </ul>
-                </section>
-            )}
-            {children}
-            <section className="home-section" aria-labelledby="activity-heading">
-                <div className="home-section-head">
-                    <h2 id="activity-heading">What your agents did</h2>
-                    {activity.length > 0 && (
+                )}
+            </header>
+            {(question || reminder) && (
+                <div className="workspace-waiting">
+                    <HandPalm size={23} />
+                    <div>
+                        <strong>
+                            {question ? `${question.agentName} needs you` : reminder?.title}
+                        </strong>
+                        <p>{question?.question ?? reminder?.detail}</p>
+                        {question && waiting > 1 && (
+                            <Link className="workspace-waiting-all" href="/approvals/">
+                                Review all approvals
+                            </Link>
+                        )}
+                        {!question && needs.length > 1 && (
+                            <Link className="workspace-waiting-all" href="/settings/?tab=security">
+                                Open account security
+                            </Link>
+                        )}
+                    </div>
+                    {question ? (
+                        <Link
+                            href={`/approvals/?id=${encodeURIComponent(question.id)}`}
+                            aria-label="Review approval"
+                        >
+                            <ArrowRight size={19} />
+                        </Link>
+                    ) : (
                         <button
                             type="button"
-                            className="home-panel-link"
-                            onClick={() => onOpen('agents')}
+                            aria-label={reminder?.action}
+                            onClick={reminder?.onAction}
                         >
-                            View all
+                            <ArrowRight size={19} />
                         </button>
                     )}
                 </div>
-                {activity.length ? (
-                    <ul className="home-rows">
-                        {activity.map((entry, index) => (
-                            <li key={`${entry.at}-${index}`}>
-                                <span
-                                    className={`activity-dot ${entry.ok ? '' : 'is-failed'}`}
-                                    aria-hidden="true"
-                                />
-                                <span className="home-row-main">
-                                    <strong>
-                                        {activityLabel(entry.tool)}
-                                        {!entry.ok && <em> · failed</em>}
-                                    </strong>
-                                    <small>
-                                        {agents.find((agent) => agent.id === entry.keyId)?.name ??
-                                            (entry.keyId ? 'API key' : 'You')}
-                                    </small>
-                                </span>
-                                <time
-                                    dateTime={entry.at}
-                                    title={new Date(entry.at).toLocaleString()}
+            )}
+            {error && (
+                <p className="workspace-refresh-error" role="status">
+                    {error}{' '}
+                    <button className="text-link" onClick={() => setRevision(revision + 1)}>
+                        Retry
+                    </button>
+                </p>
+            )}
+            {!snapshot && !error && (
+                <div
+                    className="workspace-stat-grid"
+                    role="status"
+                    aria-label="Loading workspace activity"
+                >
+                    {[0, 1, 2, 3].map((key) => (
+                        <span className="skeleton workspace-stat-skeleton" key={key} />
+                    ))}
+                </div>
+            )}
+            {overview && (
+                <div className="workspace-stat-grid">
+                    <WorkspaceStat
+                        icon={EnvelopeSimple}
+                        tone="email"
+                        title="Emails received"
+                        value={total(overview.series.email).toLocaleString()}
+                        series={overview.series.email}
+                        onOpen={() => onOpen('email')}
+                    />
+                    <WorkspaceStat
+                        icon={WebhooksLogo}
+                        tone="webhooks"
+                        title="Webhooks captured"
+                        value={total(overview.series.webhooks).toLocaleString()}
+                        series={overview.series.webhooks}
+                        onOpen={() => onOpen('webhooks')}
+                    />
+                    <WorkspaceStat
+                        icon={BracketsCurly}
+                        tone="mocks"
+                        title="Mock API calls"
+                        value={total(overview.series.mocks).toLocaleString()}
+                        series={overview.series.mocks}
+                        onOpen={() => onOpen('mocks')}
+                    />
+                    <WorkspaceStat
+                        icon={Pulse}
+                        tone="monitors"
+                        title="Uptime"
+                        value={
+                            uptime === null
+                                ? '—'
+                                : `${uptime.toLocaleString(undefined, { maximumFractionDigits: 2 })}%`
+                        }
+                        series={overview.uptime}
+                        note={checks ? `${checks} retained checks` : 'No checks yet'}
+                        max={100}
+                        onOpen={() => onOpen('monitors')}
+                    />
+                </div>
+            )}
+            {snapshot && (
+                <div className="workspace-home-grid">
+                    <WorkspaceCard
+                        title="What your agents did"
+                        action={
+                            <span className="workspace-refresh">
+                                <Clock size={13} />{' '}
+                                {error ? 'Refresh delayed' : 'Updates every 15 sec'}
+                            </span>
+                        }
+                    >
+                        {feed.length ? (
+                            <ul className="workspace-feed">
+                                {feed.slice(0, 7).map((event, index) => {
+                                    const [, tone, Icon] =
+                                        activityStyles.find(([pattern]) =>
+                                            pattern.test(event.tool),
+                                        ) ?? ([null, 'webhooks', Robot] as const);
+                                    const agent =
+                                        event.agentName ??
+                                        agents.find(
+                                            (item) => (item.keyId ?? item.id) === event.keyId,
+                                        )?.name;
+                                    return (
+                                        <li key={`${event.at}-${index}`}>
+                                            <WorkspaceIcon icon={Icon} tone={tone} />
+                                            <div>
+                                                <strong>{activityLabel(event.tool)}</strong>
+                                                <small>
+                                                    {agent ??
+                                                        (event.keyId ? 'API key' : 'Workspace')}
+                                                    {event.ok ? '' : ' · Failed'}
+                                                </small>
+                                            </div>
+                                            <time dateTime={event.at}>{timeAgo(event.at)}</time>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        ) : (
+                            <WorkspaceEmpty title="No activity yet">
+                                Tool calls appear here as your agents work.
+                            </WorkspaceEmpty>
+                        )}
+                        {feed.length > 0 && (
+                            <button
+                                className="text-link workspace-card-action"
+                                onClick={() => onOpen('agents')}
+                            >
+                                View activity
+                            </button>
+                        )}
+                    </WorkspaceCard>
+                    <WorkspaceCard
+                        title="Latest email"
+                        icon={<WorkspaceIcon icon={EnvelopeSimple} tone="email" />}
+                        action={
+                            mail && (
+                                <Link
+                                    className="text-link"
+                                    href={`/email/?inbox=${encodeURIComponent(mail.inboxId)}`}
                                 >
-                                    {timeAgo(entry.at)}
-                                </time>
-                            </li>
-                        ))}
-                    </ul>
-                ) : (
-                    <p className="home-empty">
-                        Nothing yet. Every tool your agents call shows up here.
-                    </p>
-                )}
-            </section>
+                                    Open inbox
+                                </Link>
+                            )
+                        }
+                    >
+                        {mail ? (
+                            <div className="workspace-latest">
+                                <div>
+                                    <strong>{mail.from || 'Unknown sender'}</strong>
+                                    <small>{timeAgo(mail.receivedAt)}</small>
+                                </div>
+                                <p>{mail.subject || 'No subject'}</p>
+                                {mail.codes?.[0] && (
+                                    <div className="workspace-email-code">
+                                        <div>
+                                            <small>Code found</small>
+                                            <code>
+                                                {/^\d{6}$/.test(mail.codes[0])
+                                                    ? mail.codes[0].replace(/^(...)/, '$1 ')
+                                                    : mail.codes[0]}
+                                            </code>
+                                        </div>
+                                        <CopyButton
+                                            compact
+                                            text={mail.codes[0]}
+                                            label="Copy verification code"
+                                        />
+                                    </div>
+                                )}
+                                {mail.link && (
+                                    <div className="workspace-mail-fact">
+                                        <LinkSimple size={16} />
+                                        <span>{mail.link}</span>
+                                        <CopyButton
+                                            compact
+                                            text={mail.link}
+                                            label="Copy verification link"
+                                        />
+                                    </div>
+                                )}
+                                <div className="workspace-mail-fact">
+                                    <At size={16} />
+                                    <span>{mail.to}</span>
+                                </div>
+                            </div>
+                        ) : (
+                            <WorkspaceEmpty title="No email received yet">
+                                <button className="text-link" onClick={() => onOpen('email')}>
+                                    Open email inboxes
+                                </button>
+                            </WorkspaceEmpty>
+                        )}
+                    </WorkspaceCard>
+                </div>
+            )}
+            {snapshot && agents.length === 0 && (
+                <WorkspaceCard title="Connect your first agent">
+                    <div className="workspace-connect">
+                        <p>
+                            Paste the setup prompt into your coding agent, then approve its request
+                            to join.
+                        </p>
+                        <CopyButton text={setupPrompt} label="Copy setup prompt" />
+                        <Link className="text-link" href={`${siteOrigin}/connect/`}>
+                            Setup guide
+                        </Link>
+                    </div>
+                </WorkspaceCard>
+            )}
         </div>
     );
 }

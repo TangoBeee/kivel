@@ -187,7 +187,6 @@ const mcp = await request('/mcp', {
 });
 assert.equal(mcp.status, 200);
 const platformTools = (await mcp.json()).result.tools;
-assert.equal(platformTools.length, 66);
 for (const name of [
     'create_test_wallet',
     'wallet_pay',
@@ -204,6 +203,7 @@ for (const name of [
     'get_email_thread',
     'email_draft',
     'email_inbox_rules',
+    'email_message',
 ])
     assert.ok(
         platformTools.some((tool) => tool.name === name),

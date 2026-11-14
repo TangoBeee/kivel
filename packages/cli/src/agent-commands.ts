@@ -300,13 +300,6 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
             return client.listPhoneNumbers();
         }
         if (action === 'release') return client.releasePhoneNumber(id());
-        if (action === 'message' || action === 'message-update') {
-            exact(2);
-            const [inboxId, messageId] = positional as [string, string];
-            return action === 'message'
-                ? client.emailMessage(inboxId, messageId, token)
-                : client.updateEmailMessage(inboxId, messageId, json());
-        }
         if (action === 'messages') return client.listSms(id());
         if (action === 'wait')
             return client.waitForSms(id(), {
@@ -425,6 +418,13 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
         if (action === 'create') {
             exact(0);
             return client.createEmailInbox(emailSettings);
+        }
+        if (action === 'message' || action === 'message-update') {
+            exact(2);
+            const [inboxId, messageId] = positional as [string, string];
+            return action === 'message'
+                ? client.emailMessage(inboxId, messageId, token)
+                : client.updateEmailMessage(inboxId, messageId, json());
         }
         if (action === 'messages') return client.emails(id(), emailSearch);
         if (action === 'wait')

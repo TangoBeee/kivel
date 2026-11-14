@@ -24,7 +24,7 @@ webhooks, mocks, files and utilities, but cannot create email inboxes or memory.
    waiting always need workspace credentials or the private inspection token.
    Use visibility=private only when senders can add X-Access-Token. Other
    resources default to private. Keep management and access credentials separate.
-2. Use `wait_for_webhook` or `wait_for_email`; preserve the last ID as `after`.
+2. Use `wait_for_webhook` or `wait_for_email`; preserve the last ID as `after` for the legacy wait. For an email matching particular criteria, call `wait_for_email` with `checkpoint: true` and the desired filters before triggering mail. Pass its `nextCursor` and the same filters when you wait.
    `wait_for_event` waits for any webhook, email, human approval, scheduled job or SMS source in one call.
    Check /api/capabilities before using operator-enabled services such as phones.
    Its events return one cursor per source. Waits stop after at most 30 seconds;

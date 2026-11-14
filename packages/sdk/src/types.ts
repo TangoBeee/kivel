@@ -1,3 +1,22 @@
+export interface EmailFilters {
+    from?: string | undefined;
+    mailFrom?: string | undefined;
+    subject?: string | undefined;
+    text?: string | undefined;
+    hasCode?: boolean | undefined;
+    hasLink?: boolean | undefined;
+    hasAttachment?: boolean | undefined;
+}
+export interface EmailSearchOptions extends EmailFilters {
+    token?: string | undefined;
+    cursor?: string | undefined;
+    limit?: number | undefined;
+}
+export interface EmailWaitOptions extends WaitOptions, EmailFilters {
+    cursor?: string | undefined;
+    limit?: number | undefined;
+    checkpoint?: boolean | undefined;
+}
 export interface WaitOptions {
     token?: string;
     after?: string;

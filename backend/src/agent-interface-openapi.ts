@@ -56,6 +56,33 @@ const emailContent = {
     html: { type: 'string' },
     replyTo: { type: 'string', format: 'uuid' },
 };
+const emailQueryParameters = [
+    ...['from', 'mailFrom', 'subject', 'text'].map((name) => ({
+        name,
+        in: 'query',
+        schema: { type: 'string', maxLength: 254 },
+        description:
+            name === 'from' || name === 'mailFrom'
+                ? 'Exact mailbox, case insensitive.'
+                : 'Literal case insensitive text match.',
+    })),
+    ...['hasCode', 'hasLink', 'hasAttachment'].map((name) => ({
+        name,
+        in: 'query',
+        schema: { type: 'boolean' },
+    })),
+    {
+        name: 'cursor',
+        in: 'query',
+        schema: { type: 'string' },
+        description: 'Use nextCursor from the same inbox, operation and filters.',
+    },
+    {
+        name: 'limit',
+        in: 'query',
+        schema: { type: 'integer', minimum: 1, maximum: 50, default: 20 },
+    },
+];
 const threadPage = {
     parameters: [
         { name: 'cursor', in: 'query', schema: { type: 'string' } },
@@ -399,7 +426,7 @@ export function agentInterfaceOpenApi() {
                 'listEmails',
                 'Email inboxes',
                 'Read messages with codes, links and attachment IDs for private downloads',
-                { security: token },
+                { security: token, parameters: emailQueryParameters },
             ),
         },
         '/api/email-inboxes/{id}/wait': {
@@ -407,6 +434,14 @@ export function agentInterfaceOpenApi() {
             get: operation('waitForEmail', 'Email inboxes', 'Wait for new messages', {
                 security: token,
                 parameters: [
+                    ...emailQueryParameters,
+                    {
+                        name: 'checkpoint',
+                        in: 'query',
+                        schema: { type: 'boolean' },
+                        description:
+                            'Take a cursor before triggering mail. Do not combine with cursor or after.',
+                    },
                     { name: 'after', in: 'query', schema: { type: 'string', format: 'uuid' } },
                     {
                         name: 'timeoutSeconds',

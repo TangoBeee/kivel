@@ -58,6 +58,17 @@ const deletes = {
     idempotentHint: true,
     openWorldHint: false,
 };
+const emailFilters = {
+    cursor: stringProperty('Cursor for this inbox and the same filters.'),
+    limit: { type: 'integer', minimum: 1, maximum: 50 },
+    from: stringProperty('Exact sender mailbox, case insensitive.'),
+    mailFrom: stringProperty('Exact envelope sender mailbox, case insensitive.'),
+    subject: stringProperty('Literal case insensitive subject match.'),
+    text: stringProperty('Literal case insensitive plain text match.'),
+    hasCode: { type: 'boolean' },
+    hasLink: { type: 'boolean' },
+    hasAttachment: { type: 'boolean' },
+};
 export const platformTools = [
     {
         name: 'create_test_wallet',
@@ -445,10 +456,15 @@ export const platformTools = [
     },
     {
         name: 'wait_for_email',
-        description: `Block until the email inbox receives a message, then return new messages with extracted one-time codes and links (verification links first). Pass after (the last message ID seen) to wait for newer ones. Returns timedOut: true after timeoutSeconds (default 25, max ${WAIT_MAX_SECONDS}); call again to keep waiting.`,
+        description: `Block until the email inbox receives a message, then return new messages with extracted one-time codes and links (verification links first). Pass after (the last message ID seen) to wait for newer ones. Returns timedOut: true after timeoutSeconds (default 25, max ${WAIT_MAX_SECONDS}); call again to keep waiting. For filtered waits, take a checkpoint before triggering mail, then pass nextCursor back with the same filters.`,
         inputSchema: schema(
             {
                 ...access,
+                ...emailFilters,
+                checkpoint: {
+                    type: 'boolean',
+                    description: 'Return a cursor for mail arriving after this call.',
+                },
                 after: stringProperty('Optional message ID; only newer messages are returned.'),
                 timeoutSeconds: { type: 'number' },
             },
@@ -459,8 +475,8 @@ export const platformTools = [
     {
         name: 'list_emails',
         description:
-            'Read every message in an email inbox (up to 100): sender, subject, text, HTML, extracted codes and links, attachment names.',
-        inputSchema: schema(access, ['id']),
+            'Read email messages with extracted codes, links and attachment names. Supply filters or a limit for a newest-first page.',
+        inputSchema: schema({ ...access, ...emailFilters }, ['id']),
         annotations: readonly,
     },
     {
@@ -1825,6 +1841,9 @@ export function registerMcp({
             if (typeof value.after === 'string') query.set('after', value.after);
             if (value.timeoutSeconds !== undefined)
                 query.set('timeoutSeconds', String(value.timeoutSeconds));
+            for (const field of [...Object.keys(emailFilters), 'checkpoint']) {
+                if (value[field] !== undefined) query.set(field, String(value[field]));
+            }
             url = `/api/email-inboxes/${id}/${name === 'wait_for_email' ? 'wait' : 'messages'}${query.size ? `?${query}` : ''}`;
             // Waiting holds no MCP upload slot, so other calls are not blocked meanwhile.
             if (name === 'wait_for_email') uploads.delete(request);

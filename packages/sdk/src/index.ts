@@ -14,6 +14,8 @@ import type {
     ApprovalInput,
     EmailInbox,
     EmailMessage,
+    EmailSearchOptions,
+    EmailWaitOptions,
     EmailContent,
     EmailThread,
     EmailThreadsPage,
@@ -671,20 +673,24 @@ export class Kivel {
             token,
         );
     }
-    emails(id: string, token?: string) {
-        return this.request<{ messages: EmailMessage[] }>(
+    emails(id: string, tokenOrOptions?: string | EmailSearchOptions) {
+        const settings =
+            typeof tokenOrOptions === 'string' ? { token: tokenOrOptions } : (tokenOrOptions ?? {});
+        const { token, ...filters } = settings;
+        return this.request<{ messages: EmailMessage[]; nextCursor?: string | null }>(
             'GET',
-            `/api/email-inboxes/${encodeURIComponent(id)}/messages`,
+            `/api/email-inboxes/${encodeURIComponent(id)}/messages${query(filters)}`,
             undefined,
             token,
         );
     }
-    waitForEmail(id: string, options: WaitOptions = {}) {
-        return this.request<{ timedOut: boolean; messages: EmailMessage[] }>(
+    waitForEmail(id: string, options: EmailWaitOptions = {}) {
+        const { token, ...filters } = options;
+        return this.request<{ timedOut: boolean; messages: EmailMessage[]; nextCursor?: string }>(
             'GET',
-            `/api/email-inboxes/${encodeURIComponent(id)}/wait${this.waitQuery(options)}`,
+            `/api/email-inboxes/${encodeURIComponent(id)}/wait${query({ ...filters, timeoutSeconds: this.waitTimeout(options.timeoutSeconds) })}`,
             undefined,
-            options.token,
+            token,
         );
     }
     memorySet<T>(namespace: string, key: string, value: T, ttlSeconds?: number) {

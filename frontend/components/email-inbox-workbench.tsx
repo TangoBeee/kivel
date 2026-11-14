@@ -67,6 +67,17 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
     const viewer = useViewer();
     const [inbox, setInbox] = useState<EmailInbox | null>(null);
     const [threads, setThreads] = useState<ThreadSummary[]>([]);
+    const [searchText, setSearchText] = useState('');
+    const [searchSubject, setSearchSubject] = useState('');
+    const [searchPage, setSearchPage] = useState<{
+        inboxId: string;
+        subject: string;
+        messages: EmailMessage[];
+        nextCursor: string | null;
+    }>();
+    const [searching, setSearching] = useState(false);
+    const [searchError, setSearchError] = useState('');
+    const [searchSelected, setSearchSelected] = useState<string>();
     const [threadId, setThreadId] = useState<string | null>(null);
     const [hasMore, setHasMore] = useState(false);
     const [showAll, setShowAll] = useState(false);
@@ -338,7 +349,74 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
     }, [inboxId, activeThread, lastAt]);
 
     const messages = detail?.id === activeThread ? (detail?.messages ?? []) : [];
-    const current = messages.find((message) => message.id === selected) ?? messages.at(-1);
+    useEffect(() => {
+        setSearchText('');
+        setSearchSubject('');
+        setSearchSelected(undefined);
+        setSearchPage(undefined);
+    }, [inboxId]);
+    useEffect(() => {
+        if (!inboxId || !searchSubject) {
+            setSearching(false);
+            setSearchPage(undefined);
+            return;
+        }
+        const controller = new AbortController();
+        setSearching(true);
+        setSearchError('');
+        const params = new URLSearchParams({ subject: searchSubject, limit: '50' });
+        void api(`/api/email-inboxes/${inboxId}/messages?${params}`, { signal: controller.signal })
+            .then((response) => response.json())
+            .then((value) => {
+                if (!controller.signal.aborted)
+                    setSearchPage({ ...value, inboxId, subject: searchSubject });
+            })
+            .catch((failure: Error) => {
+                if (!controller.signal.aborted) setSearchError(failure.message);
+            })
+            .finally(() => {
+                if (!controller.signal.aborted) setSearching(false);
+            });
+        return () => controller.abort();
+    }, [inboxId, searchSubject, mailVersion]);
+    const results =
+        searchPage?.inboxId === inboxId && searchPage?.subject === searchSubject
+            ? searchPage
+            : undefined;
+    async function moreSearchResults() {
+        if (!results?.nextCursor || searching) return;
+        setSearching(true);
+        setSearchError('');
+        const params = new URLSearchParams({
+            subject: results.subject,
+            cursor: results.nextCursor,
+            limit: '50',
+        });
+        try {
+            const page = await (
+                await api(`/api/email-inboxes/${results.inboxId}/messages?${params}`)
+            ).json();
+            setSearchPage((current) =>
+                current === results
+                    ? {
+                          ...current,
+                          messages: [...current.messages, ...page.messages],
+                          nextCursor: page.nextCursor,
+                      }
+                    : current,
+            );
+        } catch (failure) {
+            setSearchError(
+                failure instanceof Error ? failure.message : 'Unable to load more email.',
+            );
+        } finally {
+            setSearching(false);
+        }
+    }
+    const current = searchSubject
+        ? (results?.messages.find((message) => message.id === searchSelected) ??
+          results?.messages[0])
+        : (messages.find((message) => message.id === selected) ?? messages.at(-1));
     const minutes = inbox?.expiresAt
         ? Math.max(0, Math.round((Date.parse(inbox.expiresAt) - Date.now()) / 60000))
         : 0;
@@ -620,7 +698,63 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                                     </AlertDialog.Root>
                                 )}
                             </div>
-                            {threads.length ? (
+                            <form
+                                className="email-subject-search"
+                                onSubmit={(event) => {
+                                    event.preventDefault();
+                                    setSearchSelected(undefined);
+                                    setSearchSubject(searchText.trim());
+                                    setShowHtml(false);
+                                }}
+                            >
+                                <TextField.Root
+                                    aria-label="Search email subjects"
+                                    placeholder="Search subjects"
+                                    maxLength={254}
+                                    value={searchText}
+                                    onChange={(event) => setSearchText(event.target.value)}
+                                />
+                                <Button type="submit" variant="soft">
+                                    Search
+                                </Button>
+                                {searchSubject && (
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        onClick={() => {
+                                            setSearchText('');
+                                            setSearchSubject('');
+                                            setShowHtml(false);
+                                        }}
+                                    >
+                                        Clear search
+                                    </Button>
+                                )}
+                            </form>
+                            {searchSubject ? (
+                                searchError ? (
+                                    <p role="alert">{searchError}</p>
+                                ) : searching ? (
+                                    <p role="status">Searching email</p>
+                                ) : results?.messages.length ? (
+                                    results.messages.map((item) => (
+                                        <button
+                                            key={item.id}
+                                            type="button"
+                                            aria-pressed={current?.id === item.id}
+                                            onClick={() => {
+                                                setSearchSelected(item.id);
+                                                setShowHtml(false);
+                                            }}
+                                        >
+                                            <strong>{item.subject || 'No subject'}</strong>
+                                            <span>{item.from}</span>
+                                        </button>
+                                    ))
+                                ) : (
+                                    <p>No subjects match your search.</p>
+                                )
+                            ) : threads.length ? (
                                 threads.map((item) => (
                                     <button
                                         key={item.id}
@@ -647,7 +781,18 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                                     usually arrives within a few seconds.
                                 </p>
                             )}
-                            {hasMore && (
+                            {results?.nextCursor && (
+                                <Button
+                                    type="button"
+                                    variant="soft"
+                                    size="2"
+                                    disabled={searching}
+                                    onClick={() => void moreSearchResults()}
+                                >
+                                    Load more results
+                                </Button>
+                            )}
+                            {!searchSubject && hasMore && (
                                 <Button
                                     type="button"
                                     variant="soft"
@@ -662,7 +807,7 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                         <section className="email-detail" aria-label="Selected thread">
                             {current ? (
                                 <>
-                                    {messages.length > 1 && (
+                                    {!searchSubject && messages.length > 1 && (
                                         <label className="email-thread-messages">
                                             Message in thread
                                             <Select.Root

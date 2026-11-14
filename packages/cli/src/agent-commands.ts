@@ -54,6 +54,21 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
         allowed.add('--after');
         allowed.add('--timeout-seconds');
     }
+    if (group === 'email' && ['messages', 'wait'].includes(action ?? '')) {
+        for (const flag of [
+            '--from',
+            '--mail-from',
+            '--subject',
+            '--text',
+            '--has-code',
+            '--has-link',
+            '--has-attachment',
+            '--cursor',
+            '--limit',
+        ])
+            allowed.add(flag);
+        if (action === 'wait') allowed.add('--checkpoint');
+    }
     if (group === 'email' && action === 'threads') {
         allowed.add('--cursor');
         allowed.add('--limit');
@@ -76,7 +91,7 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
         }
         if (!allowed.has(value)) throw new Error(`Unknown option: ${value}`);
         if (flags.has(value)) throw new Error(`Duplicate option: ${value}`);
-        if (value === '--persistent') flags.set(value, 'true');
+        if (value === '--persistent' || value === '--checkpoint') flags.set(value, 'true');
         else {
             const next = tail[++i];
             if (next === undefined || next.startsWith('--'))
@@ -111,6 +126,24 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
     const idempotencyKey = take('--idempotency-key');
     const emailSettings = { activeDays: number('--active-days'), localPart: take('--local-part') };
     const threadPage = { cursor: take('--cursor'), limit: number('--limit') };
+    const boolean = (key: string) => {
+        const value = take(key);
+        if (value === undefined) return undefined;
+        if (value === 'true' || value === 'false') return value === 'true';
+        throw new Error(`Use true or false for ${key}.`);
+    };
+    const emailSearch = {
+        ...threadPage,
+        token,
+        from: take('--from'),
+        mailFrom: take('--mail-from'),
+        subject: take('--subject'),
+        text: take('--text'),
+        hasCode: boolean('--has-code'),
+        hasLink: boolean('--has-link'),
+        hasAttachment: boolean('--has-attachment'),
+    };
+    const checkpoint = boolean('--checkpoint');
     const approvalId = take('--approval-id');
     const passwordLength = number('--length');
     if (flags.size) throw new Error(`Unknown option: ${flags.keys().next().value}`);
@@ -380,8 +413,9 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
             exact(0);
             return client.createEmailInbox(emailSettings);
         }
-        if (action === 'messages') return client.emails(id(), token);
-        if (action === 'wait') return client.waitForEmail(id(), wait);
+        if (action === 'messages') return client.emails(id(), emailSearch);
+        if (action === 'wait')
+            return client.waitForEmail(id(), { ...wait, ...emailSearch, checkpoint });
     }
     if (group === 'mock' || group === 'mcp-server') {
         if (action === 'create') {

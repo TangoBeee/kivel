@@ -3933,6 +3933,80 @@ test('workspace overview counts retained events and only projects the owner’s 
     assert.equal('text' in latestEmail, false);
     assert.equal(series.email[6], 1);
     assert.equal(series.webhooks[6], 1);
+    const url = `/api/email-inboxes/${mail.id}`;
+    const query = 'from=SENDER%40example.com&subject=code&hasCode=true&limit=1';
+    const rest = await app.inject({ url: `${url}/messages?${query}`, headers: owner.headers });
+    assert.equal(rest.statusCode, 200, rest.body);
+    assert.equal(rest.json().messages[0].id, latestEmail.id);
+    const checkpoint = await app.inject({
+        url: `${url}/wait?checkpoint=true&${query}`,
+        headers: owner.headers,
+    });
+    assert.equal(checkpoint.statusCode, 200, checkpoint.body);
+    const scan = async (cursor: string, suffix = query) =>
+        app.inject({
+            url: `${url}/wait?timeoutSeconds=1&cursor=${cursor}&${suffix}`,
+            headers: owner.headers,
+        });
+    await messages.record(mail.id, {
+        id: 'nonmatching-message',
+        receivedAt: latestEmail.receivedAt,
+        from: 'sender@example.com',
+        to: 'agent@example.com',
+        subject: 'Welcome',
+        text: 'No code',
+        codes: [],
+        links: [],
+        attachments: [],
+    });
+    const timedOut = await scan(checkpoint.json().nextCursor);
+    assert.equal(timedOut.statusCode, 200, timedOut.body);
+    assert.equal(timedOut.json().timedOut, true);
+    assert.notEqual(timedOut.json().nextCursor, checkpoint.json().nextCursor);
+    for (const code of ['123456', '654321']) {
+        await messages.record(mail.id, {
+            id: `match-${code}`,
+            receivedAt: latestEmail.receivedAt,
+            from: 'Sender <sender@example.com>',
+            to: 'agent@example.com',
+            subject: 'Your code',
+            text: 'Private body',
+            codes: [code],
+            links: [],
+            attachments: [],
+        });
+    }
+    const arrived = await scan(timedOut.json().nextCursor);
+    assert.equal(arrived.statusCode, 200, arrived.body);
+    assert.deepEqual(
+        arrived.json().messages.map((message: { codes: string[] }) => message.codes),
+        [['123456']],
+    );
+    const following = await scan(arrived.json().nextCursor);
+    assert.equal(following.statusCode, 200, following.body);
+    assert.deepEqual(
+        following.json().messages.map((message: { codes: string[] }) => message.codes),
+        [['654321']],
+    );
+    assert.equal((await scan(arrived.json().nextCursor, 'subject=changed')).statusCode, 400);
+    const mcp = await app.inject({
+        method: 'POST',
+        url: '/mcp',
+        headers: { ...owner.headers, accept: 'application/json, text/event-stream' },
+        payload: {
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'tools/call',
+            params: {
+                name: 'list_emails',
+                arguments: { id: mail.id, from: 'sender@example.com', hasCode: true, limit: 1 },
+            },
+        },
+    });
+    assert.equal(mcp.statusCode, 200, mcp.body);
+    const payload = JSON.parse(mcp.json().result.content[0].text);
+    assert.equal(payload.messages[0].id, 'match-654321');
+    assert.ok(payload.nextCursor);
     const isolated = await app.inject({ url: '/api/account/overview', headers: other.headers });
     assert.equal(isolated.statusCode, 200, isolated.body);
     assert.equal(isolated.json().latestEmail, null);

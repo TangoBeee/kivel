@@ -38,7 +38,8 @@ kivel email drafts|rules <inbox-id>
 kivel email draft-create <inbox-id> < content.json
 kivel email draft-inspect|draft-delete <draft-id>
 kivel email draft-submit <draft-id> [< settings.json]
-kivel email messages|wait <id> [--token <token>] [--after <id>] [--timeout-seconds <n>]
+kivel email messages|wait <id> [--cursor <cursor>] [--limit <n>] [--from <address>] [--mail-from <address>] [--subject <text>] [--text <text>] [--has-code true|false] [--has-link true|false] [--has-attachment true|false]
+kivel email wait <id> [--checkpoint] [--after <id>] [--timeout-seconds <n>] [--token <token>]
 kivel memory set <namespace> <key> [--ttl-seconds <n>] < value.json
 kivel memory get|delete <namespace> <key>
 kivel memory list <namespace> [--prefix <prefix>]

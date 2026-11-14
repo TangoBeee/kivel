@@ -1,3 +1,4 @@
+import { emailQuery, emailFilterFields } from './email-query.js';
 import type { ThreadMessage } from './email-threading.js';
 import {
     inboundEmailAllowed,
@@ -145,6 +146,11 @@ export interface EmailMessageRepository {
         bodies?: AttachmentBody[],
     ): MaybePromise<'stored' | 'full'>;
     list(resourceId: string): MaybePromise<EmailMessage[]>;
+    ordered(
+        resourceId: string,
+        after?: string,
+        newestFirst?: boolean,
+    ): MaybePromise<{ sequence: string; message: EmailMessage }[]>;
     threadMessages(resourceId: string): MaybePromise<ThreadMessage[]>;
     count(resourceId: string): MaybePromise<number>;
     cursor(resourceId: string): MaybePromise<string>;
@@ -170,6 +176,8 @@ const bodyBytes = (bodies: AttachmentBody[] = []) =>
     bodies.reduce((sum, body) => sum + Buffer.byteLength(body.base64, 'base64'), 0);
 export class MemoryEmailMessages implements EmailMessageRepository {
     private readonly messages = new Map<string, StoredEmailMessage[]>();
+    private sequence = 0n;
+    private readonly sequences = new WeakMap<StoredEmailMessage, bigint>();
     private budget?: (id: string, bytes: number) => boolean;
     private live?: (id: string) => boolean;
     setBudget(budget: (id: string, bytes: number) => boolean, live: (id: string) => boolean) {
@@ -210,12 +218,27 @@ export class MemoryEmailMessages implements EmailMessageRepository {
         } catch {
             return 'full' as const;
         }
-        list.push(structuredClone(message));
+        const stored = structuredClone(message);
+        this.sequences.set(stored, ++this.sequence);
+        list.push(stored);
         this.messages.set(resourceId, list);
         return 'stored' as const;
     }
     list(resourceId: string) {
         return (this.messages.get(resourceId) ?? []).map(publicMessage);
+    }
+    ordered(resourceId: string, after?: string, newestFirst = false) {
+        const boundary = after === undefined ? undefined : BigInt(after);
+        const rows = (this.messages.get(resourceId) ?? []).flatMap((message) => {
+            const sequence = this.sequences.get(message)!;
+            if (
+                boundary !== undefined &&
+                (newestFirst ? sequence >= boundary : sequence <= boundary)
+            )
+                return [];
+            return [{ sequence: String(sequence), message: publicMessage(message) }];
+        });
+        return newestFirst ? rows.reverse() : rows;
     }
     threadMessages(resourceId: string) {
         return this.messages.get(resourceId) ?? [];
@@ -249,7 +272,9 @@ export class MemoryEmailMessages implements EmailMessageRepository {
                 Buffer.byteLength(JSON.stringify(list[index]));
             if (this.budget && !this.budget(resourceId, delta))
                 throw new HttpError(429, 'Mail storage allowance reached.');
-            list[index] = structuredClone(stored);
+            const updated = structuredClone(stored);
+            this.sequences.set(updated, this.sequences.get(list[index]!)!);
+            list[index] = updated;
         }
     }
 }
@@ -338,6 +363,15 @@ export class PostgresEmailMessages implements EmailMessageRepository {
             [resourceId],
         );
         return result.rows.map((row) => row.message);
+    }
+    async ordered(resourceId: string, after?: string, newestFirst = false) {
+        const { rows } = await this.pool.query<{ sequence: string; message: EmailMessage }>(
+            `SELECT sequence::text, message - 'attachmentBodies' AS message FROM email_messages
+              WHERE resource_id = $1 AND ($2::bigint IS NULL OR sequence ${newestFirst ? '<' : '>'} $2)
+              ORDER BY email_messages.sequence ${newestFirst ? 'DESC' : 'ASC'}`,
+            [resourceId, after ?? null],
+        );
+        return rows;
     }
     async threadMessages(resourceId: string) {
         const result = await this.pool.query<{ message: ThreadMessage }>(
@@ -744,17 +778,59 @@ export function registerEmail({
             return reply.code(204).send();
         },
     );
-    app.get<{ Params: { id: string } }>('/api/email-inboxes/:id/messages', async (request) => {
-        const { inbox } = await owned(request, request.params.id);
-        return { messages: await messages.list(inbox.id) };
-    });
+    app.get<{ Params: { id: string }; Querystring: Record<string, unknown> }>(
+        '/api/email-inboxes/:id/messages',
+        async (request) => {
+            const { inbox } = await owned(request, request.params.id);
+            const query = request.query;
+            if (
+                !['cursor', 'limit', ...emailFilterFields].some(
+                    (field) => query[field] !== undefined,
+                )
+            )
+                return { messages: await messages.list(inbox.id) };
+            const filter = emailQuery(inbox.id, 'search', query);
+            const rows = await messages.ordered(inbox.id, filter.after, true);
+            const page = rows
+                .filter(({ message }) => filter.matches(message))
+                .slice(0, filter.limit + 1);
+            return {
+                messages: page.slice(0, filter.limit).map(({ message }) => message),
+                nextCursor:
+                    page.length > filter.limit
+                        ? filter.cursor(page[filter.limit - 1]!.sequence)
+                        : null,
+            };
+        },
+    );
 
     app.get<{
         Params: { id: string };
-        Querystring: { after?: string; timeoutSeconds?: string };
+        Querystring: Record<string, unknown> & { after?: string; timeoutSeconds?: string };
     }>('/api/email-inboxes/:id/wait', async (request) => {
         const { inbox, actor } = await owned(request, request.params.id);
-        const deadline = Date.now() + waitSeconds(request.query.timeoutSeconds) * 1000;
+        const query = request.query;
+        const useCursor = ['cursor', 'limit', 'checkpoint', ...emailFilterFields].some(
+            (field) => query[field] !== undefined,
+        );
+        if (useCursor && query.after !== undefined)
+            throw new HttpError(400, 'Use either after or the new email cursor and filters.');
+        if (
+            query.checkpoint !== undefined &&
+            (query.checkpoint !== 'true' || query.cursor !== undefined)
+        )
+            throw new HttpError(400, 'Request checkpoint=true without a cursor.');
+        const filter = useCursor ? emailQuery(inbox.id, 'wait', query) : undefined;
+        let checkpoint = filter?.after ?? '0';
+        if (filter && query.checkpoint === 'true') {
+            const latest = (await messages.ordered(inbox.id, undefined, true))[0];
+            return {
+                timedOut: false,
+                messages: [],
+                nextCursor: filter.cursor(latest?.sequence ?? '0'),
+            };
+        }
+        const deadline = Date.now() + waitSeconds(query.timeoutSeconds) * 1000;
         const abort = new AbortController();
         request.raw.once('close', () => abort.abort());
         return waiters.run(actor.quotaKey, async () => {
@@ -766,24 +842,45 @@ export function registerEmail({
                         409,
                         'This email address is paused. Restore your subscription to receive mail.',
                     );
-                const cursor = await messages.cursor(inbox.id);
-                if (cursor !== seen) {
-                    seen = cursor;
-                    const list = await messages.list(inbox.id);
-                    const after = request.query.after;
-                    const index = after ? list.findIndex((message) => message.id === after) : -1;
-                    const fresh = list
-                        .slice(index + 1)
-                        .filter((message) => message.direction !== 'outbound');
-                    if (fresh.length) return { timedOut: false, messages: fresh };
+                if (filter) {
+                    const page: EmailMessage[] = [];
+                    for (const row of await messages.ordered(inbox.id, checkpoint)) {
+                        checkpoint = row.sequence;
+                        if (row.message.direction !== 'outbound' && filter.matches(row.message))
+                            page.push(row.message);
+                        if (page.length === filter.limit) break;
+                    }
+                    if (page.length)
+                        return {
+                            timedOut: false,
+                            messages: page,
+                            nextCursor: filter.cursor(checkpoint),
+                        };
+                } else {
+                    const cursor = await messages.cursor(inbox.id);
+                    if (cursor !== seen) {
+                        seen = cursor;
+                        const list = await messages.list(inbox.id);
+                        const after = query.after;
+                        const index = after
+                            ? list.findIndex((message) => message.id === after)
+                            : -1;
+                        const fresh = list
+                            .slice(index + 1)
+                            .filter((message) => message.direction !== 'outbound');
+                        if (fresh.length) return { timedOut: false, messages: fresh };
+                    }
                 }
                 if (abort.signal.aborted || Date.now() + 500 > deadline)
-                    return { timedOut: true, messages: [] };
+                    return {
+                        timedOut: true,
+                        messages: [],
+                        ...(filter ? { nextCursor: filter.cursor(checkpoint) } : {}),
+                    };
                 await pause(500, abort.signal);
             }
         });
     });
-
     app.delete<{ Params: { id: string } }>('/api/email-inboxes/:id', async (request, reply) => {
         const { actor, row } = await owned(request, request.params.id);
         if (row) {

@@ -2578,7 +2578,7 @@ and calmer editors. Loaded last. */
   font-size: 0.8125rem;
   color: var(--muted);
 }
-.email-list button {
+.email-list > button {
   display: grid;
   gap: 2px;
   width: 100%;
@@ -2590,17 +2590,17 @@ and calmer editors. Loaded last. */
   text-align: left;
   cursor: pointer;
 }
-.email-list button[aria-pressed='true'] {
+.email-list > button[aria-pressed='true'] {
   background: var(--accent-soft);
 }
-.email-list button strong {
+.email-list > button strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 0.875rem;
 }
-.email-list button span,
-.email-list button time {
+.email-list > button span,
+.email-list > button time {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -723,7 +723,7 @@ const examples: Record<string, { useCase: string; example: string }> = {
     'email-email-webhook-forwarding': {
         useCase: 'Let your own application react when an owned agent inbox receives a message.',
         example:
-            'PUT /api/email-inboxes/{id}/forwarding\n{ "url": "https://your-app.example/hooks/email" }\n\nYour endpoint receives email.received with the structured message; inspect inbox metadata for the latest delivery result.',
+            'PUT /api/email-inboxes/{id}/forwarding\n{ "url": "https://your-app.example/hooks/email" }\n\nYour endpoint receives a signed email.received event. Inspect /api/email-inboxes/{id}/deliveries for attempts.',
     },
     'network-request-forwarding': {
         useCase:
@@ -733,7 +733,7 @@ const examples: Record<string, { useCase: string; example: string }> = {
     },
     'email-temporary-email-inbox': {
         useCase:
-            'Test a signup, verification or reply flow with an owned address. Read the conversation as a thread, save a draft for approval, or set rules for who can send and receive mail.',
+            'Receive verification mail and run conversations with an owned address. Find messages by code, link or sender, draft replies for approval, and grant an agent access to an individual inbox.',
         example:
             'Address: k5zfrjb4ird2tgvpaox42dnr3e@socketspace.xyz\nSubject: Confirm your email\nCode: 700412\nVerification link: https://app.example/verify?token=…',
     },

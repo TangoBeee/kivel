@@ -58,6 +58,19 @@ const deletes = {
     idempotentHint: true,
     openWorldHint: false,
 };
+const emailFilters = {
+    cursor: stringProperty('Cursor for this inbox and the same filters.'),
+    limit: { type: 'integer', minimum: 1, maximum: 50 },
+    from: stringProperty('Exact sender mailbox, case insensitive.'),
+    mailFrom: stringProperty('Exact envelope sender mailbox, case insensitive.'),
+    subject: stringProperty('Literal case insensitive subject match.'),
+    text: stringProperty('Literal case insensitive plain text match.'),
+    hasCode: { type: 'boolean' },
+    hasLink: { type: 'boolean' },
+    hasAttachment: { type: 'boolean' },
+    read: { type: 'boolean' },
+    label: stringProperty('Exact label, case insensitive.'),
+};
 export const platformTools = [
     {
         name: 'create_test_wallet',
@@ -445,10 +458,15 @@ export const platformTools = [
     },
     {
         name: 'wait_for_email',
-        description: `Block until the email inbox receives a message, then return new messages with extracted one-time codes and links (verification links first). Pass after (the last message ID seen) to wait for newer ones. Returns timedOut: true after timeoutSeconds (default 25, max ${WAIT_MAX_SECONDS}); call again to keep waiting.`,
+        description: `Block until the email inbox receives a message, then return new messages with extracted one-time codes and links (verification links first). Pass after (the last message ID seen) to wait for newer ones. Returns timedOut: true after timeoutSeconds (default 25, max ${WAIT_MAX_SECONDS}); call again to keep waiting. For filtered waits, take a checkpoint before triggering mail, then pass nextCursor back with the same filters.`,
         inputSchema: schema(
             {
                 ...access,
+                ...emailFilters,
+                checkpoint: {
+                    type: 'boolean',
+                    description: 'Return a cursor for mail arriving after this call.',
+                },
                 after: stringProperty('Optional message ID; only newer messages are returned.'),
                 timeoutSeconds: { type: 'number' },
             },
@@ -459,9 +477,27 @@ export const platformTools = [
     {
         name: 'list_emails',
         description:
-            'Read every message in an email inbox (up to 100): sender, subject, text, HTML, extracted codes and links, attachment names.',
-        inputSchema: schema(access, ['id']),
+            'Read email messages with extracted codes, links and attachment names. Supply filters or a limit for a newest-first page.',
+        inputSchema: schema({ ...access, ...emailFilters }, ['id']),
         annotations: readonly,
+    },
+    {
+        name: 'email_message',
+        description:
+            'Inspect one message without attachment contents. Provide read or labels to update its triage state. An empty labels array clears the labels. Updates require resources:write.',
+        inputSchema: schema(
+            {
+                ...access,
+                messageId: stringProperty('Message ID from the inbox.'),
+                read: { type: 'boolean' },
+                labels: {
+                    type: 'array',
+                    maxItems: 10,
+                    items: { type: 'string', minLength: 1, maxLength: 32 },
+                },
+            },
+            ['id', 'messageId'],
+        ),
     },
     {
         name: 'list_email_threads',
@@ -486,7 +522,7 @@ export const platformTools = [
     {
         name: 'email_draft',
         description:
-            'Create, list, get, send or delete an email draft. Use the inbox ID for create or list, and draft ID otherwise. Create content accepts to, cc, subject, text or html, and optional replyTo (a received message ID). Send accepts approval: true to request human review and optional sendAt (ISO timestamp). Use wait_for_event with the approval ID to wait for a decision. Reviews expire after at most 24 hours or at sendAt or draft expiry if sooner. Only a signed-in owner or admin can resubmit expired or rejected drafts. A decision is separate from delivery status.',
+            'Create, list, get, send or delete an email draft. Use the inbox ID for create or list, and draft ID otherwise. Create content accepts to, cc, subject, text or html, and optional replyTo (a received message ID). Send accepts approval: true to request human review and optional sendAt (ISO timestamp). Use wait_for_approval with the approval ID to wait for a decision. Reviews expire after at most 24 hours or at sendAt or draft expiry if sooner. Only a signed-in owner or admin can resubmit expired or rejected drafts. A decision is separate from delivery status.',
         inputSchema: schema(
             {
                 action: { type: 'string', enum: ['create', 'list', 'get', 'send', 'delete'] },
@@ -1761,7 +1797,7 @@ export function registerMcp({
         for (const key of ['authorization', 'cookie', 'origin'])
             if (typeof request.headers[key] === 'string') headers[key] = request.headers[key];
         let url: string;
-        let method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET';
+        let method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' = 'GET';
         let payload: object | undefined;
         const id = typeof value.id === 'string' ? encodeURIComponent(value.id) : '';
         if (name === 'list_email_threads') {
@@ -1802,6 +1838,14 @@ export function registerMcp({
                 default:
                     throw new RpcError(-32602, 'Choose a draft action.');
             }
+        } else if (name === 'email_message') {
+            const { token } = credentials(value);
+            if (token) headers['x-resource-token'] = token;
+            url = `/api/email-inboxes/${id}/messages/${encodeURIComponent(String(value.messageId))}`;
+            if (value.read !== undefined || value.labels !== undefined) {
+                method = 'PATCH';
+                payload = { read: value.read, labels: value.labels };
+            }
         } else if (name === 'get_email_attachment') {
             url = `/api/email-inboxes/${encodeURIComponent(String(value.id))}/messages/${encodeURIComponent(String(value.messageId))}/attachments/${encodeURIComponent(String(value.attachmentId))}`;
         } else if (name === 'send_email') {
@@ -1825,6 +1869,9 @@ export function registerMcp({
             if (typeof value.after === 'string') query.set('after', value.after);
             if (value.timeoutSeconds !== undefined)
                 query.set('timeoutSeconds', String(value.timeoutSeconds));
+            for (const field of [...Object.keys(emailFilters), 'checkpoint']) {
+                if (value[field] !== undefined) query.set(field, String(value[field]));
+            }
             url = `/api/email-inboxes/${id}/${name === 'wait_for_email' ? 'wait' : 'messages'}${query.size ? `?${query}` : ''}`;
             // Waiting holds no MCP upload slot, so other calls are not blocked meanwhile.
             if (name === 'wait_for_email') uploads.delete(request);
@@ -2137,7 +2184,8 @@ export function registerMcp({
             (['calls', 'reset'].includes(action) &&
                 kind !== 'mocks' &&
                 !(kind === 'oauth-providers' && action === 'calls')) ||
-            (['response', 'deliveries'].includes(action) && kind !== 'inboxes') ||
+            (action === 'response' && kind !== 'inboxes') ||
+            (action === 'deliveries' && !['inboxes', 'email-inboxes'].includes(kind)) ||
             (action === 'forward' && !['inboxes', 'email-inboxes'].includes(kind)) ||
             (action === 'update' &&
                 ![
@@ -2194,7 +2242,8 @@ export function registerMcp({
                     : '';
         const path =
             action === 'list'
-                ? ['authenticators', 'credentials', 'oauth-providers'].includes(kind)
+                ? ['authenticators', 'credentials', 'oauth-providers'].includes(kind) ||
+                  (kind === 'email-inboxes' && (await access.actor(request)).identity?.emailInboxId)
                     ? `/api/${kind}`
                     : '/api/account/resources'
                 : `/api/${kind === 'oauth-providers' && ['calls', 'renew', 'sharing'].includes(action) ? 'mocks' : kind}${action === 'create' ? '' : `/${value.id}`}${suffix}${query.size ? `?${query}` : ''}`;
@@ -2369,6 +2418,34 @@ export function registerMcp({
                             await new Promise((resolve) => setTimeout(resolve, tool.delayMs));
                         response = result(tool.response, tool.isError);
                     } else {
+                        const { identity } = await access.actor(request);
+                        if (
+                            identity?.emailInboxId &&
+                            ![
+                                'search_tools',
+                                'describe_tool',
+                                'list_emails',
+                                'wait_for_email',
+                                'list_email_threads',
+                                'get_email_thread',
+                                'email_message',
+                                'get_email_attachment',
+                                'send_email',
+                                'email_draft',
+                                'email_inbox_rules',
+                                'wait_for_event',
+                                'wait_for_approval',
+                            ].includes(params.name)
+                        )
+                            if (
+                                params.name !== 'resource_request' ||
+                                values.kind !== 'email-inboxes' ||
+                                !['list', 'inspect', 'deliveries'].includes(String(values.action))
+                            )
+                                throw new HttpError(
+                                    403,
+                                    'This key can only access its assigned email inbox.',
+                                );
                         const definition = platformTools.find((tool) => tool.name === params.name);
                         if (!definition) throw new RpcError(-32602, 'Unknown tool.');
                         const properties = definition.inputSchema.properties as Record<
@@ -2462,6 +2539,7 @@ export function registerMcp({
                                                           'create_email_inbox',
                                                           'wait_for_email',
                                                           'list_emails',
+                                                          'email_message',
                                                           'send_email',
                                                           'list_email_threads',
                                                           'get_email_thread',

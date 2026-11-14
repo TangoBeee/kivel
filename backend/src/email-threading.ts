@@ -84,19 +84,25 @@ function subject(value: string) {
         .replace(/\s+/g, ' ');
 }
 
-export type ThreadMessage = Pick<
-    EmailMessage,
-    | 'id'
-    | 'receivedAt'
-    | 'from'
-    | 'to'
-    | 'cc'
-    | 'subject'
-    | 'direction'
-    | 'messageId'
-    | 'inReplyTo'
-    | 'references'
->;
+export type ThreadMessage = Partial<Pick<EmailMessage, 'codes' | 'links' | 'attachments'>> & {
+    hasCode?: boolean;
+    hasLink?: boolean;
+    hasAttachment?: boolean;
+} & Pick<
+        EmailMessage,
+        | 'id'
+        | 'receivedAt'
+        | 'from'
+        | 'to'
+        | 'cc'
+        | 'subject'
+        | 'direction'
+        | 'messageId'
+        | 'inReplyTo'
+        | 'references'
+        | 'read'
+        | 'labels'
+    >;
 
 export function groupEmailThreads<T extends ThreadMessage>(messages: T[], inboxId: string) {
     const ordered = [...messages].sort(
@@ -168,6 +174,11 @@ export function groupEmailThreads<T extends ThreadMessage>(messages: T[], inboxI
             lastAt: latest.receivedAt,
             from: latest.from,
             messageCount: items.length,
+            unread: items.some((item) => item.direction !== 'outbound' && !item.read),
+            hasCode: items.some((item) => item.hasCode || item.codes?.length),
+            hasLink: items.some((item) => item.hasLink || item.links?.length),
+            hasAttachment: items.some((item) => item.hasAttachment || item.attachments?.length),
+            labels: [...new Set(items.flatMap((item) => item.labels ?? []))].slice(0, 10),
             messages: items,
         };
     });

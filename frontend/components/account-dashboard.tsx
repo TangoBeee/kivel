@@ -58,7 +58,14 @@ type Session = {
     role: string;
     scopes: string[];
 };
-type Key = { id: string; name: string; prefix: string; scopes: string[]; expiresAt: string };
+type Key = {
+    id: string;
+    name: string;
+    prefix: string;
+    scopes: string[];
+    expiresAt: string;
+    emailInboxId?: string;
+};
 const paths = {
     inbox: 'inboxes',
     mock: 'mocks',
@@ -1125,8 +1132,10 @@ export function AccountDashboard({
                                                     <strong>{key.name}</strong>
                                                     <small>
                                                         <code>{key.prefix}…</code> ·{' '}
-                                                        {keyAccess(key.scopes)} · expires{' '}
-                                                        {timeLeft(key.expiresAt)}
+                                                        {key.emailInboxId
+                                                            ? 'One email inbox'
+                                                            : keyAccess(key.scopes)}{' '}
+                                                        · expires {timeLeft(key.expiresAt)}
                                                     </small>
                                                 </div>
                                                 <button

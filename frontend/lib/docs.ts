@@ -542,6 +542,62 @@ X-Request-Id: 1e3e28f5-fb64-474f-845f-b06c17f52eef
         ],
     },
     {
+        slug: 'email-search',
+        title: 'Search and wait for email',
+        navTitle: 'Email search',
+        group: 'Resources',
+        description:
+            'Find a message by sender, subject or extraction results. Take an inbox checkpoint before triggering email, then wait for the matching message.',
+        updatedAt,
+        sections: [
+            {
+                id: 'filters',
+                title: 'Find messages',
+                paragraphs: [
+                    'Use GET /api/email-inboxes/{id}/messages with from, mailFrom, subject, text, hasCode, hasLink, hasAttachment, read or label. All supplied filters must match. Sender filters match the whole mailbox without regard to case. Subject and text filters match literal text.',
+                    'Filtered results are newest first. Pass nextCursor with the same filters to get the next page. The default page has 20 messages. With no query options, the endpoint still returns the original message list.',
+                ],
+            },
+            {
+                id: 'triage',
+                title: 'Inspect and organize messages',
+                paragraphs: [
+                    'Open one message with GET /api/email-inboxes/{id}/messages/{messageId}, email_message over MCP, emailMessage in the SDK, or kivel email message INBOX_ID MESSAGE_ID. Attachment contents have their own download endpoint.',
+                    'Use PATCH on the same path, updateEmailMessage in the SDK, or kivel email message-update INBOX_ID MESSAGE_ID. In MCP, pass read or labels to email_message. Labels replace the existing list and an empty array clears it. Updates require write access. Set replyTo to the received message ID when sending or creating a reply draft.',
+                ],
+            },
+            {
+                id: 'inbox-access',
+                title: 'Give an agent access to one inbox',
+                paragraphs: [
+                    'A signed in owner or admin can open Inbox access in the dashboard to create a read key or a write key for that inbox. Use the key like any API key with MCP, HTTP, the SDK or the CLI. It cannot open other inboxes or change rules. A write key can submit drafts and wait for its own approval. It cannot approve them.',
+                    'Copy the key when it is created. Revoke it from Inbox access to block new requests. A download link already issued lasts up to two minutes. Existing live streams close within 55 seconds.',
+                ],
+            },
+            {
+                id: 'forwarding',
+                title: 'Verify and inspect forwarded mail',
+                paragraphs: [
+                    'Save a public webhook URL in the dashboard or send PUT /api/email-inboxes/{id}/forwarding. The response includes the inbox signing secret. Copy it into your receiver and keep it private.',
+                    'Verify x-kivel-signature against HMAC SHA256 of x-kivel-timestamp, a period and the raw body. Use the returned secret as a string, check the timestamp is recent and compare in constant time. Deduplicate with x-kivel-email-id. Network errors, HTTP 429 and HTTP 5xx can be retried twice. The message stays in the inbox.',
+                    'View attempts in the dashboard, GET /api/email-inboxes/{id}/deliveries, resource_request with kind email-inboxes and action deliveries, emailDeliveries in the SDK, or kivel email deliveries INBOX_ID. History follows the stored message.',
+                ],
+            },
+            {
+                id: 'checkpoint',
+                title: 'Take a checkpoint before sending',
+                paragraphs: [
+                    'Call the wait endpoint with checkpoint=true and the filters you will use after triggering the email. Pass its nextCursor back with the same filters. When a wait times out, use the returned cursor on the next call.',
+                    'In MCP, use list_emails and wait_for_email with the same filter names. In the CLI, run kivel email wait INBOX_ID --checkpoint --subject Verify, then wait with --cursor and the same subject.',
+                ],
+                code: {
+                    title: 'TypeScript',
+                    value: "const filters = { subject: 'Verify', hasCode: true };\nconst start = await kivel.waitForEmail(inbox.id, { ...filters, checkpoint: true });\n// Trigger the verification email here.\nconst page = await kivel.waitForEmail(inbox.id, { ...filters, cursor: start.nextCursor });",
+                },
+            },
+        ],
+    },
+    {
         slug: 'webhook-inboxes',
         title: 'Webhook inboxes: capture and inspect HTTP callbacks',
         navTitle: 'Webhook inboxes',
@@ -1678,7 +1734,7 @@ console.log(result.output, result.usage.used);`,
                             'Save a draft and submit it directly or for human approval, with an optional sendAt',
                         ],
                         [
-                            'waitForEmail(id, {token?, after?, timeoutSeconds?})',
+                            'waitForEmail(id, options)',
                             'Long-poll for messages, extracted codes and links',
                         ],
                         [

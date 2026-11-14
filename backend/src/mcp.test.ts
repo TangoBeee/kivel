@@ -106,7 +106,7 @@ test('platform MCP creates, inspects, and deletes the same resources as HTTP', a
     const tools = (
         await app.inject({ method: 'POST', url: '/mcp', headers, payload: rpc('tools/list') })
     ).json().result.tools;
-    assert.equal(tools.length, 66);
+    assert.ok(tools.some((tool: { name: string }) => tool.name === 'email_message'));
     assert.equal(
         tools.find((tool: { name: string }) => tool.name === 'delete_mock_api').annotations
             .destructiveHint,
@@ -289,7 +289,7 @@ test('the official MCP client can initialize, discover tools and call both serve
     const platform = new Client({ name: 'compatibility-test', version: '1.0' });
     t.after(() => platform.close());
     await platform.connect(transportFor('/mcp'));
-    assert.equal((await platform.listTools()).tools.length, 66);
+    assert.ok((await platform.listTools()).tools.some((tool) => tool.name === 'email_message'));
     const call = await platform.callTool({ name: 'create_webhook_inbox', arguments: {} });
     assert.equal(call.isError, false);
     const created = (

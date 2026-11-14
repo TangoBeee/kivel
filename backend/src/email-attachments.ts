@@ -1,3 +1,4 @@
+import { requireEmailInbox } from './access.js';
 import {
     createHmac,
     timingSafeEqual,
@@ -115,6 +116,7 @@ export function registerEmailAttachments(
         const actor = await access.workspace(request, 'resources:read'),
             owner = actor.identity.account.id;
         const { id, messageId, attachmentId } = request.params;
+        requireEmailInbox(actor.identity, id);
         await reconcile(owner);
         const inbox = await resources.read(id, 'email', '', owner);
         if (!inbox || inbox.ownerId !== owner)

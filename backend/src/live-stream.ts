@@ -2,7 +2,13 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypt
 import { Readable } from 'node:stream';
 import type { ServerResponse } from 'node:http';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import { requireWorkspace, resourceToken, type Access, type Actor } from './access.js';
+import {
+    requireWorkspace,
+    requireEmailInbox,
+    resourceToken,
+    type Access,
+    type Actor,
+} from './access.js';
 import { HttpError, RateLimitError } from './errors.js';
 import type { InboxRepository } from './inboxes.js';
 import { LiveEvents, topicKey, type LiveTopic } from './live-events.js';
@@ -75,6 +81,10 @@ export function registerLiveStream(
         const owner = actor.identity?.account.id;
         await Promise.all(
             topics.map(async ({ topic, scopeId }) => {
+                if (actor.identity?.emailInboxId) {
+                    if (topic !== 'email') throw unavailable();
+                    requireEmailInbox(actor.identity, scopeId);
+                }
                 if (workspaceTopics.has(topic)) return;
                 const allowed =
                     topic === 'webhook'

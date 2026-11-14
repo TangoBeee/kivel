@@ -14,6 +14,8 @@ import type {
     ApprovalInput,
     EmailInbox,
     EmailMessage,
+    EmailSearchOptions,
+    EmailWaitOptions,
     EmailContent,
     EmailThread,
     EmailThreadsPage,
@@ -656,11 +658,17 @@ export class Kivel {
         );
     }
     emailForwarding(id: string, url: string | null, token?: string) {
-        return this.request<{ forwardingUrl: string | null }>(
+        return this.request<{ forwardingUrl: string | null; signingSecret?: string }>(
             'PUT',
             `/api/email-inboxes/${encodeURIComponent(id)}/forwarding`,
             { url },
             token,
+        );
+    }
+    emailDeliveries(id: string) {
+        return this.request<{ deliveries: import('./types.js').EmailDelivery[] }>(
+            'GET',
+            `/api/email-inboxes/${encodeURIComponent(id)}/deliveries`,
         );
     }
     emailInbox(id: string, token?: string) {
@@ -671,20 +679,43 @@ export class Kivel {
             token,
         );
     }
-    emails(id: string, token?: string) {
-        return this.request<{ messages: EmailMessage[] }>(
+    emails(id: string, tokenOrOptions?: string | EmailSearchOptions) {
+        const settings =
+            typeof tokenOrOptions === 'string' ? { token: tokenOrOptions } : (tokenOrOptions ?? {});
+        const { token, ...filters } = settings;
+        return this.request<{ messages: EmailMessage[]; nextCursor?: string | null }>(
             'GET',
-            `/api/email-inboxes/${encodeURIComponent(id)}/messages`,
+            `/api/email-inboxes/${encodeURIComponent(id)}/messages${query(filters)}`,
             undefined,
             token,
         );
     }
-    waitForEmail(id: string, options: WaitOptions = {}) {
-        return this.request<{ timedOut: boolean; messages: EmailMessage[] }>(
+    emailMessage(id: string, messageId: string, token?: string) {
+        return this.request<EmailMessage>(
             'GET',
-            `/api/email-inboxes/${encodeURIComponent(id)}/wait${this.waitQuery(options)}`,
+            `/api/email-inboxes/${encodeURIComponent(id)}/messages/${encodeURIComponent(messageId)}`,
             undefined,
-            options.token,
+            token,
+        );
+    }
+    updateEmailMessage(
+        id: string,
+        messageId: string,
+        update: import('./types.js').EmailMessageUpdate,
+    ) {
+        return this.request<EmailMessage>(
+            'PATCH',
+            `/api/email-inboxes/${encodeURIComponent(id)}/messages/${encodeURIComponent(messageId)}`,
+            update,
+        );
+    }
+    waitForEmail(id: string, options: EmailWaitOptions = {}) {
+        const { token, ...filters } = options;
+        return this.request<{ timedOut: boolean; messages: EmailMessage[]; nextCursor?: string }>(
+            'GET',
+            `/api/email-inboxes/${encodeURIComponent(id)}/wait${query({ ...filters, timeoutSeconds: this.waitTimeout(options.timeoutSeconds) })}`,
+            undefined,
+            token,
         );
     }
     memorySet<T>(namespace: string, key: string, value: T, ttlSeconds?: number) {

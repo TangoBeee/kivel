@@ -12,7 +12,8 @@ export function needsInput(args: string[]) {
         (args[0] === 'credential' && ['save', 'update'].includes(args[1] ?? '')) ||
         (args[0] === 'approval' && args[1] === 'ask') ||
         (args[0] === 'monitor' && args[1] === 'create') ||
-        (args[0] === 'email' && ['draft-create', 'draft-submit'].includes(args[1] ?? '')) ||
+        (args[0] === 'email' &&
+            ['draft-create', 'draft-submit', 'message-update'].includes(args[1] ?? '')) ||
         (args[0] === 'event' && args[1] === 'wait') ||
         (['oauth', 'mock', 'mcp-server', 'status-page', 'job'].includes(args[0] ?? '') &&
             ['create', 'update'].includes(args[1] ?? '')) ||
@@ -54,6 +55,23 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
         allowed.add('--after');
         allowed.add('--timeout-seconds');
     }
+    if (group === 'email' && ['messages', 'wait'].includes(action ?? '')) {
+        for (const flag of [
+            '--from',
+            '--mail-from',
+            '--subject',
+            '--text',
+            '--has-code',
+            '--has-link',
+            '--has-attachment',
+            '--read',
+            '--label',
+            '--cursor',
+            '--limit',
+        ])
+            allowed.add(flag);
+        if (action === 'wait') allowed.add('--checkpoint');
+    }
     if (group === 'email' && action === 'threads') {
         allowed.add('--cursor');
         allowed.add('--limit');
@@ -76,7 +94,7 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
         }
         if (!allowed.has(value)) throw new Error(`Unknown option: ${value}`);
         if (flags.has(value)) throw new Error(`Duplicate option: ${value}`);
-        if (value === '--persistent') flags.set(value, 'true');
+        if (value === '--persistent' || value === '--checkpoint') flags.set(value, 'true');
         else {
             const next = tail[++i];
             if (next === undefined || next.startsWith('--'))
@@ -111,6 +129,26 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
     const idempotencyKey = take('--idempotency-key');
     const emailSettings = { activeDays: number('--active-days'), localPart: take('--local-part') };
     const threadPage = { cursor: take('--cursor'), limit: number('--limit') };
+    const boolean = (key: string) => {
+        const value = take(key);
+        if (value === undefined) return undefined;
+        if (value === 'true' || value === 'false') return value === 'true';
+        throw new Error(`Use true or false for ${key}.`);
+    };
+    const emailSearch = {
+        ...threadPage,
+        token,
+        from: take('--from'),
+        mailFrom: take('--mail-from'),
+        subject: take('--subject'),
+        text: take('--text'),
+        hasCode: boolean('--has-code'),
+        hasLink: boolean('--has-link'),
+        hasAttachment: boolean('--has-attachment'),
+        read: boolean('--read'),
+        label: take('--label'),
+    };
+    const checkpoint = boolean('--checkpoint');
     const approvalId = take('--approval-id');
     const passwordLength = number('--length');
     if (flags.size) throw new Error(`Unknown option: ${flags.keys().next().value}`);
@@ -340,6 +378,7 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
         if (action === 'deliveries') return client.inboxDeliveries(id(), token);
     }
     if (group === 'email') {
+        if (action === 'deliveries') return client.emailDeliveries(id());
         if (action === 'threads') {
             if (positional.length > 1) throw new Error('Provide at most one inbox ID.');
             return client.emailThreads(positional[0], threadPage);
@@ -380,8 +419,16 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
             exact(0);
             return client.createEmailInbox(emailSettings);
         }
-        if (action === 'messages') return client.emails(id(), token);
-        if (action === 'wait') return client.waitForEmail(id(), wait);
+        if (action === 'message' || action === 'message-update') {
+            exact(2);
+            const [inboxId, messageId] = positional as [string, string];
+            return action === 'message'
+                ? client.emailMessage(inboxId, messageId, token)
+                : client.updateEmailMessage(inboxId, messageId, json());
+        }
+        if (action === 'messages') return client.emails(id(), emailSearch);
+        if (action === 'wait')
+            return client.waitForEmail(id(), { ...wait, ...emailSearch, checkpoint });
     }
     if (group === 'mock' || group === 'mcp-server') {
         if (action === 'create') {

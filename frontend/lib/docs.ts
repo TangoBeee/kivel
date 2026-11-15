@@ -603,14 +603,14 @@ X-Request-Id: 1e3e28f5-fb64-474f-845f-b06c17f52eef
         navTitle: 'Webhook inboxes',
         group: 'Resources',
         description:
-            'Create a temporary webhook URL with the Kivel API, receive callbacks from any service, and read captured methods, headers, query values and bodies.',
+            'Receive HTTP callbacks, inspect exact request bytes, verify signatures locally and replay or forward webhooks.',
         updatedAt,
         sections: [
             {
                 id: 'overview',
                 title: 'What a webhook inbox does',
                 paragraphs: [
-                    'A webhook inbox is a temporary URL that records every request sent to it. Use it to see exactly what a payment provider, Git host, form service or your own code sends before you write a handler. The inbox answers each sender with 200 and stores the method, path, headers, query parameters and body for you to read.',
+                    'A webhook inbox records requests from services such as GitHub, Shopify, Slack, Twilio and your own applications. Inspect the method, path, headers, query and body in the dashboard, over HTTP or from your agent.',
                 ],
             },
             {
@@ -638,8 +638,8 @@ X-Request-Id: 1e3e28f5-fb64-474f-845f-b06c17f52eef
                 id: 'send',
                 title: 'Send requests to the webhook URL',
                 paragraphs: [
-                    'The webhook URL accepts GET, HEAD, POST, PUT, PATCH, DELETE and OPTIONS, with a body on any method up to 100 KiB. Query strings are captured; additional path segments after the inbox ID are not accepted.',
-                    'A successful capture returns 200 with {"received":true,"requestId":"..."} and an X-Webhook-Request-Id header. HEAD returns 200 with no body. The response status and body are fixed; an inbox cannot be configured to answer differently. Use a mock API for that.',
+                    'Send GET, HEAD, POST, PUT, PATCH, DELETE and other HTTP methods except CONNECT. Append any path and query to the inbox URL, such as /hooks/INBOX_ID/orders?event=created. A request body can be up to 100 KiB.',
+                    'A successful capture returns 200 with {"received":true,"requestId":"..."} and an X-Webhook-Request-Id header by default. Open Response or use PUT /api/inboxes/{id}/response to set the status, headers, body and delay.',
                     'Private inboxes accept a request only with the access token in X-Access-Token or Authorization: Bearer. Without it the sender gets 404 and nothing is stored. Workspace credentials with resources:write can also send to their own private inboxes.',
                 ],
                 code: {
@@ -658,8 +658,8 @@ X-Request-Id: 1e3e28f5-fb64-474f-845f-b06c17f52eef
                 id: 'inspect',
                 title: 'Read captured requests',
                 paragraphs: [
-                    'GET /api/inboxes/{id}/requests returns captures in arrival order. Each record has id, method, path, headers, query, body, bodyEncoding, bodySize and timestamp. Bodies that are valid UTF-8 are stored as text; other bodies are stored as Base64 with bodyEncoding set to base64.',
-                    'Header names that contain authorization, cookie, token, api key, secret or password are stored as [REDACTED]. Bodies and query values are kept as sent, so use test data.',
+                    'GET /api/inboxes/{id}/requests returns captures in arrival order by default. Provide method, path, limit or cursor to page from newest to oldest. Paths are exact and relative to the inbox URL. Keep the same filters and send nextCursor as cursor to continue. The limit defaults to 20 and allows up to 50.',
+                    'Read one capture at GET /api/inboxes/{id}/requests/{requestId}. UTF-8 bodies are stored as text and other bodies as Base64. Headers that contain authorization, cookie, token, api key, secret or password are redacted. Sensitive values may still appear in the body and query, so keep inspection credentials private.',
                     'For polling, the response has an ETag. Send it back in If-None-Match and you get 304 until a new request arrives. The response also carries X-Resource-Visibility, X-Access-Version and X-Resource-Expires-At headers.',
                 ],
                 code: {
@@ -668,6 +668,25 @@ X-Request-Id: 1e3e28f5-fb64-474f-845f-b06c17f52eef
   -H "Authorization: Bearer $INSPECTION_TOKEN" \\
   -H 'If-None-Match: "ETAG_FROM_LAST_RESPONSE"'`,
                 },
+            },
+            {
+                id: 'wait-for-a-match',
+                title: 'Wait for a matching webhook',
+                paragraphs: [
+                    'Use GET /api/inboxes/{id}/wait or the wait_for_webhook MCP tool with method, path and the latest handled request ID as after. Wait results are ordered by arrival. Keep the last returned ID to resume. SDK waitForRequests and kivel inbox wait accept the same filters.',
+                    'Use inspect_webhook_inbox with method and path for history or with requestId to read one capture. A missing paginated cursor returns 409. Restart history without a cursor if the inbox has changed.',
+                ],
+            },
+            {
+                id: 'replay-forward-and-verify',
+                title: 'Replay, forward and verify',
+                paragraphs: [
+                    'Replay a stored capture from the dashboard or POST /api/inboxes/{id}/replays with requestId, url and an Idempotency-Key header. Use the same key to check that delivery. MCP uses resource_request with kind inboxes, action replay, and requestId, url and idempotencyKey in config. SDK replayInboxRequest and kivel inbox replay use that same route.',
+                    'Replay preserves text and binary body bytes, and keeps provider signatures. The receiver may reject an old signature by timestamp. Credentials and hop headers are removed. Replay targets must be public and Kivel does not follow redirects. A timeout can occur after the receiver has handled the request.',
+                    'Pro and Team can set {url, method, path} in the Forwarding tab or with PUT /api/inboxes/{id}/forward. Leave method and path out to forward all captures. Check the response for each attempt in GET /api/inboxes/{id}/deliveries or with resource_request action deliveries. Kivel retries server errors and HTTP 429 after 2 and then 10 seconds.',
+                    'In the dashboard use Signature. For code, use SDK verifyInboxSignature. In the CLI send the secret on standard input to kivel inbox verify INBOX_ID REQUEST_ID --provider github. Verification is local, so keep the signing secret out of API and MCP calls. Timestamp checks use the recorded receipt time.',
+                    'To forward to your machine, run kivel listen INBOX_ID --forward http://localhost:3000 with a workspace key or the anonymous inspection token. Keep the process running while you want forwarding. It relays each captured request and resumes after the last cursor on reconnect. Add --all if you want retained history. The original sender receives the Kivel inbox response.',
+                ],
             },
             {
                 id: 'manage',
@@ -704,7 +723,7 @@ X-Request-Id: 1e3e28f5-fb64-474f-845f-b06c17f52eef
         faqs: [
             {
                 question: 'Can the inbox respond with a custom status code or body?',
-                answer: 'No. A webhook inbox always answers a successful capture with 200 and {"received":true,"requestId":"..."}. To return a chosen status, body or delay, create a mock API.',
+                answer: 'Yes. Use Response in the dashboard or PUT /api/inboxes/{id}/response to choose the status, body, headers and delay.',
             },
             {
                 question: 'My provider cannot send custom headers. How do I use a private inbox?',

@@ -103,7 +103,7 @@ export function ResultPreview({
     );
 }
 
-function highlightJson(text: string): ReactNode[] {
+export function highlightJson(text: string): ReactNode[] {
     const output: ReactNode[] = [];
     const pattern =
         /("(?:\\.|[^"\\])*")(\s*:)?|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|\b(true|false|null)\b/g;

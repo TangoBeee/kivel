@@ -6,34 +6,26 @@ import { Button } from '@radix-ui/themes';
 import { api, resourceHeaders } from '../lib/api';
 import { siteOrigin } from '../lib/site';
 import type { Inbox } from '../lib/api';
+import type { WebhookDelivery } from '@kivel.io/sdk';
 import { useViewer } from '../lib/viewer';
 
-interface Delivery {
-    requestId: string;
-    at: string;
-    attempts: number;
-    status?: number;
-    error?: string;
-    durationMs: number;
-}
-
-/** Pro and Team: relay every captured webhook to the user's own endpoint, with a delivery log. */
 export function InboxForwardSettings({
     inbox,
     onSaved,
     onError,
 }: {
     inbox: Inbox;
-    onSaved(url: string | undefined): void;
+    onSaved(url: string | undefined, filter?: Inbox['forwardFilter']): void;
     onError(message: string): void;
 }) {
     const viewer = useViewer();
     const paid = viewer.status === 'user' && (viewer.plan === 'pro' || viewer.plan === 'team');
     const [url, setUrl] = useState(inbox.forwardUrl ?? '');
+    const [method, setMethod] = useState(inbox.forwardFilter?.method ?? '');
+    const [path, setPath] = useState(inbox.forwardFilter?.path ?? '');
     const [busy, setBusy] = useState(false);
-    const [deliveries, setDeliveries] = useState<Delivery[]>([]);
+    const [deliveries, setDeliveries] = useState<WebhookDelivery[]>([]);
     useEffect(() => {
-        if (!inbox.forwardUrl) return;
         let live = true;
         let timer: ReturnType<typeof setTimeout>;
         async function load() {
@@ -67,10 +59,14 @@ export function InboxForwardSettings({
                 await api(`/api/inboxes/${inbox.id}/forward`, {
                     method: 'PUT',
                     headers: { ...headers, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url }),
+                    body: JSON.stringify({
+                        url,
+                        method: method.trim() || undefined,
+                        path: path.trim() || undefined,
+                    }),
                 })
             ).json();
-            onSaved(saved.forwardUrl);
+            onSaved(saved.forwardUrl, saved.forwardFilter);
         } catch (failure) {
             onError(failure instanceof Error ? failure.message : 'Unable to save forwarding.');
         } finally {
@@ -88,9 +84,9 @@ export function InboxForwardSettings({
                     }}
                 >
                     <p>
-                        Every captured request is also sent to this public URL, with retries after
-                        server errors. Text bodies only. To reach localhost, use{' '}
-                        <code>kivel listen --forward</code> instead.
+                        Relay captured requests to a public URL. Leave the filters empty to forward
+                        everything. To forward to localhost, use <code>kivel listen --forward</code>
+                        .
                     </p>
                     <label>
                         Endpoint URL
@@ -100,6 +96,24 @@ export function InboxForwardSettings({
                             placeholder="https://api.example.com/webhooks/events"
                             value={url}
                             onChange={(event) => setUrl(event.target.value)}
+                        />
+                    </label>
+                    <label>
+                        HTTP method (optional)
+                        <input
+                            placeholder="POST"
+                            maxLength={20}
+                            value={method}
+                            onChange={(event) => setMethod(event.target.value)}
+                        />
+                    </label>
+                    <label>
+                        Exact path (optional)
+                        <input
+                            placeholder="/billing"
+                            maxLength={512}
+                            value={path}
+                            onChange={(event) => setPath(event.target.value)}
                         />
                     </label>
                     <div className="button-row">
@@ -119,32 +133,6 @@ export function InboxForwardSettings({
                             </Button>
                         )}
                     </div>
-                    {inbox.forwardUrl && (
-                        <ul className="delivery-log">
-                            {deliveries.length ? (
-                                [...deliveries].reverse().map((delivery) => (
-                                    <li key={`${delivery.requestId}-${delivery.at}`}>
-                                        <span
-                                            className={
-                                                delivery.status && delivery.status < 400
-                                                    ? 'is-ok'
-                                                    : 'is-error'
-                                            }
-                                        >
-                                            {delivery.status ?? 'failed'}
-                                        </span>
-                                        <span>
-                                            {delivery.error ??
-                                                `${delivery.attempts} attempt${delivery.attempts === 1 ? '' : 's'} · ${delivery.durationMs} ms`}
-                                        </span>
-                                        <time>{new Date(delivery.at).toLocaleTimeString()}</time>
-                                    </li>
-                                ))
-                            ) : (
-                                <li>No deliveries yet.</li>
-                            )}
-                        </ul>
-                    )}
                 </form>
             ) : (
                 <div className="upsell">
@@ -159,6 +147,43 @@ export function InboxForwardSettings({
                         See Pro pricing
                     </Link>
                 </div>
+            )}
+            {(inbox.forwardUrl || deliveries.length > 0) && (
+                <ul className="delivery-log">
+                    {deliveries.length ? (
+                        [...deliveries].reverse().map((delivery) => (
+                            <li key={delivery.replayId ?? `${delivery.requestId}-${delivery.at}`}>
+                                <span
+                                    className={
+                                        delivery.status && delivery.status < 400
+                                            ? 'is-ok'
+                                            : 'is-error'
+                                    }
+                                >
+                                    {delivery.pending ? 'Sending' : (delivery.status ?? 'Failed')}
+                                </span>
+                                <span>
+                                    {delivery.replayId ? 'Replay' : 'Forward'} ·{' '}
+                                    {delivery.error ??
+                                        `${delivery.attempts} attempt${delivery.attempts === 1 ? '' : 's'} · ${delivery.durationMs} ms`}
+                                    {delivery.responses?.length ? (
+                                        <small className="delivery-attempts">
+                                            {delivery.responses
+                                                .map(
+                                                    (attempt) =>
+                                                        attempt.status ?? attempt.error ?? 'Failed',
+                                                )
+                                                .join(' · ')}
+                                        </small>
+                                    ) : null}
+                                </span>
+                                <time>{new Date(delivery.at).toLocaleTimeString()}</time>
+                            </li>
+                        ))
+                    ) : (
+                        <li>No deliveries yet.</li>
+                    )}
+                </ul>
             )}
         </div>
     );

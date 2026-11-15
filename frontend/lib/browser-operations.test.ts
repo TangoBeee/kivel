@@ -562,7 +562,7 @@ test('environment serialization round-trips values containing all quote styles a
 
 test('webhook signatures verify each preset against independently generated HMACs', async () => {
     const { createHmac, createHash } = await import('node:crypto');
-    const { verifyWebhookSignature } = await import('@kivel.io/tools/webhooks');
+    const { verifyWebhookSignature } = await import('@kivel.io/sdk/webhook-signature');
     const now = Date.now(),
         timestamp = String(Math.floor(now / 1000)),
         secret = 'test-signing-secret';
@@ -709,7 +709,7 @@ test('webhook signatures verify each preset against independently generated HMAC
 
 test('webhook signature failures explain stale timestamps, missing headers and exact-byte mismatches', async () => {
     const { createHmac } = await import('node:crypto');
-    const { verifyWebhookSignature } = await import('@kivel.io/tools/webhooks');
+    const { verifyWebhookSignature } = await import('@kivel.io/sdk/webhook-signature');
     const secret = 'fixture',
         body = new Uint8Array([0, 255, 128]),
         timestamp = '1731705121';

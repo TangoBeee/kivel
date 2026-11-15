@@ -162,7 +162,7 @@ const guides: Record<string, Guide> = {
         steps: [
             'Create an inbox and copy its endpoint.',
             'Send a request from your application or terminal.',
-            'Select a request to inspect its parsed body or original bytes. Use Signature to verify a provider signature locally; your secret is never sent or saved. Open Response to set status, headers, body and delay.',
+            'Filter by method or path, then select a request to inspect its parsed body or original bytes. Use Signature to verify locally. Replay a workspace capture or open Response to set its reply.',
         ],
         limits: 'Anonymous inboxes last one hour and hold up to 100 requests. Accounts receive the limits shown on the plans page. Each body is limited to 100 KiB. Choose public or private receiver access. Private senders use the X-Access-Token header; inspection uses a separate credential. Sensitive headers are redacted. Signature presets cover Stripe, GitHub, Shopify, Slack, Twilio, Svix, Paddle, Dodo Payments, Linear and custom HMAC. Timestamp checks use receipt time. Custom HMAC signs raw bytes and optionally checks a Unix-seconds header. CONNECT tunneling is not supported; ordinary and extended HTTP methods are captured.',
     },
@@ -416,7 +416,7 @@ export function toolGuide(tool: CatalogTool): Guide {
                 'Configure its forwarding URL through the inbox API or CLI.',
                 'Inspect delivery attempts and captured payloads.',
             ],
-            limits: 'Requires an active Pro or Team subscription and an owned inbox. Targets must be public HTTP(S), with redirects and private networks blocked. Forwarding pauses immediately when the subscription lapses. Binary bodies are not forwarded; see the webhook forwarding API for retry limits.',
+            limits: 'Requires an active Pro or Team subscription and an owned inbox. Targets must be public HTTP or HTTPS. Kivel preserves binary body bytes and retries server errors and rate limits. Optional method and path filters apply before sending. Forwarding pauses when the subscription lapses.',
         };
     if (['email-temporary-email-inbox', 'email-email-webhook-forwarding'].includes(tool.id))
         return {

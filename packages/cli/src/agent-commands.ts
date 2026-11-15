@@ -1,4 +1,6 @@
 import type { Kivel, MonitorInput, ApprovalInput } from '@kivel.io/sdk';
+import { signatureProviders } from '@kivel.io/sdk/webhook-signature';
+import type { SignatureInput } from '@kivel.io/sdk/webhook-signature';
 
 export function needsInput(args: string[]) {
     return (
@@ -18,7 +20,8 @@ export function needsInput(args: string[]) {
         (['oauth', 'mock', 'mcp-server', 'status-page', 'job'].includes(args[0] ?? '') &&
             ['create', 'update'].includes(args[1] ?? '')) ||
         (['inbox', 'email'].includes(args[0] ?? '') &&
-            ['response', 'forward', 'send'].includes(args[1] ?? ''))
+            ['response', 'forward', 'send'].includes(args[1] ?? '')) ||
+        (args[0] === 'inbox' && args[1] === 'verify')
     );
 }
 
@@ -36,9 +39,27 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
         'smtp',
     ].includes(group ?? '');
     const allowed = new Set<string>();
-    if (resource && action !== 'create' && group !== 'oauth') allowed.add('--token');
+    if (resource && !['create', 'replay'].includes(action ?? '') && group !== 'oauth')
+        allowed.add('--token');
     if ((group === 'email' && action === 'send') || (group === 'phone' && action === 'create'))
         allowed.add('--idempotency-key');
+    if (group === 'inbox' && action === 'replay')
+        for (const flag of ['--url', '--idempotency-key']) allowed.add(flag);
+    if (group === 'inbox' && action === 'verify')
+        for (const flag of [
+            '--provider',
+            '--url',
+            '--header',
+            '--algorithm',
+            '--encoding',
+            '--timestamp-header',
+            '--tolerance-seconds',
+        ])
+            allowed.add(flag);
+    if (group === 'inbox' && ['requests', 'wait'].includes(action ?? '')) {
+        for (const flag of ['--method', '--path', '--limit']) allowed.add(flag);
+        if (action === 'requests') allowed.add('--cursor');
+    }
     if (resource && action === 'create') {
         if (group === 'email') {
             allowed.add('--active-days');
@@ -129,6 +150,20 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
     const idempotencyKey = take('--idempotency-key');
     const emailSettings = { activeDays: number('--active-days'), localPart: take('--local-part') };
     const threadPage = { cursor: take('--cursor'), limit: number('--limit') };
+    const webhookFilters = {
+        method: take('--method'),
+        path: take('--path'),
+        limit: threadPage.limit,
+    };
+    const webhookUrl = take('--url');
+    const signature = {
+        provider: take('--provider'),
+        headerName: take('--header'),
+        algorithm: take('--algorithm'),
+        encoding: take('--encoding'),
+        timestampHeader: take('--timestamp-header'),
+        toleranceSeconds: number('--tolerance-seconds'),
+    };
     const boolean = (key: string) => {
         const value = take(key);
         if (value === undefined) return undefined;
@@ -368,12 +403,57 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
         if (action === 'wait') return client.waitForApproval(id(), wait.timeoutSeconds);
     }
     if (group === 'inbox') {
-        if (action === 'requests') return client.inspectInbox(id(), token);
-        if (action === 'wait') return client.waitForRequests(id(), wait);
+        if (action === 'requests')
+            return threadPage.cursor ||
+                Object.values(webhookFilters).some((value) => value !== undefined)
+                ? client.inboxRequests(id(), {
+                      ...webhookFilters,
+                      cursor: threadPage.cursor,
+                      token,
+                  })
+                : client.inspectInbox(id(), token);
+        if (action === 'wait') return client.waitForRequests(id(), { ...wait, ...webhookFilters });
+        if (action === 'request') {
+            exact(2);
+            return client.inboxRequest(positional[0]!, positional[1]!, token);
+        }
+        if (action === 'replay') {
+            exact(2);
+            if (!webhookUrl || !idempotencyKey)
+                throw new Error('Provide --url and --idempotency-key.');
+            return client.replayInboxRequest(
+                positional[0]!,
+                positional[1]!,
+                webhookUrl,
+                idempotencyKey,
+            );
+        }
+        if (action === 'verify') {
+            exact(2);
+            if (!signature.provider || !Object.hasOwn(signatureProviders, signature.provider))
+                throw new Error(
+                    `Use --provider with one of: ${Object.keys(signatureProviders).join(', ')}.`,
+                );
+            const secret = new TextDecoder('utf-8', { fatal: true })
+                .decode(input)
+                .replace(/\r?\n$/, '');
+            if (!secret) throw new Error('Provide the signing secret on standard input.');
+            return client.verifyInboxSignature(positional[0]!, positional[1]!, {
+                ...(signature as Omit<SignatureInput, 'secret' | 'body' | 'headers'>),
+                secret,
+                token,
+                url: webhookUrl,
+            });
+        }
         if (action === 'response') return client.setInboxResponse(id(), json(), token);
         if (action === 'forward') {
             const body = json();
-            return client.setInboxForward(id(), body === null ? null : body.url, token);
+            return client.setInboxForward(
+                id(),
+                body === null ? null : body.url,
+                token,
+                body === null ? {} : { method: body.method, path: body.path },
+            );
         }
         if (action === 'deliveries') return client.inboxDeliveries(id(), token);
     }

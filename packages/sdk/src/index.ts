@@ -1,4 +1,6 @@
 export * from './types.js';
+import { verifyWebhookSignature } from './webhook-signature.js';
+import type { SignatureInput } from './webhook-signature.js';
 import type {
     Authenticator,
     AuthenticatorInput,
@@ -60,6 +62,23 @@ export interface CapturedRequest {
     bodyEncoding: 'utf8' | 'base64';
     bodySize: number;
     timestamp: string;
+    responseStatus?: number;
+}
+export interface WebhookRequestFilters {
+    method?: string;
+    path?: string;
+    limit?: number;
+}
+export interface WebhookDelivery {
+    requestId: string;
+    at: string;
+    attempts: number;
+    status?: number;
+    error?: string;
+    durationMs: number;
+    replayId?: string;
+    pending?: boolean;
+    responses?: { status?: number; error?: string }[];
 }
 export interface InboxResponse {
     status?: number;
@@ -926,16 +945,21 @@ export class Kivel {
     mockCalls(id: string, token?: string) {
         return this.request('GET', `/api/mocks/${encodeURIComponent(id)}/calls`, undefined, token);
     }
-    setInboxForward(id: string, url: string | null, token?: string) {
+    setInboxForward(
+        id: string,
+        url: string | null,
+        token?: string,
+        filters: Omit<WebhookRequestFilters, 'limit'> = {},
+    ) {
         return this.request(
             url === null ? 'DELETE' : 'PUT',
             `/api/inboxes/${encodeURIComponent(id)}/forward`,
-            url === null ? undefined : { url },
+            url === null ? undefined : { url, ...filters },
             token,
         );
     }
     inboxDeliveries(id: string, token?: string) {
-        return this.request(
+        return this.request<{ deliveries: WebhookDelivery[] }>(
             'GET',
             `/api/inboxes/${encodeURIComponent(id)}/deliveries`,
             undefined,
@@ -974,25 +998,73 @@ export class Kivel {
             token,
         );
     }
+    inboxRequests(
+        id: string,
+        options: WebhookRequestFilters & { token?: string; cursor?: string } = {},
+    ) {
+        const { token, limit = 20, ...filters } = options;
+        return this.request<{ requests: CapturedRequest[]; nextCursor?: string }>(
+            'GET',
+            `/api/inboxes/${encodeURIComponent(id)}/requests${query({ ...filters, limit })}`,
+            undefined,
+            token,
+        );
+    }
+    inboxRequest(id: string, requestId: string, token?: string) {
+        return this.request<{ request: CapturedRequest }>(
+            'GET',
+            `/api/inboxes/${encodeURIComponent(id)}/requests/${encodeURIComponent(requestId)}`,
+            undefined,
+            token,
+        );
+    }
+    replayInboxRequest(id: string, requestId: string, url: string, idempotencyKey: string) {
+        return this.request<WebhookDelivery>(
+            'POST',
+            `/api/inboxes/${encodeURIComponent(id)}/replays`,
+            { requestId, url },
+            undefined,
+            { 'Idempotency-Key': idempotencyKey },
+        );
+    }
+    async verifyInboxSignature(
+        id: string,
+        requestId: string,
+        options: Omit<SignatureInput, 'body' | 'headers'> & { token?: string },
+    ) {
+        const { token, ...settings } = options;
+        const { request } = await this.inboxRequest(id, requestId, token);
+        const body =
+            request.bodyEncoding === 'base64'
+                ? Uint8Array.from(atob(request.body), (byte) => byte.charCodeAt(0))
+                : new TextEncoder().encode(request.body);
+        return verifyWebhookSignature({
+            ...settings,
+            body,
+            headers: request.headers,
+            now: settings.now ?? new Date(request.timestamp).getTime(),
+        });
+    }
     /**
      * Long-polls until the inbox captures a request newer than `after` (any request when omitted).
      * Resolves with `timedOut: true` when nothing arrives; call again to keep waiting.
      */
     waitForRequests(
         id: string,
-        options: { token?: string; after?: string; timeoutSeconds?: number } = {},
+        options: WebhookRequestFilters & {
+            token?: string;
+            after?: string;
+            timeoutSeconds?: number;
+        } = {},
     ) {
         // Stay inside the client timeout so the server answers before the request is aborted.
-        const query = new URLSearchParams({
-            timeoutSeconds: String(this.waitTimeout(options.timeoutSeconds)),
-            ...(options.after ? { after: options.after } : {}),
-        });
-        return this.request<{ timedOut: boolean; requests: CapturedRequest[] }>(
-            'GET',
-            `/api/inboxes/${encodeURIComponent(id)}/wait?${query}`,
-            undefined,
-            options.token,
-        );
+        const { token, timeoutSeconds, ...filters } = options;
+        const params = query({ ...filters, timeoutSeconds: this.waitTimeout(timeoutSeconds) });
+        return this.request<{
+            timedOut: boolean;
+            requests: CapturedRequest[];
+            nextCursor?: string;
+        }>('GET', `/api/inboxes/${encodeURIComponent(id)}/wait${params}`, undefined, token);
     }
     setInboxResponse(id: string, response: InboxResponse | null, token?: string) {
         if (

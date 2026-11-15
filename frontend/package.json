@@ -9,6 +9,7 @@
     "test:pages": "node --import tsx scripts/verify-pages.mts"
   },
   "dependencies": {
+    "@kivel.io/sdk": "workspace:*",
     "@kivel.io/tools": "workspace:*",
     "@phosphor-icons/react": "2.1.10",
     "@radix-ui/react-slider": "1.6.1",

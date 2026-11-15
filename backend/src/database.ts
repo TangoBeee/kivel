@@ -336,6 +336,17 @@ export async function migrate(pool: Pool): Promise<void> {
             CREATE INDEX IF NOT EXISTS email_messages_forward_due
                 ON email_messages(forward_due, sequence) WHERE forward_due IS NOT NULL;
         `);
+        await client.query(`
+            ALTER TABLE inboxes ADD COLUMN IF NOT EXISTS conditional_forward jsonb;
+            CREATE TABLE IF NOT EXISTS inbox_replays (
+                id uuid PRIMARY KEY,
+                inbox_id uuid NOT NULL REFERENCES inboxes(id) ON DELETE CASCADE,
+                key_hash text NOT NULL,
+                replay_hash text NOT NULL,
+                delivery jsonb NOT NULL,
+                UNIQUE (inbox_id, key_hash)
+            );
+        `);
         // The function adds error details without changing the schema used by older releases.
         if (version >= 5) await client.query(quotaFunction);
     });

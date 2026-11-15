@@ -1,5 +1,6 @@
 import { HttpError } from './access.js';
 import type { CapturedRequest, InboxRepository } from './inboxes.js';
+import type { WebhookHistory } from './webhook-history.js';
 
 export const WAIT_DEFAULT_SECONDS = 25;
 // The proxy gives upstream responses 35 seconds, so a wait must answer before that.
@@ -42,19 +43,19 @@ export function waitSeconds(value: unknown): number {
 
 const pause = (ms: number, signal?: AbortSignal) =>
     new Promise<void>((resolve) => {
-        const timer = setTimeout(resolve, ms);
-        signal?.addEventListener(
-            'abort',
-            () => {
-                clearTimeout(timer);
-                resolve();
-            },
-            { once: true },
-        );
+        const done = () => {
+            clearTimeout(timer);
+            signal?.removeEventListener('abort', done);
+            resolve();
+        };
+        const timer = setTimeout(done, ms);
+        signal?.addEventListener('abort', done, { once: true });
     });
 
 export type WaitResult =
-    { status: 'gone' } | { status: 'ready'; requests: CapturedRequest[] } | { status: 'timeout' };
+    | { status: 'gone' }
+    | { status: 'ready'; requests: CapturedRequest[]; nextCursor?: string }
+    | { status: 'timeout' };
 
 /**
  * Resolves with captured requests newer than `after` (a request ID), or every request when `after`
@@ -62,23 +63,38 @@ export type WaitResult =
  */
 export async function waitForRequests(
     inboxes: InboxRepository,
-    input: { id: string; token: string; ownerId?: string; after?: string },
+    input: { id: string; token: string; ownerId?: string; after?: string; page?: WebhookHistory },
     timeoutMs: number,
     signal?: AbortSignal,
     intervalMs = 500,
 ): Promise<WaitResult> {
     const deadline = Date.now() + timeoutMs;
     let seen = -1;
+    let page = input.page;
     for (;;) {
         const info = await inboxes.info(input.id, input.token, input.ownerId);
         if (!info) return { status: 'gone' };
         if (info.requestCount !== seen) {
             seen = info.requestCount;
-            const requests =
-                (await inboxes.listRequests(input.id, input.token, input.ownerId)) ?? [];
-            const index = input.after ? requests.findIndex(({ id }) => id === input.after) : -1;
-            const fresh = requests.slice(index + 1);
-            if (fresh.length) return { status: 'ready', requests: fresh };
+            if (page) {
+                const result = await inboxes.pageRequests(
+                    input.id,
+                    input.token,
+                    input.ownerId,
+                    page,
+                );
+                if (!result) return { status: 'gone' };
+                const { requests, nextCursor, scannedThrough } = result;
+                if (requests.length)
+                    return { status: 'ready', requests, ...(nextCursor ? { nextCursor } : {}) };
+                if (scannedThrough) page = { ...page, cursor: scannedThrough };
+            } else {
+                const requests =
+                    (await inboxes.listRequests(input.id, input.token, input.ownerId)) ?? [];
+                const index = input.after ? requests.findIndex(({ id }) => id === input.after) : -1;
+                const fresh = requests.slice(index + 1);
+                if (fresh.length) return { status: 'ready', requests: fresh };
+            }
         }
         if (signal?.aborted || Date.now() + intervalMs > deadline) return { status: 'timeout' };
         await pause(intervalMs, signal);

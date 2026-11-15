@@ -1,99 +1,133 @@
 'use client';
 
-import { useState } from 'react';
-import { Button } from '@radix-ui/themes';
-import Link from 'next/link';
-import { legacyAccountLink } from '../lib/app-routes';
-import { api, ApiError } from '../lib/api';
-import type { CapturedRequest } from '../lib/api';
+import { useEffect, useState } from 'react';
+import { AlertDialog, Button } from '@radix-ui/themes';
+import { api, resourceHeaders } from '../lib/api';
+import type { CapturedRequest, Inbox } from '../lib/api';
+import type { WebhookDelivery } from '@kivel.io/sdk';
 
-// Routing, proxy and credential headers describe the trip to Kivel, not the original event.
-const skipped =
-    /^(host|connection|content-length|transfer-encoding|upgrade|te|trailer|expect|cookie|accept-encoding|forwarded|x-real-ip|cdn-loop|true-client-ip|x-access-token|x-resource-token)$|^(x-forwarded-|proxy-|cf-)/i;
-
-/** Resend a captured webhook to any public endpoint, with its method, headers and body. */
-export function ReplayRequest({ request }: { request: CapturedRequest }) {
-    const [url, setUrl] = useState('');
+export function ReplayRequest({ inbox, request }: { inbox: Inbox; request: CapturedRequest }) {
+    const [url, setUrl] = useState(inbox.forwardUrl ?? '');
+    const [confirm, setConfirm] = useState(false);
     const [busy, setBusy] = useState(false);
-    const [outcome, setOutcome] = useState<{ ok: boolean; text: string } | null>(null);
-    const headers = Object.entries(request.headers)
-        .filter(([name, value]) => !skipped.test(name) && value !== '[REDACTED]')
-        .slice(0, 32)
-        .map(([name, value]) => `${name}: ${Array.isArray(value) ? value.join(', ') : value}`)
-        .join('\n');
-    const binary = request.bodyEncoding === 'base64' && request.bodySize > 0;
-    async function replay(event: React.FormEvent) {
-        event.preventDefault();
+    const [delivery, setDelivery] = useState<WebhookDelivery>();
+    const [error, setError] = useState('');
+    const [pendingKey, setPendingKey] = useState('');
+    const pending = delivery?.pending;
+
+    useEffect(() => {
+        const id = delivery?.replayId;
+        if (!pending || !id) return;
+        const controller = new AbortController();
+        let timer = setTimeout(check, 2000);
+        async function check() {
+            try {
+                const result = (await (
+                    await api(`/api/inboxes/${inbox.id}/deliveries`, {
+                        headers: resourceHeaders(inbox.inspectionToken),
+                        signal: controller.signal,
+                    })
+                ).json()) as { deliveries: WebhookDelivery[] };
+                const updated = result.deliveries.find(({ replayId }) => replayId === id);
+                if (updated && !controller.signal.aborted) setDelivery(updated);
+                if (updated && !updated.pending) return;
+            } catch {}
+            if (!controller.signal.aborted) timer = setTimeout(check, 2000);
+        }
+        return () => {
+            controller.abort();
+            clearTimeout(timer);
+        };
+    }, [inbox.id, inbox.inspectionToken, delivery?.replayId, pending]);
+
+    async function replay() {
         setBusy(true);
-        setOutcome(null);
+        setError('');
+        const key = pendingKey || crypto.randomUUID();
+        setPendingKey(key);
         try {
-            const result = await (
-                await api(
-                    '/api/tools/network-request-replay/run',
-                    {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            input: url,
-                            options: {
-                                method: request.method,
-                                headers,
-                                ...(['GET', 'HEAD'].includes(request.method)
-                                    ? {}
-                                    : { body: request.body }),
-                            },
-                        }),
-                    },
-                    25000,
-                )
-            ).json();
-            const output =
-                typeof result.output === 'string' ? JSON.parse(result.output) : result.output;
-            setOutcome({
-                ok: output.status < 400,
-                text: `${output.status} in ${Math.round(output.timings?.totalMs ?? 0)} ms`,
+            const response = await api(`/api/inboxes/${inbox.id}/replays`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key },
+                body: JSON.stringify({ requestId: request.id, url }),
             });
+            setDelivery(await response.json());
+            setPendingKey('');
         } catch (failure) {
-            setOutcome({
-                ok: false,
-                text:
-                    failure instanceof ApiError && failure.status === 401
-                        ? 'Sign in to replay requests that change data.'
-                        : failure instanceof Error
-                          ? failure.message
-                          : 'Replay failed.',
-            });
+            setError(failure instanceof Error ? failure.message : 'Unable to replay this request.');
         } finally {
             setBusy(false);
         }
     }
-    if (binary) return null;
+
     return (
-        <form className="replay-request" onSubmit={(event) => void replay(event)}>
-            <label>
-                Replay this {request.method} to
-                <input
-                    type="url"
-                    required
-                    placeholder="https://staging.example.com/webhooks"
-                    value={url}
-                    onChange={(event) => setUrl(event.target.value)}
-                />
-            </label>
-            <Button size="2" variant="surface" color="gray" type="submit" disabled={busy}>
-                {busy ? 'Sending…' : 'Replay'}
-            </Button>
-            {outcome && (
-                <span className={outcome.ok ? 'replay-ok' : 'replay-error'} role="status">
-                    {outcome.text}
-                    {outcome.text.startsWith('Sign in') && (
-                        <>
-                            {' '}
-                            <Link href={legacyAccountLink('/account/#signin')}>Sign in</Link>
-                        </>
-                    )}
-                </span>
-            )}
-        </form>
+        <>
+            <form
+                className="replay-request"
+                onSubmit={(event) => {
+                    event.preventDefault();
+                    setConfirm(true);
+                }}
+            >
+                <label>
+                    Replay this {request.method} to
+                    <input
+                        type="url"
+                        required
+                        maxLength={2048}
+                        placeholder="https://staging.example.com/webhooks"
+                        value={url}
+                        disabled={pending || busy}
+                        onChange={(event) => {
+                            setUrl(event.target.value);
+                            setPendingKey('');
+                        }}
+                    />
+                </label>
+                <Button size="2" variant="surface" type="submit" disabled={busy || pending}>
+                    {busy || pending ? 'Sending…' : pendingKey ? 'Check replay' : 'Replay'}
+                </Button>
+                {error && (
+                    <span className="replay-error" role="status">
+                        {error}
+                    </span>
+                )}
+                {delivery && !error && (
+                    <span
+                        className={
+                            delivery.error || (delivery.status ?? 0) >= 400
+                                ? 'replay-error'
+                                : 'replay-ok'
+                        }
+                        role="status"
+                    >
+                        {delivery.error ??
+                            (delivery.pending
+                                ? 'Sending request.'
+                                : `HTTP ${delivery.status} · ${delivery.attempts} ${delivery.attempts === 1 ? 'attempt' : 'attempts'}`)}
+                    </span>
+                )}
+            </form>
+            <AlertDialog.Root open={confirm} onOpenChange={setConfirm}>
+                <AlertDialog.Content>
+                    <AlertDialog.Title>Replay this request?</AlertDialog.Title>
+                    <AlertDialog.Description>
+                        Kivel will send the original {request.method} body to{' '}
+                        <strong className="webhook-break">{url}</strong>. Credentials and proxy
+                        headers are removed. Original signatures are kept and may have expired.
+                    </AlertDialog.Description>
+                    <div className="button-row">
+                        <AlertDialog.Cancel>
+                            <Button variant="soft" color="gray">
+                                Cancel
+                            </Button>
+                        </AlertDialog.Cancel>
+                        <AlertDialog.Action>
+                            <Button onClick={() => void replay()}>Replay request</Button>
+                        </AlertDialog.Action>
+                    </div>
+                </AlertDialog.Content>
+            </AlertDialog.Root>
+        </>
     );
 }

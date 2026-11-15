@@ -22,6 +22,7 @@ import { validateMock, mockPayload, webSocketMockSchema } from '@kivel.io/tools/
 import { checkMockProxy } from './resource-routes.js';
 import { crudSchema } from '@kivel.io/tools/mock-crud';
 import { waitForRequests, waitSeconds, WAIT_MAX_SECONDS } from './waiting.js';
+import { webhookHistory, webhookId } from './webhook-history.js';
 import type { Waiters } from './waiting.js';
 import type { MockCallRepository } from './mock-calls.js';
 import type { ActivityRepository } from './activity.js';
@@ -39,6 +40,13 @@ const access = {
     token: stringProperty(
         'Management or inspection token for anonymous resources. Omit for resources owned by your authenticated workspace.',
     ),
+};
+const webhookFilters = {
+    method: stringProperty('HTTP method, such as POST.'),
+    path: stringProperty(
+        'Exact path after the inbox URL, such as /billing. Omit the query string.',
+    ),
+    limit: { type: 'integer', minimum: 1, maximum: 50 },
 };
 const readonly = {
     readOnlyHint: true,
@@ -387,8 +395,19 @@ export const platformTools = [
     },
     {
         name: 'inspect_webhook_inbox',
-        description: 'Read a webhook inbox and captured requests using its private token.',
-        inputSchema: schema(access, ['id']),
+        description:
+            'Read a webhook inbox and captured requests. Provide filters, a limit or a cursor to page from newest to oldest.',
+        inputSchema: schema(
+            {
+                ...access,
+                ...webhookFilters,
+                cursor: stringProperty('Use nextCursor from the preceding page.'),
+                requestId: stringProperty(
+                    'Read one capture with raw body and headers for local signature verification. Keep secrets in your local SDK or CLI.',
+                ),
+            },
+            ['id'],
+        ),
         annotations: readonly,
     },
     {
@@ -397,6 +416,7 @@ export const platformTools = [
         inputSchema: schema(
             {
                 ...access,
+                ...webhookFilters,
                 after: stringProperty(
                     'Optional request ID; only requests captured after it are returned.',
                 ),
@@ -965,7 +985,7 @@ export const platformTools = [
     {
         name: 'resource_request',
         description:
-            'Manage webhook, email, mock API, file, authenticator, vault, test payment and mock MCP resources through HTTP lifecycle routes. Authenticators support create, inspect, list, update (name) and delete only; use them only for accounts your human asked you to create or operate. Use calls for mock history; response or forward with config to configure a webhook (config.reset=true restores defaults); deliveries reads forwarding history. Email supports create, inspect, delete and renew; mail reading stays private.',
+            'Manage webhook, email, mock API, file, authenticator, vault, test payment and mock MCP resources through HTTP lifecycle routes. Authenticators support create, inspect, list, update (name) and delete only; use them only for accounts your human asked you to create or operate. Use calls for mock history. Forward accepts config.url with optional method and path. Replay accepts config.requestId, config.url and config.idempotencyKey. Deliveries reads the resulting attempts. Email supports create, inspect, delete and renew; mail reading stays private.',
         inputSchema: schema(
             {
                 kind: {
@@ -1002,6 +1022,7 @@ export const platformTools = [
                         'response',
                         'forward',
                         'deliveries',
+                        'replay',
                         'clear',
                         'top-up',
                         'transactions',
@@ -1485,13 +1506,35 @@ export function registerMcp({
             case 'inspect_webhook_inbox': {
                 const { id, token } = credentials(value);
                 const info = await inboxes.info(id, token, ownerId);
-                return info
-                    ? result({ ...info, requests: await inboxes.listRequests(id, token, ownerId) })
-                    : result({ error: 'Inbox unavailable or access denied.' }, true);
+                if (!info) return result({ error: 'Inbox unavailable or access denied.' }, true);
+                if (typeof value.requestId === 'string') {
+                    if (!webhookId.test(value.requestId))
+                        throw new HttpError(400, 'Provide a captured request ID.');
+                    const captured = await inboxes.getRequest(
+                        id,
+                        value.requestId.toLowerCase(),
+                        token,
+                        ownerId,
+                    );
+                    return captured
+                        ? result({ request: captured })
+                        : result({ error: 'Request unavailable or access denied.' }, true);
+                }
+                const page = webhookHistory(value, 'older');
+                if (!page)
+                    return result({
+                        ...info,
+                        requests: await inboxes.listRequests(id, token, ownerId),
+                    });
+                const batch = await inboxes.pageRequests(id, token, ownerId, page);
+                if (!batch) return result({ error: 'Inbox unavailable or access denied.' }, true);
+                const { requests, nextCursor } = batch;
+                return result({ ...info, requests, ...(nextCursor ? { nextCursor } : {}) });
             }
             case 'wait_for_webhook': {
                 const { id, token } = credentials(value);
                 const timeout = waitSeconds(value.timeoutSeconds);
+                const page = webhookHistory(value, 'newer');
                 // Waiting holds no upload slot, so other MCP calls are not blocked meanwhile.
                 uploads.delete(request);
                 const abort = new AbortController();
@@ -1504,6 +1547,7 @@ export function registerMcp({
                             token,
                             ...(ownerId ? { ownerId } : {}),
                             ...(typeof value.after === 'string' ? { after: value.after } : {}),
+                            ...(page ? { page } : {}),
                         },
                         timeout * 1000,
                         abort.signal,
@@ -1513,7 +1557,11 @@ export function registerMcp({
                     return result({ error: 'Inbox unavailable or access denied.' }, true);
                 return result(
                     outcome.status === 'ready'
-                        ? { timedOut: false, requests: outcome.requests }
+                        ? {
+                              timedOut: false,
+                              requests: outcome.requests,
+                              ...(outcome.nextCursor ? { nextCursor: outcome.nextCursor } : {}),
+                          }
                         : { timedOut: true, requests: [] },
                 );
             }
@@ -2162,6 +2210,7 @@ export function registerMcp({
                 'response',
                 'forward',
                 'deliveries',
+                'replay',
                 'clear',
             ].includes(action) ||
             (action !== 'list' &&
@@ -2185,6 +2234,7 @@ export function registerMcp({
                 kind !== 'mocks' &&
                 !(kind === 'oauth-providers' && action === 'calls')) ||
             (action === 'response' && kind !== 'inboxes') ||
+            (action === 'replay' && kind !== 'inboxes') ||
             (action === 'deliveries' && !['inboxes', 'email-inboxes'].includes(kind)) ||
             (action === 'forward' && !['inboxes', 'email-inboxes'].includes(kind)) ||
             (action === 'update' &&
@@ -2225,21 +2275,23 @@ export function registerMcp({
         for (const key of ['ttlSeconds', 'persistent', 'visibility'])
             if (value[key] !== undefined) query.set(key, String(value[key]));
         const suffix =
-            action === 'clear'
-                ? '/messages'
-                : [
-                        'sharing',
-                        'renew',
-                        'reset',
-                        'calls',
-                        'response',
-                        'forward',
-                        'deliveries',
-                    ].includes(action)
-                  ? `/${action === 'forward' && kind === 'email-inboxes' ? 'forwarding' : action}`
-                  : action === 'inspect' && kind === 'inboxes'
-                    ? '/requests'
-                    : '';
+            action === 'replay'
+                ? '/replays'
+                : action === 'clear'
+                  ? '/messages'
+                  : [
+                          'sharing',
+                          'renew',
+                          'reset',
+                          'calls',
+                          'response',
+                          'forward',
+                          'deliveries',
+                      ].includes(action)
+                    ? `/${action === 'forward' && kind === 'email-inboxes' ? 'forwarding' : action}`
+                    : action === 'inspect' && kind === 'inboxes'
+                      ? '/requests'
+                      : '';
         const path =
             action === 'list'
                 ? ['authenticators', 'credentials', 'oauth-providers'].includes(kind) ||
@@ -2251,6 +2303,12 @@ export function registerMcp({
         for (const key of ['authorization', 'cookie', 'origin'])
             if (typeof request.headers[key] === 'string') headers[key] = request.headers[key];
         if (typeof value.token === 'string') headers['x-resource-token'] = value.token;
+        if (
+            action === 'replay' &&
+            object(value.config) &&
+            typeof value.config.idempotencyKey === 'string'
+        )
+            headers['idempotency-key'] = value.config.idempotencyKey;
         const resetSetting =
             ['response', 'forward'].includes(action) &&
             kind !== 'email-inboxes' &&
@@ -2263,7 +2321,7 @@ export function registerMcp({
                   ? ['authenticators', 'credentials'].includes(kind)
                       ? 'PATCH'
                       : 'PUT'
-                  : ['create', 'renew', 'sharing', 'reset'].includes(action)
+                  : ['create', 'renew', 'sharing', 'reset', 'replay'].includes(action)
                     ? 'POST'
                     : 'GET';
         // A JSON content type without a body is rejected, so only writes declare one.

@@ -29,11 +29,12 @@ import type DodoPayments from 'dodopayments';
 import { isUtf8 } from 'node:buffer';
 import { resolve, sep } from 'node:path';
 import { METHODS } from 'node:http';
-import { randomUUID, randomBytes } from 'node:crypto';
+import { createHash, randomUUID, randomBytes } from 'node:crypto';
 import fastify, { LogController } from 'fastify';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import fastifyStatic from '@fastify/static';
 import { InboxStore, validateInboxResponse } from './inboxes.js';
+import { webhookFilters, webhookHistory, webhookId } from './webhook-history.js';
 import type { InboxRepository } from './inboxes.js';
 import { CREATIONS_PER_MINUTE, RateLimiter, REQUESTS_PER_MINUTE } from './rate-limit.js';
 import type { RateLimitRepository } from './rate-limit.js';
@@ -146,7 +147,7 @@ function capturedHeaders(request: FastifyRequest): Record<string, string | strin
             .filter((entry): entry is [string, string | string[]] => entry[1] !== undefined)
             .map(([name, value]) => [
                 name,
-                /authorization|cookie|token|api[-_]?key|secret|password/i.test(name)
+                /authorization|cookie|token|api[-_]?key|secret|password|^x-kivel-relay$/i.test(name)
                     ? '[REDACTED]'
                     : value,
             ]),
@@ -232,7 +233,7 @@ export function buildApp({
         const plan = account ? effectivePlan(account) : 'free';
         return plan === 'pro' || plan === 'team';
     };
-    const forwarder = new Forwarder(inboxStore, forwardSend, forwardDelays);
+    const forwarder = new Forwarder(inboxStore, forwardSend, forwardDelays, undefined, authSecret);
     const tools = new ToolService(access, frontendDir, webhookEventSend);
     const app = fastify({
         bodyLimit: MAX_BODY_BYTES,
@@ -626,12 +627,18 @@ export function buildApp({
                             });
                         case 'captured':
                             reply.header('X-Webhook-Request-Id', result.requestId);
-                            if (result.forwardUrl && (await ownerIsPaid(result.ownerId)))
+                            if (
+                                result.forwardUrl &&
+                                !forwarder.relayed(request.headers, body) &&
+                                (await ownerIsPaid(result.ownerId))
+                            )
                                 forwarder
                                     .deliver(request.params.id, result.forwardUrl, {
                                         id: result.requestId,
                                         method: request.method,
-                                        query: request.url.split('?')[1] ?? '',
+                                        query: request.url.includes('?')
+                                            ? request.url.slice(request.url.indexOf('?') + 1)
+                                            : '',
                                         headers: request.headers,
                                         body,
                                         utf8: encoding === 'utf8',
@@ -663,29 +670,46 @@ export function buildApp({
             });
     });
 
-    app.get<InboxRoute>('/api/inboxes/:id/requests', async (request, reply) => {
-        const token = resourceToken(request);
-        const inbox = await inboxStore.info(
-            request.params.id,
-            token,
-            (await access.actor(request)).identity?.account.id,
-        );
-        if (!inbox) return reply.code(404).send(NOT_FOUND);
-        const etag = `"${inbox.id}:${inbox.requestCount}:${inbox.accessVersion}"`;
-        reply
-            .header('X-Resource-Visibility', inbox.visibility)
-            .header('X-Access-Version', inbox.accessVersion)
-            .header('X-Resource-Expires-At', inbox.expiresAt);
-        reply.header('ETag', etag);
-        if (request.headers['if-none-match'] === etag) return reply.code(304).send();
-        const requests = await inboxStore.listRequests(
-            request.params.id,
-            token,
-            (await access.actor(request)).identity?.account.id,
-        );
-        if (!requests) return reply.code(404).send(NOT_FOUND);
-        return { requests };
-    });
+    app.get<InboxRoute & { Querystring: Record<string, unknown> }>(
+        '/api/inboxes/:id/requests',
+        async (request, reply) => {
+            const token = resourceToken(request);
+            const ownerId = (await access.actor(request)).identity?.account.id;
+            const page = webhookHistory(request.query, 'older');
+            const inbox = await inboxStore.info(request.params.id, token, ownerId);
+            if (!inbox) return reply.code(404).send(NOT_FOUND);
+            const etag = `"${inbox.id}:${inbox.requestCount}:${inbox.accessVersion}"`;
+            reply
+                .header('X-Resource-Visibility', inbox.visibility)
+                .header('X-Access-Version', inbox.accessVersion)
+                .header('X-Resource-Expires-At', inbox.expiresAt);
+            if (page) {
+                const result = await inboxStore.pageRequests(inbox.id, token, ownerId, page);
+                if (!result) return reply.code(404).send(NOT_FOUND);
+                const { requests, nextCursor } = result;
+                return { requests, ...(nextCursor ? { nextCursor } : {}) };
+            }
+            reply.header('ETag', etag);
+            if (request.headers['if-none-match'] === etag) return reply.code(304).send();
+            const requests = await inboxStore.listRequests(request.params.id, token, ownerId);
+            if (!requests) return reply.code(404).send(NOT_FOUND);
+            return { requests };
+        },
+    );
+    app.get<{ Params: { id: string; requestId: string } }>(
+        '/api/inboxes/:id/requests/:requestId',
+        async (request, reply) => {
+            const { id, requestId } = request.params;
+            if (!webhookId.test(requestId)) return reply.code(404).send(NOT_FOUND);
+            const captured = await inboxStore.getRequest(
+                id,
+                requestId.toLowerCase(),
+                resourceToken(request),
+                (await access.actor(request)).identity?.account.id,
+            );
+            return captured ? { request: captured } : reply.code(404).send(NOT_FOUND);
+        },
+    );
 
     // What the inbox answers senders with. Inspection credentials only; never the sender token.
     app.put<InboxRoute>('/api/inboxes/:id/response', async (request, reply) => {
@@ -717,7 +741,8 @@ export function buildApp({
     app.put<InboxRoute>('/api/inboxes/:id/forward', async (request, reply) => {
         const actor = await access.actor(request);
         entitlement(actor.identity, 'webhookForwarding', baseUrl.origin);
-        const input = request.body as { url?: unknown } | undefined;
+        const input = request.body as
+            { url?: unknown; method?: unknown; path?: unknown } | undefined;
         let target: URL;
         try {
             if (typeof input?.url !== 'string' || input.url.length > 2048) throw new Error();
@@ -728,8 +753,9 @@ export function buildApp({
             });
         }
         // Forwarding back to Kivel could make inboxes relay to each other forever.
-        if (target.hostname === baseUrl.hostname)
+        if ([baseUrl.hostname, appUrl.hostname].includes(target.hostname.replace(/\.$/, '')))
             return reply.code(400).send({ error: 'Forward to your own endpoint, not Kivel.' });
+        const filter = webhookFilters(input ?? {});
         const info = await inboxStore.info(
             request.params.id,
             resourceToken(request),
@@ -745,8 +771,14 @@ export function buildApp({
             resourceToken(request),
             target.href,
             actor.identity?.account.id,
+            filter.method || filter.path ? filter : undefined,
         );
-        return saved ? { forwardUrl: target.href } : reply.code(404).send(NOT_FOUND);
+        return saved
+            ? {
+                  forwardUrl: target.href,
+                  ...(filter.method || filter.path ? { forwardFilter: filter } : {}),
+              }
+            : reply.code(404).send(NOT_FOUND);
     });
     app.delete<InboxRoute>('/api/inboxes/:id/forward', async (request, reply) => {
         const saved = await inboxStore.setForward(
@@ -766,14 +798,87 @@ export function buildApp({
         return deliveries ? { deliveries } : reply.code(404).send(NOT_FOUND);
     });
 
+    app.post<InboxRoute>('/api/inboxes/:id/replays', async (request, reply) => {
+        const { identity } = await access.actor(request);
+        const { id } = request.params;
+        const input = request.body as { requestId?: unknown; url?: unknown } | undefined;
+        if (!identity)
+            throw new HttpError(401, 'Use a workspace key or sign in to replay a webhook.');
+        const key = request.headers['idempotency-key'];
+        if (typeof key !== 'string' || !/^[a-zA-Z0-9_.:-]{1,100}$/.test(key))
+            throw new HttpError(
+                400,
+                'Provide an Idempotency-Key of 1 to 100 letters, numbers or punctuation (._:-).',
+            );
+        if (typeof input?.requestId !== 'string' || !webhookId.test(input.requestId))
+            throw new HttpError(400, 'Provide a captured request ID.');
+        let target: URL;
+        try {
+            if (typeof input.url !== 'string' || input.url.length > 2048) throw new Error();
+            target = publicUrl(input.url);
+        } catch {
+            throw new HttpError(400, 'Use a public HTTP or HTTPS replay URL.');
+        }
+        if ([baseUrl.hostname, appUrl.hostname].includes(target.hostname.replace(/\.$/, '')))
+            throw new HttpError(400, 'Replay to your own endpoint, outside Kivel.');
+        const captured = await inboxStore.getRequest(
+            id,
+            input.requestId.toLowerCase(),
+            '',
+            identity.account.id,
+        );
+        if (!captured) return reply.code(404).send(NOT_FOUND);
+        if (captured.rawQuery === undefined && Object.keys(captured.query).length)
+            throw new HttpError(
+                422,
+                'This capture predates original query storage. Capture the request again to replay it.',
+            );
+        const signature = createHash('sha256')
+            .update(JSON.stringify([captured.id, target.href]))
+            .digest('hex');
+        const reservation = await inboxStore.reserveReplay(
+            id,
+            identity.account.id,
+            createHash('sha256').update(key).digest('hex'),
+            signature,
+            {
+                replayId: randomUUID(),
+                requestId: captured.id,
+                at: new Date().toISOString(),
+                attempts: 0,
+                durationMs: 0,
+                pending: true,
+            },
+        );
+        if (!reservation) return reply.code(404).send(NOT_FOUND);
+        if (reservation.accepted)
+            forwarder
+                .deliver(
+                    id,
+                    target.href,
+                    {
+                        id: captured.id,
+                        method: captured.method,
+                        query: captured.rawQuery ?? '',
+                        headers: captured.headers,
+                        body: Buffer.from(captured.body, captured.bodyEncoding),
+                        utf8: captured.bodyEncoding === 'utf8',
+                    },
+                    reservation.replay,
+                )
+                .catch((error) => request.log.warn({ err: error }, 'Webhook replay failed.'));
+        return reply.code(reservation.replay.pending ? 202 : 200).send(reservation.replay);
+    });
+
     // Long poll: answers as soon as the inbox has a request newer than `after`, so scripts and
     // agents can block on a webhook instead of polling.
-    app.get<InboxRoute & { Querystring: { after?: string; timeoutSeconds?: string } }>(
+    app.get<InboxRoute & { Querystring: Record<string, string> }>(
         '/api/inboxes/:id/wait',
         async (request, reply) => {
             const token = resourceToken(request);
             const actor = await access.actor(request);
             const timeout = waitSeconds(request.query.timeoutSeconds);
+            const page = webhookHistory(request.query, 'newer');
             const abort = new AbortController();
             request.raw.once('close', () => abort.abort());
             const outcome = await waiters.run(actor.quotaKey, () =>
@@ -784,6 +889,7 @@ export function buildApp({
                         token,
                         ...(actor.identity ? { ownerId: actor.identity.account.id } : {}),
                         ...(request.query.after ? { after: request.query.after } : {}),
+                        ...(page ? { page } : {}),
                     },
                     timeout * 1000,
                     abort.signal,
@@ -791,7 +897,11 @@ export function buildApp({
             );
             if (outcome.status === 'gone') return reply.code(404).send(NOT_FOUND);
             return outcome.status === 'ready'
-                ? { timedOut: false, requests: outcome.requests }
+                ? {
+                      timedOut: false,
+                      requests: outcome.requests,
+                      ...(outcome.nextCursor ? { nextCursor: outcome.nextCursor } : {}),
+                  }
                 : { timedOut: true, requests: [] };
         },
     );

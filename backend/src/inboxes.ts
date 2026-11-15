@@ -4,6 +4,9 @@ import { sharingCredentials, publicAccessAllowed } from './sharing.js';
 import type { PublicAccess, Sharing, SharingCredentials, Visibility } from './sharing.js';
 import { MemoryAllocations, ownsOrToken } from './allocations.js';
 import type { AllocationContext } from './allocations.js';
+import { matchesWebhook, missingWebhookCursor, webhookPage } from './webhook-history.js';
+import type { WebhookFilters, WebhookHistory, WebhookPage } from './webhook-history.js';
+import { HttpError } from './errors.js';
 
 export const INBOX_TTL_MS = 60 * 60 * 1000;
 export const MAX_INBOXES = 1000;
@@ -75,8 +78,41 @@ export interface InboxDelivery {
     status?: number;
     error?: string;
     durationMs: number;
+    replayId?: string;
+    pending?: boolean;
+    responses?: { status?: number; error?: string }[];
 }
 export const DELIVERY_LIMIT = 100;
+
+export interface ReplayReservation {
+    replay: InboxDelivery;
+    accepted: boolean;
+}
+
+export function replayReservation(
+    prior: { signature: string; replay: InboxDelivery },
+    signature: string,
+): ReplayReservation {
+    if (prior.signature !== signature)
+        throw new HttpError(409, 'This idempotency key already belongs to a different replay.');
+    return { replay: deliveryStatus(prior.replay), accepted: false };
+}
+
+export function deliveryStatus(delivery: InboxDelivery) {
+    if (!delivery.pending || Date.now() - Date.parse(delivery.at) < 60_000) return delivery;
+    return {
+        ...delivery,
+        pending: false,
+        error: 'Delivery outcome unknown. Check the receiving endpoint before replaying again.',
+    };
+}
+
+export function replayLimit(): never {
+    throw new HttpError(
+        429,
+        'This inbox has reached its replay history limit. Use a new inbox for more replays.',
+    );
+}
 
 export interface CapturedRequest {
     id: string;
@@ -89,6 +125,7 @@ export interface CapturedRequest {
     bodyEncoding: 'utf8' | 'base64';
     bodySize: number;
     timestamp: string;
+    responseStatus?: number;
 }
 
 interface Inbox extends Sharing {
@@ -105,7 +142,9 @@ interface Inbox extends Sharing {
     byteLimit: number;
     response?: InboxResponse;
     forwardUrl?: string;
+    forwardFilter?: WebhookFilters;
     deliveries?: InboxDelivery[];
+    replays?: Map<string, { signature: string; replay: InboxDelivery }>;
 }
 
 export interface StoreLimits {
@@ -138,6 +177,7 @@ export interface InboxInfo extends Sharing {
     byteLimit?: number;
     response?: InboxResponse;
     forwardUrl?: string;
+    forwardFilter?: WebhookFilters;
 }
 
 export type CaptureResult =
@@ -166,6 +206,25 @@ export interface InboxRepository {
         token: string,
         ownerId?: string,
     ): MaybePromise<CapturedRequest[] | undefined>;
+    pageRequests(
+        id: string,
+        token: string,
+        ownerId: string | undefined,
+        page: WebhookHistory,
+    ): MaybePromise<WebhookPage | undefined>;
+    getRequest(
+        id: string,
+        requestId: string,
+        token: string,
+        ownerId?: string,
+    ): MaybePromise<CapturedRequest | undefined>;
+    reserveReplay(
+        id: string,
+        ownerId: string,
+        key: string,
+        signature: string,
+        replay: InboxDelivery,
+    ): MaybePromise<ReplayReservation | undefined>;
     delete(id: string, token: string, ownerId?: string): MaybePromise<boolean>;
     renew(
         id: string,
@@ -191,6 +250,7 @@ export interface InboxRepository {
         token: string,
         url: string | null,
         ownerId?: string,
+        filter?: WebhookFilters,
     ): MaybePromise<boolean>;
     recordDelivery(id: string, delivery: InboxDelivery): MaybePromise<void>;
     listDeliveries(
@@ -350,6 +410,7 @@ export class InboxStore implements InboxRepository {
             ...input,
             id: randomUUID(),
             timestamp: new Date(this.now()).toISOString(),
+            responseStatus: inbox.response?.status ?? 200,
         };
         const bytes = Buffer.byteLength(JSON.stringify(captured));
         if (
@@ -370,13 +431,59 @@ export class InboxStore implements InboxRepository {
             status: 'captured',
             requestId: captured.id,
             ...(inbox.response ? { response: inbox.response } : {}),
-            ...(inbox.forwardUrl ? { forwardUrl: inbox.forwardUrl } : {}),
+            ...(inbox.forwardUrl && matchesWebhook(captured, id, inbox.forwardFilter ?? {})
+                ? { forwardUrl: inbox.forwardUrl }
+                : {}),
             ...(inbox.allocation?.ownerId ? { ownerId: inbox.allocation.ownerId } : {}),
         } as const;
     }
 
     listRequests(id: string, token: string, ownerId?: string): CapturedRequest[] | undefined {
         return this.authorize(id, token, ownerId)?.requests;
+    }
+
+    pageRequests(id: string, token: string, ownerId: string | undefined, page: WebhookHistory) {
+        const inbox = this.authorize(id, token, ownerId);
+        if (!inbox) return undefined;
+        const { requests } = inbox;
+        const older = page.direction === 'older';
+        const cursor = page.cursor ? requests.findIndex(({ id }) => id === page.cursor) : undefined;
+        if (cursor === -1) missingWebhookCursor();
+        const matches: CapturedRequest[] = [];
+        let scannedThrough: string | undefined;
+        for (
+            let index = older ? (cursor ?? requests.length) - 1 : (cursor ?? -1) + 1;
+            index >= 0 && index < requests.length && matches.length <= page.limit;
+            index += older ? -1 : 1
+        ) {
+            const request = requests[index]!;
+            scannedThrough = request.id;
+            if (matchesWebhook(request, inbox.id, page)) matches.push(request);
+        }
+        return webhookPage(matches, page.limit, scannedThrough);
+    }
+
+    getRequest(id: string, requestId: string, token: string, ownerId?: string) {
+        return this.authorize(id, token, ownerId)?.requests.find(
+            (request) => request.id === requestId,
+        );
+    }
+
+    reserveReplay(
+        id: string,
+        ownerId: string,
+        key: string,
+        signature: string,
+        replay: InboxDelivery,
+    ) {
+        const inbox = this.authorize(id, '', ownerId);
+        if (!inbox) return undefined;
+        const replays = (inbox.replays ??= new Map());
+        const prior = replays.get(key);
+        if (prior) return replayReservation(prior, signature);
+        if (replays.size >= inbox.requestLimit) replayLimit();
+        replays.set(key, { signature, replay });
+        return { replay, accepted: true };
     }
 
     info(id: string, token: string, ownerId?: string): InboxInfo | undefined {
@@ -400,26 +507,47 @@ export class InboxStore implements InboxRepository {
             ...(inbox.allocation?.ownerId ? { ownerId: inbox.allocation.ownerId } : {}),
             ...(inbox.response ? { response: inbox.response } : {}),
             ...(inbox.forwardUrl ? { forwardUrl: inbox.forwardUrl } : {}),
+            ...(inbox.forwardFilter ? { forwardFilter: inbox.forwardFilter } : {}),
         };
     }
 
-    setForward(id: string, token: string, url: string | null, ownerId?: string) {
+    setForward(
+        id: string,
+        token: string,
+        url: string | null,
+        ownerId?: string,
+        filter?: WebhookFilters,
+    ) {
         const inbox = this.authorize(id, token, ownerId);
         if (!inbox) return false;
         if (url) inbox.forwardUrl = url;
         else delete inbox.forwardUrl;
+        if (url && filter) inbox.forwardFilter = filter;
+        else delete inbox.forwardFilter;
         return true;
     }
 
     recordDelivery(id: string, delivery: InboxDelivery) {
         const inbox = this.find(id);
         if (!inbox) return;
+        if (delivery.replayId) {
+            for (const value of inbox.replays?.values() ?? [])
+                if (value.replay.replayId === delivery.replayId) value.replay = delivery;
+            return;
+        }
         inbox.deliveries = [...(inbox.deliveries ?? []), delivery].slice(-DELIVERY_LIMIT);
     }
 
     listDeliveries(id: string, token: string, ownerId?: string) {
         const inbox = this.authorize(id, token, ownerId);
-        return inbox ? [...(inbox.deliveries ?? [])] : undefined;
+        if (!inbox) return undefined;
+        return [
+            ...(inbox.deliveries ?? []),
+            ...Array.from(inbox.replays?.values() ?? [], ({ replay }) => replay),
+        ]
+            .sort((a, b) => a.at.localeCompare(b.at))
+            .slice(-DELIVERY_LIMIT)
+            .map(deliveryStatus);
     }
 
     setResponse(id: string, token: string, response: InboxResponse | null, ownerId?: string) {

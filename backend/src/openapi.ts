@@ -25,6 +25,21 @@ export function openApi(origin: string) {
     const id = [
         { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
     ];
+    const webhookFilters = [
+        { name: 'method', in: 'query', schema: { type: 'string' }, example: 'POST' },
+        {
+            name: 'path',
+            in: 'query',
+            description: 'Exact path relative to the inbox URL, without the query string.',
+            schema: { type: 'string' },
+            example: '/events',
+        },
+        {
+            name: 'limit',
+            in: 'query',
+            schema: { type: 'integer', minimum: 1, maximum: 50, default: 20 },
+        },
+    ];
     const capture = {
         summary: 'Capture an incoming request',
         tags: ['Webhook inboxes'],
@@ -243,10 +258,19 @@ export function openApi(origin: string) {
                 get: {
                     operationId: 'listRequests',
                     tags: ['Webhook inboxes'],
-                    summary: 'Read captured requests in arrival order',
+                    summary: 'Read captured requests',
+                    description:
+                        'Without filters or pagination, returns the original history in arrival order. A filter, limit or cursor enables paging from newest to oldest.',
                     security: secured,
                     parameters: [
                         ...id,
+                        ...webhookFilters,
+                        {
+                            name: 'cursor',
+                            in: 'query',
+                            description: 'Use nextCursor from the preceding page.',
+                            schema: { type: 'string', format: 'uuid' },
+                        },
                         { name: 'If-None-Match', in: 'header', schema: { type: 'string' } },
                     ],
                     responses: {
@@ -259,11 +283,42 @@ export function openApi(origin: string) {
                                         type: 'array',
                                         items: reference('CapturedRequest'),
                                     },
+                                    nextCursor: { type: 'string', format: 'uuid' },
                                 },
                             }),
                             headers: { ETag: { schema: { type: 'string' } } },
                         },
                         '304': { description: 'History unchanged' },
+                        '400': { description: 'Invalid request filter' },
+                        '409': { description: 'Cursor unavailable for this inbox' },
+                        ...unavailable,
+                        ...limited,
+                    },
+                },
+            },
+            '/api/inboxes/{id}/requests/{requestId}': {
+                get: {
+                    operationId: 'getInboxRequest',
+                    tags: ['Webhook inboxes'],
+                    summary: 'Read one capture with its original body and headers',
+                    description:
+                        'Use the original body for local signature verification. Keep signing secrets in your browser, SDK or CLI.',
+                    security: secured,
+                    parameters: [
+                        ...id,
+                        {
+                            name: 'requestId',
+                            in: 'path',
+                            required: true,
+                            schema: { type: 'string', format: 'uuid' },
+                        },
+                    ],
+                    responses: {
+                        '200': json({
+                            type: 'object',
+                            required: ['request'],
+                            properties: { request: reference('CapturedRequest') },
+                        }),
                         ...unavailable,
                         ...limited,
                     },
@@ -660,9 +715,9 @@ export function openApi(origin: string) {
                 put: {
                     operationId: 'setInboxForward',
                     tags: ['Webhook inboxes'],
-                    summary: 'Forward every captured request to your endpoint (Pro and Team)',
+                    summary: 'Forward matching captures to your endpoint (Pro and Team)',
                     description:
-                        'Each capture is relayed server-side with its method, query, headers (minus credentials and proxy headers) and text body, plus X-Kivel-Request-Id. Server errors and 429 are retried after 2 and 10 seconds. Binary bodies are not forwarded.',
+                        'Use optional method and exact path filters. Matching captures are sent with the original body, including binary data, and query. Credential and proxy headers are stripped. Server errors and 429 are retried after 2 and 10 seconds.',
                     security: secured,
                     parameters: id,
                     requestBody: {
@@ -674,6 +729,12 @@ export function openApi(origin: string) {
                                     required: ['url'],
                                     properties: {
                                         url: { type: 'string', format: 'uri', maxLength: 2048 },
+                                        method: { type: 'string', maxLength: 20, example: 'POST' },
+                                        path: {
+                                            type: 'string',
+                                            maxLength: 512,
+                                            example: '/billing',
+                                        },
                                     },
                                 },
                             },
@@ -682,7 +743,7 @@ export function openApi(origin: string) {
                     responses: {
                         '200': { description: 'Saved' },
                         '400': { description: 'Not a public URL' },
-                        '403': { description: 'Requires a Pro or Team plan' },
+                        '402': { description: 'Requires a Pro or Team plan' },
                         ...unavailable,
                         ...limited,
                     },
@@ -700,7 +761,7 @@ export function openApi(origin: string) {
                 get: {
                     operationId: 'listInboxDeliveries',
                     tags: ['Webhook inboxes'],
-                    summary: 'Read the last 100 forwarding attempts',
+                    summary: 'Read the last 100 deliveries and their responses',
                     security: secured,
                     parameters: id,
                     responses: {
@@ -718,11 +779,67 @@ export function openApi(origin: string) {
                                             status: { type: 'integer' },
                                             error: { type: 'string' },
                                             durationMs: { type: 'integer' },
+                                            replayId: { type: 'string', format: 'uuid' },
+                                            pending: { type: 'boolean' },
+                                            responses: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'object',
+                                                    properties: {
+                                                        status: { type: 'integer' },
+                                                        error: { type: 'string' },
+                                                    },
+                                                },
+                                            },
                                         },
                                     },
                                 },
                             },
                         }),
+                        ...unavailable,
+                        ...limited,
+                    },
+                },
+            },
+            '/api/inboxes/{id}/replays': {
+                post: {
+                    operationId: 'replayInboxRequest',
+                    tags: ['Webhook inboxes'],
+                    summary: 'Replay a stored capture to a public endpoint',
+                    description:
+                        'Requires an owned inbox and write permission. Keeps exact body bytes and original provider signatures. Removes credential and proxy headers. Repeat the same Idempotency-Key to check the same replay. The inbox keeps results until expiry or deletion.',
+                    security: [{ accountKey: [] }, { sessionCookie: [] }],
+                    parameters: [
+                        ...id,
+                        {
+                            name: 'Idempotency-Key',
+                            in: 'header',
+                            required: true,
+                            schema: { type: 'string', minLength: 1, maxLength: 100 },
+                        },
+                    ],
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    required: ['requestId', 'url'],
+                                    properties: {
+                                        requestId: { type: 'string', format: 'uuid' },
+                                        url: { type: 'string', format: 'uri', maxLength: 2048 },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    responses: {
+                        '200': { description: 'Existing replay result' },
+                        '202': { description: 'Replay in progress with replayId' },
+                        '400': { description: 'Invalid request ID, URL or idempotency key' },
+                        '409': {
+                            description: 'Idempotency key already used for a different replay',
+                        },
                         ...unavailable,
                         ...limited,
                     },
@@ -734,10 +851,11 @@ export function openApi(origin: string) {
                     tags: ['Webhook inboxes'],
                     summary: 'Wait until the inbox receives a request',
                     description:
-                        'Long poll. Answers as soon as a request newer than `after` (or any request, when `after` is omitted) is captured, or with `timedOut: true` after `timeoutSeconds`. Call again to keep waiting.',
+                        'Long poll. Answers when a matching request newer than `after` is available, or with `timedOut: true` after `timeoutSeconds`. For a paginated result, use the last returned ID as `after` on the next wait.',
                     security: secured,
                     parameters: [
                         ...id,
+                        ...webhookFilters,
                         {
                             name: 'after',
                             in: 'query',
@@ -757,9 +875,11 @@ export function openApi(origin: string) {
                             properties: {
                                 timedOut: { type: 'boolean' },
                                 requests: { type: 'array', items: reference('CapturedRequest') },
+                                nextCursor: { type: 'string', format: 'uuid' },
                             },
                         }),
                         '400': { description: 'Invalid timeoutSeconds' },
+                        '409': { description: 'Cursor unavailable for this inbox' },
                         ...unavailable,
                         ...limited,
                     },
@@ -868,6 +988,10 @@ export function openApi(origin: string) {
                         bodyEncoding: { enum: ['utf8', 'base64'] },
                         bodySize: { type: 'integer', minimum: 0 },
                         timestamp: { type: 'string', format: 'date-time' },
+                        responseStatus: {
+                            type: 'integer',
+                            description: 'Status configured at the time of capture, when recorded.',
+                        },
                     },
                 },
                 LimitError: {

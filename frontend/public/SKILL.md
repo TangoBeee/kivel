@@ -25,6 +25,7 @@ webhooks, mocks, files and utilities, but cannot create email inboxes or memory.
    Use visibility=private only when senders can add X-Access-Token. Other
    resources default to private. Keep management and access credentials separate.
 2. Use `wait_for_webhook` or `wait_for_email`; preserve the last ID as `after` for the legacy wait. For an email matching particular criteria, call `wait_for_email` with `checkpoint: true` and the desired filters before triggering mail. Pass its `nextCursor` and the same filters when you wait.
+   For webhooks, pass an exact relative `path` and `method` to `wait_for_webhook` or `inspect_webhook_inbox`. Preserve the last ID as `after` for waits and use `nextCursor` for older history. Inspect one capture with `requestId`. Verify its signature locally with the SDK or CLI and keep signing secrets out of tool calls. Use `resource_request` with `kind: "inboxes"` and `action: "replay"` to replay into an endpoint your human controls. Keep the idempotency key stable across retries.
    `wait_for_event` waits for any webhook, email, human approval, scheduled job or SMS source in one call.
    Check /api/capabilities before using operator-enabled services such as phones.
    Its events return one cursor per source. Waits stop after at most 30 seconds;

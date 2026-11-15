@@ -163,6 +163,9 @@ importers:
 
   frontend:
     dependencies:
+      '@kivel.io/sdk':
+        specifier: workspace:*
+        version: link:../packages/sdk
       '@kivel.io/tools':
         specifier: workspace:*
         version: link:../packages/tools

@@ -60,7 +60,12 @@ kivel phone create <E.164-number> --idempotency-key <unique-key>
 kivel phone list|release|messages|wait [id] [--after <id>] [--timeout-seconds <n>]
 kivel approval ask < question.json
 kivel approval list|pending|inspect|wait [id] [--timeout-seconds <n>]
-kivel inbox requests|wait|deliveries <id> [--token <token>]
+kivel inbox requests <id> [--token <token>] [--method POST] [--path /events] [--limit 20] [--cursor <request-id>]
+kivel inbox wait <id> [--token <token>] [--method POST] [--path /events] [--limit 20] [--after <request-id>]
+kivel inbox deliveries <id> [--token <token>]
+kivel inbox request <id> <request-id> [--token <token>]
+kivel inbox replay <id> <request-id> --url <public-url> --idempotency-key <unique-key>
+kivel inbox verify <id> <request-id> --provider <preset> [--token <token>] < signing-secret.txt
 kivel inbox response|forward <id> [--token <token>] < settings.json
 kivel oauth create [--ttl-seconds <n>] < provider.json
 kivel oauth update <id> < provider.json

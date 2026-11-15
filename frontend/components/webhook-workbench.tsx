@@ -68,11 +68,15 @@ function DataTable({ values }: { values: Record<string, string | string[]> }) {
 }
 
 function Detail({
+    inbox,
     request,
+    canReplay,
     filteredOut = false,
     command = '',
 }: {
+    inbox: Inbox;
     request: CapturedRequest | undefined;
+    canReplay: boolean;
     filteredOut?: boolean;
     command?: string;
 }) {
@@ -115,7 +119,7 @@ function Detail({
                 </p>
             </div>
         );
-    const tabs = ['Body', 'Headers', 'Query', 'Details', 'Signature'];
+    const tabs = ['Body', 'Headers', 'Query', 'Raw', 'Details', 'Signature'];
     function saveBody() {
         const bytes =
             request!.bodyEncoding === 'base64'
@@ -130,10 +134,31 @@ function Detail({
                     <span className={`method method-${request.method.toLowerCase()}`}>
                         {request.method}
                     </span>
-                    <span>{new Date(request.timestamp).toLocaleTimeString()}</span>
+                    <code className="webhook-break" title={request.path}>
+                        {request.path.slice('/hooks/'.length + inbox.id.length) || '/'}
+                    </code>
+                    {request.responseStatus !== undefined && (
+                        <span className="webhook-status" data-ok={request.responseStatus < 400}>
+                            HTTP {request.responseStatus}
+                        </span>
+                    )}
                 </div>
                 <CopyButton text={JSON.stringify(request, null, 2)} label="Copy request" compact />
             </div>
+            <dl className="webhook-facts">
+                <div>
+                    <dt>Received</dt>
+                    <dd>{new Date(request.timestamp).toLocaleTimeString()}</dd>
+                </div>
+                <div>
+                    <dt>Size</dt>
+                    <dd>{request.bodySize.toLocaleString()} bytes</dd>
+                </div>
+                <div>
+                    <dt>Encoding</dt>
+                    <dd>{request.bodyEncoding === 'base64' ? 'Base64' : 'UTF-8'}</dd>
+                </div>
+            </dl>
             <Tabs.Root value={tab} onValueChange={setTab}>
                 <Tabs.List className="request-tabs" aria-label="Request details">
                     {tabs.map((name) => (
@@ -196,6 +221,19 @@ function Detail({
                         )}
                         {tab === 'Headers' && <DataTable values={request.headers} />}
                         {tab === 'Query' && <DataTable values={request.query} />}
+                        {tab === 'Raw' && (
+                            <>
+                                <div className="payload-toolbar">
+                                    <span>
+                                        {request.bodyEncoding === 'base64'
+                                            ? 'Base64 body'
+                                            : 'Original body'}
+                                    </span>
+                                    <CopyButton text={request.body} label="Copy raw body" compact />
+                                </div>
+                                <pre>{request.body || '(Empty body)'}</pre>
+                            </>
+                        )}
                         {tab === 'Details' && (
                             <DataTable
                                 values={{
@@ -216,7 +254,7 @@ function Detail({
                     </Tabs.Content>
                 ))}
             </Tabs.Root>
-            <ReplayRequest key={request.id} request={request} />
+            {canReplay && <ReplayRequest key={request.id} inbox={inbox} request={request} />}
         </>
     );
 }
@@ -231,6 +269,8 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
     const [live, setLive] = useState(true);
     const [working, setWorking] = useState(false);
     const [requestMethod, setRequestMethod] = useState('all');
+    const [exactPath, setExactPath] = useState('');
+    const [visibleRequests, setVisibleRequests] = useState(20);
     const [searchScope, setSearchScope] = useState<RequestSearchScope>('all');
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState('');
@@ -303,6 +343,8 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
         setError('');
         setQuery('');
         setRequestMethod('all');
+        setExactPath('');
+        setVisibleRequests(20);
         setSearchScope('all');
         setLive(true);
         etag.current = '';
@@ -492,10 +534,22 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
         ? Math.max(0, Math.ceil((Date.parse(inbox.expiresAt) - clock) / 1000))
         : 0;
     const filtered = useMemo(
-        () => filterRequests(requests, query, requestMethod, searchScope),
-        [requests, query, requestMethod, searchScope],
+        () =>
+            filterRequests(requests, query, requestMethod, searchScope).filter(
+                (request) =>
+                    !exactPath.trim() ||
+                    (request.path.slice('/hooks/'.length + (inbox?.id.length ?? 0)) || '/') ===
+                        exactPath.trim(),
+            ),
+        [requests, query, requestMethod, searchScope, exactPath, inbox?.id],
     );
-    const filtering = !!query.trim() || requestMethod !== 'all';
+    const filtering = !!query.trim() || !!exactPath.trim() || requestMethod !== 'all';
+    const buckets = Array.from({ length: 12 }, () => 0);
+    for (const request of requests) {
+        const bucket = Math.floor((clock - Date.parse(request.timestamp)) / 300_000);
+        if (bucket >= 0 && bucket < buckets.length) buckets[buckets.length - 1 - bucket]!++;
+    }
+    const recent = buckets.reduce((total, count) => total + count, 0);
     const current = filtered.find((request) => request.id === selected) ?? filtered[0];
     const command = inbox
         ? [
@@ -509,7 +563,7 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
         : '';
 
     return (
-        <div className="page-width work-page">
+        <div className="page-width work-page webhook-workbench">
             <ToolHeader
                 toolId={toolId}
                 title={toolId === 'webhooks' ? 'Catch every callback.' : undefined}
@@ -619,8 +673,18 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
             ) : (
                 <>
                     <div className="endpoint-bar">
-                        <span className="endpoint-label">YOUR ENDPOINT</span>
-                        <code className="endpoint-url">{inbox.webhookUrl}</code>
+                        <span
+                            className="webhook-listening"
+                            title={
+                                streaming ? 'Streaming live updates' : 'Refreshing request history'
+                            }
+                        >
+                            <span className={live && !error ? 'status-dot' : ''} />
+                            {live ? (error ? 'Reconnecting' : 'Listening') : 'Updates paused'}
+                        </span>
+                        <code className="endpoint-url" title={inbox.webhookUrl}>
+                            {inbox.webhookUrl}
+                        </code>
                         <button
                             type="button"
                             className="endpoint-access"
@@ -631,6 +695,28 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
                             {inbox.visibility === 'private' ? 'Private' : 'Public'}
                         </button>
                         <CopyButton text={inbox.webhookUrl} label="Copy URL" />
+                        <Button
+                            size="2"
+                            variant="soft"
+                            color="gray"
+                            onClick={() => {
+                                setSettingsOpen(true);
+                                setSettingsTab('forward');
+                            }}
+                        >
+                            Forward
+                        </Button>
+                        <Button
+                            size="2"
+                            variant="soft"
+                            color="gray"
+                            onClick={() => {
+                                setSettingsOpen(true);
+                                setSettingsTab('response');
+                            }}
+                        >
+                            Response
+                        </Button>
                         <span className="expiry">
                             <Icon name="clock" size={13} /> {timeLeft(remaining)}
                         </span>
@@ -644,28 +730,7 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
                         </p>
                     )}
                     <div className="inbox-toolbar">
-                        <div className="live-status">
-                            <span className={live && !error ? 'status-dot' : ''} />
-                            {live
-                                ? error
-                                    ? 'Reconnecting'
-                                    : streaming
-                                      ? 'Listening for requests'
-                                      : 'Checking for requests'
-                                : 'Updates paused'}
-                        </div>
                         <div className="button-row">
-                            <Button
-                                size="2"
-                                variant="surface"
-                                color="gray"
-                                onClick={() => {
-                                    setSettingsOpen(true);
-                                    setSettingsTab('response');
-                                }}
-                            >
-                                Response
-                            </Button>
                             <Button
                                 size="2"
                                 variant={settingsOpen ? 'soft' : 'surface'}
@@ -765,10 +830,14 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
                                         key={`forward-${inbox.id}`}
                                         inbox={inbox}
                                         onError={setError}
-                                        onSaved={(forwardUrl) => {
-                                            const { forwardUrl: _old, ...rest } = inbox;
+                                        onSaved={(forwardUrl, forwardFilter) => {
+                                            const {
+                                                forwardUrl: _old,
+                                                forwardFilter: _oldFilter,
+                                                ...rest
+                                            } = inbox;
                                             const updated = forwardUrl
-                                                ? { ...rest, forwardUrl }
+                                                ? { ...rest, forwardUrl, forwardFilter }
                                                 : rest;
                                             remember(updated);
                                             setInbox(updated);
@@ -860,6 +929,24 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
                                         : `${requests.length} / ${inbox.requestLimit ?? 100}`}
                                 </span>
                             </div>
+                            <div className="webhook-request-rate">
+                                <div>
+                                    <strong>{recent}</strong>
+                                    <small>Requests in the last hour</small>
+                                </div>
+                                <span className="webhook-rate-bars" aria-hidden="true">
+                                    {buckets.map((count, index) => (
+                                        <i
+                                            key={index}
+                                            style={{
+                                                height: count
+                                                    ? `${Math.max(12, (count / Math.max(...buckets)) * 100)}%`
+                                                    : '2px',
+                                            }}
+                                        />
+                                    ))}
+                                </span>
+                            </div>
                             <label className="search-field request-search">
                                 <Icon name="search" size={13} />
                                 <input
@@ -867,6 +954,18 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
                                     placeholder="Search captured data…"
                                     value={query}
                                     onChange={(event) => setQuery(event.target.value)}
+                                />
+                            </label>
+                            <label className="search-field request-search">
+                                <input
+                                    aria-label="Exact request path"
+                                    placeholder="Exact path, e.g. /billing"
+                                    maxLength={512}
+                                    value={exactPath}
+                                    onChange={(event) => {
+                                        setExactPath(event.target.value);
+                                        setVisibleRequests(20);
+                                    }}
                                 />
                             </label>
                             <div className="request-filters">
@@ -909,6 +1008,8 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
                                         onClick={() => {
                                             setQuery('');
                                             setRequestMethod('all');
+                                            setExactPath('');
+                                            setVisibleRequests(20);
                                         }}
                                     >
                                         Clear filters
@@ -917,7 +1018,7 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
                             </div>
                             <div className="request-list">
                                 {filtered.length ? (
-                                    filtered.map((request) => (
+                                    filtered.slice(0, visibleRequests).map((request) => (
                                         <button
                                             className={`request-item ${selected === request.id ? 'selected' : ''}`}
                                             key={request.id}
@@ -930,13 +1031,25 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
                                                 >
                                                     {request.method}
                                                 </span>
+                                                {request.responseStatus !== undefined && (
+                                                    <span
+                                                        className="webhook-status"
+                                                        data-ok={request.responseStatus < 400}
+                                                    >
+                                                        {request.responseStatus}
+                                                    </span>
+                                                )}
                                                 <time dateTime={request.timestamp}>
                                                     {new Date(
                                                         request.timestamp,
                                                     ).toLocaleTimeString()}
                                                 </time>
                                             </div>
-                                            <div className="request-item-path">{request.path}</div>
+                                            <div className="request-item-path">
+                                                {request.path.slice(
+                                                    '/hooks/'.length + inbox.id.length,
+                                                ) || '/'}
+                                            </div>
                                         </button>
                                     ))
                                 ) : (
@@ -954,10 +1067,22 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
                                     </div>
                                 )}
                             </div>
+                            {filtered.length > visibleRequests && (
+                                <Button
+                                    size="2"
+                                    variant="ghost"
+                                    className="webhook-load"
+                                    onClick={() => setVisibleRequests((count) => count + 20)}
+                                >
+                                    Show older requests
+                                </Button>
+                            )}
                         </aside>
                         <section className="request-detail" aria-label="Selected request">
                             <Detail
+                                inbox={inbox}
                                 request={current}
+                                canReplay={viewer.status === 'user' && Boolean(inbox.ownerId)}
                                 filteredOut={requests.length > 0 && !filtered.length}
                                 command={command}
                             />

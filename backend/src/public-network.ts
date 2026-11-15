@@ -87,8 +87,9 @@ export async function publicRequest(
     input: string,
     signal: AbortSignal,
     options: {
-        method?: 'GET' | 'HEAD' | 'OPTIONS' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+        method?: string;
         requestBody?: string;
+        requestBytes?: Uint8Array;
         headers?: Record<string, string>;
         body?: boolean;
         limit?: number;
@@ -238,7 +239,7 @@ export async function publicRequest(
                 );
             }
         });
-        req.end(options.requestBody);
+        req.end(options.requestBytes ?? options.requestBody);
     });
 }
 export async function followPublic(

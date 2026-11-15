@@ -1,7 +1,14 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import { transaction } from './database.js';
-import { DELIVERY_LIMIT, INBOX_TTL_MS, resolveLimits } from './inboxes.js';
+import {
+    DELIVERY_LIMIT,
+    INBOX_TTL_MS,
+    deliveryStatus,
+    replayLimit,
+    replayReservation,
+    resolveLimits,
+} from './inboxes.js';
 import type {
     CapturedRequest,
     CaptureResult,
@@ -16,6 +23,8 @@ import { sharingCredentials, publicAccessAllowed, tokenHash } from './sharing.js
 import type { PublicAccess, Visibility } from './sharing.js';
 import { ownsOrToken } from './allocations.js';
 import type { AllocationContext } from './allocations.js';
+import { matchesWebhook, missingWebhookCursor, webhookId, webhookPage } from './webhook-history.js';
+import type { WebhookFilters, WebhookHistory } from './webhook-history.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const hash = (value: string) => createHash('sha256').update(value).digest();
@@ -37,6 +46,7 @@ interface InboxRow {
     byte_limit: string;
     response: InboxResponse | null;
     forward_url: string | null;
+    conditional_forward: { url: string; filter: WebhookFilters } | null;
 }
 
 export class PostgresInboxStore implements InboxRepository {
@@ -176,6 +186,7 @@ export class PostgresInboxStore implements InboxRepository {
                 ...input,
                 id: randomUUID(),
                 timestamp: new Date().toISOString(),
+                responseStatus: inbox.response?.status ?? 200,
             };
             const record = JSON.stringify(request);
             const bytes = Buffer.byteLength(record);
@@ -202,11 +213,16 @@ export class PostgresInboxStore implements InboxRepository {
                 'UPDATE platform_usage SET stored_bytes = stored_bytes + $1 WHERE id = 1',
                 [bytes],
             );
+            const forwardUrl = inbox.conditional_forward
+                ? matchesWebhook(request, id, inbox.conditional_forward.filter)
+                    ? inbox.conditional_forward.url
+                    : null
+                : inbox.forward_url;
             return {
                 status: 'captured',
                 requestId: request.id,
                 ...(inbox.response ? { response: inbox.response } : {}),
-                ...(inbox.forward_url ? { forwardUrl: inbox.forward_url } : {}),
+                ...(forwardUrl ? { forwardUrl } : {}),
                 ...(inbox.owner_id ? { ownerId: inbox.owner_id } : {}),
             };
         });
@@ -215,6 +231,7 @@ export class PostgresInboxStore implements InboxRepository {
     async info(id: string, token: string, ownerId?: string) {
         const inbox = await this.authorized(id, token, this.pool, ownerId);
         if (!inbox) return undefined;
+        const forwardUrl = inbox.conditional_forward?.url ?? inbox.forward_url;
         return {
             visibility: inbox.visibility,
             accessVersion: inbox.access_version,
@@ -232,22 +249,40 @@ export class PostgresInboxStore implements InboxRepository {
                 : {}),
             ...(inbox.owner_id ? { ownerId: inbox.owner_id } : {}),
             ...(inbox.response ? { response: inbox.response } : {}),
-            ...(inbox.forward_url ? { forwardUrl: inbox.forward_url } : {}),
+            ...(forwardUrl ? { forwardUrl } : {}),
+            ...(inbox.conditional_forward
+                ? { forwardFilter: inbox.conditional_forward.filter }
+                : {}),
         };
     }
 
-    async setForward(id: string, token: string, url: string | null, ownerId?: string) {
+    async setForward(
+        id: string,
+        token: string,
+        url: string | null,
+        ownerId?: string,
+        filter?: WebhookFilters,
+    ) {
         const inbox = await this.authorized(id, token, this.pool, ownerId);
         if (!inbox) return false;
-        const result = await this.pool.query('UPDATE inboxes SET forward_url = $2 WHERE id = $1', [
-            id,
-            url,
-        ]);
+        const conditional = url && filter ? { url, filter } : null;
+        // Older backends must not treat a conditional destination as an unconditional one.
+        const result = await this.pool.query(
+            'UPDATE inboxes SET forward_url = $2, conditional_forward = $3 WHERE id = $1',
+            [id, conditional ? null : url, conditional],
+        );
         return result.rowCount === 1;
     }
 
     async recordDelivery(id: string, delivery: InboxDelivery) {
         if (!UUID.test(id)) return;
+        if (delivery.replayId) {
+            await this.pool.query(
+                'UPDATE inbox_replays SET delivery = $3 WHERE inbox_id = $1 AND id = $2',
+                [id, delivery.replayId, delivery],
+            );
+            return;
+        }
         // Same trim as mock calls: the DELETE sees the table before this INSERT.
         await this.pool.query(
             `WITH added AS (
@@ -268,10 +303,13 @@ export class PostgresInboxStore implements InboxRepository {
         const inbox = await this.authorized(id, token, this.pool, ownerId);
         if (!inbox) return undefined;
         const result = await this.pool.query<{ delivery: InboxDelivery }>(
-            'SELECT delivery FROM inbox_deliveries WHERE inbox_id = $1 ORDER BY sequence',
-            [id],
+            `SELECT delivery FROM (
+                SELECT delivery, sequence FROM inbox_deliveries WHERE inbox_id = $1
+                UNION ALL SELECT delivery, 0 AS sequence FROM inbox_replays WHERE inbox_id = $1
+            ) AS recent ORDER BY delivery->>'at' DESC, sequence DESC LIMIT $2`,
+            [id, DELIVERY_LIMIT],
         );
-        return result.rows.map((row) => row.delivery);
+        return result.rows.reverse().map((row) => deliveryStatus(row.delivery));
     }
 
     async setResponse(
@@ -301,6 +339,92 @@ export class PostgresInboxStore implements InboxRepository {
             [id],
         );
         return result.rows.map((row) => JSON.parse(row.record) as CapturedRequest);
+    }
+
+    async pageRequests(
+        id: string,
+        token: string,
+        ownerId: string | undefined,
+        page: WebhookHistory,
+    ) {
+        const inbox = await this.authorized(id, token, this.pool, ownerId);
+        if (!inbox) return undefined;
+        let sequence: string | null = null;
+        if (page.cursor) {
+            if (!webhookId.test(page.cursor)) missingWebhookCursor();
+            const cursor = await this.pool.query<{ sequence: string }>(
+                'SELECT sequence FROM captured_requests WHERE inbox_id = $1 AND id = $2',
+                [id, page.cursor],
+            );
+            sequence = cursor.rows[0]?.sequence ?? missingWebhookCursor();
+        }
+        const older = page.direction === 'older';
+        const matches: CapturedRequest[] = [];
+        let scannedThrough: string | undefined;
+        const batch = page.method || page.path ? 64 : page.limit + 1;
+        while (matches.length <= page.limit) {
+            const result = await this.pool.query<{ sequence: string; record: string }>(
+                `SELECT sequence, record FROM captured_requests WHERE inbox_id = $1
+                 AND ($2::bigint IS NULL OR sequence ${older ? '<' : '>'} $2)
+                 ORDER BY sequence ${older ? 'DESC' : 'ASC'} LIMIT $3`,
+                [id, sequence, batch],
+            );
+            for (const row of result.rows) {
+                const request = JSON.parse(row.record) as CapturedRequest;
+                scannedThrough = request.id;
+                if (matchesWebhook(request, inbox.id, page)) matches.push(request);
+                if (matches.length > page.limit) break;
+            }
+            if (result.rows.length < batch) break;
+            sequence = result.rows.at(-1)!.sequence;
+        }
+        return webhookPage(matches, page.limit, scannedThrough);
+    }
+
+    async getRequest(id: string, requestId: string, token: string, ownerId?: string) {
+        const inbox = await this.authorized(id, token, this.pool, ownerId);
+        if (!inbox || !UUID.test(requestId)) return undefined;
+        const { rows } = await this.pool.query<{ record: string }>(
+            'SELECT record FROM captured_requests WHERE inbox_id = $1 AND id = $2',
+            [id, requestId],
+        );
+        return rows[0] ? (JSON.parse(rows[0].record) as CapturedRequest) : undefined;
+    }
+
+    async reserveReplay(
+        id: string,
+        ownerId: string,
+        key: string,
+        signature: string,
+        replay: InboxDelivery,
+    ) {
+        if (!UUID.test(id)) return undefined;
+        return transaction(this.pool, async (client) => {
+            const inbox = await client.query<{ request_limit: number }>(
+                'SELECT request_limit FROM inboxes WHERE id = $1 AND owner_id = $2 AND expires_at > clock_timestamp() FOR NO KEY UPDATE',
+                [id, ownerId],
+            );
+            if (!inbox.rows[0]) return undefined;
+            const prior = await client.query<{ delivery: InboxDelivery; replay_hash: string }>(
+                'SELECT delivery, replay_hash FROM inbox_replays WHERE inbox_id = $1 AND key_hash = $2',
+                [id, key],
+            );
+            if (prior.rows[0])
+                return replayReservation(
+                    { signature: prior.rows[0].replay_hash, replay: prior.rows[0].delivery },
+                    signature,
+                );
+            const { rows } = await client.query<{ count: number }>(
+                'SELECT count(*)::int AS count FROM inbox_replays WHERE inbox_id = $1',
+                [id],
+            );
+            if (rows[0]!.count >= inbox.rows[0].request_limit) replayLimit();
+            await client.query(
+                'INSERT INTO inbox_replays (inbox_id, delivery, key_hash, replay_hash, id) VALUES ($1, $2, $3, $4, $5)',
+                [id, replay, key, signature, replay.replayId],
+            );
+            return { replay, accepted: true };
+        });
     }
 
     async delete(id: string, token: string, ownerId?: string): Promise<boolean> {

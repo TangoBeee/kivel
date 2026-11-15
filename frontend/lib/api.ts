@@ -4,11 +4,13 @@ export interface Inbox {
     accessToken?: string;
     accessVersion?: string;
     inspectionToken: string;
+    ownerId?: string;
     requestLimit?: number;
     webhookUrl: string;
     expiresAt: string;
     response?: InboxResponse;
     forwardUrl?: string;
+    forwardFilter?: { method?: string; path?: string };
 }
 
 export interface InboxResponse {
@@ -30,6 +32,7 @@ export interface CapturedRequest {
     bodyEncoding: 'utf8' | 'base64';
     bodySize: number;
     timestamp: string;
+    responseStatus?: number;
 }
 
 export class ApiError extends Error {

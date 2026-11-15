@@ -2,7 +2,7 @@ import DodoPayments from 'dodopayments';
 import { plans } from '@kivel.io/tools/plans';
 import assert from 'node:assert/strict';
 import { after, before, beforeEach, test } from 'node:test';
-import { randomBytes, createHash, createHmac } from 'node:crypto';
+import { randomBytes, randomUUID, createHash, createHmac } from 'node:crypto';
 import { Pool } from 'pg';
 import { migrate } from './database.js';
 import { PostgresInboxStore, PostgresRateLimiter } from './postgres.js';
@@ -173,6 +173,70 @@ test('inboxes, token hashes, and exact payloads survive repository recreation', 
     const stored = (await pool.query('SELECT token_hash FROM inboxes')).rows[0].token_hash;
     assert.equal(stored.length, 32);
     assert.notEqual(stored.toString(), inbox.inspectionToken);
+});
+
+test('PostgreSQL webhook pages and replay keys stay consistent across replicas', async () => {
+    const first = new PostgresInboxStore(pool);
+    const second = new PostgresInboxStore(pool);
+    const identities = new PostgresIdentityRepository(pool);
+    const identity = (await identities.register('webhook-replay-owner', 'unused'))!;
+    const ownerId = identity.personalAccountId;
+    const account = (await identities.account(ownerId))!;
+    const inbox = (await first.create({
+        ownerId,
+        quotaKey: account.quotaKey,
+        plan: 'free',
+    }))!;
+    const path = `/hooks/${inbox.id}/billing`;
+    const unrelated = `/hooks/${inbox.id}/other`;
+    const result = await first.capture(inbox.id, { ...input, path }, { ownerId });
+    assert.equal(result.status, 'captured');
+    if (result.status !== 'captured') throw new Error('Capture failed.');
+    await second.capture(inbox.id, { ...input, path: unrelated }, { ownerId });
+    const final = await first.capture(inbox.id, { ...input, path }, { ownerId });
+    assert.equal(final.status, 'captured');
+    if (final.status !== 'captured') throw new Error('Capture failed.');
+    const options = { direction: 'older' as const, path: '/billing', method: 'POST', limit: 1 };
+    const page = await second.pageRequests(inbox.id, '', ownerId, options);
+    assert.equal(page?.nextCursor, final.requestId);
+    const older = await first.pageRequests(inbox.id, '', ownerId, {
+        ...options,
+        cursor: page!.nextCursor!,
+    });
+    assert.equal(older?.requests[0]?.id, result.requestId);
+    assert.equal(older?.requests[0]?.body, input.body);
+    const replay = {
+        requestId: result.requestId,
+        replayId: randomUUID(),
+        at: new Date().toISOString(),
+        durationMs: 0,
+        attempts: 0,
+        pending: true,
+    };
+    const [a, b] = await Promise.all([
+        first.reserveReplay(inbox.id, ownerId, 'case-1', 'same', replay),
+        second.reserveReplay(inbox.id, ownerId, 'case-1', 'same', {
+            ...replay,
+            replayId: randomUUID(),
+        }),
+    ]);
+    assert.notEqual(a?.accepted, b?.accepted);
+    assert.equal(a?.replay.replayId, b?.replay.replayId);
+    assert.equal(
+        await first.reserveReplay(inbox.id, randomUUID(), 'case-2', 'same', replay),
+        undefined,
+    );
+    await assert.rejects(
+        second.reserveReplay(inbox.id, ownerId, 'case-1', 'different', replay),
+        /already belongs/,
+    );
+    await first.recordDelivery(inbox.id, {
+        ...a!.replay,
+        pending: false,
+        attempts: 1,
+        status: 204,
+    });
+    assert.equal((await second.listDeliveries(inbox.id, '', ownerId))?.[0]?.status, 204);
 });
 
 test('concurrent creation across replicas respects the shared inbox quota', async () => {

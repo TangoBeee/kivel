@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { parseWebhookBody } from '@kivel.io/tools/webhooks';
 import type { CapturedRequest } from '../lib/api';
+import { highlightJson } from './result-preview';
 
 export function WebhookBody({
     request,
@@ -33,8 +34,12 @@ export function WebhookBody({
             <p className="small muted">{parsed.kind}</p>
             {'problem' in parsed && <p className="tool-notice">{parsed.problem}</p>}
             {'data' in parsed && (
-                <pre>
-                    {parsed.kind === 'JSON' ? formattedJson : JSON.stringify(parsed.data, null, 2)}
+                <pre className="webhook-code" tabIndex={0}>
+                    {highlightJson(
+                        parsed.kind === 'JSON'
+                            ? formattedJson
+                            : JSON.stringify(parsed.data, null, 2),
+                    )}
                 </pre>
             )}
             {'fields' in parsed && parsed.fields && (

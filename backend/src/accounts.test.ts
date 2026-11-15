@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { createHmac } from 'node:crypto';
 import { buildApp } from './app.js';
 import { MemoryIdentityRepository } from './identity.js';
 import { Kivel } from '@kivel.io/sdk';
 import { command } from '@kivel.io/cli';
+import type { ForwardSend } from './forwarding.js';
 const origin = 'http://localhost:3000';
 async function signup(app: ReturnType<typeof buildApp>, username: string) {
     const response = await app.inject({
@@ -578,7 +580,7 @@ test('failed run reservations are released only from their original UTC day', (t
     assert.equal(repository.runUsage('test'), 1);
 });
 
-test('Pro inboxes forward captured webhooks with retries and keep a delivery log', async (t) => {
+test('Pro inboxes forward matching captures with retries and keep the attempt responses', async (t) => {
     const identities = new MemoryIdentityRepository();
     const sent: { url: string; method: string; headers: Record<string, string>; body?: string }[] =
         [];
@@ -608,7 +610,7 @@ test('Pro inboxes forward captured webhooks with retries and keep a delivery log
             method: 'PUT',
             url: `/api/inboxes/${inbox.id}/forward`,
             headers,
-            payload: { url },
+            payload: { url, method: 'POST', path: '/billing' },
         });
     assert.equal((await forward('https://example.com/hook')).statusCode, 402);
     await identities.setEntitlement(
@@ -621,9 +623,12 @@ test('Pro inboxes forward captured webhooks with retries and keep a delivery log
     assert.equal((await forward('http://localhost:3000/hooks/x')).statusCode, 400);
     const saved = await forward('https://example.com/hook');
     assert.equal(saved.statusCode, 200);
+    assert.deepEqual(saved.json().forwardFilter, { method: 'POST', path: '/billing' });
+    await app.inject({ method: 'POST', url: `/hooks/${inbox.id}/ignored`, payload: 'ignored' });
+    await app.inject({ method: 'PUT', url: `/hooks/${inbox.id}/billing`, payload: 'ignored' });
     await app.inject({
         method: 'POST',
-        url: `/hooks/${inbox.id}?event=paid`,
+        url: `/hooks/${inbox.id}/billing?event=paid`,
         headers: {
             'content-type': 'application/json',
             'stripe-signature': 't=1,v1=abc',
@@ -644,6 +649,7 @@ test('Pro inboxes forward captured webhooks with retries and keep a delivery log
     assert.equal(log.length, 1);
     assert.equal(log[0].status, 200);
     assert.equal(log[0].attempts, 2);
+    assert.deepEqual(log[0].responses, [{ status: 503 }, { status: 200 }]);
     assert.equal(
         (
             await app.inject({
@@ -657,6 +663,144 @@ test('Pro inboxes forward captured webhooks with retries and keep a delivery log
     await app.inject({ method: 'POST', url: `/hooks/${inbox.id}`, payload: 'x' });
     await new Promise((resolve) => setTimeout(resolve, 50));
     assert.equal(sent.length, 2);
+});
+
+test('replays retained binary bytes once per key and verifies signatures without uploading secrets', async (t) => {
+    const sent: { url: string; options: Parameters<ForwardSend>[2] }[] = [];
+    const app = buildApp({
+        forwardSend: async (url, _signal, options) => {
+            sent.push({ url, options });
+            return { status: 204 };
+        },
+    });
+    t.after(() => app.close());
+    const owner = await signup(app, 'replay-owner');
+    const other = await signup(app, 'replay-other');
+    const credential = (await key(app, owner.cookie)).key as string;
+    const ownerHeaders = { authorization: `Bearer ${credential}` };
+    const otherHeaders = { authorization: `Bearer ${(await key(app, other.cookie)).key}` };
+    const readHeaders = {
+        authorization: `Bearer ${(await key(app, owner.cookie, ['resources:read'])).key}`,
+    };
+    const inbox = (
+        await app.inject({
+            method: 'POST',
+            url: '/api/inboxes?visibility=public',
+            headers: ownerHeaders,
+        })
+    ).json();
+    const payload = Buffer.from([0, 0xff, 1, 10, 128]);
+    const secret = 'local-fixture-signature-key';
+    const signature = 'sha256=' + createHmac('sha256', secret).update(payload).digest('hex');
+    const capture = await app.inject({
+        method: 'POST',
+        url: `/hooks/${inbox.id}/billing?item=a&item=b%2b?yes`,
+        headers: {
+            'content-type': 'application/octet-stream',
+            'x-hub-signature-256': signature,
+            'x-api-key': 'private',
+        },
+        payload,
+    });
+    assert.equal(capture.statusCode, 200);
+    const requestId = capture.json().requestId;
+    const target = 'https://example.com/staging?environment=qa';
+    const replay = (url: string, credentials = ownerHeaders) =>
+        app.inject({
+            method: 'POST',
+            url: `/api/inboxes/${inbox.id}/replays`,
+            headers: { ...credentials, 'idempotency-key': 'case-1' },
+            payload: { requestId, url },
+        });
+    assert.equal((await replay(target, otherHeaders)).statusCode, 404);
+    assert.equal((await replay(target, readHeaders)).statusCode, 403);
+    assert.equal((await replay('https://127.0.0.1/webhook')).statusCode, 400);
+    const created = await replay(target);
+    assert.equal(created.statusCode, 202);
+    const duplicate = await replay(target);
+    assert.equal(duplicate.json().replayId, created.json().replayId);
+    assert.equal((await replay('https://example.com/other')).statusCode, 409);
+    const mcp = await app.inject({
+        method: 'POST',
+        url: '/mcp',
+        headers: { ...ownerHeaders, accept: 'application/json, text/event-stream' },
+        payload: {
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'tools/call',
+            params: {
+                name: 'resource_request',
+                arguments: {
+                    kind: 'inboxes',
+                    action: 'replay',
+                    id: inbox.id,
+                    config: { requestId, url: target, idempotencyKey: 'case-1' },
+                },
+            },
+        },
+    });
+    assert.equal(mcp.statusCode, 200);
+    assert.equal(JSON.parse(mcp.json().result.content[0].text).replayId, created.json().replayId);
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0]!.url, target + '&item=a&item=b%2b?yes');
+    assert.deepEqual(sent[0]!.options.requestBytes, payload);
+    assert.equal(sent[0]!.options.headers['x-hub-signature-256'], signature);
+    assert.equal(sent[0]!.options.headers['x-kivel-replay-id'], created.json().replayId);
+    assert.equal(sent[0]!.options.headers['x-api-key'], undefined);
+    const deliveries = await app.inject({
+        url: `/api/inboxes/${inbox.id}/deliveries`,
+        headers: ownerHeaders,
+    });
+    assert.deepEqual(deliveries.json().deliveries[0].responses, [{ status: 204 }]);
+    const client = new Kivel({
+        baseUrl: origin,
+        apiKey: credential,
+        fetch: async (url, init) => {
+            assert.equal(init?.method, 'GET');
+            assert.equal(init?.body, undefined);
+            assert.ok(!String(url).includes(secret));
+            assert.ok(
+                !JSON.stringify(Object.fromEntries(new Headers(init?.headers))).includes(secret),
+            );
+            const target = new URL(String(url));
+            const response = await app.inject({
+                url: target.pathname + target.search,
+                headers: Object.fromEntries(new Headers(init?.headers)),
+            });
+            return new Response(response.body, { status: response.statusCode });
+        },
+    });
+    assert.equal(
+        (await client.verifyInboxSignature(inbox.id, requestId, { provider: 'github', secret }))
+            .valid,
+        true,
+    );
+    assert.equal(
+        (
+            (await command(
+                client,
+                ['inbox', 'verify', inbox.id, requestId, '--provider', 'github'],
+                Buffer.from(secret),
+            )) as { valid: boolean }
+        ).valid,
+        true,
+    );
+    assert.equal(
+        (
+            (await command(client, [
+                'inbox',
+                'requests',
+                inbox.id,
+                '--method',
+                'POST',
+                '--path',
+                '/billing',
+                '--limit',
+                '1',
+            ])) as { requests: { id: string }[] }
+        ).requests[0]?.id,
+        requestId,
+    );
 });
 
 test('Pro proxy mocks pass unmatched calls through, never serve HTML, and record answers as routes', async (t) => {

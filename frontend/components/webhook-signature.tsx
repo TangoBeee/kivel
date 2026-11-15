@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { signatureProviders, verifyWebhookSignature } from '@kivel.io/tools/webhooks';
-import type { SignatureProvider } from '@kivel.io/tools/webhooks';
+import { signatureProviders, verifyWebhookSignature } from '@kivel.io/sdk/webhook-signature';
+import type { SignatureProvider } from '@kivel.io/sdk/webhook-signature';
 import type { CapturedRequest } from '../lib/api';
 import { siteOrigin } from '../lib/site';
 import { AppSelect, SelectOption } from './app-select';

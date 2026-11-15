@@ -59,6 +59,57 @@ test('creates unique inbox credentials with a one-hour lifetime and a trusted we
     assert.notEqual(second.inspectionToken, inbox.inspectionToken);
 });
 
+test('webhook history and waits page matching captures without exposing another inbox', async (t) => {
+    const { app, hook, history, inbox, authorization } = await setup(t);
+    const headers = { authorization };
+    const push = async (method: 'POST' | 'PUT', path: string) => {
+        const response = await app.inject({ method, url: hook + path, payload: 'event' });
+        assert.equal(response.statusCode, 200);
+        return response.json().requestId as string;
+    };
+    const first = await push('POST', '/billing?item=1');
+    await push('PUT', '/billing?item=2');
+    const second = await push('POST', '/billing?item=3');
+    await push('POST', '/something-else');
+    const filters = 'method=post&path=%2Fbilling&limit=1';
+    const budget = await app.inject({ url: history + '?' + filters, headers });
+    assert.equal(budget.statusCode, 200);
+    assert.deepEqual(
+        budget.json().requests.map(({ id }: { id: string }) => id),
+        [second],
+    );
+    assert.equal(budget.json().nextCursor, second);
+    const older = await app.inject({ url: history + '?' + filters + '&cursor=' + second, headers });
+    assert.deepEqual(
+        older.json().requests.map(({ id }: { id: string }) => id),
+        [first],
+    );
+    assert.equal(older.json().nextCursor, undefined);
+    const wait = await app.inject({
+        url: '/api/inboxes/' + inbox.id + '/wait?after=' + first + '&' + filters,
+        headers,
+    });
+    assert.equal(wait.json().timedOut, false);
+    assert.deepEqual(
+        wait.json().requests.map(({ id }: { id: string }) => id),
+        [second],
+    );
+    const other = await setup(t);
+    const otherCapture = await other.app.inject({
+        method: 'POST',
+        url: other.hook,
+        payload: 'event',
+    });
+    assert.equal(
+        (await app.inject({ url: history + '?cursor=' + otherCapture.json().requestId, headers }))
+            .statusCode,
+        409,
+    );
+    assert.equal((await app.inject({ url: history + '?' + filters })).statusCode, 404);
+    assert.equal((await app.inject({ url: history + '?limit=0', headers })).statusCode, 400);
+    assert.equal((await app.inject({ url: history, headers })).json().requests.length, 4);
+});
+
 test('bounds stored inboxes and reclaims capacity at expiration', async (t) => {
     let now = 0;
     const inboxStore = new InboxStore({ now: () => now });

@@ -22,6 +22,8 @@ import { InboxForwardSettings } from './inbox-forward';
 import { ReplayRequest } from './replay-request';
 import { WebhookBody } from './webhook-body';
 import { WebhookSignature } from './webhook-signature';
+import type { WebhookVerification } from './webhook-signature';
+import { highlightJson } from './result-preview';
 import type { RequestSearchScope } from '../lib/request-filter';
 
 function timeLeft(seconds: number) {
@@ -67,30 +69,49 @@ function DataTable({ values }: { values: Record<string, string | string[]> }) {
     );
 }
 
+function eventName(request: CapturedRequest) {
+    if (request.bodyEncoding !== 'utf8' || !request.body.trimStart().startsWith('{')) return '';
+    try {
+        const body = JSON.parse(request.body) as Record<string, unknown>;
+        for (const field of ['type', 'event', 'event_type', 'action']) {
+            const value = body[field];
+            if (typeof value === 'string' && value.trim())
+                return value.trim().replace(/\s+/g, ' ').slice(0, 120);
+        }
+    } catch {}
+    return '';
+}
+
 function Detail({
     inbox,
     request,
+    event,
     canReplay,
     filteredOut = false,
     command = '',
 }: {
     inbox: Inbox;
     request: CapturedRequest | undefined;
+    event?: string;
     canReplay: boolean;
     filteredOut?: boolean;
     command?: string;
 }) {
     const [tab, setTab] = useState('Body');
     const [pretty, setPretty] = useState(true);
-    const displayed = useMemo(() => {
-        if (!request) return '';
-        if (pretty && request.bodyEncoding === 'utf8') {
+    const [verification, setVerification] = useState<WebhookVerification>();
+    const updateVerification = useCallback(
+        (state: WebhookVerification) => setVerification(state),
+        [],
+    );
+    const formatted = useMemo(() => {
+        if (request?.bodyEncoding === 'utf8') {
             try {
                 return formatJson(request.body);
             } catch {}
         }
-        return request.body;
-    }, [request, pretty]);
+    }, [request]);
+    const displayed = pretty ? (formatted ?? request?.body ?? '') : (request?.body ?? '');
     if (!request && !filteredOut && command)
         return (
             <div className="detail-empty detail-first">
@@ -135,7 +156,7 @@ function Detail({
                         {request.method}
                     </span>
                     <code className="webhook-break" title={request.path}>
-                        {request.path.slice('/hooks/'.length + inbox.id.length) || '/'}
+                        {event || request.path.slice('/hooks/'.length + inbox.id.length) || '/'}
                     </code>
                     {request.responseStatus !== undefined && (
                         <span className="webhook-status" data-ok={request.responseStatus < 400}>
@@ -154,11 +175,55 @@ function Detail({
                     <dt>Size</dt>
                     <dd>{request.bodySize.toLocaleString()} bytes</dd>
                 </div>
-                <div>
-                    <dt>Encoding</dt>
-                    <dd>{request.bodyEncoding === 'base64' ? 'Base64' : 'UTF-8'}</dd>
-                </div>
+                {request.responseTimeMs !== undefined && (
+                    <div>
+                        <dt>Responded in</dt>
+                        <dd>{request.responseTimeMs.toLocaleString()} ms</dd>
+                    </div>
+                )}
+                {request.waitingAgent && (
+                    <div>
+                        <dt>Agent waiting</dt>
+                        <dd title={request.waitingAgent}>{request.waitingAgent}</dd>
+                    </div>
+                )}
             </dl>
+            <div
+                className="webhook-signature-card"
+                data-state={
+                    verification?.result?.valid
+                        ? 'verified'
+                        : verification?.hasSecret
+                          ? 'unchecked'
+                          : 'unset'
+                }
+                aria-live="polite"
+            >
+                <Icon name="shield" size={20} />
+                <div>
+                    <strong>
+                        {verification?.result?.valid
+                            ? 'Signature verified'
+                            : verification?.hasSecret
+                              ? 'Signature not verified'
+                              : 'No secret set'}
+                    </strong>
+                    <p>
+                        {verification?.result?.reason ??
+                            'Verify the signature with a secret in this browser.'}
+                    </p>
+                </div>
+                {tab !== 'Signature' && (
+                    <Button
+                        size="2"
+                        variant="surface"
+                        type="button"
+                        onClick={() => setTab('Signature')}
+                    >
+                        Check signature
+                    </Button>
+                )}
+            </div>
             <Tabs.Root value={tab} onValueChange={setTab}>
                 <Tabs.List className="request-tabs" aria-label="Request details">
                     {tabs.map((name) => (
@@ -168,91 +233,124 @@ function Detail({
                         </Tabs.Trigger>
                     ))}
                 </Tabs.List>
-                {tabs.map((name) => (
-                    <Tabs.Content key={name} value={name} className="detail-body">
-                        {tab === 'Body' && (
-                            <>
-                                <div className="payload-toolbar">
-                                    <span>
-                                        {request.bodySize.toLocaleString()} bytes ·{' '}
-                                        {request.bodyEncoding === 'base64' ? 'BASE64' : 'UTF-8'}
-                                    </span>
-                                    <div className="button-row">
-                                        {request.bodyEncoding === 'utf8' && (
-                                            <label className="compact-toggle">
-                                                <Checkbox
-                                                    checked={pretty}
-                                                    onCheckedChange={(checked) =>
-                                                        setPretty(checked === true)
-                                                    }
-                                                />{' '}
-                                                Parsed view
-                                            </label>
-                                        )}
-                                        <IconButton
-                                            size="2"
-                                            variant="surface"
-                                            color="gray"
-                                            onClick={saveBody}
-                                            aria-label="Download request body"
-                                        >
-                                            <Icon name="download" size={15} />
-                                        </IconButton>
-                                        <CopyButton text={displayed} label="Copy body" compact />
+                {tabs
+                    .filter((name) => name !== 'Signature')
+                    .map((name) => (
+                        <Tabs.Content key={name} value={name} className="detail-body">
+                            {tab === 'Body' && (
+                                <>
+                                    <div className="payload-toolbar">
+                                        <span>
+                                            {request.bodySize.toLocaleString()} bytes ·{' '}
+                                            {request.bodyEncoding === 'base64' ? 'BASE64' : 'UTF-8'}
+                                        </span>
+                                        <div className="button-row">
+                                            {request.bodyEncoding === 'utf8' && (
+                                                <label className="compact-toggle">
+                                                    <Checkbox
+                                                        checked={pretty}
+                                                        onCheckedChange={(checked) =>
+                                                            setPretty(checked === true)
+                                                        }
+                                                    />{' '}
+                                                    Parsed view
+                                                </label>
+                                            )}
+                                            <IconButton
+                                                size="2"
+                                                variant="surface"
+                                                color="gray"
+                                                onClick={saveBody}
+                                                aria-label="Download request body"
+                                            >
+                                                <Icon name="download" size={15} />
+                                            </IconButton>
+                                            <CopyButton
+                                                text={displayed}
+                                                label="Copy body"
+                                                compact
+                                            />
+                                        </div>
                                     </div>
-                                </div>
-                                {request.body ? (
-                                    pretty ? (
-                                        <WebhookBody
-                                            key={request.id}
-                                            request={request}
-                                            formattedJson={displayed}
-                                        />
+                                    {request.body ? (
+                                        pretty ? (
+                                            <WebhookBody
+                                                key={request.id}
+                                                request={request}
+                                                formattedJson={displayed}
+                                            />
+                                        ) : (
+                                            <pre
+                                                className={
+                                                    formatted === undefined
+                                                        ? undefined
+                                                        : 'webhook-code'
+                                                }
+                                            >
+                                                {formatted === undefined
+                                                    ? displayed
+                                                    : highlightJson(displayed)}
+                                            </pre>
+                                        )
                                     ) : (
-                                        <pre>{displayed}</pre>
-                                    )
-                                ) : (
-                                    <p className="small muted">This request has no body.</p>
-                                )}
-                            </>
-                        )}
-                        {tab === 'Signature' && (
-                            <WebhookSignature key={request.id} request={request} />
-                        )}
-                        {tab === 'Headers' && <DataTable values={request.headers} />}
-                        {tab === 'Query' && <DataTable values={request.query} />}
-                        {tab === 'Raw' && (
-                            <>
-                                <div className="payload-toolbar">
-                                    <span>
-                                        {request.bodyEncoding === 'base64'
-                                            ? 'Base64 body'
-                                            : 'Original body'}
-                                    </span>
-                                    <CopyButton text={request.body} label="Copy raw body" compact />
-                                </div>
-                                <pre>{request.body || '(Empty body)'}</pre>
-                            </>
-                        )}
-                        {tab === 'Details' && (
-                            <DataTable
-                                values={{
-                                    'Request ID': request.id,
-                                    Method: request.method,
-                                    Path: request.path,
-                                    'Original query':
-                                        request.rawQuery ??
-                                        new URLSearchParams(
-                                            request.query as Record<string, string>,
-                                        ).toString(),
-                                    Received: new Date(request.timestamp).toISOString(),
-                                    'Body size': `${request.bodySize} bytes`,
-                                    Encoding: request.bodyEncoding,
-                                }}
-                            />
-                        )}
-                    </Tabs.Content>
-                ))}
+                                        <p className="small muted">This request has no body.</p>
+                                    )}
+                                </>
+                            )}
+                            {tab === 'Headers' && <DataTable values={request.headers} />}
+                            {tab === 'Query' && <DataTable values={request.query} />}
+                            {tab === 'Raw' && (
+                                <>
+                                    <div className="payload-toolbar">
+                                        <span>
+                                            {request.bodyEncoding === 'base64'
+                                                ? 'Base64 body'
+                                                : 'Original body'}
+                                        </span>
+                                        <CopyButton
+                                            text={request.body}
+                                            label="Copy raw body"
+                                            compact
+                                        />
+                                    </div>
+                                    <pre
+                                        className={
+                                            formatted === undefined ? undefined : 'webhook-code'
+                                        }
+                                    >
+                                        {formatted === undefined
+                                            ? request.body || '(Empty body)'
+                                            : highlightJson(request.body)}
+                                    </pre>
+                                </>
+                            )}
+                            {tab === 'Details' && (
+                                <DataTable
+                                    values={{
+                                        'Request ID': request.id,
+                                        Method: request.method,
+                                        Path: request.path,
+                                        'Original query':
+                                            request.rawQuery ??
+                                            new URLSearchParams(
+                                                request.query as Record<string, string>,
+                                            ).toString(),
+                                        Received: new Date(request.timestamp).toISOString(),
+                                        'Body size': `${request.bodySize} bytes`,
+                                        Encoding: request.bodyEncoding,
+                                    }}
+                                />
+                            )}
+                        </Tabs.Content>
+                    ))}
+                <Tabs.Content
+                    value="Signature"
+                    className="detail-body webhook-signature-pane"
+                    forceMount
+                    hidden={tab !== 'Signature'}
+                >
+                    <WebhookSignature request={request} onVerification={updateVerification} />
+                </Tabs.Content>
             </Tabs.Root>
             {canReplay && <ReplayRequest key={request.id} inbox={inbox} request={request} />}
         </>
@@ -551,6 +649,10 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
     }
     const recent = buckets.reduce((total, count) => total + count, 0);
     const current = filtered.find((request) => request.id === selected) ?? filtered[0];
+    const eventNames = useMemo(
+        () => new Map(requests.map((request) => [request.id, eventName(request)])),
+        [requests],
+    );
     const command = inbox
         ? [
               `curl -X POST '${inbox.webhookUrl}'`,
@@ -1045,6 +1147,11 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
                                                     ).toLocaleTimeString()}
                                                 </time>
                                             </div>
+                                            {eventNames.get(request.id) && (
+                                                <div className="request-item-event">
+                                                    {eventNames.get(request.id)}
+                                                </div>
+                                            )}
                                             <div className="request-item-path">
                                                 {request.path.slice(
                                                     '/hooks/'.length + inbox.id.length,
@@ -1080,8 +1187,10 @@ export default function Webhooks({ toolId = 'webhooks' }: { toolId?: string } = 
                         </aside>
                         <section className="request-detail" aria-label="Selected request">
                             <Detail
+                                key={current?.id}
                                 inbox={inbox}
                                 request={current}
+                                event={current ? eventNames.get(current.id) : undefined}
                                 canReplay={viewer.status === 'user' && Boolean(inbox.ownerId)}
                                 filteredOut={requests.length > 0 && !filtered.length}
                                 command={command}

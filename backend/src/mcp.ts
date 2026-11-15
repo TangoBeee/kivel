@@ -1547,6 +1547,7 @@ export function registerMcp({
                             token,
                             ...(ownerId ? { ownerId } : {}),
                             ...(typeof value.after === 'string' ? { after: value.after } : {}),
+                            ...(actor.identity?.keyName ? { agent: actor.identity.keyName } : {}),
                             ...(page ? { page } : {}),
                         },
                         timeout * 1000,

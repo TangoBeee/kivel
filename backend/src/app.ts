@@ -562,6 +562,20 @@ export function buildApp({
 
     // Keep raw webhook parsing isolated from management API JSON parsing.
     app.register(async (hooks) => {
+        const captures = new WeakMap<FastifyRequest, string>();
+        hooks.addHook('onResponse', async (request, reply) => {
+            const requestId = captures.get(request);
+            if (!requestId) return;
+            try {
+                await inboxStore.recordRequestFact(
+                    (request.params as InboxRoute['Params']).id,
+                    [requestId],
+                    ['responseTimeMs', Math.round(reply.elapsedTime)],
+                );
+            } catch (error) {
+                request.log.warn({ err: error }, 'Could not record webhook response time.');
+            }
+        });
         hooks.removeAllContentTypeParsers();
         hooks.addContentTypeParser('*', { parseAs: 'buffer' }, (_request, body, done) =>
             done(null, body),
@@ -626,6 +640,7 @@ export function buildApp({
                                 error: 'Capture storage capacity reached. Try again later.',
                             });
                         case 'captured':
+                            captures.set(request, result.requestId);
                             reply.header('X-Webhook-Request-Id', result.requestId);
                             if (
                                 result.forwardUrl &&
@@ -676,9 +691,9 @@ export function buildApp({
             const token = resourceToken(request);
             const ownerId = (await access.actor(request)).identity?.account.id;
             const page = webhookHistory(request.query, 'older');
-            const inbox = await inboxStore.info(request.params.id, token, ownerId);
+            const inbox = await inboxStore.info(request.params.id, token, ownerId, !page);
             if (!inbox) return reply.code(404).send(NOT_FOUND);
-            const etag = `"${inbox.id}:${inbox.requestCount}:${inbox.accessVersion}"`;
+            const etag = `"${inbox.id}:${inbox.requestCount}:${inbox.accessVersion}:${inbox.requestFactsCount ?? 0}"`;
             reply
                 .header('X-Resource-Visibility', inbox.visibility)
                 .header('X-Access-Version', inbox.accessVersion)
@@ -888,6 +903,7 @@ export function buildApp({
                         id: request.params.id,
                         token,
                         ...(actor.identity ? { ownerId: actor.identity.account.id } : {}),
+                        ...(actor.identity?.keyName ? { agent: actor.identity.keyName } : {}),
                         ...(request.query.after ? { after: request.query.after } : {}),
                         ...(page ? { page } : {}),
                     },

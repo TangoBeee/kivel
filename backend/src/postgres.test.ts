@@ -345,9 +345,27 @@ test('the HTTP lifecycle works across two app instances using the same database'
         200,
     );
     const headers = { authorization: `Bearer ${inbox.inspectionToken}` };
-    const response = await first.inject({ url: `/api/inboxes/${inbox.id}/requests`, headers });
+    const requestsPath = `/api/inboxes/${inbox.id}/requests`;
+    let response = await first.inject({ url: requestsPath, headers });
+    for (
+        let attempt = 0;
+        attempt < 20 && response.json().requests[0]?.responseTimeMs === undefined;
+        attempt++
+    ) {
+        await pause(25);
+        response = await first.inject({ url: requestsPath, headers });
+    }
     assert.equal(response.statusCode, 200);
     assert.equal(response.json().requests[0].body, 'shared');
+    assert.ok(Number.isInteger(response.json().requests[0].responseTimeMs));
+    const { rows } = await pool.query(
+        'SELECT event FROM live_events WHERE scope_id = $1 ORDER BY id',
+        [inbox.id],
+    );
+    assert.deepEqual(
+        rows.map(({ event }) => event),
+        ['webhook.request.created', 'webhook.request.updated'],
+    );
     const unchanged = await second.inject({
         url: `/api/inboxes/${inbox.id}/requests`,
         headers: { ...headers, 'if-none-match': response.headers.etag! },

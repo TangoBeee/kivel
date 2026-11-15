@@ -992,6 +992,16 @@ export function openApi(origin: string) {
                             type: 'integer',
                             description: 'Status configured at the time of capture, when recorded.',
                         },
+                        responseTimeMs: {
+                            type: 'integer',
+                            minimum: 0,
+                            description: 'Server time to respond, when recorded.',
+                        },
+                        waitingAgent: {
+                            type: 'string',
+                            description:
+                                'Name of the first workspace key whose active wait matched the capture.',
+                        },
                     },
                 },
                 LimitError: {

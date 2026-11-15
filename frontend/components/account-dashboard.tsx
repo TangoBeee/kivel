@@ -341,6 +341,7 @@ export function AccountDashboard({
         setCookieReward(false);
         setOpen(target);
         history.pushState(null, '', workspaceHref(next, target));
+        window.scrollTo({ top: 0, behavior: 'instant' });
         setError('');
         setNotice('');
     }

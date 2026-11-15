@@ -247,6 +247,9 @@ body:has(.dashboard-layout) main::after {
   flex-direction: column;
   min-width: 0;
 }
+html:has(.dashboard-layout) {
+  scroll-padding-top: 72px;
+}
 .dashboard-topbar {
   position: sticky;
   top: 0;

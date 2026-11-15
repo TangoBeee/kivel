@@ -88,6 +88,7 @@ export interface EmailLink {
 export interface EmailMessage {
     id: string;
     receivedAt: string;
+    extractedAt?: string;
     from: string;
     mailFrom?: string;
     to: string;
@@ -1271,9 +1272,15 @@ export function registerEmail({
                 MESSAGE_ATTACHMENT_BYTES
             )
                 throw new HttpError(413, 'Message exceeds 5 MiB.');
+            const receivedAt = new Date().toISOString();
+            const extracted = extractFromEmail(subject, body, html);
             const message: EmailMessage = {
                 id: crypto.randomUUID(),
-                receivedAt: new Date().toISOString(),
+                receivedAt,
+                ...extracted,
+                ...(extracted.codes.length || extracted.links.length
+                    ? { extractedAt: new Date().toISOString() }
+                    : {}),
                 from: from.slice(0, 320),
                 ...(typeof input.mailFrom === 'string' ? { mailFrom: mailFrom.slice(0, 320) } : {}),
                 to,
@@ -1310,7 +1317,6 @@ export function registerEmail({
                     : {}),
                 text: body,
                 ...(html ? { html } : {}),
-                ...extractFromEmail(subject, body, html),
                 attachments: attachmentInput.attachments,
             };
             const owner =

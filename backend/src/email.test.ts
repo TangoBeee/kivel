@@ -83,6 +83,9 @@ test('email inboxes receive signed mail, expose codes over HTTP and MCP, and ref
     const arrived = (await waiting).json();
     assert.equal(arrived.timedOut, false);
     assert.deepEqual(arrived.messages[0].codes, ['700412']);
+    assert.ok(
+        Date.parse(arrived.messages[0].extractedAt) >= Date.parse(arrived.messages[0].receivedAt),
+    );
     assert.equal(arrived.messages[0].links[0].kind, 'verification');
     assert.equal(arrived.messages[0].attachments[0].filename, 'a.pdf');
 

@@ -4,10 +4,21 @@ import Link from 'next/link';
 import { plans } from '@kivel.io/tools/plans';
 import { siteOrigin } from '../lib/site';
 import { legacyAccountLink } from '../lib/app-routes';
-import { useEffect, useState } from 'react';
-import { AlertDialog, Button, Select, TextArea, TextField } from '@radix-ui/themes';
+import { useEffect, useRef, useState } from 'react';
+import {
+    AlertDialog,
+    Button,
+    DropdownMenu,
+    IconButton,
+    Select,
+    TextArea,
+    TextField,
+    Tooltip,
+} from '@radix-ui/themes';
+import { At, DotsThree, Paperclip } from '@phosphor-icons/react';
 import { api, ApiError, resourceHeaders } from '../lib/api';
 import { useViewer } from '../lib/viewer';
+import { EmailMessageLabels } from './email-message-labels';
 import { EmailInboxAccess } from './email-inbox-access';
 import { EmailDrafts } from './email-drafts';
 import { EmailInboxRules } from './email-inbox-rules';
@@ -26,6 +37,7 @@ interface EmailInbox {
 interface EmailMessage {
     id: string;
     receivedAt: string;
+    extractedAt?: string;
     from: string;
     to: string;
     cc?: string[];
@@ -63,32 +75,141 @@ function EmailTags({
     code,
     link,
     file,
-    unread,
     labels,
 }: {
     code?: boolean;
     link?: boolean;
     file?: boolean;
-    unread?: boolean;
     labels?: string[];
 }) {
-    const values = [unread && 'Unread', code && 'Code', link && 'Link', file && 'Attachment'];
+    if (!code && !link && !file && !labels?.length) return null;
     return (
         <span className="email-tags">
-            {values.map(
-                (value) =>
-                    value && (
-                        <span key={value} className="email-tag">
-                            {value}
-                        </span>
-                    ),
+            {code && (
+                <span className="email-tag" data-tone="code">
+                    <Icon name="hash" size={12} /> Code
+                </span>
+            )}
+            {link && (
+                <span className="email-tag" data-tone="link">
+                    <Icon name="link" size={12} /> Link
+                </span>
+            )}
+            {file && (
+                <span className="email-tag" data-tone="attachment">
+                    <Paperclip size={12} /> Attachment
+                </span>
             )}
             {labels?.map((label) => (
                 <span key={label} className="email-tag">
-                    {label}
+                    <span>{label}</span>
                 </span>
             ))}
         </span>
+    );
+}
+
+function senderName(from: string) {
+    const display = from.split('<')[0]?.trim().replace(/^"|"$/g, '');
+    return display || from.trim().replace(/^<|>$/g, '') || 'Unknown sender';
+}
+
+function SenderAvatar({ from }: { from: string }) {
+    const name = senderName(from);
+    const tone =
+        Array.from(from.toLowerCase()).reduce((sum, char) => sum + char.charCodeAt(0), 0) % 4;
+    return (
+        <span className="email-sender-mark" data-tone={tone} aria-hidden="true">
+            {Array.from(name)[0]?.toUpperCase()}
+        </span>
+    );
+}
+
+function EmailMessageRow({
+    from,
+    subject,
+    date,
+    count,
+    unread,
+    active,
+    onSelect,
+    tags,
+}: {
+    from: string;
+    subject: string;
+    date?: string;
+    count?: number;
+    unread?: boolean;
+    active: boolean;
+    onSelect: () => void;
+    tags: React.ComponentProps<typeof EmailTags>;
+}) {
+    return (
+        <button
+            type="button"
+            className="email-message-row"
+            aria-pressed={active}
+            onClick={onSelect}
+        >
+            <SenderAvatar from={from} />
+            <span className="email-row-content">
+                <span className="email-row-sender">
+                    <strong title={from}>{senderName(from)}</strong>
+                    {unread && (
+                        <span className="email-unread">
+                            <span className="sr-only">Unread</span>
+                        </span>
+                    )}
+                    {date && (
+                        <time dateTime={date} title={new Date(date).toLocaleString()}>
+                            {new Date(date).toLocaleDateString(undefined, {
+                                day: 'numeric',
+                                month: 'short',
+                            })}
+                        </time>
+                    )}
+                </span>
+                <span className="email-row-subject">
+                    {subject || 'No subject'}
+                    {count && count > 1 ? <small> · {count}</small> : null}
+                </span>
+                <EmailTags {...tags} />
+            </span>
+        </button>
+    );
+}
+
+function EmailTimeline({ message }: { message: EmailMessage }) {
+    const steps = [
+        {
+            name: message.direction === 'outbound' ? 'Message queued' : 'Email arrived',
+            at: message.receivedAt,
+            icon: 'mail' as const,
+        },
+        ...(message.extractedAt && message.codes.length
+            ? [{ name: 'Code extracted', at: message.extractedAt, icon: 'hash' as const }]
+            : []),
+        ...(message.extractedAt && message.links.length
+            ? [{ name: 'Links extracted', at: message.extractedAt, icon: 'link' as const }]
+            : []),
+        ...(message.attachments.length
+            ? [{ name: 'Attachments received', at: message.receivedAt, icon: 'files' as const }]
+            : []),
+    ].sort((a, b) => a.at.localeCompare(b.at));
+    return (
+        <ol className="email-timeline" aria-label="Message timeline">
+            {steps.map(({ name, at, icon }) => (
+                <li key={name}>
+                    <span className="email-timeline-marker">
+                        <Icon name={icon} size={14} />
+                    </span>
+                    <strong>{name}</strong>
+                    <time dateTime={at} title={new Date(at).toLocaleString()}>
+                        {new Date(at).toLocaleTimeString(undefined, { hour12: false })}
+                    </time>
+                </li>
+            ))}
+        </ol>
     );
 }
 
@@ -163,6 +284,9 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
     const [deliveries, setDeliveries] = useState<Delivery[]>();
     const [forwardLoading, setForwardLoading] = useState(false);
     const [triageError, setTriageError] = useState('');
+    const [updatingMessage, setUpdatingMessage] = useState(false);
+    const [confirmClear, setConfirmClear] = useState(false);
+    const inboxSearch = useRef<HTMLInputElement>(null);
     const canWrite = viewer.status === 'user' && viewer.role !== 'viewer';
     const [requireApproval, setRequireApproval] = useState(false);
     const [sendingEnabled, setSendingEnabled] = useState(false);
@@ -525,19 +649,31 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
         message: EmailMessage,
         update: { read?: boolean; labels?: string[] },
     ) {
-        if (!inbox) return;
+        if (!inbox || updatingMessage) return false;
+        setUpdatingMessage(true);
         setTriageError('');
         try {
-            await api(`/api/email-inboxes/${inbox.id}/messages/${message.id}`, {
+            const response = await api(`/api/email-inboxes/${inbox.id}/messages/${message.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(update),
             });
+            const updated: EmailMessage = await response.json();
+            const replaceMessage = (item: EmailMessage) =>
+                item.id === updated.id ? updated : item;
+            setDetail((view) => view && { ...view, messages: view.messages.map(replaceMessage) });
+            setSearchPage(
+                (view) => view && { ...view, messages: view.messages.map(replaceMessage) },
+            );
             setMailVersion((version) => version + 1);
+            return true;
         } catch (failure) {
             setTriageError(
                 failure instanceof Error ? failure.message : 'Unable to update message.',
             );
+            return false;
+        } finally {
+            setUpdatingMessage(false);
         }
     }
 
@@ -710,9 +846,16 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                     <div className="email-layout">
                         <aside className="email-list" aria-label="Email threads">
                             <div className="email-address-card">
-                                <span>Agent inbox</span>
-                                <div>
-                                    <code>{inbox.address}</code>
+                                <span className="email-address-icon" aria-hidden="true">
+                                    <At size={18} />
+                                </span>
+                                <span className="email-address-title">Agent inbox</span>
+                                <div className="email-address-inline">
+                                    <Tooltip content={inbox.address}>
+                                        <code className="email-address-value" tabIndex={0}>
+                                            {inbox.address}
+                                        </code>
+                                    </Tooltip>
                                     <CopyButton text={inbox.address} label="Copy address" compact />
                                 </div>
                                 <small>
@@ -761,49 +904,6 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                                     </Button>
                                 ))}
                             </div>
-                            <div className="email-list-heading">
-                                <span className="status-dot" />{' '}
-                                {threads.length ? 'Email threads' : 'Waiting for mail…'}
-                                {canWrite && threads.length > 0 && (
-                                    <AlertDialog.Root>
-                                        <AlertDialog.Trigger>
-                                            <Button
-                                                variant="ghost"
-                                                size="1"
-                                                color="gray"
-                                                disabled={busy}
-                                            >
-                                                Clear messages
-                                            </Button>
-                                        </AlertDialog.Trigger>
-                                        <AlertDialog.Content>
-                                            <AlertDialog.Title>
-                                                Delete all stored messages?
-                                            </AlertDialog.Title>
-                                            <AlertDialog.Description>
-                                                This permanently removes this inbox’s message
-                                                content and frees its storage. The address stays
-                                                active. Restart event cursors after clearing it.
-                                            </AlertDialog.Description>
-                                            <div className="dialog-actions">
-                                                <AlertDialog.Cancel>
-                                                    <Button variant="soft">Keep messages</Button>
-                                                </AlertDialog.Cancel>
-                                                <AlertDialog.Action>
-                                                    <Button
-                                                        color="red"
-                                                        onClick={() => {
-                                                            void clearMessages();
-                                                        }}
-                                                    >
-                                                        Delete messages
-                                                    </Button>
-                                                </AlertDialog.Action>
-                                            </div>
-                                        </AlertDialog.Content>
-                                    </AlertDialog.Root>
-                                )}
-                            </div>
                             <form
                                 className="email-subject-search"
                                 onSubmit={(event) => {
@@ -814,6 +914,7 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                                 }}
                             >
                                 <TextField.Root
+                                    ref={inboxSearch}
                                     aria-label="Search email subjects"
                                     placeholder="Search subjects"
                                     maxLength={254}
@@ -836,7 +937,60 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                                         Clear search
                                     </Button>
                                 )}
+                                {canWrite && threads.length > 0 && (
+                                    <DropdownMenu.Root>
+                                        <DropdownMenu.Trigger>
+                                            <IconButton
+                                                type="button"
+                                                variant="ghost"
+                                                color="gray"
+                                                size="2"
+                                                aria-label="Inbox actions"
+                                                disabled={busy}
+                                            >
+                                                <DotsThree size={20} weight="bold" />
+                                            </IconButton>
+                                        </DropdownMenu.Trigger>
+                                        <DropdownMenu.Content align="end">
+                                            <DropdownMenu.Item
+                                                color="red"
+                                                onSelect={() => setConfirmClear(true)}
+                                            >
+                                                <Icon name="trash" size={15} /> Clear messages
+                                            </DropdownMenu.Item>
+                                        </DropdownMenu.Content>
+                                    </DropdownMenu.Root>
+                                )}
                             </form>
+                            <AlertDialog.Root open={confirmClear} onOpenChange={setConfirmClear}>
+                                <AlertDialog.Content
+                                    onCloseAutoFocus={(event) => {
+                                        event.preventDefault();
+                                        inboxSearch.current?.focus();
+                                    }}
+                                >
+                                    <AlertDialog.Title>
+                                        Delete all stored messages?
+                                    </AlertDialog.Title>
+                                    <AlertDialog.Description>
+                                        This permanently removes the messages and frees their
+                                        storage. Restart event cursors after clearing the inbox.
+                                    </AlertDialog.Description>
+                                    <div className="dialog-actions">
+                                        <AlertDialog.Cancel>
+                                            <Button variant="soft">Keep messages</Button>
+                                        </AlertDialog.Cancel>
+                                        <AlertDialog.Action>
+                                            <Button
+                                                color="red"
+                                                onClick={() => void clearMessages()}
+                                            >
+                                                Delete messages
+                                            </Button>
+                                        </AlertDialog.Action>
+                                    </div>
+                                </AlertDialog.Content>
+                            </AlertDialog.Root>
                             {searchingMessages ? (
                                 searchError ? (
                                     <p role="alert">{searchError}</p>
@@ -844,56 +998,50 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                                     <p role="status">Searching email</p>
                                 ) : results?.messages.length ? (
                                     results.messages.map((item) => (
-                                        <button
+                                        <EmailMessageRow
                                             key={item.id}
-                                            type="button"
-                                            aria-pressed={current?.id === item.id}
-                                            onClick={() => {
+                                            from={item.from}
+                                            subject={item.subject}
+                                            date={item.receivedAt}
+                                            unread={item.direction !== 'outbound' && !item.read}
+                                            active={current?.id === item.id}
+                                            tags={{
+                                                code: Boolean(item.codes.length),
+                                                link: Boolean(item.links.length),
+                                                file: Boolean(item.attachments.length),
+                                                labels: item.labels,
+                                            }}
+                                            onSelect={() => {
                                                 setSearchSelected(item.id);
                                                 setPreviewMessage('');
                                             }}
-                                        >
-                                            <strong>{item.subject || 'No subject'}</strong>
-                                            <span>{item.from}</span>
-                                            <EmailTags
-                                                code={Boolean(item.codes.length)}
-                                                link={Boolean(item.links.length)}
-                                                file={Boolean(item.attachments.length)}
-                                                unread={item.direction !== 'outbound' && !item.read}
-                                                labels={item.labels}
-                                            />
-                                        </button>
+                                        />
                                     ))
                                 ) : (
                                     <p>No messages match these filters.</p>
                                 )
                             ) : threads.length ? (
                                 threads.map((item) => (
-                                    <button
+                                    <EmailMessageRow
                                         key={item.id}
-                                        type="button"
-                                        aria-pressed={activeThread === item.id}
-                                        onClick={() => {
+                                        from={item.from}
+                                        subject={item.subject}
+                                        date={item.lastAt}
+                                        count={item.messageCount}
+                                        unread={item.unread}
+                                        active={activeThread === item.id}
+                                        tags={{
+                                            code: item.hasCode,
+                                            link: item.hasLink,
+                                            file: item.hasAttachment,
+                                            labels: item.labels,
+                                        }}
+                                        onSelect={() => {
                                             setThreadId(item.id);
                                             setSelected(null);
                                             setPreviewMessage('');
                                         }}
-                                    >
-                                        <strong>{item.subject || '(no subject)'}</strong>
-                                        <span>{item.from}</span>
-                                        <time>
-                                            {item.messageCount}{' '}
-                                            {item.messageCount === 1 ? 'message' : 'messages'} ·{' '}
-                                            {new Date(item.lastAt).toLocaleDateString()}
-                                        </time>
-                                        <EmailTags
-                                            code={item.hasCode}
-                                            link={item.hasLink}
-                                            file={item.hasAttachment}
-                                            unread={item.unread}
-                                            labels={item.labels}
-                                        />
-                                    </button>
+                                    />
                                 ))
                             ) : (
                                 <p>
@@ -955,9 +1103,7 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                                         </label>
                                     )}
                                     <div className="email-message-heading">
-                                        <span className="email-sender-mark" aria-hidden="true">
-                                            {current.from.trim().charAt(0).toUpperCase() || '@'}
-                                        </span>
+                                        <SenderAvatar from={current.from} />
                                         <div>
                                             <h2>{current.subject || 'No subject'}</h2>
                                             <p className="email-from">
@@ -979,6 +1125,7 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                                             <Button
                                                 size="1"
                                                 variant="soft"
+                                                disabled={updatingMessage}
                                                 onClick={() =>
                                                     void updateMessage(current, {
                                                         read: !current.read,
@@ -1028,55 +1175,52 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                                                         Reply
                                                     </Button>
                                                 )}
-                                            <form
-                                                key={`${current.id}:${current.labels?.join(',')}`}
-                                                onSubmit={(event) => {
-                                                    event.preventDefault();
-                                                    const labels = String(
-                                                        new FormData(event.currentTarget).get(
-                                                            'labels',
-                                                        ) ?? '',
-                                                    )
-                                                        .split(',')
-                                                        .map((label) => label.trim())
-                                                        .filter(Boolean);
-                                                    void updateMessage(current, { labels });
-                                                }}
-                                            >
-                                                <TextField.Root
-                                                    name="labels"
-                                                    aria-label="Message labels"
-                                                    placeholder="Labels separated by commas"
-                                                    defaultValue={current.labels?.join(', ')}
-                                                    maxLength={330}
-                                                />
-                                                <Button type="submit" size="1" variant="soft">
-                                                    Save labels
-                                                </Button>
-                                            </form>
                                         </div>
                                     )}
+                                    <EmailMessageLabels
+                                        key={current.id}
+                                        labels={current.labels ?? []}
+                                        canEdit={canWrite}
+                                        busy={updatingMessage}
+                                        update={(labels) => updateMessage(current, { labels })}
+                                    />
                                     {triageError && <p role="alert">{triageError}</p>}
                                     {(current.codes.length > 0 ||
                                         current.links.some(
                                             (link) => link.kind === 'verification',
                                         )) && (
                                         <div className="email-extracted">
-                                            {current.codes.map((code) => (
-                                                <div key={code} className="email-code">
-                                                    <span>Code found</span>
-                                                    <strong>
-                                                        {/^\d{6}$/.test(code)
-                                                            ? code.replace(/^(...)/, '$1 ')
-                                                            : code}
-                                                    </strong>
-                                                    <CopyButton
-                                                        text={code.replace(/\s/g, '')}
-                                                        label="Copy code"
-                                                        compact
-                                                    />
-                                                </div>
-                                            ))}
+                                            {current.codes.map((code) => {
+                                                const value = code.replace(/\s/g, '');
+                                                const digits = /^\d{6}$/.test(value)
+                                                    ? value.split('')
+                                                    : null;
+                                                return (
+                                                    <div key={code} className="email-code">
+                                                        <span>Code found</span>
+                                                        <strong>
+                                                            {digits
+                                                                ? `${value.slice(0, 3)} ${value.slice(3)}`
+                                                                : code}
+                                                        </strong>
+                                                        {digits && (
+                                                            <div
+                                                                className="email-code-digits"
+                                                                aria-hidden="true"
+                                                            >
+                                                                {digits.map((digit, index) => (
+                                                                    <b key={index}>{digit}</b>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                        <CopyButton
+                                                            text={value}
+                                                            label="Copy code"
+                                                            compact={!digits}
+                                                        />
+                                                    </div>
+                                                );
+                                            })}
                                             {current.links
                                                 .filter((link) => link.kind === 'verification')
                                                 .slice(0, 3)
@@ -1134,33 +1278,7 @@ export function EmailInboxWorkbench({ toolId }: { toolId: string }) {
                                             {current.text || '(empty body)'}
                                         </pre>
                                     )}
-                                    <ol className="email-timeline" aria-label="Message timeline">
-                                        <li>
-                                            <strong>
-                                                {current.direction === 'outbound'
-                                                    ? 'Outgoing message'
-                                                    : 'Email arrived'}
-                                            </strong>
-                                            <time dateTime={current.receivedAt}>
-                                                {new Date(current.receivedAt).toLocaleTimeString()}
-                                            </time>
-                                        </li>
-                                        {current.codes.length > 0 && (
-                                            <li>
-                                                <strong>Code extracted</strong>
-                                            </li>
-                                        )}
-                                        {current.links.length > 0 && (
-                                            <li>
-                                                <strong>Links extracted</strong>
-                                            </li>
-                                        )}
-                                        {current.attachments.length > 0 && (
-                                            <li>
-                                                <strong>Attachments received</strong>
-                                            </li>
-                                        )}
-                                    </ol>
+                                    <EmailTimeline message={current} />
                                     {current.attachments.length > 0 && (
                                         <div className="email-from">
                                             <h3>Attachments</h3>

@@ -15,6 +15,7 @@ import { CopyButton } from './copy-button';
 import { CodeExample } from './code-example';
 import { ResultPreview } from './result-preview';
 import { MockCalls } from './mock-calls';
+import { MockConfigImport } from './mock-config-import';
 
 type Resource = {
     id: string;
@@ -26,13 +27,14 @@ type Resource = {
 };
 export function LlmWorkbench({ toolId }: { toolId: string }) {
     const viewer = useViewer();
+    const [name, setName] = useState('Scripted assistant');
     const [provider, setProvider] = useState<'openai' | 'anthropic'>('openai');
     const [model, setModel] = useState('kivel-mock');
     const [text, setText] = useState(
         'The test response is ready. This is the scripted assistant message you configured.',
     );
     const [interval, setInterval] = useState('20');
-    const [interrupt, setInterrupt] = useState(false);
+    const [interrupt, setInterrupt] = useState(0);
     const [stream, setStream] = useState(toolId === 'agents-llm-streaming-simulator');
     const [visibility, setVisibility] = useState<Visibility>('private');
     const [resource, setResource] = useState<Resource | null>(null);
@@ -60,11 +62,12 @@ export function LlmWorkbench({ toolId }: { toolId: string }) {
                 if (!live) return;
                 const llm = validateLlmMock(value.llm);
                 setResource({ ...value, llm });
+                setName(value.name);
                 setProvider(llm.provider);
                 setModel(llm.model);
                 setText(llm.text);
                 setInterval(String(llm.intervalMs));
-                setInterrupt(Boolean(llm.interruptAfterChunks));
+                setInterrupt(llm.interruptAfterChunks ?? 0);
                 setVisibility(value.visibility);
             })
             .catch((failure) => {
@@ -83,7 +86,7 @@ export function LlmWorkbench({ toolId }: { toolId: string }) {
                 model,
                 text,
                 intervalMs: Number(interval),
-                ...(interrupt ? { interruptAfterChunks: 1 } : {}),
+                ...(interrupt ? { interruptAfterChunks: interrupt } : {}),
             });
             const response = await api(
                 `/api/mocks${resource ? `/${resource.id}` : `?visibility=${visibility}`}`,
@@ -93,11 +96,10 @@ export function LlmWorkbench({ toolId }: { toolId: string }) {
                         ...resourceHeaders(resource?.managementToken ?? ''),
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ name: 'Scripted assistant', routes: [], llm }),
+                    body: JSON.stringify({ name, routes: [], llm }),
                 },
             );
-            const created = await response.json();
-            setResource(resource ? { ...resource, llm } : { ...created, llm });
+            setResource(resource ? { ...resource, llm } : { ...(await response.json()), llm });
             setOutput('');
             setProtocol('');
             setFinished(false);
@@ -224,6 +226,18 @@ export function LlmWorkbench({ toolId }: { toolId: string }) {
                         void save();
                     }}
                 >
+                    <MockConfigImport
+                        busy={busy}
+                        onImport={({ name, llm }) => {
+                            if (!llm) throw new Error('Choose an LLM mock configuration.');
+                            setName(name);
+                            setProvider(llm.provider);
+                            setModel(llm.model);
+                            setText(llm.text);
+                            setInterval(String(llm.intervalMs));
+                            setInterrupt(llm.interruptAfterChunks ?? 0);
+                        }}
+                    />
                     <label htmlFor="llm-provider">
                         Provider format
                         <Select.Root
@@ -268,10 +282,12 @@ export function LlmWorkbench({ toolId }: { toolId: string }) {
                     </label>
                     <label className="llm-option">
                         <Checkbox
-                            checked={interrupt}
-                            onCheckedChange={(value) => setInterrupt(value === true)}
+                            checked={interrupt > 0}
+                            onCheckedChange={(value) => setInterrupt(value === true ? 1 : 0)}
                         />
-                        End after the first text chunk, without a completion event
+                        End after{' '}
+                        {interrupt > 1 ? `${interrupt} text chunks` : 'the first text chunk'},
+                        without a completion event
                     </label>
                     <SharingControl
                         value={visibility}
@@ -367,7 +383,11 @@ export function LlmWorkbench({ toolId }: { toolId: string }) {
                                         : `// Anthropic-compatible Messages client\nbaseURL: '${resource.endpointUrl}'\napiKey: 'mock-key'\ndefaultHeaders: { '${resource.accessToken ? 'X-Access-Token' : 'Authorization'}': ${resource.accessToken ? 'process.env.SOCKET_MOCK_ACCESS_TOKEN' : "'Bearer ' + process.env.KIVEL_API_KEY"} }\n// Call messages.create({ model: '${resource.llm.model}', max_tokens: 1024, messages, stream: true })`
                                 }
                             />
-                            <MockCalls id={resource.id} token={resource.managementToken ?? ''} />
+                            <MockCalls
+                                id={resource.id}
+                                token={resource.managementToken ?? ''}
+                                exportable
+                            />
                         </>
                     ) : (
                         <p className="muted">

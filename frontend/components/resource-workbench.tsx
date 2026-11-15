@@ -113,7 +113,8 @@ export function ResourceWorkbench({
     const viewer = useViewer();
     const paidPlan = viewer.status === 'user' && (viewer.plan === 'pro' || viewer.plan === 'team');
     const [proxyTarget, setProxyTarget] = useState('');
-    const [proxyRecord, setProxyRecord] = useState(true);
+    const [proxyRecord, setProxyRecord] = useState<boolean | 'staged'>('staged');
+    const [proxyPrefix, setProxyPrefix] = useState('/orders');
     const [routes, setRoutes] = useState<Route[]>(
         () =>
             (['mock-apis-stateful-crud-api', 'network-http-echo'].includes(toolId)
@@ -153,6 +154,7 @@ export function ResourceWorkbench({
             ],
     );
     const [active, setActive] = useState(0);
+    const [variablesInput, setVariablesInput] = useState<Record<number, string>>({});
     const [mcpTools, setMcpTools] = useState(
         JSON.stringify(
             [
@@ -179,10 +181,13 @@ export function ResourceWorkbench({
             2,
         ),
     );
+    const [mcpResources, setMcpResources] = useState('[]');
+    const [mcpPrompts, setMcpPrompts] = useState('[]');
     const [file, setFile] = useState<File>();
     const [visibility, setVisibility] = useState<Visibility>('private');
     const oneTime = toolId === 'files-one-time-download-links';
     const [maxDownloads, setMaxDownloads] = useState(oneTime ? '1' : '100');
+    const [testRun, setTestRun] = useState('');
     const [testResult, setTestResult] = useState('');
     const [testStatus, setTestStatus] = useState('');
     const [busy, setBusy] = useState(false);
@@ -272,7 +277,11 @@ export function ResourceWorkbench({
             });
             setVisibility(metadata.visibility ?? 'public');
             if (kind !== 'file') setName(metadata.name);
-            if (kind === 'mcp') setMcpTools(JSON.stringify(metadata.tools, null, 2));
+            if (kind === 'mcp') {
+                setMcpTools(JSON.stringify(metadata.tools ?? [], null, 2));
+                setMcpResources(JSON.stringify(metadata.resources ?? [], null, 2));
+                setMcpPrompts(JSON.stringify(metadata.prompts ?? [], null, 2));
+            }
             if (kind === 'mock') {
                 setCrudMode(Boolean(metadata.crud));
                 setEchoMode(Boolean(metadata.echo));
@@ -283,8 +292,10 @@ export function ResourceWorkbench({
                 }
                 setName(metadata.name);
                 setRoutes(metadata.routes);
+                setVariablesInput({});
                 setProxyTarget(metadata.proxy?.target ?? '');
-                setProxyRecord(metadata.proxy?.record ?? true);
+                setProxyRecord(metadata.proxy?.record ?? 'staged');
+                setProxyPrefix(metadata.proxy?.pathPrefix ?? '/orders');
                 setActive(0);
             }
         } catch (error) {
@@ -332,6 +343,25 @@ export function ResourceWorkbench({
             setError('Choose a nonempty file up to 10 MiB.');
             return;
         }
+        let savedRoutes = routes;
+        if (kind === 'mock') {
+            try {
+                savedRoutes = routes.map((item, index) => {
+                    const text = variablesInput[index];
+                    if (text === undefined || !item.graphql) return item;
+                    const variables = text.trim() ? JSON.parse(text) : undefined;
+                    if (
+                        variables !== undefined &&
+                        (!variables || typeof variables !== 'object' || Array.isArray(variables))
+                    )
+                        throw new Error();
+                    return { ...item, graphql: { ...item.graphql, variables } };
+                });
+            } catch {
+                setError('Use a JSON object for the GraphQL variables.');
+                return;
+            }
+        }
         controller.current?.abort();
         const request = new AbortController();
         controller.current = request;
@@ -359,19 +389,30 @@ export function ResourceWorkbench({
                             ? uploadFile
                             : JSON.stringify(
                                   kind === 'mcp'
-                                      ? { name, tools: JSON.parse(mcpTools) }
+                                      ? {
+                                            name,
+                                            tools: JSON.parse(mcpTools),
+                                            resources: JSON.parse(mcpResources),
+                                            prompts: JSON.parse(mcpPrompts),
+                                        }
                                       : crudMode
-                                        ? { name, routes, crud }
+                                        ? { name, routes: savedRoutes, crud }
                                         : echoMode
                                           ? { name, routes: [], echo: true }
                                           : {
                                                 name,
-                                                routes,
+                                                routes: savedRoutes,
                                                 ...(proxyTarget.trim()
                                                     ? {
                                                           proxy: {
                                                               target: proxyTarget.trim(),
                                                               record: proxyRecord,
+                                                              ...(proxyRecord === 'staged'
+                                                                  ? {
+                                                                        pathPrefix:
+                                                                            proxyPrefix.trim(),
+                                                                    }
+                                                                  : {}),
                                                           },
                                                       }
                                                     : {}),
@@ -473,21 +514,29 @@ export function ResourceWorkbench({
                 kind === 'mcp'
                     ? resource.endpointUrl
                     : `${resource.endpointUrl}${route.path.replace(/:[a-zA-Z][a-zA-Z0-9_]*/g, 'example')}`;
+            if (route.scenario && !/^[A-Za-z0-9_-]{1,64}$/.test(testRun))
+                throw new Error(
+                    'Enter a run ID of 1 to 64 letters, digits, underscores or dashes.',
+                );
+            const requestBody =
+                kind === 'mcp'
+                    ? { jsonrpc: '2.0', id: 1, method: 'tools/list' }
+                    : route.method === 'POST' && route.graphql
+                      ? {
+                            operationName: route.graphql.operationName,
+                            variables: route.graphql.variables,
+                        }
+                      : undefined;
             const started = performance.now();
             const response = await fetch(path, {
                 method: kind === 'mcp' ? 'POST' : route.method === 'ANY' ? 'GET' : route.method,
                 headers: {
                     ...headers,
-                    ...(kind === 'mcp'
-                        ? {
-                              Accept: 'application/json, text/event-stream',
-                              'Content-Type': 'application/json',
-                          }
-                        : {}),
+                    ...(kind === 'mcp' ? { Accept: 'application/json, text/event-stream' } : {}),
+                    ...(requestBody ? { 'Content-Type': 'application/json' } : {}),
+                    ...(route.scenario ? { 'X-Kivel-Mock-Run': testRun } : {}),
                 },
-                ...(kind === 'mcp'
-                    ? { body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }) }
-                    : {}),
+                ...(requestBody ? { body: JSON.stringify(requestBody) } : {}),
                 signal: AbortSignal.timeout(10000),
                 redirect: 'error',
             });
@@ -600,6 +649,19 @@ export function ResourceWorkbench({
                         disabled={busy || expired}
                         onChange={(mode) => void changeSharing(mode)}
                     />
+                    {kind === 'mock' && !expired && route.scenario && (
+                        <div className="resource-form-fields">
+                            <label>
+                                Run ID for endpoint check
+                                <input
+                                    value={testRun}
+                                    maxLength={64}
+                                    placeholder="checkout-flow"
+                                    onChange={(event) => setTestRun(event.target.value)}
+                                />
+                            </label>
+                        </div>
+                    )}
                     <div className="utility-actions">
                         <Button
                             variant="soft"
@@ -687,6 +749,17 @@ export function ResourceWorkbench({
                         </>
                     )}
                     {kind === 'mock' && !expired && (
+                        <MockCalls
+                            id={resource.id}
+                            token={resource.managementToken}
+                            exportable
+                            diagnostics={!echoMode}
+                            scenarios={routes.some((route) => !!route.scenario)}
+                            recordings={Boolean(proxyTarget && proxyRecord === 'staged')}
+                            onPromote={(route) => setRoutes((items) => [...items, route])}
+                        />
+                    )}
+                    {kind === 'mcp' && !expired && (
                         <MockCalls id={resource.id} token={resource.managementToken} />
                     )}
                     {resource.managementToken ? (
@@ -775,8 +848,8 @@ export function ResourceWorkbench({
                             <>
                                 <p className="tool-notice">
                                     Calls that match no route go to this API and its answer comes
-                                    back. With recording on, each new answer becomes a route, so the
-                                    mock keeps working when the real API is down.
+                                    back. Review recordings and choose which answers become
+                                    fixtures. Use an upstream that returns sample data.
                                 </p>
                                 <label className="mock-import-label">
                                     Real API base URL
@@ -788,15 +861,34 @@ export function ResourceWorkbench({
                                         onChange={(event) => setProxyTarget(event.target.value)}
                                     />
                                 </label>
-                                <label className="checkbox-label">
-                                    <input
-                                        type="checkbox"
-                                        checked={proxyRecord}
-                                        disabled={busy}
-                                        onChange={(event) => setProxyRecord(event.target.checked)}
-                                    />
-                                    Record answers as routes (up to 20)
-                                </label>
+                                <AppSelect
+                                    aria-label="Recording mode"
+                                    value={String(proxyRecord)}
+                                    disabled={busy}
+                                    onChange={({ target: { value } }) =>
+                                        setProxyRecord(
+                                            value === 'staged' ? value : value === 'true',
+                                        )
+                                    }
+                                >
+                                    <SelectOption value="staged">Review before saving</SelectOption>
+                                    <SelectOption value="true">
+                                        Save answers automatically
+                                    </SelectOption>
+                                    <SelectOption value="false">Forward only</SelectOption>
+                                </AppSelect>
+                                {proxyRecord === 'staged' && (
+                                    <label className="mock-import-label">
+                                        Record paths starting with
+                                        <input
+                                            value={proxyPrefix}
+                                            maxLength={180}
+                                            placeholder="/orders"
+                                            disabled={busy}
+                                            onChange={(event) => setProxyPrefix(event.target.value)}
+                                        />
+                                    </label>
+                                )}
                             </>
                         ) : (
                             <div className="upsell">
@@ -833,6 +925,10 @@ export function ResourceWorkbench({
                                 onClick={() => {
                                     try {
                                         const config = validateMock(JSON.parse(importConfig));
+                                        if (config.websocket || config.llm)
+                                            throw new Error(
+                                                'Open the matching protocol tool to import this configuration.',
+                                            );
                                         setName(config.name);
                                         setEchoMode(Boolean(config.echo));
                                         setCrudMode(Boolean(config.crud));
@@ -842,8 +938,10 @@ export function ResourceWorkbench({
                                             setCrudSeed(JSON.stringify(config.crud.seed, null, 2));
                                         }
                                         setRoutes(config.routes);
+                                        setVariablesInput({});
                                         setProxyTarget(config.proxy?.target ?? '');
-                                        setProxyRecord(config.proxy?.record ?? true);
+                                        setProxyRecord(config.proxy?.record ?? 'staged');
+                                        setProxyPrefix(config.proxy?.pathPrefix ?? '/orders');
                                         setActive(0);
                                         setError('');
                                         setNotice(
@@ -1084,10 +1182,114 @@ export function ResourceWorkbench({
                     </div>
                     <details
                         className="mock-behavior-options"
-                        open={!!route.condition || !!route.template}
+                        open={
+                            !!route.condition ||
+                            !!route.template ||
+                            !!route.graphql ||
+                            !!route.scenario
+                        }
                     >
                         <summary>Request conditions & response templates</summary>
                         <div className="resource-form-fields">
+                            {route.method === 'POST' && (
+                                <>
+                                    <label>
+                                        GraphQL operation name (optional)
+                                        <input
+                                            value={route.graphql?.operationName ?? ''}
+                                            maxLength={80}
+                                            disabled={busy}
+                                            onChange={(event) =>
+                                                patch({
+                                                    graphql: event.target.value
+                                                        ? {
+                                                              ...route.graphql,
+                                                              operationName: event.target.value,
+                                                          }
+                                                        : undefined,
+                                                })
+                                            }
+                                        />
+                                    </label>
+                                    {route.graphql && (
+                                        <label>
+                                            Exact GraphQL variables (optional)
+                                            <textarea
+                                                rows={3}
+                                                maxLength={4096}
+                                                disabled={busy}
+                                                value={
+                                                    variablesInput[active] ??
+                                                    (route.graphql.variables
+                                                        ? JSON.stringify(
+                                                              route.graphql.variables,
+                                                              null,
+                                                              2,
+                                                          )
+                                                        : '')
+                                                }
+                                                onChange={(event) =>
+                                                    setVariablesInput({
+                                                        ...variablesInput,
+                                                        [active]: event.target.value,
+                                                    })
+                                                }
+                                            />
+                                        </label>
+                                    )}
+                                </>
+                            )}
+                            <label className="checkbox-label">
+                                <input
+                                    type="checkbox"
+                                    checked={Boolean(route.scenario)}
+                                    disabled={
+                                        busy ||
+                                        !!route.stream ||
+                                        route.requestsPerMinute !== undefined
+                                    }
+                                    onChange={(event) =>
+                                        patch({
+                                            scenario: event.target.checked
+                                                ? { name: 'scenario', from: 'start', to: 'next' }
+                                                : undefined,
+                                        })
+                                    }
+                                />
+                                Use a scenario state
+                            </label>
+                            {route.scenario && (
+                                <>
+                                    {(
+                                        [
+                                            ['name', 'Scenario name'],
+                                            ['from', 'Required state'],
+                                            ['to', 'Next state'],
+                                        ] as const
+                                    ).map(([field, label]) => (
+                                        <label key={field}>
+                                            {label}
+                                            <input
+                                                value={route.scenario![field]}
+                                                maxLength={48}
+                                                disabled={busy}
+                                                onChange={(event) =>
+                                                    patch({
+                                                        scenario: {
+                                                            ...route.scenario!,
+                                                            [field]: event.target.value,
+                                                        },
+                                                    })
+                                                }
+                                            />
+                                        </label>
+                                    ))}
+                                    <small>
+                                        Send a unique run ID in X-Kivel-Mock-Run to keep each run
+                                        separate.
+                                    </small>
+                                </>
+                            )}
                             <label>
                                 Match request field
                                 <AppSelect
@@ -1187,6 +1389,18 @@ export function ResourceWorkbench({
                                         setRoutes((items) =>
                                             items.filter((_, index) => index !== active),
                                         );
+                                        setVariablesInput((drafts) =>
+                                            Object.fromEntries(
+                                                Object.entries(drafts)
+                                                    .filter(([index]) => Number(index) !== active)
+                                                    .map(([index, value]) => [
+                                                        Number(index) > active
+                                                            ? Number(index) - 1
+                                                            : Number(index),
+                                                        value,
+                                                    ]),
+                                            ),
+                                        );
                                         setActive(0);
                                     }}
                                 >
@@ -1233,6 +1447,29 @@ export function ResourceWorkbench({
                         </label>
                     </div>
                     <McpToolEditor value={mcpTools} onChange={setMcpTools} disabled={busy} />
+                    <details className="resource-access">
+                        <summary>Resources and prompts</summary>
+                        <div className="utility-fields">
+                            <label>
+                                Resources (JSON)
+                                <textarea
+                                    disabled={busy}
+                                    value={mcpResources}
+                                    onChange={(event) => setMcpResources(event.target.value)}
+                                />
+                                <small>Set a URI, name and text for each resource.</small>
+                            </label>
+                            <label>
+                                Prompts (JSON)
+                                <textarea
+                                    disabled={busy}
+                                    value={mcpPrompts}
+                                    onChange={(event) => setMcpPrompts(event.target.value)}
+                                />
+                                <small>Set a name and text for each prompt.</small>
+                            </label>
+                        </div>
+                    </details>
                     <p className="tool-notice">
                         Up to 10 tools. Each accepts an object with string, number, integer, or
                         boolean arguments and returns static text. Set delayMs (0–2000) for latency

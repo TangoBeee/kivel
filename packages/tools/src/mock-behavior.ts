@@ -5,7 +5,42 @@ export interface MockRequest {
     headers: Record<string, unknown>;
     body: unknown;
 }
+function sameJson(left: unknown, right: unknown): boolean {
+    if (left === right) return true;
+    if (!left || !right || typeof left !== 'object' || typeof right !== 'object') return false;
+    if (Array.isArray(left) || Array.isArray(right))
+        return (
+            Array.isArray(left) &&
+            Array.isArray(right) &&
+            left.length === right.length &&
+            left.every((item, index) => sameJson(item, right[index]))
+        );
+    const fields = Object.keys(left);
+    return (
+        fields.length === Object.keys(right).length &&
+        fields.every(
+            (key) =>
+                Object.hasOwn(right, key) &&
+                sameJson(
+                    (left as Record<string, unknown>)[key],
+                    (right as Record<string, unknown>)[key],
+                ),
+        )
+    );
+}
+
 export function matchMockCondition(route: MockRoute, request: MockRequest): boolean {
+    if (route.graphql) {
+        const body = request.body as Record<string, unknown> | undefined;
+        if (
+            !body ||
+            typeof body.query !== 'string' ||
+            route.graphql.operationName !== body.operationName ||
+            (route.graphql.variables !== undefined &&
+                !sameJson(route.graphql.variables, body.variables ?? {}))
+        )
+            return false;
+    }
     if (!route.condition) return true;
     const { source, key, value } = route.condition;
     const object =

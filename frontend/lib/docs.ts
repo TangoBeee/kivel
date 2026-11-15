@@ -882,6 +882,39 @@ curl https://kivel.io/mock/MOCK_ID/users/42
                 note: 'Private mocks need the access token on every call, in X-Access-Token or Authorization: Bearer. If your client already uses Authorization for the API it is testing, send X-Access-Token.',
             },
             {
+                id: 'portable-config',
+                title: 'Validate and share mock configuration',
+                paragraphs: [
+                    'POST /api/mocks/validate checks a configuration and returns a versioned Kivel document. GET /api/mocks/{id}/config exports the same format from an existing mock without access credentials, live CRUD records or call history. Supply the document to POST /api/mocks or PUT /api/mocks/{id} to use it again.',
+                    'Use kivel mock validate, kivel mock export, or the SDK methods validateMock and mockConfig. Use resource_request with kind mocks and action validate or export in MCP.',
+                ],
+            },
+            {
+                id: 'verify-calls',
+                title: 'Check route matching and call history',
+                paragraphs: [
+                    'Use POST /api/mocks/{id}/match with method, path and optional headers, query and body to inspect why a REST route matches or is skipped. It does not execute the response. In the dashboard, open Check route matching.',
+                    'Filter GET /api/mocks/{id}/calls by method, exact path and status. Use limit to page from newest to oldest and nextCursor to load the next page. Without options, calls still appear in arrival order.',
+                    'Use POST /api/mocks/{id}/assertions or kivel mock assert with count and the same filters to verify an exact count in retained history. Pass after to check only calls following a retained call ID. The result tells you how many calls were retained. An expired cursor returns 409. Use action assertions in resource_request or SDK assertMockCalls for the same check.',
+                ],
+            },
+            {
+                id: 'scenario-runs',
+                title: 'Keep scenario runs separate',
+                paragraphs: [
+                    'Add scenario with name, from and to to a route. Start with from: start, then use later states to return different responses along the same path. Send a unique X-Kivel-Mock-Run header on each run. In MCP, pass run to call_mock_api. In the CLI, call the mock with kivel api and --run. Requests without a run ID use the normal routes.',
+                    'Filter the call history and assertions by run. Reset one run with kivel mock reset-scenario, SDK resetMockScenario or resource_request with action reset-scenario and config.run. Runs expire after an hour without a transition. GraphQL routes can also match a named operation and exact JSON variables.',
+                ],
+            },
+            {
+                id: 'staged-recording',
+                title: 'Review proxy recordings',
+                paragraphs: [
+                    'Use proxy with record: staged and a pathPrefix such as /orders. The mock keeps up to five candidate text responses under that path. Review the candidate before saving it as a fixture. Use an upstream that returns sample data.',
+                    'Use kivel mock recordings and kivel mock promote-recording, or SDK mockRecordings and promoteMockRecording. The same actions are available over MCP resource_request with kind mocks. For promotion, pass config.recordingId.',
+                ],
+            },
+            {
                 id: 'limits',
                 title: 'Limits',
                 paragraphs: [
@@ -892,7 +925,7 @@ curl https://kivel.io/mock/MOCK_ID/users/42
         faqs: [
             {
                 question: 'Can a mock API run custom code or call another service?',
-                answer: 'No. Responses are static text or templates that insert path, query and top-level JSON body values. There are no expressions, scripts or outbound requests.',
+                answer: 'Mock routes use static text or templates. Pro and Team can send unmatched requests to a configured public upstream and optionally save sample responses as fixtures.',
             },
             {
                 question: 'How do I return different responses from the same path?',
@@ -1043,21 +1076,21 @@ curl -o report.txt https://kivel.io/files/FILE_ID \\
         navTitle: 'Mock MCP servers',
         group: 'Resources',
         description:
-            'Create a temporary mock MCP server on Kivel with up to 10 tools, input schemas, static responses, errors and delays, served over Streamable HTTP.',
+            'Create a mock MCP server on Kivel with tools, resources and prompts over Streamable HTTP. Configure tool schemas, responses, errors and delays.',
         updatedAt,
         sections: [
             {
                 id: 'overview',
                 title: 'What a mock MCP server does',
                 paragraphs: [
-                    'A mock MCP server is a temporary Model Context Protocol endpoint whose tools return text you configure. Use it to test how an agent or MCP client discovers tools, validates arguments, handles tool errors and copes with latency, without building a real server. Tools never execute code; each call returns its configured response.',
+                    'A mock MCP server returns the tools, resources and prompts you configure. Use it to check how an MCP client discovers capabilities, validates tool arguments and handles failures.',
                 ],
             },
             {
                 id: 'create',
                 title: 'Create a server',
                 paragraphs: [
-                    'POST /api/mcp-servers with a name (up to 80 characters) and 1 to 10 tools. Query parameters set visibility, ttlSeconds and persistent as for other resources. The response includes endpointUrl, a managementToken and, for private servers, an accessToken.',
+                    'POST /api/mcp-servers with a name and up to ten tools, ten resources and ten prompts. Provide at least one fixture. Resources use uri, name and text, with optional mimeType. Prompts use name, text and optional description. Query parameters set visibility, ttlSeconds and persistent as for other resources. The response includes endpointUrl, a managementToken and, for private servers, an accessToken.',
                 ],
                 code: {
                     title: 'Create a private mock MCP server',
@@ -1115,7 +1148,7 @@ curl -o report.txt https://kivel.io/files/FILE_ID \\
                 title: 'Connect a client',
                 paragraphs: [
                     'The endpoint speaks Streamable HTTP over POST and returns JSON responses. Clients must send Accept: application/json, text/event-stream. GET returns 405: SSE streams and transport sessions are not provided. Supported protocol versions are 2025-11-25, 2025-06-18 and 2025-03-26.',
-                    'Supported methods are initialize, ping, tools/list and tools/call. Calls are checked against the tool’s schema: missing required arguments, unknown arguments and wrong types return JSON-RPC error -32602. Notifications (requests without an id) get 202.',
+                    'Alongside initialize, ping, tools/list and tools/call, configured fixtures add resources/list, resources/read, prompts/list and prompts/get. Calls are checked against the tool’s schema: missing required arguments, unknown arguments and wrong types return JSON-RPC error -32602. Notifications (requests without an id) get 202.',
                     'For a private server, send the access token in X-Access-Token or Authorization: Bearer on every request. Each server accepts up to 120 requests per minute.',
                 ],
                 code: {
@@ -1149,7 +1182,7 @@ curl -o report.txt https://kivel.io/files/FILE_ID \\
             },
             {
                 question: 'Does the mock server support resources or prompts?',
-                answer: 'No. It implements initialize, ping, tools/list and tools/call. Other methods return JSON-RPC error -32601.',
+                answer: 'Yes. Configure resources or prompts and the server advertises each corresponding capability. Clients can list fixtures and read a configured resource or prompt.',
             },
             {
                 question: 'Can I use an MCP client that requires SSE?',

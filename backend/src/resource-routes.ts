@@ -1,7 +1,13 @@
 import { publicMockPayload } from './oauth.js';
 import { sendLlmMock } from './llm-mock.js';
 import { matchMockCondition, renderMockBody } from '@kivel.io/tools/mock-behavior';
-import { MemoryMockCalls, mockCall } from './mock-calls.js';
+import {
+    assertMockCalls,
+    MemoryMockCalls,
+    MOCK_CALL_LIMIT,
+    mockCall,
+    pageMockCalls,
+} from './mock-calls.js';
 import type { MockCallRepository } from './mock-calls.js';
 import { isUuid } from './security.js';
 import { echoRequest } from './http-echo.js';
@@ -18,9 +24,10 @@ import type { ResourceRepository } from './resources.js';
 import { MAX_FILE_BYTES } from './resources.js';
 import type { RateLimitRepository } from './rate-limit.js';
 
-import type { MockConfig } from '@kivel.io/tools/mock-config';
+import { randomUUID } from 'node:crypto';
+import type { MockConfig, MockRoute } from '@kivel.io/tools/mock-config';
 import { webSocketMockUrl } from './websocket-mock.js';
-import { validateMock, mockPayload } from '@kivel.io/tools/mock-config';
+import { mockConfigDocument, validateMock, mockPayload } from '@kivel.io/tools/mock-config';
 import { crudPath, initialCrud, executeCrud } from '@kivel.io/tools/mock-crud';
 import type { CrudState, CrudReply } from '@kivel.io/tools/mock-crud';
 import { parseJsonSafely } from '@kivel.io/tools/engine';
@@ -55,6 +62,51 @@ function routeMatches(pattern: string, path: string) {
             part.startsWith(':') ? !!actual[index] : part === actual[index],
         )
     );
+}
+interface MockRecording {
+    id: string;
+    at: string;
+    route: MockRoute;
+}
+interface ScenarioRun {
+    at: number;
+    states: Record<string, string>;
+}
+const scenarioTtl = 60 * 60 * 1000;
+const runId = (value: unknown) => {
+    if (typeof value !== 'string' || !/^[a-zA-Z0-9_-]{1,64}$/.test(value))
+        throw new HttpError(400, 'Use a run ID of 1 to 64 letters, digits, underscores or dashes.');
+    return `run:${value}`;
+};
+const scenarioState = (run: ScenarioRun | undefined, name: string) =>
+    (run && Date.now() - run.at < scenarioTtl ? run.states[`state:${name}`] : undefined) ?? 'start';
+
+function selectRoute(
+    config: MockConfig,
+    method: string,
+    request: Parameters<typeof matchMockCondition>[1],
+    run?: ScenarioRun,
+    hasRun = false,
+) {
+    const methods = method === 'HEAD' ? ['HEAD', 'GET', 'ANY'] : [method, 'ANY'];
+    for (const expected of methods) {
+        const match = config.routes.find(
+            (route) =>
+                route.method === expected &&
+                routeMatches(route.path, request.path) &&
+                (!route.scenario ||
+                    (hasRun && scenarioState(run, route.scenario.name) === route.scenario.from)) &&
+                matchMockCondition(route, request),
+        );
+        if (match) return match;
+    }
+    return undefined;
+}
+
+function mockOptions(value: unknown): Record<string, unknown> {
+    if (!value || typeof value !== 'object' || Array.isArray(value))
+        throw new HttpError(400, 'Provide a JSON object.');
+    return value as Record<string, unknown>;
 }
 interface IdRoute {
     Params: { id: string; '*': string };
@@ -94,6 +146,13 @@ export function registerResources(
     const createLimit = async (request: FastifyRequest, reply: import('fastify').FastifyReply) => {
         await access.rate(request, true);
     };
+    app.post('/api/mocks/validate', async (request) => {
+        try {
+            return mockConfigDocument(request.body);
+        } catch (error) {
+            throw new HttpError(400, (error as Error).message);
+        }
+    });
     app.post('/api/mocks', { onRequest: createLimit }, async (request, reply) => {
         let config: MockConfig;
         try {
@@ -147,7 +206,16 @@ export function registerResources(
                     throw new HttpError(400, 'Use /api/oauth-providers to update this provider.');
                 if (Boolean(previous.websocket) !== Boolean(config.websocket))
                     throw new HttpError(400, 'Create a new mock to change its protocol.');
-                const payload = mockPayload(config);
+                const payload: Record<string, unknown> = mockPayload(config);
+                const previousProxy = previous.proxy as MockConfig['proxy'];
+                if (
+                    config.proxy?.record === 'staged' &&
+                    previousProxy?.record === 'staged' &&
+                    config.proxy.target === previousProxy.target &&
+                    config.proxy.pathPrefix === previousProxy.pathPrefix &&
+                    previous.mockRecordings
+                )
+                    payload.mockRecordings = previous.mockRecordings;
                 if (config.crud || previous.crudState)
                     payload.crudState = {
                         records: config.crud ? initialCrud(config.crud).records : [],
@@ -367,19 +435,200 @@ export function registerResources(
             return reply.send(request.method === 'HEAD' ? undefined : file.data);
         },
     });
-    // The calls a mock received, oldest first. Same credentials as reading the mock itself.
-    app.get<IdRoute>('/api/mocks/:id/calls', async (request, reply) => {
-        const resource = await store.read(
-            request.params.id,
-            'mock',
-            token(request),
-            (await access.actor(request)).identity?.account.id,
+    const readMock = async (request: FastifyRequest<IdRoute>, includeMcp = false) => {
+        const ownerId = (await access.actor(request)).identity?.account.id;
+        const managementToken = token(request);
+        const mock = await store.read(request.params.id, 'mock', managementToken, ownerId);
+        return (
+            mock ??
+            (includeMcp
+                ? await store.read(request.params.id, 'mcp', managementToken, ownerId)
+                : undefined)
         );
-        if (!resource)
-            return reply.code(404).send({ error: 'Resource unavailable or access denied.' });
-        return { calls: await calls.list(resource.id) };
+    };
+    app.get<IdRoute>('/api/mocks/:id/config', async (request, reply) => {
+        const resource = await readMock(request);
+        if (!resource) return reply.code(404).send(missing);
+        if (resource.payload.oauth || resource.payload.payment)
+            throw new HttpError(
+                400,
+                'Use the protocol resource endpoint to read this configuration.',
+            );
+        return mockConfigDocument(resource.payload);
+    });
+    app.get<IdRoute & { Querystring: Record<string, unknown> }>(
+        '/api/mocks/:id/calls',
+        async (request, reply) => {
+            const resource = await readMock(request, true);
+            if (!resource)
+                return reply.code(404).send({ error: 'Resource unavailable or access denied.' });
+            const history = await calls.list(resource.id);
+            return pageMockCalls(history, request.query) ?? { calls: history };
+        },
+    );
+    app.post<IdRoute>('/api/mocks/:id/assertions', async (request, reply) => {
+        const resource = await readMock(request, true);
+        if (!resource) return reply.code(404).send(missing);
+        return assertMockCalls(await calls.list(resource.id), mockOptions(request.body));
+    });
+    app.get<IdRoute>('/api/mocks/:id/recordings', async (request, reply) => {
+        const resource = await readMock(request);
+        if (!resource) return reply.code(404).send(missing);
+        return {
+            recordings: (resource.payload.mockRecordings as MockRecording[] | undefined) ?? [],
+        };
+    });
+    app.post<IdRoute>('/api/mocks/:id/recordings/promote', async (request, reply) => {
+        const { recordingId } = mockOptions(request.body);
+        if (typeof recordingId !== 'string' || !isUuid(recordingId))
+            throw new HttpError(400, 'Provide the ID from this mock’s recordings.');
+        const actor = await access.actor(request);
+        const updated = await store.mutateMock(
+            request.params.id,
+            {
+                managementToken: token(request),
+                ...(actor.identity ? { ownerId: actor.identity.account.id } : {}),
+            },
+            (payload) => {
+                const config = payload as unknown as MockConfig;
+                const recordings = (payload.mockRecordings as MockRecording[] | undefined) ?? [];
+                const candidate = recordings.find((entry) => entry.id === recordingId);
+                if (!candidate) throw new HttpError(404, 'Recording unavailable or expired.');
+                if (config.routes.length >= 20)
+                    throw new HttpError(
+                        409,
+                        'The mock has 20 routes. Remove a route before promoting.',
+                    );
+                if (
+                    config.routes.some(
+                        (route) =>
+                            route.method === candidate.route.method &&
+                            route.path === candidate.route.path &&
+                            !route.condition &&
+                            !route.graphql &&
+                            !route.scenario,
+                    )
+                )
+                    throw new HttpError(409, 'A fixture already exists for this method and path.');
+                return {
+                    payload: {
+                        ...payload,
+                        routes: [...config.routes, candidate.route],
+                        mockRecordings: recordings.filter((item) => item.id !== recordingId),
+                    },
+                    result: { route: candidate.route },
+                };
+            },
+        );
+        if (!updated) return reply.code(404).send(missing);
+        if (updated === 'full') return reply.code(503).send({ error: 'Mock storage is full.' });
+        return updated;
+    });
+    app.post<IdRoute>('/api/mocks/:id/scenarios/reset', async (request, reply) => {
+        const key = runId(mockOptions(request.body).run);
+        const actor = await access.actor(request);
+        const updated = await store.mutateMock(
+            request.params.id,
+            {
+                managementToken: token(request),
+                ...(actor.identity ? { ownerId: actor.identity.account.id } : {}),
+            },
+            (payload) => {
+                const runs = {
+                    ...(payload.scenarioRuns as Record<string, ScenarioRun> | undefined),
+                };
+                if (!Object.hasOwn(runs, key)) return { payload, result: { reset: false } };
+                delete runs[key];
+                return { payload: { ...payload, scenarioRuns: runs }, result: { reset: true } };
+            },
+        );
+        if (!updated) return reply.code(404).send(missing);
+        if (updated === 'full') return reply.code(503).send({ error: 'Mock storage is full.' });
+        return updated;
+    });
+    app.post<IdRoute>('/api/mocks/:id/match', async (request, reply) => {
+        const resource = await readMock(request);
+        if (!resource) return reply.code(404).send(missing);
+        const config = resource.payload as unknown as MockConfig;
+        if (
+            config.websocket ||
+            config.echo ||
+            config.llm ||
+            resource.payload.oauth ||
+            resource.payload.payment
+        )
+            throw new HttpError(400, 'Match diagnostics are available for REST routes.');
+        const input = mockOptions(request.body);
+        const { method, path } = input;
+        if (
+            typeof method !== 'string' ||
+            method === 'ANY' ||
+            !methods.includes(method) ||
+            typeof path !== 'string' ||
+            !/^\/[^?#\x00-\x20]{0,511}$/.test(path)
+        )
+            throw new HttpError(
+                400,
+                'Provide an uppercase HTTP method and an exact path starting with /.',
+            );
+        const mockRequest = {
+            path,
+            body: input.body,
+            query: input.query === undefined ? {} : mockOptions(input.query),
+            headers: Object.fromEntries(
+                Object.entries(input.headers === undefined ? {} : mockOptions(input.headers)).map(
+                    ([key, value]) => [key.toLowerCase(), value],
+                ),
+            ),
+        };
+        const runKey = input.run === undefined ? undefined : runId(input.run);
+        const run = runKey
+            ? (resource.payload.scenarioRuns as Record<string, ScenarioRun> | undefined)?.[runKey]
+            : undefined;
+        const selected =
+            config.crud && crudPath(config.crud, path)
+                ? undefined
+                : selectRoute(config, method, mockRequest, run, Boolean(runKey));
+        return {
+            selected: selected ? config.routes.indexOf(selected) + 1 : null,
+            ...(selected
+                ? { status: selected.status }
+                : {
+                      fallback:
+                          config.crud && crudPath(config.crud, path)
+                              ? 'crud'
+                              : config.proxy
+                                ? 'proxy'
+                                : 'notFound',
+                  }),
+            routes: config.routes.map((route, index) => ({
+                index: index + 1,
+                method: route.method,
+                path: route.path,
+                result: !routeMatches(route.path, path)
+                    ? 'pathMismatch'
+                    : route.method !== method &&
+                        route.method !== 'ANY' &&
+                        !(method === 'HEAD' && route.method === 'GET')
+                      ? 'methodMismatch'
+                      : route.scenario &&
+                          (!runKey ||
+                              scenarioState(run, route.scenario.name) !== route.scenario.from)
+                        ? 'scenarioMismatch'
+                        : !matchMockCondition(route, mockRequest)
+                          ? 'conditionMismatch'
+                          : route === selected
+                            ? 'selected'
+                            : 'lowerPriority',
+                ...(route.condition
+                    ? { condition: { source: route.condition.source, key: route.condition.key } }
+                    : {}),
+                ...(route.graphql ? { operationName: route.graphql.operationName } : {}),
+            })),
+        };
     });
     app.register(async (mocks) => {
+        const accepted = new WeakSet<FastifyRequest>();
         mocks.removeAllContentTypeParsers();
         mocks.addContentTypeParser('*', { parseAs: 'buffer' }, (_request, body, done) =>
             done(null, body),
@@ -390,14 +639,8 @@ export function registerResources(
                     (method) => method !== 'ANY',
                 ) as import('fastify').HTTPMethods[],
                 url,
-                // Log what callers sent and what the mock answered, after the response is out.
-                onResponse: async (request, reply) => {
-                    if (
-                        !isUuid(request.params.id) ||
-                        (request.method === 'OPTIONS' &&
-                            request.headers['access-control-request-method'])
-                    )
-                        return;
+                onSend: async (request, reply, payload) => {
+                    if (!accepted.delete(request)) return payload;
                     try {
                         await calls.record(
                             request.params.id,
@@ -414,6 +657,7 @@ export function registerResources(
                     } catch (error) {
                         request.log.warn({ err: error }, 'Unable to record a mock call.');
                     }
+                    return payload;
                 },
                 handler: async (request, reply) => {
                     reply
@@ -493,6 +737,7 @@ export function registerResources(
                         return reply.code(404).send({ error: 'Use this provider’s issuer URL.' });
                     if (metadata.payload.websocket)
                         return reply.code(404).send({ error: 'Use this mock’s WebSocket URL.' });
+                    accepted.add(request);
                     const initialConfig = metadata.payload as unknown as MockConfig;
                     if (initialConfig.crud && crudPath(initialConfig.crud, path)) {
                         if (request.method === 'OPTIONS')
@@ -585,6 +830,7 @@ export function registerResources(
                         config.routes.some(
                             (route) =>
                                 route.condition?.source === 'body' ||
+                                route.graphql ||
                                 (route.template && route.body.includes('{{body.')),
                         ) &&
                         Buffer.isBuffer(body) &&
@@ -607,17 +853,55 @@ export function registerResources(
                         headers: request.headers,
                         body,
                     };
-                    const matches = (method: string) =>
-                        config.routes.find(
-                            (route) =>
-                                route.method === method &&
-                                routeMatches(route.path, path) &&
-                                matchMockCondition(route, mockRequest),
+                    const runHeader = request.headers['x-kivel-mock-run'];
+                    let route = selectRoute(config, request.method, mockRequest);
+                    if (runHeader !== undefined && config.routes.some((item) => item.scenario)) {
+                        const key = runId(runHeader);
+                        const now = Date.now();
+                        const result = await store.mutateMock(
+                            request.params.id,
+                            caller,
+                            (payload) => {
+                                const current = payload as unknown as MockConfig;
+                                const runs = Object.fromEntries(
+                                    Object.entries(
+                                        (payload.scenarioRuns as
+                                            Record<string, ScenarioRun> | undefined) ?? {},
+                                    ).filter(([, value]) => now - value.at < scenarioTtl),
+                                );
+                                const run = runs[key];
+                                const matched = selectRoute(
+                                    current,
+                                    request.method,
+                                    mockRequest,
+                                    run,
+                                    true,
+                                );
+                                const transition = matched?.scenario;
+                                if (!transition) return { payload, result: { route: matched } };
+                                if (!run && Object.keys(runs).length >= MOCK_CALL_LIMIT)
+                                    throw new HttpError(
+                                        429,
+                                        'Too many active scenario runs. Reset a run or wait for expiry.',
+                                    );
+                                runs[key] = {
+                                    at: now,
+                                    states: {
+                                        ...run?.states,
+                                        [`state:${transition.name}`]: transition.to,
+                                    },
+                                };
+                                return {
+                                    payload: { ...payload, scenarioRuns: runs },
+                                    result: { route: matched },
+                                };
+                            },
                         );
-                    const route =
-                        matches(request.method) ??
-                        (request.method === 'HEAD' ? matches('GET') : undefined) ??
-                        matches('ANY');
+                        if (!result) return reply.code(404).send(missing);
+                        if (result === 'full')
+                            return reply.code(503).send({ error: 'Mock storage is full.' });
+                        route = result.route;
+                    }
                     if (!route && config.proxy && !(await ownerIsPaid(resource.ownerId)))
                         return reply.code(402).send({
                             error: 'This mock’s proxy is paused because its owner’s plan no longer includes it.',
@@ -660,38 +944,66 @@ export function registerResources(
                             upstream.status >= 200 &&
                             upstream.status <= 599 &&
                             !['HEAD', 'OPTIONS'].includes(request.method) &&
-                            /^\/(?:[a-zA-Z0-9._~-]+\/?)*$/.test(path);
-                        if (recordable)
+                            path.length <= 200 &&
+                            /^\/(?:[a-zA-Z0-9._~-]+(?:\/[a-zA-Z0-9._~-]+)*\/?)?$/.test(path) &&
+                            !path.split('/').some((part) => part === '.' || part === '..');
+                        if (
+                            recordable &&
+                            (config.proxy.record === true ||
+                                path === config.proxy.pathPrefix ||
+                                path.startsWith(`${config.proxy.pathPrefix}/`))
+                        ) {
+                            const snapshot = config.proxy;
+                            const fixture: MockRoute = {
+                                method: request.method,
+                                path,
+                                status: upstream.status,
+                                body: upstream.body.toString('utf8'),
+                                headers: { 'content-type': safeType.split(';')[0]! },
+                                delayMs: 0,
+                            };
                             await store.mutateMock(request.params.id, caller, (payload) => {
                                 const current = payload as unknown as MockConfig;
                                 if (
-                                    current.routes.length >= 20 ||
+                                    current.proxy?.target !== snapshot.target ||
+                                    current.proxy.record !== snapshot.record ||
+                                    current.proxy.pathPrefix !== snapshot.pathPrefix ||
                                     current.routes.some(
                                         (item) =>
-                                            item.method === request.method && item.path === path,
+                                            item.method === fixture.method && item.path === path,
                                     )
                                 )
                                     return { payload, result: false };
-                                return {
-                                    payload: {
-                                        ...payload,
-                                        routes: [
-                                            ...current.routes,
-                                            {
-                                                method: request.method,
-                                                path,
-                                                status: upstream.status,
-                                                body: upstream.body.toString('utf8'),
-                                                headers: {
-                                                    'content-type': safeType.split(';')[0]!,
+                                if (snapshot.record === 'staged') {
+                                    const recordings =
+                                        (payload.mockRecordings as MockRecording[] | undefined) ??
+                                        [];
+                                    return {
+                                        payload: {
+                                            ...payload,
+                                            mockRecordings: [
+                                                {
+                                                    id: randomUUID(),
+                                                    at: new Date().toISOString(),
+                                                    route: fixture,
                                                 },
-                                                delayMs: 0,
-                                            },
-                                        ],
-                                    },
+                                                ...recordings.filter(
+                                                    (item) =>
+                                                        item.route.method !== fixture.method ||
+                                                        item.route.path !== path,
+                                                ),
+                                            ].slice(0, 5),
+                                        },
+                                        result: true,
+                                    };
+                                }
+                                if (current.routes.length >= 20) return { payload, result: false };
+                                return {
+                                    payload: { ...payload, routes: [...current.routes, fixture] },
                                     result: true,
                                 };
                             });
+                        }
                         return reply
                             .header('Content-Security-Policy', "default-src 'none'; sandbox")
                             .header('X-Mock-Proxied', 'true')

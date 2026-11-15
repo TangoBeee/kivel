@@ -19,6 +19,7 @@ export function needsInput(args: string[]) {
         (args[0] === 'event' && args[1] === 'wait') ||
         (['oauth', 'mock', 'mcp-server', 'status-page', 'job'].includes(args[0] ?? '') &&
             ['create', 'update'].includes(args[1] ?? '')) ||
+        (args[0] === 'mock' && ['validate', 'match', 'assert'].includes(args[1] ?? '')) ||
         (['inbox', 'email'].includes(args[0] ?? '') &&
             ['response', 'forward', 'send'].includes(args[1] ?? '')) ||
         (args[0] === 'inbox' && args[1] === 'verify')
@@ -60,6 +61,9 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
         for (const flag of ['--method', '--path', '--limit']) allowed.add(flag);
         if (action === 'requests') allowed.add('--cursor');
     }
+    if (group === 'mock' && action === 'calls')
+        for (const flag of ['--method', '--path', '--status', '--run', '--limit', '--cursor'])
+            allowed.add(flag);
     if (resource && action === 'create') {
         if (group === 'email') {
             allowed.add('--active-days');
@@ -156,6 +160,7 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
         limit: threadPage.limit,
     };
     const webhookUrl = take('--url');
+    const mockStatus = number('--status');
     const signature = {
         provider: take('--provider'),
         headerName: take('--header'),
@@ -186,6 +191,7 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
     const checkpoint = boolean('--checkpoint');
     const approvalId = take('--approval-id');
     const passwordLength = number('--length');
+    const mockRun = take('--run');
     if (flags.size) throw new Error(`Unknown option: ${flags.keys().next().value}`);
     const exact = (count: number) => {
         if (positional.length !== count)
@@ -196,6 +202,31 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
         return positional[0]!;
     };
     const json = () => JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(input));
+    if (group === 'mock') {
+        if (action === 'validate') {
+            exact(0);
+            return client.validateMock(json());
+        }
+        if (action === 'export') return client.mockConfig(id(), token);
+        if (action === 'recordings') return client.mockRecordings(id(), token);
+        if (action === 'promote-recording') {
+            exact(2);
+            return client.promoteMockRecording(positional[0]!, positional[1]!, token);
+        }
+        if (action === 'reset-scenario') {
+            exact(2);
+            return client.resetMockScenario(positional[0]!, positional[1]!, token);
+        }
+        if (action === 'assert') return client.assertMockCalls(id(), json(), token);
+        if (action === 'match') return client.matchMockRequest(id(), json(), token);
+        if (action === 'calls')
+            return client.mockCalls(id(), token, {
+                ...webhookFilters,
+                cursor: threadPage.cursor,
+                status: mockStatus,
+                run: mockRun,
+            });
+    }
     if (group === 'oauth') {
         if (action === 'create') {
             exact(0);
@@ -517,9 +548,11 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
                 ? client.createMock(json(), { ...settings, visibility })
                 : client.createMcpServer(json(), { ...settings, visibility });
         }
-        if (action === 'update' && group === 'mock') return client.updateMock(id(), json(), token);
+        if (action === 'update')
+            return group === 'mock'
+                ? client.updateMock(id(), json(), token)
+                : client.updateMcpServer(id(), json(), token);
         if (action === 'reset' && group === 'mock') return client.resetMock(id(), token);
-        if (action === 'calls' && group === 'mock') return client.mockCalls(id(), token);
     }
     const kinds = {
         inbox: 'inboxes',

@@ -502,7 +502,15 @@ export function buildApp({
             )
                 await access.scope(
                     request,
-                    ['GET', 'HEAD'].includes(request.method) ? 'resources:read' : 'resources:write',
+                    ['GET', 'HEAD'].includes(request.method) ||
+                        (request.method === 'POST' &&
+                            [
+                                '/api/mocks/validate',
+                                '/api/mocks/:id/assertions',
+                                '/api/mocks/:id/match',
+                            ].includes(request.routeOptions.url ?? ''))
+                        ? 'resources:read'
+                        : 'resources:write',
                 );
             return;
         }

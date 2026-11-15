@@ -865,6 +865,86 @@ test('Pro proxy mocks pass unmatched calls through, never serve HTML, and record
     assert.equal(calls.length, 2);
 });
 
+test('Staged proxy recordings stay scoped and become routes only after promotion', async (t) => {
+    const identities = new MemoryIdentityRepository();
+    const sent: string[] = [];
+    const app = buildApp({
+        identityStore: identities,
+        mockProxySend: async (url, _signal, options = {}) => {
+            sent.push(url);
+            assert.equal((options.headers as Record<string, string>).Authorization, undefined);
+            return {
+                url,
+                status: 201,
+                headers: { 'content-type': 'application/json', 'set-cookie': 'secret=1' },
+                body: Buffer.from('{"fixture":true}'),
+                truncated: false,
+                address: '93.184.216.34',
+                timings: { dnsMs: 1, responseMs: 1, totalMs: 2 },
+            } as Awaited<ReturnType<typeof import('./public-network.js').publicRequest>>;
+        },
+    });
+    t.after(() => app.close());
+    const owner = await signup(app, 'stagedproxy');
+    const credential = await key(app, owner.cookie);
+    const outsider = await signup(app, 'otherproxy');
+    const anotherKey = await key(app, outsider.cookie);
+    await identities.setEntitlement(
+        owner.account.id,
+        'pro',
+        new Date(Date.now() + 86400000).toISOString(),
+    );
+    const headers = { authorization: `Bearer ${credential.key}` };
+    const created = await app.inject({
+        method: 'POST',
+        url: '/api/mocks?visibility=public',
+        headers,
+        payload: {
+            name: 'Staged proxy',
+            routes: [],
+            proxy: { target: 'https://api.example.com', record: 'staged', pathPrefix: '/orders/' },
+        },
+    });
+    assert.equal(created.statusCode, 201, created.body);
+    const { id } = created.json();
+    const call = (path: string) =>
+        app.inject({
+            method: 'POST',
+            url: `/mock/${id}${path}`,
+            headers: { authorization: 'Bearer non-kivel-secret' },
+        });
+    assert.equal((await call('/orders-here')).statusCode, 201);
+    assert.equal((await call('/orders/123')).headers['x-mock-proxied'], 'true');
+    assert.equal((await call('/orders/123')).headers['x-mock-proxied'], 'true');
+    const url = `/api/mocks/${id}/recordings`;
+    assert.equal(
+        (await app.inject({ url, headers: { authorization: `Bearer ${anotherKey.key}` } }))
+            .statusCode,
+        404,
+    );
+    const { recordings } = (await app.inject({ url, headers })).json();
+    assert.equal(recordings.length, 1);
+    assert.equal(recordings[0].route.path, '/orders/123');
+    assert.deepEqual(recordings[0].route.headers, { 'content-type': 'application/json' });
+    assert.equal(
+        (await app.inject({ url: `/api/mocks/${id}/config`, headers })).json().config
+            .mockRecordings,
+        undefined,
+    );
+    const promote = (key: string) =>
+        app.inject({
+            method: 'POST',
+            url: url + '/promote',
+            headers: { authorization: `Bearer ${key}` },
+            payload: { recordingId: recordings[0].id },
+        });
+    assert.equal((await promote(anotherKey.key)).statusCode, 404);
+    assert.equal((await promote(credential.key)).statusCode, 200);
+    assert.equal((await call('/orders/123')).headers['x-mock-proxied'], undefined);
+    assert.equal((await promote(credential.key)).statusCode, 404);
+    assert.equal(sent.length, 3);
+});
+
 test('forwarding and proxy mocks stop as soon as the owner’s paid plan ends', async (t) => {
     const identities = new MemoryIdentityRepository();
     let forwarded = 0,

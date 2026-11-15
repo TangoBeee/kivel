@@ -630,6 +630,293 @@ test('resource_request reads, lists and deletes resources over MCP', async (t) =
     assert.notEqual(deleted.isError, true, deleted.content[0].text);
 });
 
+test('portable mock configuration, deterministic route diagnostics and exact call assertions share HTTP and MCP', async (t) => {
+    const app = buildApp();
+    t.after(() => app.close());
+    const config = {
+        format: 'kivel.mock',
+        version: 1,
+        config: {
+            name: 'Orders',
+            routes: [
+                { method: 'ANY', path: '/orders', status: 204, body: '' },
+                {
+                    method: 'POST',
+                    path: '/orders',
+                    status: 201,
+                    body: '{}',
+                    condition: { source: 'header', key: 'x-mode', value: 'invoice' },
+                },
+            ],
+        },
+    };
+    const validated = await app.inject({
+        method: 'POST',
+        url: '/api/mocks/validate',
+        payload: config,
+    });
+    assert.equal(validated.statusCode, 200, validated.body);
+    assert.equal(
+        (
+            await app.inject({
+                method: 'POST',
+                url: '/api/mocks/validate',
+                payload: { ...config, version: 2 },
+            })
+        ).statusCode,
+        400,
+    );
+    const creation = await app.inject({
+        method: 'POST',
+        url: '/api/mocks',
+        payload: validated.json(),
+    });
+    assert.equal(creation.statusCode, 201, creation.body);
+    const mock = creation.json();
+    const auth = { 'x-resource-token': mock.managementToken };
+    const base = `/api/mocks/${mock.id}`;
+    const exported = await app.inject({ url: base + '/config', headers: auth });
+    assert.deepEqual(exported.json(), validated.json());
+    assert.equal((await app.inject({ url: base + '/config' })).statusCode, 404);
+    assert.equal(
+        (await app.inject({ method: 'POST', url: `/mock/${mock.id}/orders` })).statusCode,
+        404,
+    );
+    for (const value of ['other', 'invoice', 'invoice']) {
+        const response = await app.inject({
+            method: 'POST',
+            url: `/mock/${mock.id}/orders`,
+            headers: { 'x-mode': value, 'x-access-token': mock.accessToken },
+        });
+        assert.equal(response.statusCode, value === 'invoice' ? 201 : 204);
+    }
+    const diagnostic = await app.inject({
+        method: 'POST',
+        url: base + '/match',
+        headers: auth,
+        payload: { method: 'POST', path: '/orders', headers: { 'X-Mode': 'invoice' } },
+    });
+    assert.equal(diagnostic.json().selected, 2);
+    assert.equal(diagnostic.json().routes[0].result, 'lowerPriority');
+    assert.ok(!diagnostic.body.includes('invoice'));
+    const first = (
+        await app.inject({ url: base + '/calls?method=POST&status=201&limit=1', headers: auth })
+    ).json();
+    assert.equal(first.calls.length, 1);
+    assert.equal(first.nextCursor, first.calls[0].id);
+    const second = (
+        await app.inject({
+            url: base + '/calls?method=POST&status=201&limit=1&cursor=' + first.nextCursor,
+            headers: auth,
+        })
+    ).json();
+    assert.notEqual(first.calls[0].id, second.calls[0].id);
+    assert.equal(second.nextCursor, undefined);
+    const asserted = await app.inject({
+        method: 'POST',
+        url: '/mcp',
+        headers,
+        payload: rpc('tools/call', {
+            name: 'resource_request',
+            arguments: {
+                kind: 'mocks',
+                action: 'assertions',
+                id: mock.id,
+                token: mock.managementToken,
+                config: { count: 2, method: 'POST', path: '/orders', status: 201 },
+            },
+        }),
+    });
+    const result = JSON.parse(asserted.json().result.content[0].text);
+    assert.equal(result.passed, true);
+    assert.equal(result.retained, 3);
+    assert.equal(
+        (await app.inject({ url: base + '/calls', headers: auth })).json().calls.length,
+        3,
+    );
+});
+
+test('GraphQL mocks dispatch by named operation and exact unordered variables', async (t) => {
+    const app = buildApp();
+    t.after(() => app.close());
+    const create = await app.inject({
+        method: 'POST',
+        url: '/api/mocks?visibility=public',
+        payload: {
+            name: 'GraphQL fixtures',
+            routes: [
+                {
+                    method: 'POST',
+                    path: '/graphql',
+                    status: 200,
+                    body: '{"data":{"item":42}}',
+                    graphql: {
+                        operationName: 'GetItem',
+                        variables: { id: 42, options: { prefix: 'A', enabled: true } },
+                    },
+                },
+                {
+                    method: 'POST',
+                    path: '/graphql',
+                    status: 200,
+                    body: '{"errors":[{"message":"Unknown item"}]}',
+                    graphql: { operationName: 'GetItem' },
+                },
+            ],
+        },
+    });
+    assert.equal(create.statusCode, 201, create.body);
+    const url = `/mock/${create.json().id}/graphql`;
+    const query = 'query GetItem($id: Int) { item(id: $id) }';
+    const call = (operationName: string, variables: object) =>
+        app.inject({ method: 'POST', url, payload: { query, operationName, variables } });
+    assert.deepEqual(
+        (await call('GetItem', { options: { enabled: true, prefix: 'A' }, id: 42 })).json(),
+        { data: { item: 42 } },
+    );
+    assert.equal((await call('GetItem', { id: 41 })).json().errors[0].message, 'Unknown item');
+    assert.equal((await call('Other', { id: 42 })).statusCode, 404);
+});
+
+test('Mock API scenario runs advance independently and reset through MCP', async (t) => {
+    const app = buildApp();
+    t.after(() => app.close());
+    const created = await app.inject({
+        method: 'POST',
+        url: '/api/mocks?visibility=public',
+        payload: {
+            name: 'Sign up',
+            routes: [
+                {
+                    method: 'POST',
+                    path: '/signup',
+                    status: 201,
+                    body: '{}',
+                    scenario: { name: 'signup', from: 'start', to: 'created' },
+                },
+                {
+                    method: 'POST',
+                    path: '/signup',
+                    status: 409,
+                    body: '{}',
+                    scenario: { name: 'signup', from: 'created', to: 'created' },
+                },
+                { method: 'POST', path: '/signup', status: 200, body: '{}' },
+            ],
+        },
+    });
+    assert.equal(created.statusCode, 201, created.body);
+    const { id, managementToken } = created.json();
+    const call = (run?: string) =>
+        app.inject({
+            method: 'POST',
+            url: `/mock/${id}/signup`,
+            headers: run ? { 'x-kivel-mock-run': run } : {},
+        });
+    const manage = (name: string, args: object) =>
+        app.inject({
+            method: 'POST',
+            url: '/mcp',
+            headers,
+            payload: rpc('tools/call', { name, arguments: args }),
+        });
+    const first = await Promise.all([call('run-a'), call('run-a'), call('run-b')]);
+    assert.deepEqual(
+        first
+            .slice(0, 2)
+            .map((item) => item.statusCode)
+            .sort(),
+        [201, 409],
+    );
+    assert.equal(first[2]?.statusCode, 201);
+    assert.equal((await call()).statusCode, 200);
+    const assertion = await manage('resource_request', {
+        kind: 'mocks',
+        action: 'assertions',
+        id,
+        token: managementToken,
+        config: { run: 'run-a', status: 201, count: 1 },
+    });
+    assert.equal(JSON.parse(assertion.json().result.content[0].text).passed, true);
+    const reset = await manage('resource_request', {
+        kind: 'mocks',
+        action: 'reset-scenario',
+        id,
+        token: managementToken,
+        config: { run: 'run-a' },
+    });
+    assert.deepEqual(JSON.parse(reset.json().result.content[0].text), { reset: true });
+    const invoke = await manage('call_mock_api', {
+        id,
+        method: 'POST',
+        path: '/signup',
+        run: 'run-a',
+    });
+    assert.equal(JSON.parse(invoke.json().result.content[0].text).status, 201);
+    assert.equal((await call('run-b')).statusCode, 409);
+    assert.equal((await call('invalid.run')).statusCode, 400);
+    const exported = await app.inject({
+        url: `/api/mocks/${id}/config`,
+        headers: { 'x-resource-token': managementToken },
+    });
+    assert.equal(exported.json().config.scenarioRuns, undefined);
+});
+
+test('Mock MCP servers expose read-only resource and prompt fixtures and journal calls', async (t) => {
+    const app = buildApp();
+    t.after(() => app.close());
+    const created = await app.inject({
+        method: 'POST',
+        url: '/api/mcp-servers?visibility=public',
+        payload: {
+            name: 'Fixture server',
+            resources: [{ uri: 'mock://guides/setup', name: 'Setup guide', text: 'Setup text' }],
+            prompts: [{ name: 'verify', description: 'Check an integration', text: 'Verify it' }],
+        },
+    });
+    assert.equal(created.statusCode, 201, created.body);
+    const { id, managementToken } = created.json();
+    const call = (method: string, params?: object) =>
+        app.inject({
+            method: 'POST',
+            url: `/mcp/mock/${id}`,
+            headers,
+            payload: rpc(method, params),
+        });
+    const capabilities = (
+        await app.inject({
+            method: 'POST',
+            url: `/mcp/mock/${id}`,
+            headers,
+            payload: initialize,
+        })
+    ).json().result.capabilities;
+    assert.deepEqual(capabilities.resources, { subscribe: false, listChanged: false });
+    assert.deepEqual(capabilities.prompts, { listChanged: false });
+    const listing = (await call('resources/list')).json().result.resources;
+    assert.equal(listing[0].name, 'Setup guide');
+    assert.equal(listing[0].text, undefined);
+    const resource = (await call('resources/read', { uri: listing[0].uri })).json().result
+        .contents[0];
+    assert.deepEqual(resource, { uri: listing[0].uri, text: 'Setup text', mimeType: 'text/plain' });
+    assert.equal(
+        (await call('resources/read', { uri: 'mock://absent' })).json().error.code,
+        -32002,
+    );
+    assert.equal((await call('prompts/list')).json().result.prompts[0].text, undefined);
+    assert.deepEqual((await call('prompts/get', { name: 'verify' })).json().result.messages[0], {
+        role: 'user',
+        content: { type: 'text', text: 'Verify it' },
+    });
+    const url = `/api/mocks/${id}/calls?method=resources%2Fread`;
+    assert.equal((await app.inject({ url })).statusCode, 404);
+    const inspected = await app.inject({ url, headers: { 'x-resource-token': managementToken } });
+    assert.deepEqual(
+        inspected.json().calls.map((row: { status: number }) => row.status),
+        [400, 200],
+    );
+});
+
 test('MCP instructions describe the full catalog and keep utility discovery behind generic tools', async (t) => {
     const { catalog, categories } = await import('@kivel.io/tools/catalog');
     const app = buildApp();

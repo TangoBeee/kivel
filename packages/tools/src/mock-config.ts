@@ -13,6 +13,8 @@ export interface MockRoute {
     delayMs: number;
     template?: boolean;
     condition?: { source: 'header' | 'query' | 'body'; key: string; value: string };
+    graphql?: { operationName: string; variables?: Record<string, unknown> };
+    scenario?: { name: string; from: string; to: string };
     requestsPerMinute?: number;
     stream?: { mode: 'sse' | 'text'; intervalMs: number };
     /** Percentage of calls (1-100) answered with failureStatus instead of the configured response. */
@@ -64,8 +66,16 @@ export interface MockConfig {
     echo?: true;
     llm?: LlmMockConfig;
     websocket?: WebSocketMockConfig;
-    /** Unmatched calls go to this API; with record, its answers become new routes. */
-    proxy?: { target: string; record: boolean };
+    proxy?: { target: string; record: boolean | 'staged'; pathPrefix?: string };
+}
+export interface MockConfigDocument {
+    format: 'kivel.mock';
+    version: 1;
+    config: MockConfig;
+}
+
+export function mockConfigDocument(value: unknown): MockConfigDocument {
+    return { format: 'kivel.mock', version: 1, config: validateMock(value) };
 }
 export const mockPayload = (config: MockConfig) => ({
     ...config,
@@ -74,6 +84,10 @@ export const mockPayload = (config: MockConfig) => ({
 const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD', 'ANY'];
 const object = (value: unknown): value is Record<string, unknown> =>
     !!value && typeof value === 'object' && !Array.isArray(value);
+function variableDepth(value: unknown, depth = 0): boolean {
+    if (!value || typeof value !== 'object') return true;
+    return depth < 32 && Object.values(value).every((part) => variableDepth(part, depth + 1));
+}
 function validateWebSocket(value: unknown): WebSocketMockConfig {
     const text = (item: unknown): item is string =>
         typeof item === 'string' && byteLength(item) <= 4096;
@@ -127,6 +141,11 @@ function validateWebSocket(value: unknown): WebSocketMockConfig {
     return { ...config, echo: config.echo ?? true };
 }
 export function validateMock(value: unknown): MockConfig {
+    if (object(value) && value.format === 'kivel.mock') {
+        if (value.version !== 1)
+            throw new Error('Use version 1 of the Kivel mock configuration format.');
+        value = value.config;
+    }
     if (object(value) && value.websocket !== undefined) {
         if (
             typeof value.name !== 'string' ||
@@ -247,7 +266,46 @@ export function validateMock(value: unknown): MockConfig {
                 ))
         )
             throw new Error('Templates support JSON and plain text responses without streaming.');
-        const key = `${item.method} ${item.path} ${JSON.stringify(condition ?? null)}`;
+        let graphql: MockRoute['graphql'];
+        if (item.graphql !== undefined) {
+            const operation = item.graphql;
+            if (
+                item.method !== 'POST' ||
+                !object(operation) ||
+                typeof operation.operationName !== 'string' ||
+                !/^[_A-Za-z][_A-Za-z0-9]{0,79}$/.test(operation.operationName) ||
+                (operation.variables !== undefined &&
+                    (!object(operation.variables) ||
+                        !variableDepth(operation.variables) ||
+                        byteLength(JSON.stringify(operation.variables)) > 4096))
+            )
+                throw new Error(
+                    'GraphQL routes require POST, an operation name, and optional JSON variables up to 4 KiB.',
+                );
+            graphql = {
+                operationName: operation.operationName,
+                ...(object(operation.variables) ? { variables: operation.variables } : {}),
+            };
+        }
+        let scenario: MockRoute['scenario'];
+        if (item.scenario !== undefined) {
+            const state = item.scenario;
+            const valid = (value: unknown): value is string =>
+                typeof value === 'string' && /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,39}$/.test(value);
+            if (
+                !object(state) ||
+                !valid(state.name) ||
+                !valid(state.from) ||
+                !valid(state.to) ||
+                item.requestsPerMinute !== undefined ||
+                item.stream !== undefined
+            )
+                throw new Error(
+                    'Scenario routes need a name, from and to states. Use the mock limit and a single response.',
+                );
+            scenario = { name: state.name, from: state.from, to: state.to };
+        }
+        const key = `${item.method} ${item.path} ${JSON.stringify([condition ?? null, graphql ?? null, scenario?.name, scenario?.from])}`;
         if (seen.has(key)) throw new Error('Duplicate method and path.');
         seen.add(key);
         if (item.headers !== undefined && !object(item.headers))
@@ -333,6 +391,8 @@ export function validateMock(value: unknown): MockConfig {
             ...(failureRate ? { failureRate, failureStatus } : {}),
             ...(stream ? { stream } : {}),
             ...(condition ? { condition } : {}),
+            ...(graphql ? { graphql } : {}),
+            ...(scenario ? { scenario } : {}),
             ...(item.template ? { template: true } : {}),
             ...(item.requestsPerMinute !== undefined
                 ? { requestsPerMinute: Number(item.requestsPerMinute) }
@@ -353,14 +413,28 @@ export function validateMock(value: unknown): MockConfig {
             typeof input.target !== 'string' ||
             input.target.length > 2048 ||
             !/^https?:\/\/[^\s]+$/i.test(input.target) ||
-            (input.record !== undefined && typeof input.record !== 'boolean') ||
+            (input.record !== undefined &&
+                typeof input.record !== 'boolean' &&
+                input.record !== 'staged') ||
+            (input.record === 'staged' &&
+                (typeof input.pathPrefix !== 'string' ||
+                    input.pathPrefix.length > 180 ||
+                    !/^\/[a-zA-Z0-9._~-]+(?:\/[a-zA-Z0-9._~-]+)*\/?$/.test(input.pathPrefix) ||
+                    input.pathPrefix.split('/').some((part) => part === '.' || part === '..'))) ||
+            (input.pathPrefix !== undefined && input.record !== 'staged') ||
             value.echo !== undefined ||
             value.crud !== undefined
         )
             throw new Error(
-                'proxy needs a target http(s) URL and an optional record flag, without echo or CRUD.',
+                'Provide a proxy target URL and an optional recording mode. Staged recording needs a path prefix such as /orders. Proxy cannot combine with echo or CRUD.',
             );
-        proxy = { target: input.target, record: input.record === true };
+        proxy = {
+            target: input.target,
+            record: input.record === 'staged' ? 'staged' : input.record === true,
+            ...(input.record === 'staged'
+                ? { pathPrefix: (input.pathPrefix as string).replace(/\/$/, '') }
+                : {}),
+        };
     }
     const crud = value.crud === undefined ? undefined : validateCrud(value.crud);
     if (

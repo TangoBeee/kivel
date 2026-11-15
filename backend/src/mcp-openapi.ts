@@ -97,7 +97,7 @@ export function mcpOpenApi(origin: string) {
                     tags: ['Mock MCP servers'],
                     summary: 'Create a temporary mock MCP server',
                     description:
-                        'Up to 10 tools and 80 KiB total configuration. Tool schemas accept object arguments with string, number, integer, or boolean properties. Responses are static text, up to 10,000 UTF-8 bytes per tool. No custom code, outbound requests, or remote schema references are executed. Servers start with one hour, with plan-based retention and renewal. New servers are private. Up to 120 MCP requests per minute are allowed per server.',
+                        'Up to 10 tools, 10 resources, 10 prompts and 80 KiB total configuration. Tool schemas accept object arguments with string, number, integer, or boolean properties. Responses are static text, up to 10,000 UTF-8 bytes per tool. No custom code, outbound requests, or remote schema references are executed. Servers start with one hour, with plan-based retention and renewal. New servers are private. Up to 120 MCP requests per minute are allowed per server.',
                     requestBody: {
                         required: true,
                         content: { 'application/json': { schema: ref('MockMcpConfig') } },
@@ -173,6 +173,11 @@ export function mcpOpenApi(origin: string) {
                             'ping',
                             'tools/list',
                             'tools/call',
+                            'resources/list',
+                            'resources/read',
+                            'resources/templates/list',
+                            'prompts/list',
+                            'prompts/get',
                             'notifications/initialized',
                         ],
                     },
@@ -181,12 +186,40 @@ export function mcpOpenApi(origin: string) {
             },
             MockMcpConfig: {
                 type: 'object',
-                required: ['name', 'tools'],
+                required: ['name'],
+                description:
+                    'Provide at least one tool, resource or prompt. Up to 10 of each and 80 KiB total.',
                 properties: {
+                    resources: {
+                        type: 'array',
+                        maxItems: 10,
+                        items: {
+                            type: 'object',
+                            required: ['uri', 'name', 'text'],
+                            properties: {
+                                uri: { type: 'string', example: 'mock://help/setup' },
+                                name: { type: 'string', maxLength: 80 },
+                                text: { type: 'string', maxLength: 10000 },
+                                mimeType: { type: 'string', default: 'text/plain' },
+                            },
+                        },
+                    },
+                    prompts: {
+                        type: 'array',
+                        maxItems: 10,
+                        items: {
+                            type: 'object',
+                            required: ['name', 'text'],
+                            properties: {
+                                name: { type: 'string', pattern: '^[A-Za-z0-9_-]{1,64}$' },
+                                description: { type: 'string', maxLength: 500 },
+                                text: { type: 'string', maxLength: 10000 },
+                            },
+                        },
+                    },
                     name: { type: 'string', minLength: 1, maxLength: 80 },
                     tools: {
                         type: 'array',
-                        minItems: 1,
                         maxItems: 10,
                         items: {
                             type: 'object',

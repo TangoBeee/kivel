@@ -7,7 +7,6 @@ import Link from 'next/link';
 import { AlertDialog, Button, Checkbox, Flex, TextArea, TextField } from '@radix-ui/themes';
 import { validateMock } from '@kivel.io/tools/mock-config';
 import { api, resourceHeaders } from '../lib/api';
-import { useViewer } from '../lib/viewer';
 import { ToolHeader } from './tool-header';
 import { CopyButton } from './copy-button';
 import { MockCalls } from './mock-calls';
@@ -28,7 +27,6 @@ const key = 'socket-websocket-mock';
 const starter = JSON.stringify({ welcome: [], replies: [], delayMs: 0 }, null, 2);
 
 export function WebSocketWorkbench({ toolId }: { toolId: string }) {
-    const viewer = useViewer();
     const [mock, setMock] = useState<Mock | null>(null);
     const [name, setName] = useState('Live updates');
     const [echo, setEcho] = useState(true);
@@ -322,7 +320,7 @@ export function WebSocketWorkbench({ toolId }: { toolId: string }) {
                                     )}
                                 </div>
                             )}
-                            {(mock.visibility === 'public' || viewer.status === 'user') && (
+                            {mock.visibility === 'public' && (
                                 <form
                                     className="email-create-form"
                                     onSubmit={(event) => {

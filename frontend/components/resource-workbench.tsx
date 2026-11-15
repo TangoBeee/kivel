@@ -12,7 +12,7 @@ import { validateMock } from '@kivel.io/tools/mock-config';
 import { formatJson } from '@kivel.io/tools/engine';
 import { AppSelect, SelectOption } from './app-select';
 import { useEffect, useRef, useState } from 'react';
-import { AlertDialog, Button } from '@radix-ui/themes';
+import { AlertDialog, Button, TextArea } from '@radix-ui/themes';
 import { useReducedMotion } from 'motion/react';
 import { api, resourceHeaders } from '../lib/api';
 import { ToolHeader } from './tool-header';
@@ -188,6 +188,7 @@ export function ResourceWorkbench({
     const oneTime = toolId === 'files-one-time-download-links';
     const [maxDownloads, setMaxDownloads] = useState(oneTime ? '1' : '100');
     const [testRun, setTestRun] = useState('');
+    const [testAccessToken, setTestAccessToken] = useState('');
     const [testResult, setTestResult] = useState('');
     const [testStatus, setTestStatus] = useState('');
     const [busy, setBusy] = useState(false);
@@ -250,6 +251,7 @@ export function ResourceWorkbench({
         });
     }, [resource?.id, reduceMotion]);
     function save(value: Resource | null) {
+        if (value?.id !== resource?.id) setTestAccessToken('');
         setResource(value);
         setExpired(false);
         remember(key, value);
@@ -507,8 +509,11 @@ export function ResourceWorkbench({
         setTestResult('');
         setTestStatus('');
         try {
-            const headers: Record<string, string> = resource.accessToken
-                ? { 'X-Access-Token': resource.accessToken }
+            const accessToken = resource.accessToken || testAccessToken.trim();
+            if (resource.visibility === 'private' && !/^[A-Za-z0-9_-]{43}$/.test(accessToken))
+                throw new Error('Enter the private endpoint’s access token to test it.');
+            const headers: Record<string, string> = accessToken
+                ? { 'X-Access-Token': accessToken }
                 : {};
             const path =
                 kind === 'mcp'
@@ -649,6 +654,25 @@ export function ResourceWorkbench({
                         disabled={busy || expired}
                         onChange={(mode) => void changeSharing(mode)}
                     />
+                    {kind !== 'file' &&
+                        !expired &&
+                        resource.visibility === 'private' &&
+                        !resource.accessToken &&
+                        !crudMode &&
+                        !echoMode && (
+                            <div className="resource-form-fields">
+                                <label>
+                                    Access token for endpoint check
+                                    <input
+                                        type="password"
+                                        autoComplete="off"
+                                        value={testAccessToken}
+                                        maxLength={43}
+                                        onChange={(event) => setTestAccessToken(event.target.value)}
+                                    />
+                                </label>
+                            </div>
+                        )}
                     {kind === 'mock' && !expired && route.scenario && (
                         <div className="resource-form-fields">
                             <label>
@@ -1212,9 +1236,9 @@ export function ResourceWorkbench({
                                         />
                                     </label>
                                     {route.graphql && (
-                                        <label>
+                                        <label className="utility-wide-field">
                                             Exact GraphQL variables (optional)
-                                            <textarea
+                                            <TextArea
                                                 rows={3}
                                                 maxLength={4096}
                                                 disabled={busy}
@@ -1449,19 +1473,23 @@ export function ResourceWorkbench({
                     <McpToolEditor value={mcpTools} onChange={setMcpTools} disabled={busy} />
                     <details className="resource-access">
                         <summary>Resources and prompts</summary>
-                        <div className="utility-fields">
-                            <label>
+                        <div className="resource-form-fields">
+                            <label className="utility-wide-field">
                                 Resources (JSON)
-                                <textarea
+                                <TextArea
+                                    rows={6}
+                                    spellCheck={false}
                                     disabled={busy}
                                     value={mcpResources}
                                     onChange={(event) => setMcpResources(event.target.value)}
                                 />
                                 <small>Set a URI, name and text for each resource.</small>
                             </label>
-                            <label>
+                            <label className="utility-wide-field">
                                 Prompts (JSON)
-                                <textarea
+                                <TextArea
+                                    rows={6}
+                                    spellCheck={false}
                                     disabled={busy}
                                     value={mcpPrompts}
                                     onChange={(event) => setMcpPrompts(event.target.value)}

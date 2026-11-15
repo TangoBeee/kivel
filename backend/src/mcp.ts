@@ -2508,8 +2508,6 @@ export function registerMcp({
         );
     }
     async function transport(request: FastifyRequest, reply: FastifyReply, customId?: string) {
-        if (request.headers.origin && request.headers.origin !== origin)
-            return reply.code(403).send({ error: 'Origin not allowed.' });
         if (request.method !== 'POST')
             return reply.header('Allow', 'POST').code(405).send({
                 error: 'Use Streamable HTTP POST. SSE streams and transport sessions are not provided.',
@@ -2903,8 +2901,24 @@ export function registerMcp({
         }
     }
     const originCheck = async (request: FastifyRequest, reply: FastifyReply) => {
-        if (request.headers.origin && request.headers.origin !== origin)
+        const browserPreview =
+            access.separateApp &&
+            request.routeOptions.url === '/mcp/mock/:id' &&
+            request.headers.origin === access.appOrigin;
+        if (request.headers.origin && request.headers.origin !== origin && !browserPreview)
             return reply.code(403).send({ error: 'Origin not allowed.' });
+        if (browserPreview) {
+            reply.header('Access-Control-Allow-Origin', access.appOrigin).header('Vary', 'Origin');
+            if (
+                request.method === 'OPTIONS' &&
+                request.headers['access-control-request-method'] === 'POST'
+            )
+                return reply
+                    .header('Access-Control-Allow-Methods', 'POST')
+                    .header('Access-Control-Allow-Headers', 'Accept, Content-Type, X-Access-Token')
+                    .code(204)
+                    .send();
+        }
         if (request.routeOptions.url === '/mcp' && request.method === 'POST') {
             if (uploads.size >= 4)
                 return reply

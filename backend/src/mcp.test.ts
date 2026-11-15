@@ -207,6 +207,44 @@ test('mock MCP servers validate arguments, return configured results, support up
     assert.equal((await call({ name: 'Ada' })).statusCode, 404);
 });
 
+test('only the configured dashboard origin can preview mock MCP servers cross origin', async (t) => {
+    const appOrigin = 'http://127.0.0.1:3002';
+    const app = buildApp({ publicBaseUrl: 'http://localhost:3000', appBaseUrl: appOrigin });
+    t.after(() => app.close());
+    const created = await app.inject({
+        method: 'POST',
+        url: '/api/mcp-servers',
+        headers: { host: 'localhost:3000' },
+        payload: config,
+    });
+    assert.equal(created.statusCode, 201, created.body);
+    const { id, accessToken } = created.json();
+    const url = `/mcp/mock/${id}`;
+    const preflight = await app.inject({
+        method: 'OPTIONS',
+        url,
+        headers: {
+            host: 'localhost:3000',
+            origin: appOrigin,
+            'access-control-request-method': 'POST',
+        },
+    });
+    assert.equal(preflight.statusCode, 204, preflight.body);
+    assert.equal(preflight.headers['access-control-allow-origin'], appOrigin);
+    assert.equal(preflight.headers['access-control-allow-credentials'], undefined);
+    const call = (origin: string, target = url, token = accessToken) =>
+        app.inject({
+            method: 'POST',
+            url: target,
+            headers: { ...headers, host: 'localhost:3000', origin, 'x-access-token': token },
+            payload: rpc('tools/list'),
+        });
+    assert.equal((await call(appOrigin, url, '')).statusCode, 404);
+    assert.equal((await call(appOrigin)).json().result.tools[0].name, 'greet');
+    assert.equal((await call('https://untrusted.example')).statusCode, 403);
+    assert.equal((await call(appOrigin, '/mcp')).statusCode, 403);
+});
+
 test('MCP creation shares HTTP creation quotas and configuration rejects executable or excessive schemas', async (t) => {
     const app = buildApp();
     t.after(() => app.close());

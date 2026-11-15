@@ -855,6 +855,15 @@ test('the app host uses its own export, CSP and browser sessions while public AP
         assert.equal(response.statusCode, 200);
         assert.equal(response.body, `<script>${script}</script>`);
         assert.ok(String(response.headers['content-security-policy']).includes(`'sha256-${hash}'`));
+        const connections = String(response.headers['content-security-policy'])
+            .split('; ')
+            .find((directive) => directive.startsWith('connect-src'));
+        assert.equal(
+            connections,
+            site === 'app'
+                ? "connect-src 'self' https://kivel.example/mock/ https://kivel.example/mcp/mock/ wss://kivel.example/ws/"
+                : "connect-src 'self'",
+        );
         const asset = await app.inject({ url: '/_next/static/site.js', headers });
         assert.equal(asset.body, script);
         assert.equal(asset.headers['cache-control'], 'public, max-age=31536000, immutable');

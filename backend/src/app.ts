@@ -417,7 +417,16 @@ export function buildApp({
             /^\/(api|hooks|mock|oauth|pay|checkout|ws|mcp|files|billing)(\/|$)/.test(path)
         )
             reply.header('X-Robots-Tag', 'noindex, nofollow, nosnippet');
-        reply.header('Content-Security-Policy', policies.get(path) ?? policy());
+        const csp = policies.get(path) ?? policy();
+        reply.header(
+            'Content-Security-Policy',
+            appHost && dashboardPolicies.has(path)
+                ? csp.replace(
+                      "connect-src 'self'",
+                      `connect-src 'self' ${baseUrl.origin}/mock/ ${baseUrl.origin}/mcp/mock/ ${baseUrl.origin.replace(/^http/, 'ws')}/ws/`,
+                  )
+                : csp,
+        );
         reply.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
         if (production && request.protocol === 'https')
             reply.header('Strict-Transport-Security', 'max-age=31536000');

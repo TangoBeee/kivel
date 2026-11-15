@@ -1,5 +1,16 @@
 # @kivel.io/cli
 
+## 0.11.0
+
+### Minor Changes
+
+- e137d14: Add email search filters, resumable wait cursors and checkpoints before triggering new mail. Add message inspection, triage and email forwarding history.
+
+### Patch Changes
+
+- Updated dependencies [e137d14]
+    - @kivel.io/sdk@0.11.0
+
 ## 0.10.1
 
 ### Patch Changes

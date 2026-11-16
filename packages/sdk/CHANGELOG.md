@@ -1,5 +1,11 @@
 # @kivel.io/sdk
 
+## 0.13.0
+
+### Minor Changes
+
+- ea2c8bb: Support retry-safe approval requests with proposed actions, cursor filters, audit timelines, and signed notification delivery status.
+
 ## 0.12.0
 
 ### Minor Changes

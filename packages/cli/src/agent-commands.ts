@@ -108,6 +108,10 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
     if (group === 'memory' && action === 'set') allowed.add('--ttl-seconds');
     if (group === 'memory' && action === 'list') allowed.add('--prefix');
     if (group === 'approval' && action === 'wait') allowed.add('--timeout-seconds');
+    if (group === 'approval' && action === 'ask') allowed.add('--idempotency-key');
+    if (group === 'approval' && (action === 'list' || action === 'pending'))
+        for (const flag of ['--status', '--agent', '--outcome', '--cursor', '--limit'])
+            allowed.add(flag);
     if (group === 'event' && action === 'wait') allowed.add('--timeout-seconds');
     const positional: string[] = [];
     const flags = new Map<string, string>();
@@ -160,7 +164,12 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
         limit: threadPage.limit,
     };
     const webhookUrl = take('--url');
-    const mockStatus = number('--status');
+    const mockStatus = group === 'approval' ? undefined : number('--status');
+    const approvalFilter = {
+        status: group === 'approval' ? take('--status') : undefined,
+        agent: take('--agent'),
+        outcome: take('--outcome'),
+    };
     const signature = {
         provider: take('--provider'),
         headerName: take('--header'),
@@ -424,11 +433,27 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
     if (group === 'approval') {
         if (action === 'ask') {
             exact(0);
-            return client.askHuman(json() as ApprovalInput);
+            const input = json() as ApprovalInput;
+            if (idempotencyKey) input.idempotencyKey = idempotencyKey;
+            return client.askHuman(input);
         }
         if (action === 'list' || action === 'pending') {
             exact(0);
-            return client.approvals(action === 'pending');
+            const status = action === 'pending' ? 'pending' : approvalFilter.status;
+            if (
+                status !== undefined &&
+                status !== 'pending' &&
+                status !== 'answered' &&
+                status !== 'expired'
+            )
+                throw new Error('Use pending, answered or expired for --status.');
+            return client.approvals({ ...threadPage, ...approvalFilter, status });
+        }
+        if (action === 'events') return client.approvalEvents(id());
+        if (action === 'deliveries') return client.approvalDeliveries(id());
+        if (action === 'policy') {
+            exact(0);
+            return client.approvalPolicy();
         }
         if (action === 'inspect') return client.approval(id());
         if (action === 'wait') return client.waitForApproval(id(), wait.timeoutSeconds);

@@ -14,6 +14,10 @@ import type {
     AgentTrial,
     Approval,
     ApprovalInput,
+    ApprovalListOptions,
+    ApprovalEvent,
+    ApprovalDelivery,
+    ApprovalNotificationPolicy,
     EmailInbox,
     EmailMessage,
     EmailSearchOptions,
@@ -950,11 +954,26 @@ export class Kivel {
     askHuman(input: ApprovalInput) {
         return this.request<Approval>('POST', '/api/approvals', input);
     }
-    approvals(pendingOnly = false) {
-        return this.request<{ approvals: Approval[] }>(
+    approvals(options: boolean | ApprovalListOptions = false) {
+        return this.request<{ approvals: Approval[]; nextCursor?: string }>(
             'GET',
-            `/api/approvals${pendingOnly ? '?status=pending' : ''}`,
+            `/api/approvals${query(typeof options === 'boolean' ? (options ? { status: 'pending' } : {}) : options)}`,
         );
+    }
+    approvalEvents(id: string) {
+        return this.request<{ events: ApprovalEvent[] }>(
+            'GET',
+            `/api/approvals/${encodeURIComponent(id)}/events`,
+        );
+    }
+    approvalDeliveries(id: string) {
+        return this.request<{ deliveries: ApprovalDelivery[] }>(
+            'GET',
+            `/api/approvals/${encodeURIComponent(id)}/deliveries`,
+        );
+    }
+    approvalPolicy() {
+        return this.request<ApprovalNotificationPolicy>('GET', '/api/approvals/policy');
     }
     approval(id: string) {
         return this.request<Approval>('GET', `/api/approvals/${encodeURIComponent(id)}`);

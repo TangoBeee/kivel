@@ -2089,3 +2089,79 @@ a brand dot pattern with its icon in a raised tile */
 .docs-intro .page-sky {
   margin-bottom: 16px;
 }
+
+.approval-workspace .agent-link {
+  min-height: 0;
+  padding: 0;
+  place-items: start;
+}
+.approval-workspace .agent-link-card {
+  width: min(100%, 720px);
+}
+.agent-link-card:has(.approval-history) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.approval-action {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 14px;
+  background: var(--subtle);
+  border-radius: var(--radius-row);
+}
+.approval-action > div {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr);
+  gap: 8px;
+}
+.approval-action dt {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+.approval-action dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.approval-history {
+  min-width: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.approval-history-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.approval-history h2,
+.approval-history h3 {
+  margin: 0;
+  font-size: 0.9375rem;
+}
+.approval-history h3 {
+  margin-top: 12px;
+}
+.approval-history :is(ol, ul) {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.approval-history li {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.875rem;
+}
+.approval-history li :is(time, small) {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+@media (max-width: 600px) {
+  .agent-link-card:has(.approval-history) {
+    padding: 20px;
+  }
+}

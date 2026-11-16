@@ -199,11 +199,19 @@ export interface Monitor extends MonitorInput {
     pingUrl?: string;
     events?: { at: string; status: string; message: string }[];
 }
+export interface ApprovalAction {
+    type: string;
+    target: string;
+    summary?: string;
+}
+
 export interface ApprovalInput {
     question: string;
     details?: string;
     options?: string[];
     timeoutMinutes?: number;
+    idempotencyKey?: string;
+    action?: ApprovalAction;
 }
 export interface Approval {
     id: string;
@@ -213,6 +221,9 @@ export interface Approval {
     options: string[];
     status: 'pending' | 'answered' | 'expired';
     answer?: string;
+    answeredBy?: string;
+    action?: ApprovalAction;
+    replayed?: boolean;
     note?: string;
     createdAt: string;
     expiresAt: string;
@@ -220,6 +231,36 @@ export interface Approval {
     answerUrl: string;
     emailed?: boolean;
     next?: string;
+}
+
+export interface ApprovalListOptions {
+    status?: Approval['status'];
+    agent?: string;
+    outcome?: string;
+    cursor?: string;
+    limit?: number;
+}
+export interface ApprovalEvent {
+    type: 'requested' | 'answered' | 'expired' | 'consumed';
+    at: string;
+    actor?: string;
+    actorId?: string;
+    outcome?: string;
+}
+export interface ApprovalDelivery {
+    id: string;
+    kind: 'requested' | 'reminder' | 'escalated' | 'answered' | 'expired';
+    state: 'queued' | 'delivered' | 'failed' | 'skipped';
+    attempts: number;
+    updatedAt: string;
+    httpStatus?: number | null;
+}
+export interface ApprovalNotificationPolicy {
+    enabled: boolean;
+    reminderMinutes?: number;
+    escalationMinutes?: number;
+    url?: string;
+    escalationUrl?: string;
 }
 
 export interface Authenticator {

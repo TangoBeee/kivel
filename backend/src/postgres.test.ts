@@ -591,7 +591,7 @@ test('upgrading an existing webhook-only database preserves captures and enables
     await pool.query(
         `DROP TRIGGER inbox_quota ON inboxes; DROP FUNCTION enforce_resource_quota() CASCADE;
          ALTER TABLE inboxes DROP COLUMN owner_id, DROP COLUMN quota_key, DROP COLUMN created_at, DROP COLUMN persistent, DROP COLUMN request_limit, DROP COLUMN byte_limit, DROP COLUMN visibility, DROP COLUMN access_token_hash, DROP COLUMN access_version, DROP COLUMN response, DROP COLUMN forward_url;
-         DROP FUNCTION record_live_event() CASCADE; DROP TABLE live_stream_leases, live_events, phone_messages, phone_numbers, scheduled_jobs, email_send_jobs, email_sender_suspensions, email_suppressions, email_addresses, mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors, cookie_coupons, approvals, agent_trials, agent_logins, agents, user_contact_emails, auth_mail_outbox, auth_challenges, user_recovery_emails, temporary_resources, resource_usage, account_members, auth_sessions, api_keys, account_invites, users, accounts, usage_plans, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events CASCADE; DELETE FROM schema_migrations WHERE version > 1`,
+         DROP FUNCTION record_live_event() CASCADE; DROP TABLE approval_notifications, approval_notification_policies, live_stream_leases, live_events, phone_messages, phone_numbers, scheduled_jobs, email_send_jobs, email_sender_suspensions, email_suppressions, email_addresses, mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors, cookie_coupons, approvals, agent_trials, agent_logins, agents, user_contact_emails, auth_mail_outbox, auth_challenges, user_recovery_emails, temporary_resources, resource_usage, account_members, auth_sessions, api_keys, account_invites, users, accounts, usage_plans, principal_usage, tool_usage_daily, resource_events, stripe_events, dodo_events CASCADE; DELETE FROM schema_migrations WHERE version > 1`,
     );
     await Promise.all([migrate(pool), migrate(pool)]);
     assert.equal(
@@ -1376,7 +1376,7 @@ test('Dodo migration preserves legacy Stripe data without adopting its customer 
         user.personalAccountId,
     ]);
     await pool.query(
-        'ALTER TABLE accounts DROP COLUMN phone_allowance, DROP COLUMN dodo_customer_id, DROP COLUMN dodo_subscription_id, DROP COLUMN dodo_event_created, DROP COLUMN dodo_checkout_id, DROP COLUMN dodo_checkout_url, DROP COLUMN dodo_checkout_plan; DROP TABLE dodo_events; ALTER TABLE inboxes DROP COLUMN response, DROP COLUMN forward_url; DROP FUNCTION record_live_event() CASCADE; DROP TABLE live_stream_leases, live_events, phone_messages, phone_numbers, scheduled_jobs, email_send_jobs, email_sender_suspensions, email_suppressions, email_addresses, mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors, cookie_coupons, approvals, agent_trials, agent_logins, agents; DELETE FROM schema_migrations WHERE version >= 8',
+        'ALTER TABLE accounts DROP COLUMN phone_allowance, DROP COLUMN dodo_customer_id, DROP COLUMN dodo_subscription_id, DROP COLUMN dodo_event_created, DROP COLUMN dodo_checkout_id, DROP COLUMN dodo_checkout_url, DROP COLUMN dodo_checkout_plan; DROP TABLE dodo_events; ALTER TABLE inboxes DROP COLUMN response, DROP COLUMN forward_url; DROP FUNCTION record_live_event() CASCADE; DROP TABLE approval_notifications, approval_notification_policies, live_stream_leases, live_events, phone_messages, phone_numbers, scheduled_jobs, email_send_jobs, email_sender_suspensions, email_suppressions, email_addresses, mock_calls, inbox_deliveries, email_messages, activity_log, kv_entries, monitor_events, monitors, cookie_coupons, approvals, agent_trials, agent_logins, agents; DELETE FROM schema_migrations WHERE version >= 8',
     );
     await Promise.all([migrate(pool), migrate(pool)]);
     const row = (
@@ -4257,4 +4257,110 @@ test('workspace overview counts retained events and only projects the owner’s 
     assert.equal(isolated.json().latestEmail, null);
     assert.equal(isolated.json().series.webhooks[6], 0);
     assert.equal((await app.inject('/api/account/overview')).statusCode, 401);
+});
+
+test('approval idempotency and signed notification jobs survive replicas and honor deadlines', async (t) => {
+    const { ApprovalNotifications } = await import('./approval-notifications.js');
+    const { createHmac } = await import('node:crypto');
+    const accounts = new PostgresIdentityRepository(pool);
+    const app = buildApp({
+        identityStore: accounts,
+        recoveryStore: new PostgresRecoveryRepository(pool),
+    });
+    t.after(() => app.close());
+    const origin = 'http://localhost:3000';
+    const signup = await app.inject({
+        method: 'POST',
+        url: '/api/auth/register',
+        headers: { origin },
+        payload: {
+            username: 'delivery-replica',
+            email: 'delivery-replica@example.test',
+            password: 'correct-horse-battery-staple',
+        },
+    });
+    const headers = { origin, cookie: String(signup.headers['set-cookie']).split(';')[0]! };
+    const accountId = (await app.inject({ url: '/api/account', headers })).json().account.id;
+    const a = new PostgresApprovals(pool),
+        b = new PostgresApprovals(pool);
+    const sent: { url: string; body: string; signature: string; id: string }[] = [];
+    const send = async (
+        url: string,
+        _signal: AbortSignal,
+        options: { requestBody?: string; headers: Record<string, string> },
+    ) => {
+        sent.push({
+            url,
+            body: options.requestBody!,
+            signature: options.headers['x-kivel-approval-signature']!,
+            id: options.headers['x-kivel-event-id']!,
+        });
+        return { status: 200 };
+    };
+    const first = new ApprovalNotifications(a, pool, send),
+        second = new ApprovalNotifications(b, pool, send);
+    const policy = await first.configure(accountId, {
+        url: 'https://example.com/normal',
+        reminderMinutes: 1,
+        escalationMinutes: 2,
+        escalationUrl: 'https://example.com/escalation',
+    });
+    assert.ok('signingSecret' in policy && policy.signingSecret);
+    const signingSecret = policy.signingSecret;
+    const now = Date.now();
+    const id = crypto.randomUUID();
+    const proposal = {
+        id,
+        accountId,
+        agentName: 'Agent',
+        question: 'Private input',
+        details: 'Untrusted secret',
+        options: ['Approve', 'Deny'],
+        status: 'pending' as const,
+        createdAt: new Date(now - 126000).toISOString(),
+        expiresAt: new Date(now + 60000).toISOString(),
+        idempotency: { key: 'shared-key', digest: 'same-content' },
+    };
+    const results = await Promise.all([
+        a.create(proposal, 'free'),
+        b.create({ ...proposal, id: crypto.randomUUID() }, 'free'),
+    ]);
+    assert.equal(results.filter((result) => result === true).length, 1);
+    const persisted = results.find((result) => typeof result === 'object');
+    assert.ok(persisted && typeof persisted === 'object');
+    await Promise.all([first.tick(), second.tick()]);
+    assert.deepEqual(sent.map((item) => JSON.parse(item.body).type).sort(), [
+        'approval.escalated',
+        'approval.reminder',
+        'approval.requested',
+    ]);
+    assert.equal(
+        sent.find((item) => JSON.parse(item.body).type === 'approval.escalated')?.url,
+        'https://example.com/escalation',
+    );
+    assert.equal(new Set(sent.map((item) => item.id)).size, 3);
+    for (const item of sent) {
+        const timestamp = item.signature.match(/^t=(\d+),/)![1]!;
+        assert.equal(
+            item.signature,
+            `t=${timestamp},v1=${createHmac('sha256', signingSecret).update(`${timestamp}.${item.body}`).digest('hex')}`,
+        );
+        assert.doesNotMatch(item.body, /Private input|Untrusted secret|shared-key/);
+    }
+    const decided = await Promise.all([
+        a.answer(accountId, persisted.id, { answer: 'Approve', answeredBy: 'owner' }),
+        b.answer(accountId, persisted.id, { answer: 'Deny', answeredBy: 'owner' }),
+    ]);
+    assert.equal(decided.filter(Boolean).length, 1);
+    await pool.query(
+        "UPDATE approval_notifications SET due_at=clock_timestamp() WHERE approval_id=$1 AND kind='expired'",
+        [persisted.id],
+    );
+    await Promise.all([first.tick(), second.tick()]);
+    assert.equal(sent.length, 4);
+    assert.ok(sent.some((item) => JSON.parse(item.body).type === 'approval.answered'));
+    assert.equal(
+        (await first.list(accountId, persisted.id)).find((job) => job.kind === 'expired')?.state,
+        'skipped',
+    );
 });

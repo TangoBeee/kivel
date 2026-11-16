@@ -50,6 +50,7 @@ import { RemoteFilePreview } from './file-preview';
 import { ResultPreview } from './result-preview';
 import { CopyButton } from './copy-button';
 import { ResourceList, resourceTool } from './dashboard-resources';
+import { ResourceManagement, type ResourceDetailTab } from './resource-management';
 import { timeLeft } from '../lib/activity-labels';
 import type { Resource } from './dashboard-resources';
 type Session = {
@@ -134,6 +135,7 @@ export function AccountDashboard({
         [workspaces, setWorkspaces] = useState<{ id: string; name: string }[]>([]),
         [members, setMembers] = useState<{ userId: string; username: string; role: string }[]>([]),
         [detail, setDetail] = useState('');
+    const [resourceTab, setResourceTab] = useState<ResourceDetailTab>('manage');
     const [resourceData, setResourceData] = useState('');
     const [resourceActivity, setResourceActivity] = useState<
         { at: string; tool: string; ok: boolean }[]
@@ -888,46 +890,37 @@ export function AccountDashboard({
                                 )
                             }
                             details={(resource) => (
-                                <section
-                                    className="dashboard-resource-management"
-                                    aria-label="Resource details"
+                                <ResourceManagement
+                                    name={resourceTool(resource).name}
+                                    expiresAt={resource.expiresAt}
+                                    persistent={resource.persistent}
+                                    busy={busy}
+                                    onRenew={
+                                        session.scopes.includes('resources:write') &&
+                                        !['email', 'job'].includes(resource.kind)
+                                            ? () => renew(resource)
+                                            : undefined
+                                    }
+                                    onTogglePersistent={
+                                        subscribed &&
+                                        session.scopes.includes('resources:write') &&
+                                        !['email', 'job'].includes(resource.kind)
+                                            ? () => renew(resource, !resource.persistent)
+                                            : undefined
+                                    }
+                                    onDetails={(tab) => {
+                                        setResourceTab(tab);
+                                        if (selectedResource?.id !== resource.id)
+                                            void inspect(resource);
+                                    }}
                                 >
-                                    <h2>Resource details</h2>
-                                    <p>
-                                        {resourceTool(resource).name} ·{' '}
-                                        {resource.persistent
-                                            ? 'Persistent'
-                                            : resource.expiresAt
-                                              ? `Expires ${new Date(resource.expiresAt).toLocaleString()}`
-                                              : 'Active'}
-                                    </p>
-                                    {session.scopes.includes('resources:write') &&
-                                        !['email', 'job'].includes(resource.kind) && (
-                                            <div className="button-row">
-                                                <Button
-                                                    variant="soft"
-                                                    disabled={busy}
-                                                    onClick={() => renew(resource)}
-                                                >
-                                                    Renew
-                                                </Button>
-                                                {subscribed && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        disabled={busy}
-                                                        onClick={() =>
-                                                            renew(resource, !resource.persistent)
-                                                        }
-                                                    >
-                                                        {resource.persistent
-                                                            ? 'Use expiry'
-                                                            : 'Keep active'}
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        )}
                                     {selectedResource?.id === resource.id ? (
-                                        <Tabs.Root defaultValue="manage">
+                                        <Tabs.Root
+                                            value={resourceTab}
+                                            onValueChange={(value) =>
+                                                setResourceTab(value as ResourceDetailTab)
+                                            }
+                                        >
                                             <Tabs.List>
                                                 <Tabs.Trigger value="manage">
                                                     Manage access
@@ -940,6 +933,15 @@ export function AccountDashboard({
                                                 </Tabs.Trigger>
                                             </Tabs.List>
                                             <Tabs.Content value="manage">
+                                                {(['email', 'job'].includes(
+                                                    selectedResource.kind,
+                                                ) ||
+                                                    selectedResource.toolId ===
+                                                        'mock-apis-mock-oauth-provider') && (
+                                                    <p className="muted">
+                                                        Access is managed by your workspace.
+                                                    </p>
+                                                )}
                                                 {!['email', 'job'].includes(
                                                     selectedResource.kind,
                                                 ) &&
@@ -1077,16 +1079,8 @@ export function AccountDashboard({
                                                 )}
                                             </Tabs.Content>
                                         </Tabs.Root>
-                                    ) : (
-                                        <Button
-                                            variant="soft"
-                                            disabled={busy}
-                                            onClick={() => void inspect(resource)}
-                                        >
-                                            Manage access and view data
-                                        </Button>
-                                    )}
-                                </section>
+                                    ) : null}
+                                </ResourceManagement>
                             )}
                         />
                     )}

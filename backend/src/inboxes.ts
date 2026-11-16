@@ -126,7 +126,10 @@ export interface CapturedRequest {
     bodySize: number;
     timestamp: string;
     responseStatus?: number;
+    responseTimeMs?: number;
+    waitingAgent?: string;
 }
+export type CaptureFact = ['responseTimeMs', number] | ['waitingAgent', string];
 
 interface Inbox extends Sharing {
     accessHash: Buffer | null;
@@ -169,6 +172,7 @@ export interface InboxInfo extends Sharing {
     id: string;
     expiresAt: string;
     requestCount: number;
+    requestFactsCount?: number;
     storedBytes: number;
     createdAt?: string;
     persistent?: boolean;
@@ -195,7 +199,12 @@ type MaybePromise<T> = T | Promise<T>;
 export interface InboxRepository {
     create(allocation?: AllocationContext): MaybePromise<InboxCredentials | null>;
     has(id: string, access?: PublicAccess): MaybePromise<boolean>;
-    info(id: string, token: string, ownerId?: string): MaybePromise<InboxInfo | undefined>;
+    info(
+        id: string,
+        token: string,
+        ownerId?: string,
+        includeFacts?: boolean,
+    ): MaybePromise<InboxInfo | undefined>;
     capture(
         id: string,
         input: Omit<CapturedRequest, 'id' | 'timestamp'>,
@@ -218,6 +227,7 @@ export interface InboxRepository {
         token: string,
         ownerId?: string,
     ): MaybePromise<CapturedRequest | undefined>;
+    recordRequestFact(id: string, requestIds: string[], fact: CaptureFact): MaybePromise<void>;
     reserveReplay(
         id: string,
         ownerId: string,
@@ -469,6 +479,17 @@ export class InboxStore implements InboxRepository {
         );
     }
 
+    recordRequestFact(id: string, requestIds: string[], fact: CaptureFact) {
+        const requests = this.find(id)?.requests;
+        if (!requests) return;
+        const ids = new Set(requestIds);
+        for (const request of requests) {
+            if (!ids.has(request.id)) continue;
+            if (fact[0] === 'responseTimeMs') request.responseTimeMs ??= fact[1];
+            else request.waitingAgent ??= fact[1];
+        }
+    }
+
     reserveReplay(
         id: string,
         ownerId: string,
@@ -486,7 +507,7 @@ export class InboxStore implements InboxRepository {
         return { replay, accepted: true };
     }
 
-    info(id: string, token: string, ownerId?: string): InboxInfo | undefined {
+    info(id: string, token: string, ownerId?: string, includeFacts = false): InboxInfo | undefined {
         const inbox = this.authorize(id, token, ownerId);
         if (!inbox) return undefined;
         return {
@@ -495,6 +516,17 @@ export class InboxStore implements InboxRepository {
             id: inbox.id,
             expiresAt: new Date(inbox.expiresAt).toISOString(),
             requestCount: inbox.requests.length,
+            ...(includeFacts
+                ? {
+                      requestFactsCount: inbox.requests.reduce(
+                          (count, row) =>
+                              count +
+                              Number(row.responseTimeMs !== undefined) +
+                              Number(row.waitingAgent !== undefined),
+                          0,
+                      ),
+                  }
+                : {}),
             storedBytes: inbox.storedBytes,
             ...(inbox.allocation
                 ? {

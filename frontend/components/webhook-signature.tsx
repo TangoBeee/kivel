@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { signatureProviders, verifyWebhookSignature } from '@kivel.io/sdk/webhook-signature';
 import type { SignatureProvider } from '@kivel.io/sdk/webhook-signature';
 import type { CapturedRequest } from '../lib/api';
@@ -7,7 +7,18 @@ import { siteOrigin } from '../lib/site';
 import { AppSelect, SelectOption } from './app-select';
 import { Button } from '@radix-ui/themes';
 
-export function WebhookSignature({ request }: { request: CapturedRequest }) {
+export interface WebhookVerification {
+    hasSecret: boolean;
+    result: { valid: boolean; reason: string } | null;
+}
+
+export function WebhookSignature({
+    request,
+    onVerification,
+}: {
+    request: CapturedRequest;
+    onVerification(state: WebhookVerification): void;
+}) {
     const [provider, setProvider] = useState<SignatureProvider>('github');
     const [secret, setSecret] = useState('');
     const [url, setUrl] = useState('');
@@ -18,31 +29,39 @@ export function WebhookSignature({ request }: { request: CapturedRequest }) {
     const [tolerance, setTolerance] = useState('');
     const [result, setResult] = useState<{ valid: boolean; reason: string } | null>(null);
     const [busy, setBusy] = useState(false);
+    const revision = useRef(0);
+    useEffect(() => {
+        onVerification({ hasSecret: Boolean(secret), result });
+    }, [secret, result, onVerification]);
     useEffect(() => {
         setUrl(`${siteOrigin}${request.path}${request.rawQuery ? `?${request.rawQuery}` : ''}`);
     }, [request.path, request.rawQuery]);
+    function clearResult() {
+        revision.current++;
+        setResult(null);
+    }
     async function verify() {
+        const settings = revision.current;
         setBusy(true);
         try {
             const body =
                 request.bodyEncoding === 'base64'
                     ? Uint8Array.from(atob(request.body), (value) => value.charCodeAt(0))
                     : new TextEncoder().encode(request.body);
-            setResult(
-                await verifyWebhookSignature({
-                    provider,
-                    secret,
-                    body,
-                    headers: request.headers,
-                    url,
-                    headerName,
-                    algorithm,
-                    encoding,
-                    ...(timestampHeader ? { timestampHeader } : {}),
-                    ...(tolerance.trim() ? { toleranceSeconds: Number(tolerance) } : {}),
-                    now: new Date(request.timestamp).getTime(),
-                }),
-            );
+            const verified = await verifyWebhookSignature({
+                provider,
+                secret,
+                body,
+                headers: request.headers,
+                url,
+                headerName,
+                algorithm,
+                encoding,
+                ...(timestampHeader ? { timestampHeader } : {}),
+                ...(tolerance.trim() ? { toleranceSeconds: Number(tolerance) } : {}),
+                now: new Date(request.timestamp).getTime(),
+            });
+            if (revision.current === settings) setResult(verified);
         } finally {
             setBusy(false);
         }
@@ -60,7 +79,7 @@ export function WebhookSignature({ request }: { request: CapturedRequest }) {
                     event.preventDefault();
                     void verify();
                 }}
-                onChange={() => setResult(null)}
+                onChange={clearResult}
             >
                 <label>
                     Provider preset
@@ -68,7 +87,7 @@ export function WebhookSignature({ request }: { request: CapturedRequest }) {
                         value={provider}
                         onChange={(event) => {
                             setProvider(event.target.value as SignatureProvider);
-                            setResult(null);
+                            clearResult();
                             setTolerance('');
                         }}
                     >
@@ -123,7 +142,7 @@ export function WebhookSignature({ request }: { request: CapturedRequest }) {
                                 value={algorithm}
                                 onChange={(event) => {
                                     setAlgorithm(event.target.value as typeof algorithm);
-                                    setResult(null);
+                                    clearResult();
                                 }}
                             >
                                 <SelectOption value="SHA-256">SHA-256</SelectOption>
@@ -136,7 +155,7 @@ export function WebhookSignature({ request }: { request: CapturedRequest }) {
                                 value={encoding}
                                 onChange={(event) => {
                                     setEncoding(event.target.value as typeof encoding);
-                                    setResult(null);
+                                    clearResult();
                                 }}
                             >
                                 <SelectOption value="hex">Hex</SelectOption>

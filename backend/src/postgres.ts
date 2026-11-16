@@ -10,6 +10,7 @@ import {
     resolveLimits,
 } from './inboxes.js';
 import type {
+    CaptureFact,
     CapturedRequest,
     CaptureResult,
     InboxRepository,
@@ -48,6 +49,15 @@ interface InboxRow {
     forward_url: string | null;
     conditional_forward: { url: string; filter: WebhookFilters } | null;
 }
+
+type CaptureRow = {
+    record: string;
+    facts: Pick<CapturedRequest, 'responseTimeMs' | 'waitingAgent'>;
+};
+const readCapture = ({ record, facts }: CaptureRow): CapturedRequest => ({
+    ...(JSON.parse(record) as CapturedRequest),
+    ...facts,
+});
 
 export class PostgresInboxStore implements InboxRepository {
     private readonly limits: Required<StoreLimits>;
@@ -228,16 +238,24 @@ export class PostgresInboxStore implements InboxRepository {
         });
     }
 
-    async info(id: string, token: string, ownerId?: string) {
+    async info(id: string, token: string, ownerId?: string, includeFacts = false) {
         const inbox = await this.authorized(id, token, this.pool, ownerId);
         if (!inbox) return undefined;
         const forwardUrl = inbox.conditional_forward?.url ?? inbox.forward_url;
+        const facts = includeFacts
+            ? await this.pool.query<{ count: number }>(
+                  `SELECT (count(facts->'responseTimeMs') + count(facts->'waitingAgent'))::int AS count
+             FROM captured_requests WHERE inbox_id = $1`,
+                  [id],
+              )
+            : undefined;
         return {
             visibility: inbox.visibility,
             accessVersion: inbox.access_version,
             id: inbox.id,
             expiresAt: inbox.expires_at.toISOString(),
             requestCount: inbox.request_count,
+            ...(facts ? { requestFactsCount: facts.rows[0]!.count } : {}),
             storedBytes: Number(inbox.stored_bytes),
             ...(inbox.quota_key
                 ? {
@@ -334,11 +352,11 @@ export class PostgresInboxStore implements InboxRepository {
     ): Promise<CapturedRequest[] | undefined> {
         const inbox = await this.authorized(id, token, this.pool, ownerId);
         if (!inbox) return undefined;
-        const result = await this.pool.query<{ record: string }>(
-            'SELECT record FROM captured_requests WHERE inbox_id = $1 ORDER BY sequence',
+        const result = await this.pool.query<CaptureRow>(
+            'SELECT record, facts FROM captured_requests WHERE inbox_id = $1 ORDER BY sequence',
             [id],
         );
-        return result.rows.map((row) => JSON.parse(row.record) as CapturedRequest);
+        return result.rows.map(readCapture);
     }
 
     async pageRequests(
@@ -363,14 +381,14 @@ export class PostgresInboxStore implements InboxRepository {
         let scannedThrough: string | undefined;
         const batch = page.method || page.path ? 64 : page.limit + 1;
         while (matches.length <= page.limit) {
-            const result = await this.pool.query<{ sequence: string; record: string }>(
-                `SELECT sequence, record FROM captured_requests WHERE inbox_id = $1
+            const result = await this.pool.query<CaptureRow & { sequence: string }>(
+                `SELECT sequence, record, facts FROM captured_requests WHERE inbox_id = $1
                  AND ($2::bigint IS NULL OR sequence ${older ? '<' : '>'} $2)
                  ORDER BY sequence ${older ? 'DESC' : 'ASC'} LIMIT $3`,
                 [id, sequence, batch],
             );
             for (const row of result.rows) {
-                const request = JSON.parse(row.record) as CapturedRequest;
+                const request = readCapture(row);
                 scannedThrough = request.id;
                 if (matchesWebhook(request, inbox.id, page)) matches.push(request);
                 if (matches.length > page.limit) break;
@@ -384,11 +402,19 @@ export class PostgresInboxStore implements InboxRepository {
     async getRequest(id: string, requestId: string, token: string, ownerId?: string) {
         const inbox = await this.authorized(id, token, this.pool, ownerId);
         if (!inbox || !UUID.test(requestId)) return undefined;
-        const { rows } = await this.pool.query<{ record: string }>(
-            'SELECT record FROM captured_requests WHERE inbox_id = $1 AND id = $2',
+        const { rows } = await this.pool.query<CaptureRow>(
+            'SELECT record, facts FROM captured_requests WHERE inbox_id = $1 AND id = $2',
             [id, requestId],
         );
-        return rows[0] ? (JSON.parse(rows[0].record) as CapturedRequest) : undefined;
+        return rows[0] ? readCapture(rows[0]) : undefined;
+    }
+
+    async recordRequestFact(id: string, requestIds: string[], [key, value]: CaptureFact) {
+        await this.pool.query(
+            `UPDATE captured_requests SET facts = facts || $4::jsonb
+             WHERE inbox_id = $1 AND id = ANY($2::uuid[]) AND NOT (facts ? $3)`,
+            [id, requestIds, key, JSON.stringify({ [key]: value })],
+        );
     }
 
     async reserveReplay(

@@ -1,25 +1,5 @@
-export const liveEventSchema = `
-    CREATE TABLE live_events (
-        id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-        topic text NOT NULL,
-        scope_id uuid NOT NULL,
-        workspace_id uuid REFERENCES accounts(id) ON DELETE CASCADE,
-        event text NOT NULL,
-        created_at timestamptz NOT NULL DEFAULT clock_timestamp()
-    );
-    CREATE INDEX live_events_scope ON live_events (topic, scope_id, id);
-    CREATE INDEX live_events_age ON live_events (created_at);
-
-    CREATE TABLE live_stream_leases (
-        id uuid PRIMARY KEY,
-        caller text NOT NULL,
-        workspace_id uuid,
-        expires_at timestamptz NOT NULL
-    );
-    CREATE INDEX live_stream_leases_caller ON live_stream_leases (caller, expires_at);
-    CREATE INDEX live_stream_leases_workspace ON live_stream_leases (workspace_id, expires_at);
-
-    CREATE FUNCTION record_live_event() RETURNS trigger LANGUAGE plpgsql AS $$
+export const liveEventFunction = `
+    CREATE OR REPLACE FUNCTION record_live_event() RETURNS trigger LANGUAGE plpgsql AS $$
     DECLARE
         event_topic text;
         event_scope uuid;
@@ -33,7 +13,7 @@ export const liveEventSchema = `
                 event_topic := 'webhook';
                 event_scope := NEW.inbox_id;
                 SELECT owner_id INTO workspace FROM inboxes WHERE id = event_scope;
-                event_name := 'webhook.request.created';
+                event_name := CASE WHEN TG_OP = 'UPDATE' THEN 'webhook.request.updated' ELSE 'webhook.request.created' END;
             WHEN 'email_messages' THEN
                 event_topic := 'email';
                 event_scope := NEW.resource_id;
@@ -91,6 +71,31 @@ export const liveEventSchema = `
         END IF;
         RETURN NEW;
     END $$;
+
+`;
+
+export const liveEventSchema = `
+    CREATE TABLE live_events (
+        id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        topic text NOT NULL,
+        scope_id uuid NOT NULL,
+        workspace_id uuid REFERENCES accounts(id) ON DELETE CASCADE,
+        event text NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT clock_timestamp()
+    );
+    CREATE INDEX live_events_scope ON live_events (topic, scope_id, id);
+    CREATE INDEX live_events_age ON live_events (created_at);
+
+    CREATE TABLE live_stream_leases (
+        id uuid PRIMARY KEY,
+        caller text NOT NULL,
+        workspace_id uuid,
+        expires_at timestamptz NOT NULL
+    );
+    CREATE INDEX live_stream_leases_caller ON live_stream_leases (caller, expires_at);
+    CREATE INDEX live_stream_leases_workspace ON live_stream_leases (workspace_id, expires_at);
+
+    ${liveEventFunction}
 
     CREATE TRIGGER live_webhook AFTER INSERT ON captured_requests FOR EACH ROW EXECUTE FUNCTION record_live_event();
     CREATE TRIGGER live_email AFTER INSERT OR UPDATE OF message ON email_messages FOR EACH ROW EXECUTE FUNCTION record_live_event();

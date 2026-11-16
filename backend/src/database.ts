@@ -1,4 +1,4 @@
-import { liveEventSchema } from './live-event-schema.js';
+import { liveEventFunction, liveEventSchema } from './live-event-schema.js';
 import { Pool } from 'pg';
 import { recoverySchema, contactEmailSchema } from './recovery-store.js';
 import { identitySchema, quotaFunction } from './identity-schema.js';
@@ -346,6 +346,12 @@ export async function migrate(pool: Pool): Promise<void> {
                 delivery jsonb NOT NULL,
                 UNIQUE (inbox_id, key_hash)
             );
+        `);
+        if (version >= 20) await client.query(liveEventFunction);
+        await client.query(`
+            ALTER TABLE captured_requests ADD COLUMN IF NOT EXISTS facts jsonb NOT NULL DEFAULT '{}';
+            CREATE OR REPLACE TRIGGER live_webhook_facts AFTER UPDATE OF facts ON captured_requests
+                FOR EACH ROW EXECUTE FUNCTION record_live_event();
         `);
         // The function adds error details without changing the schema used by older releases.
         if (version >= 5) await client.query(quotaFunction);

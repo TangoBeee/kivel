@@ -63,6 +63,8 @@ export interface CapturedRequest {
     bodySize: number;
     timestamp: string;
     responseStatus?: number;
+    responseTimeMs?: number;
+    waitingAgent?: string;
 }
 export interface WebhookRequestFilters {
     method?: string;

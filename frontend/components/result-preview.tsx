@@ -106,7 +106,7 @@ export function ResultPreview({
 export function highlightJson(text: string): ReactNode[] {
     const output: ReactNode[] = [];
     const pattern =
-        /("(?:\\.|[^"\\])*")(\s*:)?|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|\b(true|false|null)\b/g;
+        /("(?:\\.|[^"\\])*")(?=\s*:)|("(?:\\.|[^"\\])*")|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|\b(true|false|null)\b|[{}\[\],:]/g;
     let offset = 0,
         index = 0;
     for (const match of text.matchAll(pattern)) {
@@ -115,7 +115,15 @@ export function highlightJson(text: string): ReactNode[] {
             return output;
         }
         output.push(text.slice(offset, match.index));
-        const kind = match[2] ? 'key' : match[1] ? 'string' : match[3] ? 'number' : 'literal';
+        const kind = match[1]
+            ? 'key'
+            : match[2]
+              ? 'string'
+              : match[3]
+                ? 'number'
+                : match[4]
+                  ? 'literal'
+                  : 'punctuation';
         output.push(
             <span className={`json-token-${kind}`} key={index++}>
                 {match[0]}

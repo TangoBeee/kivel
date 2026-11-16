@@ -28,6 +28,11 @@
   --danger-bg: #fff2ef;
   --warning: #9a5a0c;
   --warning-bg: #fff7e8;
+  --code-key: #94b4ff;
+  --code-string: #81dea9;
+  --code-number: #ffc47f;
+  --code-literal: #d5aaff;
+  --code-punctuation: #a0aec7;
   /* Shape: 8 small parts, 10 controls, 12 rows, 16 cards, 24 panels, full for pills */
   --radius-sm: 8px;
   --radius-control: 10px;

@@ -63,7 +63,14 @@ export type WaitResult =
  */
 export async function waitForRequests(
     inboxes: InboxRepository,
-    input: { id: string; token: string; ownerId?: string; after?: string; page?: WebhookHistory },
+    input: {
+        id: string;
+        token: string;
+        ownerId?: string;
+        after?: string;
+        page?: WebhookHistory;
+        agent?: string;
+    },
     timeoutMs: number,
     signal?: AbortSignal,
     intervalMs = 500,
@@ -71,6 +78,26 @@ export async function waitForRequests(
     const deadline = Date.now() + timeoutMs;
     let seen = -1;
     let page = input.page;
+    let waited = false;
+    async function ready(
+        requests: CapturedRequest[],
+        ownerId?: string,
+        nextCursor?: string,
+    ): Promise<WaitResult> {
+        if (waited && !signal?.aborted && input.agent && ownerId && ownerId === input.ownerId) {
+            const unmatched = requests.filter((request) => !request.waitingAgent);
+            if (unmatched.length) {
+                try {
+                    await inboxes.recordRequestFact(
+                        input.id,
+                        unmatched.map(({ id }) => id),
+                        ['waitingAgent', input.agent],
+                    );
+                } catch {}
+            }
+        }
+        return { status: 'ready', requests, ...(nextCursor ? { nextCursor } : {}) };
+    }
     for (;;) {
         const info = await inboxes.info(input.id, input.token, input.ownerId);
         if (!info) return { status: 'gone' };
@@ -85,18 +112,18 @@ export async function waitForRequests(
                 );
                 if (!result) return { status: 'gone' };
                 const { requests, nextCursor, scannedThrough } = result;
-                if (requests.length)
-                    return { status: 'ready', requests, ...(nextCursor ? { nextCursor } : {}) };
+                if (requests.length) return ready(requests, info.ownerId, nextCursor);
                 if (scannedThrough) page = { ...page, cursor: scannedThrough };
             } else {
                 const requests =
                     (await inboxes.listRequests(input.id, input.token, input.ownerId)) ?? [];
                 const index = input.after ? requests.findIndex(({ id }) => id === input.after) : -1;
                 const fresh = requests.slice(index + 1);
-                if (fresh.length) return { status: 'ready', requests: fresh };
+                if (fresh.length) return ready(fresh, info.ownerId);
             }
         }
         if (signal?.aborted || Date.now() + intervalMs > deadline) return { status: 'timeout' };
         await pause(intervalMs, signal);
+        waited = true;
     }
 }

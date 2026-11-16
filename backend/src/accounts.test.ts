@@ -803,6 +803,75 @@ test('replays retained binary bytes once per key and verifies signatures without
     );
 });
 
+test('capture details show the response time and name of an active waiting agent', async (t) => {
+    const app = buildApp();
+    t.after(() => app.close());
+    const owner = await signup(app, 'webhook-facts');
+    const credential = await key(app, owner.cookie);
+    const auth = { authorization: `Bearer ${credential.key}` };
+    const inbox = (
+        await app.inject({ method: 'POST', url: '/api/inboxes?visibility=public', headers: auth })
+    ).json();
+    const inboxPath = `/api/inboxes/${inbox.id}`;
+    assert.equal(
+        (
+            await app.inject({
+                method: 'PUT',
+                url: inboxPath + '/response',
+                headers: auth,
+                payload: { delayMs: 40 },
+            })
+        ).statusCode,
+        200,
+    );
+    const wait = (after?: string) =>
+        app.inject({
+            method: 'POST',
+            url: '/mcp',
+            headers: { ...auth, accept: 'application/json, text/event-stream' },
+            payload: {
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'tools/call',
+                params: {
+                    name: 'wait_for_webhook',
+                    arguments: {
+                        id: inbox.id,
+                        path: '/billing',
+                        timeoutSeconds: 2,
+                        ...(after ? { after } : {}),
+                    },
+                },
+            },
+        });
+    const capture = (path: string) =>
+        app.inject({
+            method: 'POST',
+            url: `/hooks/${inbox.id}/${path}`,
+            payload: { type: 'invoice.paid' },
+        });
+    const old = await capture('billing');
+    await wait();
+    const inspect = (id: string) =>
+        app.inject({ url: `${inboxPath}/requests/${id}`, headers: auth });
+    const oldId = String(old.headers['x-webhook-request-id']);
+    assert.equal((await inspect(oldId)).json().request.waitingAgent, undefined);
+    const waiting = wait(oldId);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const unrelated = await capture('orders');
+    const incoming = await capture('billing');
+    assert.equal(incoming.statusCode, 200);
+    assert.equal((await waiting).statusCode, 200);
+    const { request } = (await inspect(String(incoming.headers['x-webhook-request-id']))).json();
+    assert.equal(request.waitingAgent, 'Integration test');
+    assert.ok(request.responseTimeMs >= 35);
+    assert.equal(
+        (await inspect(String(unrelated.headers['x-webhook-request-id']))).json().request
+            .waitingAgent,
+        undefined,
+    );
+});
+
 test('Pro proxy mocks pass unmatched calls through, never serve HTML, and record answers as routes', async (t) => {
     const identities = new MemoryIdentityRepository();
     const calls: string[] = [];

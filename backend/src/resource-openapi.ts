@@ -279,6 +279,11 @@ export function resourceOpenApi(origin: string) {
                                     required: ['count'],
                                     properties: {
                                         count: { type: 'integer', minimum: 0, maximum: 100 },
+                                        includeCalls: {
+                                            type: 'boolean',
+                                            description:
+                                                'Return matching call summaries in newest-first order.',
+                                        },
                                         run: { type: 'string', maxLength: 64 },
                                         after: { type: 'string' },
                                         method: { type: 'string' },
@@ -291,7 +296,8 @@ export function resourceOpenApi(origin: string) {
                     },
                     responses: {
                         '200': {
-                            description: 'Pass or fail, count and IDs of matching retained calls',
+                            description:
+                                'Pass or fail, count and IDs of matching retained calls, and optional call summaries.',
                         },
                         '409': { description: 'Call ID unavailable for this mock' },
                         ...errors,

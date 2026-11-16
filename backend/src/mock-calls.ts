@@ -110,6 +110,20 @@ export function assertMockCalls(rows: MockCall[], value: Record<string, unknown>
         expected: count,
         matched: hits.length,
         callIds: hits.map((call) => call.id),
+        ...(value.includeCalls === true
+            ? {
+                  calls: hits
+                      .map(({ id, at, method, path, status, durationMs }) => ({
+                          id,
+                          at,
+                          method,
+                          path,
+                          status,
+                          durationMs,
+                      }))
+                      .reverse(),
+              }
+            : {}),
         retained: window.length,
         retentionLimit: MOCK_CALL_LIMIT,
         ...(rows.length === MOCK_CALL_LIMIT && after === undefined

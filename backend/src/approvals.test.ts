@@ -168,3 +168,107 @@ test('approval requests validate input and expire', async (t) => {
         409,
     );
 });
+
+test('approval retries preserve the action and audit history without spending another request', async (t) => {
+    const mail: MailMessage[] = [];
+    const { app, session, agent } = await connected(mail);
+    t.after(() => app.close());
+    const ask = (target: string, key = 'release-v4') =>
+        app.inject({
+            method: 'POST',
+            url: '/api/approvals',
+            headers: { ...agent, 'idempotency-key': key },
+            payload: {
+                question: 'Deploy the release?',
+                action: { type: 'deploy.release', target, summary: 'Three files changed' },
+            },
+        });
+    const [first, retry] = await Promise.all([ask('production'), ask('production')]);
+    assert.deepEqual([first.statusCode, retry.statusCode].sort(), [200, 201]);
+    assert.equal(first.json().id, retry.json().id);
+    const id = first.json().id;
+    assert.equal((await ask('staging')).statusCode, 409);
+    assert.equal(mail.filter((item) => item.text.includes(id)).length, 1);
+    assert.equal((await ask('staging', 'next')).statusCode, 201);
+    const firstPage = (await app.inject({ url: '/api/approvals?limit=1', headers: agent })).json();
+    assert.ok(firstPage.nextCursor);
+    const secondPage = (
+        await app.inject({
+            url: '/api/approvals?limit=1&cursor=' + firstPage.nextCursor,
+            headers: agent,
+        })
+    ).json();
+    assert.notEqual(firstPage.approvals[0].id, secondPage.approvals[0].id);
+    const answer = () =>
+        app.inject({
+            method: 'POST',
+            url: `/api/approvals/${id}/answer`,
+            headers: session,
+            payload: { answer: 'Approve', note: 'Proceed' },
+        });
+    const responses = await Promise.all([answer(), answer()]);
+    assert.deepEqual(responses.map((item) => item.statusCode).sort(), [200, 409]);
+    const after = await ask('production');
+    assert.equal(after.json().status, 'answered');
+    assert.deepEqual(after.json().action, {
+        type: 'deploy.release',
+        target: 'production',
+        summary: 'Three files changed',
+    });
+    assert.equal(after.json().idempotency, undefined);
+    const audited = (
+        await app.inject({ url: `/api/approvals/${id}/events`, headers: agent })
+    ).json().events;
+    assert.deepEqual(
+        audited.map((event: { type: string }) => event.type),
+        ['requested', 'answered'],
+    );
+    assert.equal(audited[1].actor, 'owner');
+    assert.match(audited[1].actorId, /^[a-f0-9-]{36}$/);
+    const filtered = (
+        await app.inject({ url: '/api/approvals?status=answered&outcome=Approve', headers: agent })
+    ).json();
+    assert.deepEqual(
+        filtered.approvals.map((item: { id: string }) => item.id),
+        [id],
+    );
+    const rpc = await app.inject({
+        method: 'POST',
+        url: '/mcp',
+        headers: { ...agent, accept: 'application/json, text/event-stream' },
+        payload: {
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'tools/call',
+            params: {
+                name: 'resource_request',
+                arguments: { kind: 'approvals', action: 'events', id },
+            },
+        },
+    });
+    assert.deepEqual(JSON.parse(rpc.json().result.content[0].text).events, audited);
+});
+
+test('only a signed-in owner or admin can change policy and signing secrets are returned once', async (t) => {
+    const { app, session, agent } = await connected([]);
+    t.after(() => app.close());
+    const update = (payload: object, headers = session) =>
+        app.inject({ method: 'PUT', url: '/api/approvals/policy', headers, payload });
+    const draft = {
+        url: 'https://example.com/notifications',
+        reminderMinutes: 3,
+        escalationMinutes: 5,
+    };
+    assert.equal((await update(draft, { ...session, ...agent })).statusCode, 403);
+    assert.equal((await update({ ...draft, url: 'https://127.0.0.1/' })).statusCode, 400);
+    assert.equal((await update({ ...draft, escalationMinutes: 2 })).statusCode, 400);
+    const first = await update(draft);
+    assert.equal(first.statusCode, 200, first.body);
+    assert.match(first.json().signingSecret, /^kvas_/);
+    assert.equal((await update(draft)).json().signingSecret, undefined);
+    const readable = (await app.inject({ url: '/api/approvals/policy', headers: agent })).json();
+    assert.deepEqual(readable, { enabled: true, reminderMinutes: 3, escalationMinutes: 5 });
+    const rotated = (await update({ ...draft, rotateSecret: true })).json();
+    assert.notEqual(rotated.signingSecret, first.json().signingSecret);
+    assert.deepEqual((await update({ url: null })).json(), { enabled: false });
+});

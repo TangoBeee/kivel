@@ -58,8 +58,11 @@ kivel smtp rotate <id>
 kivel phone available [US-area-code]
 kivel phone create <E.164-number> --idempotency-key <unique-key>
 kivel phone list|release|messages|wait [id] [--after <id>] [--timeout-seconds <n>]
-kivel approval ask < question.json
-kivel approval list|pending|inspect|wait [id] [--timeout-seconds <n>]
+kivel approval ask [--idempotency-key <key>] < question.json
+kivel approval list [--status <pending|answered|expired>] [--agent <name>] [--outcome <answer>] [--cursor <id>] [--limit <n>]
+kivel approval pending
+kivel approval inspect|events|deliveries|wait <id> [--timeout-seconds <n>]
+kivel approval policy
 kivel inbox requests <id> [--token <token>] [--method POST] [--path /events] [--limit 20] [--cursor <request-id>]
 kivel inbox wait <id> [--token <token>] [--method POST] [--path /events] [--limit 20] [--after <request-id>]
 kivel inbox deliveries <id> [--token <token>]

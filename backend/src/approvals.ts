@@ -4,7 +4,7 @@ import { transaction } from './database.js';
 import { validateEmailContent } from './email-sending.js';
 import type { EmailContent } from './email-sending.js';
 import { requireWorkspace } from './access.js';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { Pool, PoolClient } from 'pg';
 import { HttpError } from './access.js';
@@ -16,6 +16,8 @@ import type { MailSender } from './mail.js';
 import type { RecoveryRepository } from './recovery-store.js';
 import type { ResourceRepository } from './resources.js';
 import { isUuid } from './security.js';
+import { ApprovalNotifications } from './approval-notifications.js';
+import type { ForwardSend } from './forwarding.js';
 import type { Waiters } from './waiting.js';
 import { waitSeconds } from './waiting.js';
 
@@ -23,6 +25,9 @@ export interface Approval {
     id: string;
     accountId: string;
     keyId?: string;
+    requesterId?: string;
+    idempotency?: { key: string; digest: string };
+    action?: { type: string; target: string; summary?: string };
     agentName: string;
     question: string;
     details?: string;
@@ -41,29 +46,48 @@ export interface Approval {
     answer?: string;
     note?: string;
     answeredBy?: string;
+    answeredById?: string;
     createdAt: string;
     expiresAt: string;
     answeredAt?: string;
 }
 
 type MaybePromise<T> = T | Promise<T>;
+type ApprovalFilter = {
+    status?: Approval['status'];
+    agent?: string;
+    outcome?: string;
+    before?: Pick<Approval, 'id' | 'createdAt'>;
+    limit?: number;
+};
+type Answer = {
+    answer: string;
+    note?: string;
+    answeredBy: string;
+    answeredById?: string;
+    editedEmail?: EmailContent;
+};
 type QueueDraft = (client?: PoolClient) => Promise<boolean>;
 const alreadySubmitted = () =>
     new HttpError(409, 'This draft was already submitted. Check its status.');
 export interface ApprovalRepository {
-    create(approval: Approval, plan: PlanId, queueDraft?: QueueDraft): MaybePromise<boolean>;
+    create(
+        approval: Approval,
+        plan: PlanId,
+        queueDraft?: QueueDraft,
+    ): MaybePromise<boolean | Approval>;
     get(accountId: string, id: string): MaybePromise<Approval | undefined>;
-    list(accountId: string, pendingOnly: boolean): MaybePromise<Approval[]>;
+    list(
+        accountId: string,
+        pendingOnly: boolean,
+        filter?: ApprovalFilter,
+    ): MaybePromise<Approval[]>;
     countSince(accountId: string, since: string): MaybePromise<number>;
     quotaRetryAfter(accountId: string, maximum: number): MaybePromise<number>;
     pruneDraftEdits(resources: ResourceRepository): MaybePromise<void>;
     consume(accountId: string, id: string): MaybePromise<boolean>;
     /** Records an answer only while the request is still pending and unexpired. */
-    answer(
-        accountId: string,
-        id: string,
-        answer: { answer: string; note?: string; answeredBy: string; editedEmail?: EmailContent },
-    ): MaybePromise<boolean>;
+    answer(accountId: string, id: string, answer: Answer): MaybePromise<boolean>;
 }
 
 // Expiry is computed on read so a request is never answered after its deadline.
@@ -72,9 +96,26 @@ const current = (approval: Approval): Approval =>
         ? { ...approval, status: 'expired' }
         : approval;
 
+function replay(approval: Approval, prior: Approval) {
+    if (approval.idempotency?.digest !== prior.idempotency?.digest)
+        throw new HttpError(
+            409,
+            'This idempotency key already identifies a different approval request.',
+        );
+    return current(prior);
+}
+
 export class MemoryApprovals implements ApprovalRepository {
     private readonly items = new Map<string, Approval>();
     create(approval: Approval, plan: PlanId, queueDraft?: QueueDraft) {
+        if (approval.idempotency) {
+            const prior = [...this.items.values()].find(
+                (item) =>
+                    item.accountId === approval.accountId &&
+                    item.idempotency?.key === approval.idempotency?.key,
+            );
+            if (prior) return replay(approval, prior);
+        }
         if (this.items.has(approval.id)) return false;
         const since = new Date(Date.now() - 86400000).toISOString();
         const used = this.countSince(approval.accountId, since);
@@ -105,13 +146,23 @@ export class MemoryApprovals implements ApprovalRepository {
         const item = this.items.get(id);
         return item?.accountId === accountId ? current({ ...item }) : undefined;
     }
-    list(accountId: string, pendingOnly: boolean) {
+    list(accountId: string, pendingOnly: boolean, filter: ApprovalFilter = {}) {
+        const status = pendingOnly ? 'pending' : filter.status;
+        const { before } = filter;
         return [...this.items.values()]
             .filter((item) => item.accountId === accountId)
             .map((item) => current({ ...item }))
-            .filter((item) => !pendingOnly || item.status === 'pending')
-            .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
-            .slice(0, 50);
+            .filter(
+                (item) =>
+                    (!status || item.status === status) &&
+                    (!filter.agent || item.agentName === filter.agent) &&
+                    (!filter.outcome || item.answer === filter.outcome) &&
+                    (!before ||
+                        item.createdAt < before.createdAt ||
+                        (item.createdAt === before.createdAt && item.id < before.id)),
+            )
+            .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id))
+            .slice(0, filter.limit ?? 50);
     }
     countSince(accountId: string, since: string) {
         return [...this.items.values()].filter(
@@ -154,11 +205,7 @@ export class MemoryApprovals implements ApprovalRepository {
                 delete approval.editedEmail;
         }
     }
-    answer(
-        accountId: string,
-        id: string,
-        value: { answer: string; note?: string; answeredBy: string; editedEmail?: EmailContent },
-    ) {
+    answer(accountId: string, id: string, value: Answer) {
         const item = this.items.get(id);
         if (!item || item.accountId !== accountId || current(item).status !== 'pending')
             return false;
@@ -183,6 +230,13 @@ export class PostgresApprovals implements ApprovalRepository {
             await client.query('SELECT id FROM accounts WHERE id = $1 FOR NO KEY UPDATE', [
                 approval.accountId,
             ]);
+            if (approval.idempotency) {
+                const { rows } = await client.query<Row>(
+                    "SELECT * FROM approvals WHERE account_id = $1 AND approval ? 'idempotency' AND approval->'idempotency'->>'key' = $2",
+                    [approval.accountId, approval.idempotency.key],
+                );
+                if (rows[0]) return replay(approval, fromRow(rows[0]));
+            }
             if (
                 (await client.query('SELECT 1 FROM approvals WHERE id = $1', [approval.id]))
                     .rowCount
@@ -226,12 +280,27 @@ export class PostgresApprovals implements ApprovalRepository {
         );
         return result.rows[0] ? fromRow(result.rows[0]) : undefined;
     }
-    async list(accountId: string, pendingOnly: boolean) {
-        const result = await this.pool.query<Row>(
-            `SELECT * FROM approvals WHERE account_id = $1 ${pendingOnly ? "AND status = 'pending' AND expires_at > clock_timestamp()" : ''} ORDER BY created_at DESC LIMIT 50`,
-            [accountId],
+    async list(accountId: string, pendingOnly: boolean, filter: ApprovalFilter = {}) {
+        const status = pendingOnly ? 'pending' : filter.status;
+        const { rows } = await this.pool.query<Row>(
+            `SELECT * FROM approvals WHERE account_id = $1
+             AND ($2::text IS NULL OR
+                 CASE WHEN status = 'pending' AND expires_at <= clock_timestamp() THEN 'expired' ELSE status END = $2)
+             AND ($3::text IS NULL OR approval->>'agentName' = $3)
+             AND ($4::text IS NULL OR approval->>'answer' = $4)
+             AND ($5::timestamptz IS NULL OR (created_at, id) < ($5::timestamptz, $6::uuid))
+             ORDER BY created_at DESC, id DESC LIMIT $7`,
+            [
+                accountId,
+                status ?? null,
+                filter.agent ?? null,
+                filter.outcome ?? null,
+                filter.before?.createdAt ?? null,
+                filter.before?.id ?? null,
+                filter.limit ?? 50,
+            ],
         );
-        return result.rows.map(fromRow);
+        return rows.map(fromRow);
     }
     async countSince(accountId: string, since: string) {
         const result = await this.pool.query<{ count: string }>(
@@ -274,11 +343,7 @@ export class PostgresApprovals implements ApprovalRepository {
              )`,
         );
     }
-    async answer(
-        accountId: string,
-        id: string,
-        value: { answer: string; note?: string; answeredBy: string; editedEmail?: EmailContent },
-    ) {
+    async answer(accountId: string, id: string, value: Answer) {
         if (!isUuid(id)) return false;
         const result = await this.pool.query(
             `UPDATE approvals SET status = 'answered',
@@ -286,6 +351,7 @@ export class PostgresApprovals implements ApprovalRepository {
                     'answeredAt', to_char(clock_timestamp() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'))
                     || CASE WHEN $5::text IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('note', $5::text) END
                     || CASE WHEN $6::jsonb IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('editedEmail', $6::jsonb) END
+                    || CASE WHEN $7::text IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('answeredById', $7::text) END
              WHERE account_id = $1 AND id = $2 AND status = 'pending' AND expires_at > clock_timestamp()`,
             [
                 accountId,
@@ -294,6 +360,7 @@ export class PostgresApprovals implements ApprovalRepository {
                 value.answeredBy,
                 value.note ?? null,
                 value.editedEmail ? JSON.stringify(value.editedEmail) : null,
+                value.answeredById ?? null,
             ],
         );
         return result.rowCount === 1;
@@ -325,6 +392,8 @@ interface ApprovalContext {
     recovery: RecoveryRepository;
     waiters: Waiters;
     mail?: MailSender;
+    database?: Pool;
+    forwardSend?: ForwardSend;
 }
 
 /** Agents ask their human before risky steps; only a signed-in owner or admin can answer. */
@@ -337,16 +406,62 @@ export function registerApprovals({
     recovery,
     waiters,
     mail,
+    database,
+    forwardSend,
 }: ApprovalContext) {
+    const notifications = new ApprovalNotifications(approvals, database, forwardSend, (id) =>
+        access.appUrl(`/approve/?id=${id}`),
+    );
+    let sending: Promise<void> | undefined;
+    const poll = () =>
+        (sending ??= notifications
+            .tick()
+            .catch((error) => {
+                app.log.warn({ err: error }, 'Approval notification queue failed.');
+            })
+            .finally(() => {
+                sending = undefined;
+            }));
+    const timer = setInterval(() => void poll(), 5_000);
+    timer.unref();
+    app.addHook('onClose', async () => {
+        clearInterval(timer);
+        await sending;
+    });
     const answerUrl = (id: string) => access.appUrl(`/approve/?id=${id}`);
     const view = (approval: Approval) => {
-        const { accountId: _account, keyId: _key, editedEmail: _edit, ...rest } = approval;
+        const {
+            accountId: _account,
+            keyId: _key,
+            requesterId: _requester,
+            answeredById: _actor,
+            idempotency: _idempotency,
+            editedEmail: _edit,
+            ...rest
+        } = approval;
         return { ...rest, answerUrl: answerUrl(approval.id) };
     };
     async function account(request: FastifyRequest, write = true) {
         const actor = await access.scope(request, write ? 'resources:write' : 'resources:read');
         requireWorkspace(actor);
         return actor;
+    }
+
+    async function human(request: FastifyRequest) {
+        const identity = await access.require(request, 'account:read', true);
+        if (identity.role !== 'owner' && identity.role !== 'admin')
+            throw new HttpError(403, 'This action requires a workspace owner or admin.');
+        return identity;
+    }
+    async function inspect(request: FastifyRequest, id: string) {
+        const { identity } = await account(request, false);
+        const approval = await approvals.get(identity!.account.id, id);
+        if (
+            !approval ||
+            (identity!.emailInboxId && (!approval.emailDraft || approval.keyId !== identity!.keyId))
+        )
+            throw new HttpError(404, 'Approval request not found.');
+        return approval;
     }
 
     async function notify(approval: Approval) {
@@ -359,7 +474,7 @@ export function registerApprovals({
             await mail.send({
                 to: contact.email,
                 subject: `${approval.agentName} is asking: ${approval.question.slice(0, 80)}`,
-                text: `${approval.agentName} needs your answer.\n\n${approval.question}\n${approval.details ? `\n${approval.details}\n` : ''}\nOptions: ${approval.options.join(' / ')}\n\nAnswer here (you will be asked to sign in): ${answerUrl(approval.id)}\n\nThe request expires ${new Date(approval.expiresAt).toUTCString()}.\n`,
+                text: `${approval.agentName} needs your answer.\n\n${approval.question}\n\nOptions: ${approval.options.join(' / ')}\n\nAnswer here (you will be asked to sign in): ${answerUrl(approval.id)}\n\nThe request expires ${new Date(approval.expiresAt).toUTCString()}.\n`,
             });
             return true;
         } catch {
@@ -385,10 +500,68 @@ export function registerApprovals({
         const minutes = body.timeoutMinutes === undefined ? 60 : Number(body.timeoutMinutes);
         if (!Number.isInteger(minutes) || minutes < 1 || minutes > 1440)
             throw new HttpError(400, 'timeoutMinutes must be between 1 and 1440.');
-        const retryAfter = await approvals.quotaRetryAfter(
-            identity.account.id,
-            plans[actor.plan].approvalQuestionsPerDay,
-        );
+        const standalone = request.routeOptions.url === '/api/approvals';
+        const header = standalone ? request.headers['idempotency-key'] : undefined;
+        const idempotencyKey = standalone ? (body.idempotencyKey ?? header) : undefined;
+        if (
+            header !== undefined &&
+            body.idempotencyKey !== undefined &&
+            header !== body.idempotencyKey
+        )
+            throw new HttpError(400, 'Use the same idempotency key in the header and request.');
+        if (
+            idempotencyKey !== undefined &&
+            (typeof idempotencyKey !== 'string' || !/^[a-zA-Z0-9._:-]{1,128}$/.test(idempotencyKey))
+        )
+            throw new HttpError(
+                400,
+                'Use an idempotency key of 1 to 128 letters, digits, dots, underscores, colons or hyphens.',
+            );
+        let action: Approval['action'];
+        if (body.action !== undefined) {
+            const input = body.action as Record<string, unknown> | null;
+            if (
+                !input ||
+                typeof input !== 'object' ||
+                Array.isArray(input) ||
+                Object.keys(input).some((key) => !['type', 'target', 'summary'].includes(key)) ||
+                typeof input.type !== 'string' ||
+                !/^[a-zA-Z][a-zA-Z0-9._:-]{0,63}$/.test(input.type) ||
+                typeof input.target !== 'string' ||
+                !text(input.target, 256) ||
+                input.target.length > 256 ||
+                (input.summary !== undefined &&
+                    (typeof input.summary !== 'string' || input.summary.length > 1000))
+            )
+                throw new HttpError(
+                    400,
+                    'Provide an action type, a target up to 256 characters and an optional summary up to 1000 characters.',
+                );
+            action = {
+                type: input.type,
+                target: text(input.target, 256),
+                ...(input.summary ? { summary: text(input.summary, 1000) } : {}),
+            };
+        }
+        const details = text(body.details, 4000);
+        const requesterId = identity.keyId ?? identity.userId;
+        const idempotency =
+            idempotencyKey === undefined
+                ? undefined
+                : {
+                      key: createHash('sha256')
+                          .update(JSON.stringify([requesterId, idempotencyKey]))
+                          .digest('hex'),
+                      digest: createHash('sha256')
+                          .update(JSON.stringify([question, details, options, minutes, action]))
+                          .digest('hex'),
+                  };
+        const retryAfter = idempotency
+            ? 0
+            : await approvals.quotaRetryAfter(
+                  identity.account.id,
+                  plans[actor.plan].approvalQuestionsPerDay,
+              );
         if (retryAfter) {
             const since = new Date(Date.now() - 86400000).toISOString();
             checkLimit(
@@ -405,11 +578,13 @@ export function registerApprovals({
               )
             : undefined;
         const now = Date.now();
-        const details = text(body.details, 4000);
         return {
             id: emailDraft?.approvalId ?? emailDraft?.id ?? randomUUID(),
             ...(emailDraft ? { emailDraft: { id: emailDraft.id } } : {}),
             accountId: identity.account.id,
+            requesterId,
+            ...(idempotency ? { idempotency } : {}),
+            ...(action ? { action } : {}),
             ...(identity.keyId ? { keyId: identity.keyId } : {}),
             agentName: agent?.name ?? identity.keyName ?? identity.username,
             question,
@@ -428,6 +603,17 @@ export function registerApprovals({
     async function submit(approval: Approval, plan: PlanId, queueDraft?: QueueDraft) {
         const created = await approvals.create(approval, plan, queueDraft);
         if (queueDraft && !created) throw alreadySubmitted();
+        if (typeof created === 'object')
+            return {
+                ...view(created),
+                replayed: true,
+                emailed: false,
+                next: 'This request already exists. Check its current status or continue waiting.',
+            };
+        if (created) {
+            notifications.schedule(approval);
+            void poll();
+        }
         const emailed = created && (await notify(approval));
         return {
             ...view(approval),
@@ -439,27 +625,83 @@ export function registerApprovals({
     }
     app.post('/api/approvals', async (request, reply) => {
         const approval = await prepare(request, (request.body ?? {}) as Record<string, unknown>);
-        return reply.code(201).send(await submit(approval, (await access.actor(request)).plan));
+        const result = await submit(approval, (await access.actor(request)).plan);
+        return reply.code('replayed' in result ? 200 : 201).send(result);
     });
 
     app.get('/api/approvals', async (request) => {
         const identity = (await account(request, false)).identity!;
-        const query = (request.query ?? {}) as { status?: string };
+        const query = request.query as Record<string, string | undefined>;
+        const status = query.status;
+        const limit = query.limit === undefined ? 50 : Number(query.limit);
+        if (status && !['pending', 'answered', 'expired'].includes(status))
+            throw new HttpError(400, 'Choose pending, answered or expired.');
+        if (!Number.isInteger(limit) || limit < 1 || limit > 50)
+            throw new HttpError(400, 'Use a limit between 1 and 50.');
+        const before = query.cursor
+            ? await approvals.get(identity.account.id, query.cursor)
+            : undefined;
+        if (query.cursor && !before) throw new HttpError(400, 'Use a cursor from this workspace.');
+        const items = await approvals.list(identity.account.id, false, {
+            ...(status ? { status: status as Approval['status'] } : {}),
+            limit: limit + 1,
+            ...(before ? { before } : {}),
+            agent: text(query.agent, 120),
+            outcome: text(query.outcome, 60),
+        });
         return {
-            approvals: (await approvals.list(identity.account.id, query.status === 'pending')).map(
-                view,
-            ),
+            approvals: items.slice(0, limit).map(view),
+            ...(items.length > limit ? { nextCursor: items[limit - 1]!.id } : {}),
         };
     });
-    app.get<{ Params: { id: string } }>('/api/approvals/:id', async (request) => {
-        const identity = (await account(request, false)).identity!;
-        const approval = await approvals.get(identity.account.id, request.params.id);
-        if (
-            !approval ||
-            (identity.emailInboxId && (!approval.emailDraft || approval.keyId !== identity.keyId))
-        )
-            throw new HttpError(404, 'Approval request not found.');
-        return view(approval);
+    app.get<{ Params: { id: string } }>('/api/approvals/:id', async (request) =>
+        view(await inspect(request, request.params.id)),
+    );
+    app.get<{ Params: { id: string } }>('/api/approvals/:id/events', async (request) => {
+        const approval = await inspect(request, request.params.id);
+        return {
+            events: [
+                {
+                    type: 'requested',
+                    at: approval.createdAt,
+                    actor: approval.agentName,
+                    actorId: approval.requesterId ?? approval.keyId,
+                },
+                ...(approval.answeredAt
+                    ? [
+                          {
+                              type: 'answered',
+                              at: approval.answeredAt,
+                              actor: approval.answeredBy,
+                              actorId: approval.answeredById,
+                              outcome: approval.answer,
+                          },
+                      ]
+                    : approval.status === 'expired'
+                      ? [{ type: 'expired', at: approval.expiresAt }]
+                      : []),
+                ...(approval.consumedAt ? [{ type: 'consumed', at: approval.consumedAt }] : []),
+            ],
+        };
+    });
+    app.get('/api/approvals/policy', async (request) => {
+        const actor = await account(request, false);
+        const identity = actor.identity!;
+        return notifications.settings(
+            identity.account.id,
+            !!actor.sessionToken && (identity.role === 'owner' || identity.role === 'admin'),
+        );
+    });
+    app.put('/api/approvals/policy', async (request) => {
+        const identity = await human(request);
+        return notifications.configure(
+            identity.account.id,
+            (request.body ?? {}) as Record<string, unknown>,
+        );
+    });
+    app.get<{ Params: { id: string } }>('/api/approvals/:id/deliveries', async (request) => {
+        const approval = await inspect(request, request.params.id);
+        return { deliveries: await notifications.list(approval.accountId, approval.id) };
     });
     app.get<{ Params: { id: string }; Querystring: { timeoutSeconds?: string } }>(
         '/api/approvals/:id/wait',
@@ -491,9 +733,7 @@ export function registerApprovals({
     // Answers come only from a signed-in owner or admin, never from an API key, so an agent
     // cannot approve its own request.
     app.post<{ Params: { id: string } }>('/api/approvals/:id/answer', async (request) => {
-        const identity = await access.require(request, 'account:read', true);
-        if (identity.role !== 'owner' && identity.role !== 'admin')
-            throw new HttpError(403, 'Only workspace owners and admins can answer agents.');
+        const identity = await human(request);
         const approval = await approvals.get(identity.account.id, request.params.id);
         if (!approval) throw new HttpError(404, 'Approval request not found.');
         const body = (request.body ?? {}) as {
@@ -521,11 +761,15 @@ export function registerApprovals({
                 answer,
                 ...(note ? { note } : {}),
                 answeredBy: identity.username,
+                answeredById: identity.userId,
                 ...(editedEmail ? { editedEmail } : {}),
             }))
         )
             throw new HttpError(409, 'This request was already answered or has expired.');
-        return view((await approvals.get(identity.account.id, approval.id))!);
+        const updated = (await approvals.get(identity.account.id, approval.id))!;
+        notifications.schedule(updated, true);
+        void poll();
+        return view(updated);
     });
     return { prepare, submit };
 }

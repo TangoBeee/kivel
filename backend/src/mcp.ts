@@ -668,7 +668,7 @@ export const platformTools = [
     {
         name: 'ask_human',
         description:
-            'Ask your human before a risky or irreversible step (deploying, paying, deleting, emailing real people). Emails the workspace owner a link; only they can answer, signed in. Returns an id and answerUrl (show it in chat too), then call wait_for_approval. Needs an approved workspace key.',
+            'Ask your human before a risky or irreversible step (deploying, paying, deleting, emailing real people). Emails the workspace owner a link; only a signed-in workspace owner or admin can answer. Returns an id and answerUrl (show it in chat too), then call wait_for_approval. Needs an approved workspace key.',
         inputSchema: schema(
             {
                 question: stringProperty('One clear question, up to 500 characters.'),
@@ -681,6 +681,23 @@ export const platformTools = [
                     description: 'Answer choices; defaults to ["Approve", "Deny"].',
                 },
                 timeoutMinutes: { type: 'number' },
+                idempotencyKey: stringProperty(
+                    'Reuse this key when retrying the same proposed action.',
+                ),
+                action: {
+                    type: 'object',
+                    required: ['type', 'target'],
+                    additionalProperties: false,
+                    properties: {
+                        type: stringProperty('Operation identifier, for example deploy.release.'),
+                        target: stringProperty(
+                            'Human-readable target such as production or release 1.2.',
+                        ),
+                        summary: stringProperty(
+                            'Optional review context. Omit secrets and raw arguments.',
+                        ),
+                    },
+                },
             },
             ['question'],
         ),
@@ -1019,13 +1036,14 @@ export const platformTools = [
     {
         name: 'resource_request',
         description:
-            'Manage webhook, email, mock API, file, authenticator, vault, test payment and mock MCP resources through HTTP lifecycle routes. Authenticators support create, inspect, list, update (name) and delete only; use them only for accounts your human asked you to create or operate. Use calls for mock history. Forward accepts config.url with optional method and path. Replay accepts config.requestId, config.url and config.idempotencyKey. Deliveries reads the resulting attempts. Email supports create, inspect, delete and renew; mail reading stays private.',
+            'Manage webhook, email, mock API, file, authenticator, vault, test payment and mock MCP resources through HTTP lifecycle routes. Authenticators support create, inspect, list, update (name) and delete only; use them only for accounts your human asked you to create or operate. Use calls for mock history. Forward accepts config.url with optional method and path. Replay accepts config.requestId, config.url and config.idempotencyKey. Deliveries reads the resulting attempts. Email supports create, inspect, delete and renew; mail reading stays private. For approvals, use list with config.status, agent, outcome, cursor and limit, or use inspect, events, deliveries and policy.',
         inputSchema: schema(
             {
                 kind: {
                     type: 'string',
                     enum: [
                         'inboxes',
+                        'approvals',
                         'mocks',
                         'oauth-providers',
                         'files',
@@ -1063,6 +1081,8 @@ export const platformTools = [
                         'response',
                         'forward',
                         'deliveries',
+                        'events',
+                        'policy',
                         'replay',
                         'clear',
                         'top-up',
@@ -2268,6 +2288,39 @@ export function registerMcp({
     async function resourceRequest(value: Record<string, unknown>, request: FastifyRequest) {
         const kind = String(value.kind ?? ''),
             action = String(value.action ?? '');
+        if (kind === 'approvals') {
+            if (!['list', 'inspect', 'events', 'deliveries', 'policy'].includes(action))
+                throw new RpcError(
+                    -32602,
+                    'Use ask_human to request approval. Only humans can answer.',
+                );
+            if (!['list', 'policy'].includes(action) && !isUuid(String(value.id)))
+                throw new RpcError(-32602, 'Provide an approval UUID.');
+            const headers: Record<string, string> = {};
+            for (const key of ['authorization', 'cookie', 'origin'])
+                if (typeof request.headers[key] === 'string') headers[key] = request.headers[key];
+            const query = new URLSearchParams();
+            const config = object(value.config) ? value.config : {};
+            if (action === 'list')
+                for (const field of ['status', 'agent', 'outcome', 'cursor', 'limit'])
+                    if (config[field] !== undefined) query.set(field, String(config[field]));
+            const path =
+                action === 'list'
+                    ? query.size
+                        ? `?${query}`
+                        : ''
+                    : action === 'policy'
+                      ? '/policy'
+                      : `/${value.id}${action === 'inspect' ? '' : '/' + action}`;
+            return httpResult(
+                await injectPublic({
+                    method: 'GET',
+                    headers,
+                    remoteAddress: request.ip,
+                    url: '/api/approvals' + path,
+                }),
+            );
+        }
         if (
             kind === 'mocks' &&
             [

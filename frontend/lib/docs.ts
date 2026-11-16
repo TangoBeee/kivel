@@ -3,6 +3,7 @@ import { catalog, categories } from './catalog';
 import { websocketDoc } from './websocket-content';
 import { oauthDoc } from './oauth-content';
 import { agentDoc } from './agent-doc';
+import { approvalDoc } from './approval-content';
 import { echoDoc } from './echo-content';
 import { crudDoc } from './crud-content';
 import { scenarioDoc } from './scenario-content';
@@ -41,6 +42,7 @@ export const docPages: DocPage[] = [
     oauthDoc,
     websocketDoc,
     agentDoc,
+    approvalDoc,
     echoDoc,
     crudDoc,
     scenarioDoc,
@@ -1810,12 +1812,16 @@ console.log(result.output, result.usage.used);`,
                             'Pause, resume or remove a monitor',
                         ],
                         [
-                            'askHuman({question, options?, details?, timeoutMinutes?})',
+                            'askHuman({question, action?, idempotencyKey?, options?, details?, timeoutMinutes?})',
                             'Ask the human; answerUrl is safe to show them',
                         ],
                         [
-                            'approvals(pendingOnly?) / approval(id) / waitForApproval(id, timeoutSeconds?)',
+                            'approvals(filters?) / approval(id) / waitForApproval(id, timeoutSeconds?)',
                             'Read questions and wait; a timeout never means approval',
+                        ],
+                        [
+                            'approvalEvents(id) / approvalDeliveries(id) / approvalPolicy()',
+                            'Read the audit, delivery state and active notification settings',
                         ],
                         [
                             'stream(topics, {token?, lastEventId?, signal?})',

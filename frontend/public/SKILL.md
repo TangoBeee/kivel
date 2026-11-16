@@ -63,7 +63,10 @@ agentMayRead without asking for an entry. Keep passwords out of logs and message
 ## Ask the human
 
 Before deploying, paying, deleting important data or emailing real people, call
-`ask_human` with clear choices. Show `answerUrl`, especially if email was not sent.
+`ask_human` with clear choices and a proposed `action`. Reuse the same
+`idempotencyKey` when retrying the same action. Show `answerUrl`, especially if
+email was not sent. Read the audit or delivery state with `resource_request`
+using kind `approvals` and action `events` or `deliveries`.
 Wait using `wait_for_approval` or `wait_for_event`. Only an explicit affirmative
 answer to that action is approval. Pending, expired, timed-out or negative answers
 are not permission. API keys cannot answer their own questions.

@@ -497,6 +497,8 @@ export function buildApp({
                         '/api/email-threads',
                         '/api/approvals/:id',
                         '/api/approvals/:id/wait',
+                        '/api/approvals/:id/events',
+                        '/api/approvals/:id/deliveries',
                     ].includes(route)
                 )
                     throw new HttpError(403, 'This key can only access its assigned email inbox.');
@@ -1036,6 +1038,8 @@ export function buildApp({
         recovery: recovery.store,
         waiters,
         ...(mailSender ? { mail: mailSender } : {}),
+        ...(databasePool ? { database: databasePool } : {}),
+        ...(forwardSend ? { forwardSend } : {}),
     });
     registerKv(app, access, memory);
     const email = registerEmail({

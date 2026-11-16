@@ -230,6 +230,13 @@ export function agentInterfaceOpenApi() {
             post: operation('askHuman', 'Human approvals', 'Ask the workspace owner a question', {
                 description:
                     'Returns answerUrl and emailed. If email delivery is unavailable, show the link to the human. A pending or timed-out request is never approval.',
+                parameters: [
+                    {
+                        name: 'Idempotency-Key',
+                        in: 'header',
+                        schema: { type: 'string', maxLength: 128 },
+                    },
+                ],
                 requestBody: body(
                     {
                         question: { type: 'string', maxLength: 500 },
@@ -240,15 +247,43 @@ export function agentInterfaceOpenApi() {
                             maxItems: 5,
                             items: { type: 'string', maxLength: 60 },
                         },
+                        idempotencyKey: { type: 'string', maxLength: 128 },
+                        action: {
+                            type: 'object',
+                            required: ['type', 'target'],
+                            additionalProperties: false,
+                            properties: {
+                                type: { type: 'string', maxLength: 64 },
+                                target: { type: 'string', maxLength: 256 },
+                                summary: { type: 'string', maxLength: 1000 },
+                            },
+                        },
                         timeoutMinutes: { type: 'integer', minimum: 1, maximum: 1440, default: 60 },
                     },
                     ['question'],
                 ),
-                responses: { '201': json(), ...errors },
+                responses: {
+                    '201': json(),
+                    '200': json(),
+                    '409': { description: 'Idempotency key already identifies different input' },
+                    ...errors,
+                },
             }),
             get: operation('listApprovals', 'Human approvals', 'List recent questions', {
                 parameters: [
-                    { name: 'status', in: 'query', schema: { type: 'string', enum: ['pending'] } },
+                    {
+                        name: 'status',
+                        in: 'query',
+                        schema: { type: 'string', enum: ['pending', 'answered', 'expired'] },
+                    },
+                    { name: 'agent', in: 'query', schema: { type: 'string' } },
+                    { name: 'outcome', in: 'query', schema: { type: 'string' } },
+                    { name: 'cursor', in: 'query', schema: { type: 'string', format: 'uuid' } },
+                    {
+                        name: 'limit',
+                        in: 'query',
+                        schema: { type: 'integer', minimum: 1, maximum: 50 },
+                    },
                 ],
             }),
         },
@@ -258,6 +293,53 @@ export function agentInterfaceOpenApi() {
                 'inspectApproval',
                 'Human approvals',
                 'Read a question and its answer or expiry',
+            ),
+        },
+        '/api/approvals/{id}/events': {
+            parameters: id,
+            get: operation('approvalEvents', 'Human approvals', 'Read the approval audit timeline'),
+        },
+        '/api/approvals/{id}/deliveries': {
+            parameters: id,
+            get: operation(
+                'approvalDeliveries',
+                'Human approvals',
+                'Read signed notification status and delivery attempts',
+            ),
+        },
+        '/api/approvals/policy': {
+            get: operation(
+                'approvalPolicy',
+                'Human approvals',
+                'Read notification policy metadata',
+            ),
+            put: operation(
+                'updateApprovalPolicy',
+                'Human approvals',
+                'Set notification policy as a signed-in owner or admin',
+                {
+                    security: session,
+                    description:
+                        'Use url: null to disable. Signing secret is returned once on creation or rotation. Reminders and escalations run only before the deadline.',
+                    requestBody: body(
+                        {
+                            url: { type: ['string', 'null'], maxLength: 2000 },
+                            escalationUrl: { type: ['string', 'null'], maxLength: 2000 },
+                            reminderMinutes: {
+                                type: ['integer', 'null'],
+                                minimum: 1,
+                                maximum: 1439,
+                            },
+                            escalationMinutes: {
+                                type: ['integer', 'null'],
+                                minimum: 1,
+                                maximum: 1439,
+                            },
+                            rotateSecret: { type: 'boolean' },
+                        },
+                        ['url'],
+                    ),
+                },
             ),
         },
         '/api/approvals/{id}/wait': {

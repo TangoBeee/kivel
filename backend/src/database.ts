@@ -1,3 +1,4 @@
+import { approvalNotificationSchema } from './approval-notifications.js';
 import { liveEventFunction, liveEventSchema } from './live-event-schema.js';
 import { Pool } from 'pg';
 import { recoverySchema, contactEmailSchema } from './recovery-store.js';
@@ -353,6 +354,7 @@ export async function migrate(pool: Pool): Promise<void> {
             CREATE OR REPLACE TRIGGER live_webhook_facts AFTER UPDATE OF facts ON captured_requests
                 FOR EACH ROW EXECUTE FUNCTION record_live_event();
         `);
+        await client.query(approvalNotificationSchema);
         // The function adds error details without changing the schema used by older releases.
         if (version >= 5) await client.query(quotaFunction);
     });

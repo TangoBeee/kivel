@@ -1,9 +1,11 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { SiteFonts } from '../../frontend/components/site-fonts';
 import { ToolboxProvider } from '../../frontend/components/toolbox-provider';
 import { appOrigin } from '../../frontend/lib/site';
 import '../../frontend/app/globals.css';
 import './app.css';
+
+export const viewport: Viewport = { viewportFit: 'cover' };
 
 export const metadata: Metadata = {
     metadataBase: new URL(appOrigin),

@@ -277,6 +277,11 @@ export function agentInterfaceOpenApi() {
                         schema: { type: 'string', enum: ['pending', 'answered', 'expired'] },
                     },
                     { name: 'agent', in: 'query', schema: { type: 'string' } },
+                    {
+                        name: 'decision',
+                        in: 'query',
+                        schema: { type: 'string', enum: ['approved', 'denied', 'expired'] },
+                    },
                     { name: 'outcome', in: 'query', schema: { type: 'string' } },
                     { name: 'cursor', in: 'query', schema: { type: 'string', format: 'uuid' } },
                     {
@@ -286,6 +291,13 @@ export function agentInterfaceOpenApi() {
                     },
                 ],
             }),
+        },
+        '/api/approvals/agents': {
+            get: operation(
+                'approvalAgents',
+                'Human approvals',
+                'List known approval requester names',
+            ),
         },
         '/api/approvals/{id}': {
             parameters: id,

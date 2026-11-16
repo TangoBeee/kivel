@@ -3,16 +3,18 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { AlertDialog, Button } from '@radix-ui/themes';
-import { ChatCircleDots } from '@phosphor-icons/react';
+import { ChatCircleDots, Check, Clock, TerminalWindow, UserCircle } from '@phosphor-icons/react';
 import type { ApprovalDelivery, ApprovalEvent, ApprovalAction } from '@kivel.io/sdk';
 import { api, ApiError } from '../lib/api';
 import { EmailDraftFields, EmailDraftContent } from './email-drafts';
 import type { DraftContent } from './email-drafts';
 import { useViewer } from '../lib/viewer';
+import { approvalRequester, approvalStatus } from '../lib/approval-presentation';
 
 interface Approval {
     id: string;
     agentName: string;
+    requesterKind?: 'agent' | 'human';
     question: string;
     details?: string;
     action?: ApprovalAction;
@@ -146,9 +148,14 @@ export function AgentQuestion({ approvalId }: { approvalId?: string } = {}) {
     return (
         <div className="page-width agent-link">
             <div className="agent-link-card">
-                <span className="agent-link-icon">
-                    <ChatCircleDots size={28} />
-                </span>
+                {!approval && (
+                    <span className="agent-link-icon">
+                        <ChatCircleDots size={28} aria-hidden />
+                    </span>
+                )}
+                {approval && viewer.status === 'user' && (
+                    <ApprovalReviewHeader approval={approval} workspace={viewer.workspace} />
+                )}
                 {!id ? (
                     <>
                         <h1>No question here</h1>
@@ -185,13 +192,13 @@ export function AgentQuestion({ approvalId }: { approvalId?: string } = {}) {
                     <p className="agent-link-muted">Loading…</p>
                 ) : approval.status === 'answered' ? (
                     <>
-                        <h1>Answered: {approval.answer}</h1>
                         {proposedAction}
                         {approval.note && <p>{approval.note}</p>}
                         <p>
-                            {approval.agentName} has the answer
-                            {approval.answeredBy ? ` from ${approval.answeredBy}` : ''} and carries
-                            on by itself.
+                            {approval.answeredBy
+                                ? `${approval.answeredBy} answered`
+                                : 'Answer recorded'}{' '}
+                            · {approval.answer}
                         </p>
                         <div className="agent-link-actions">
                             <Link className="button button-secondary" href="/agents/">
@@ -201,21 +208,12 @@ export function AgentQuestion({ approvalId }: { approvalId?: string } = {}) {
                     </>
                 ) : approval.status === 'expired' ? (
                     <>
-                        <h1>This question expired</h1>
                         {proposedAction}
-                        <p>
-                            {approval.agentName} stopped waiting. It can ask again if it still needs
-                            you.
-                        </p>
+                        <p>The deadline has passed.</p>
                     </>
                 ) : (
                     <>
-                        <p className="agent-question-eyebrow">{approval.agentName} asks</p>
-                        <h1>{approval.question}</h1>
                         {proposedAction}
-                        {approval.details && (
-                            <p className="agent-question-details">{approval.details}</p>
-                        )}
                         {draftId &&
                             (draft ? (
                                 <div className="email-draft-panel">
@@ -263,41 +261,59 @@ export function AgentQuestion({ approvalId }: { approvalId?: string } = {}) {
                             </p>
                         )}
                         {canAnswer ? (
-                            <div className="agent-link-actions">
-                                {approval.options.map((option, index) => (
-                                    <Button
-                                        key={option}
-                                        size="3"
-                                        color={index === 0 ? 'green' : 'gray'}
-                                        variant={index === 0 ? 'solid' : 'soft'}
-                                        disabled={
-                                            busy ||
-                                            Boolean(draftId && option === 'Approve' && !draft)
-                                        }
-                                        onClick={() =>
-                                            action ? setConfirmation(option) : void answer(option)
-                                        }
-                                    >
-                                        {editing && option === 'Approve'
-                                            ? 'Approve edited draft'
-                                            : option}
-                                    </Button>
-                                ))}
+                            <div className="approval-decision-bar">
+                                <div
+                                    className="approval-decision-actions"
+                                    data-many={approval.options.length > 2}
+                                >
+                                    {approval.options.map((option, index) => (
+                                        <Button
+                                            key={option}
+                                            size="4"
+                                            color={
+                                                option === 'Approve' ||
+                                                (index === 0 &&
+                                                    !approval.options.includes('Approve'))
+                                                    ? undefined
+                                                    : 'gray'
+                                            }
+                                            variant={
+                                                option === 'Approve' ||
+                                                (index === 0 &&
+                                                    !approval.options.includes('Approve'))
+                                                    ? 'solid'
+                                                    : 'surface'
+                                            }
+                                            disabled={
+                                                busy ||
+                                                Boolean(draftId && option === 'Approve' && !draft)
+                                            }
+                                            onClick={() =>
+                                                action
+                                                    ? setConfirmation(option)
+                                                    : void answer(option)
+                                            }
+                                        >
+                                            {option === 'Approve' && (
+                                                <Check size={19} weight="bold" aria-hidden />
+                                            )}
+                                            {editing && option === 'Approve'
+                                                ? 'Approve edited draft'
+                                                : option}
+                                        </Button>
+                                    ))}
+                                </div>
                             </div>
                         ) : (
                             <p>Only workspace owners and admins can answer.</p>
                         )}
-                        <p className="agent-link-muted">
-                            Expires {new Date(approval.expiresAt).toLocaleString()}. Your answer is
-                            final and logged.
-                        </p>
                     </>
                 )}
                 {approval && (
                     <ApprovalHistory key={approval.id} id={approval.id} status={approval.status} />
                 )}
                 <AlertDialog.Root
-                    open={!!confirmation}
+                    open={!!confirmation && approval?.status === 'pending' && canAnswer}
                     onOpenChange={(open) => {
                         if (!open) setConfirmation('');
                     }}
@@ -305,7 +321,8 @@ export function AgentQuestion({ approvalId }: { approvalId?: string } = {}) {
                     <AlertDialog.Content maxWidth="420px">
                         <AlertDialog.Title>Confirm your answer</AlertDialog.Title>
                         <AlertDialog.Description>
-                            Send “{confirmation}” to {approval?.agentName} for {action?.target}?
+                            Send “{confirmation}” to {approval && approvalRequester(approval)} for{' '}
+                            {action?.target}?
                         </AlertDialog.Description>
                         <div className="button-row">
                             <AlertDialog.Cancel>
@@ -323,6 +340,52 @@ export function AgentQuestion({ approvalId }: { approvalId?: string } = {}) {
                 </AlertDialog.Root>
             </div>
         </div>
+    );
+}
+
+function ApprovalReviewHeader({ approval, workspace }: { approval: Approval; workspace: string }) {
+    const [now, setNow] = useState(0);
+    useEffect(() => {
+        if (approval.status !== 'pending') return;
+        const update = () => setNow(Date.now());
+        update();
+        const timer = setInterval(update, 1000);
+        return () => clearInterval(timer);
+    }, [approval.id, approval.status]);
+    const remaining = now
+        ? Math.max(0, Math.ceil((Date.parse(approval.expiresAt) - now) / 1000))
+        : 0;
+    const countdown =
+        remaining >= 3600
+            ? `${Math.floor(remaining / 3600)}h ${Math.floor((remaining % 3600) / 60)}m left`
+            : remaining >= 60
+              ? `${Math.floor(remaining / 60)}m ${remaining % 60}s left`
+              : `${remaining}s left`;
+    const status = approvalStatus(approval);
+    const RequesterIcon = approval.requesterKind === 'human' ? UserCircle : TerminalWindow;
+    return (
+        <header className="approval-review-header">
+            <div className="approval-review-top">
+                <span className="approval-agent-icon">
+                    <RequesterIcon size={23} weight="fill" aria-hidden />
+                </span>
+                <span className="approval-review-identity">
+                    <strong>{approvalRequester(approval)}</strong>
+                    <small>{workspace}</small>
+                </span>
+                <div className="approval-review-status" data-outcome={status.toLowerCase()}>
+                    <strong>{status}</strong>
+                    {approval.status === 'pending' && now > 0 && (
+                        <small title={new Date(approval.expiresAt).toLocaleString()}>
+                            <Clock size={13} aria-hidden />
+                            {countdown}
+                        </small>
+                    )}
+                </div>
+            </div>
+            <h1>{approval.question}</h1>
+            {approval.details && <p>{approval.details}</p>}
+        </header>
     );
 }
 

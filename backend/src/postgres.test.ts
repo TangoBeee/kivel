@@ -517,6 +517,72 @@ test('mock APIs and files work through two HTTP instances sharing PostgreSQL', a
     assert.equal((await a.inject({ url: `/files/${file.id}` })).statusCode, 404);
 });
 
+test('Mock scenarios and call assertions agree across PostgreSQL-backed API instances', async (t) => {
+    const options = {
+        resourceStore: new PostgresResourceStore(pool),
+        mockCalls: new PostgresMockCalls(pool),
+    };
+    const a = buildApp(options);
+    const b = buildApp(options);
+    t.after(async () => {
+        await a.close();
+        await b.close();
+    });
+    const created = await a.inject({
+        method: 'POST',
+        url: '/api/mocks?visibility=public',
+        payload: {
+            name: 'Shared scenario',
+            routes: [
+                {
+                    method: 'POST',
+                    path: '/order',
+                    status: 201,
+                    body: '{}',
+                    scenario: { name: 'order', from: 'start', to: 'created' },
+                },
+                {
+                    method: 'POST',
+                    path: '/order',
+                    status: 409,
+                    body: '{}',
+                    scenario: { name: 'order', from: 'created', to: 'created' },
+                },
+            ],
+        },
+    });
+    assert.equal(created.statusCode, 201, created.body);
+    const { id, managementToken } = created.json();
+    const call = (app: typeof a, run: string) =>
+        app.inject({
+            method: 'POST',
+            url: `/mock/${id}/order`,
+            headers: { 'x-kivel-mock-run': run },
+        });
+    const concurrent = await Promise.all([call(a, 'shared'), call(b, 'shared')]);
+    assert.deepEqual(concurrent.map((response) => response.statusCode).sort(), [201, 409]);
+    assert.equal((await call(b, 'independent')).statusCode, 201);
+    const headers = { 'x-resource-token': managementToken };
+    const journal = await a.inject({ url: `/api/mocks/${id}/calls?run=shared&limit=1`, headers });
+    assert.equal(journal.statusCode, 200, journal.body);
+    assert.equal(journal.json().calls.length, 1);
+    const cursor = journal.json().nextCursor;
+    assert.ok(cursor);
+    const secondPage = await b.inject({
+        url: `/api/mocks/${id}/calls?run=shared&cursor=${cursor}`,
+        headers,
+    });
+    assert.equal(secondPage.json().calls.length, 1);
+    assert.notEqual(secondPage.json().calls[0].id, journal.json().calls[0].id);
+    const assertion = await b.inject({
+        method: 'POST',
+        url: `/api/mocks/${id}/assertions`,
+        headers,
+        payload: { run: 'shared', status: 201, count: 1 },
+    });
+    assert.equal(assertion.json().passed, true, assertion.body);
+});
+
 test('upgrading an existing webhook-only database preserves captures and enables MCP resources', async () => {
     const inboxes = new PostgresInboxStore(pool);
     const inbox = await inboxes.create();

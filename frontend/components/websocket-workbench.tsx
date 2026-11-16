@@ -7,10 +7,10 @@ import Link from 'next/link';
 import { AlertDialog, Button, Checkbox, Flex, TextArea, TextField } from '@radix-ui/themes';
 import { validateMock } from '@kivel.io/tools/mock-config';
 import { api, resourceHeaders } from '../lib/api';
-import { useViewer } from '../lib/viewer';
 import { ToolHeader } from './tool-header';
 import { CopyButton } from './copy-button';
 import { MockCalls } from './mock-calls';
+import { MockConfigImport } from './mock-config-import';
 import { SharingControl } from './sharing-control';
 import type { Visibility } from './sharing-control';
 
@@ -27,7 +27,6 @@ const key = 'socket-websocket-mock';
 const starter = JSON.stringify({ welcome: [], replies: [], delayMs: 0 }, null, 2);
 
 export function WebSocketWorkbench({ toolId }: { toolId: string }) {
-    const viewer = useViewer();
     const [mock, setMock] = useState<Mock | null>(null);
     const [name, setName] = useState('Live updates');
     const [echo, setEcho] = useState(true);
@@ -78,7 +77,7 @@ export function WebSocketWorkbench({ toolId }: { toolId: string }) {
                         : {}),
                 });
                 setName(value.name);
-                setEcho(reflect);
+                setEcho(Boolean(reflect));
                 setVisibility(value.visibility);
                 setScript(Object.keys(config).length ? JSON.stringify(config, null, 2) : starter);
             } catch (e) {
@@ -192,6 +191,17 @@ export function WebSocketWorkbench({ toolId }: { toolId: string }) {
                         void mutate('save');
                     }}
                 >
+                    <MockConfigImport
+                        busy={busy}
+                        onImport={(config) => {
+                            if (!config.websocket)
+                                throw new Error('Choose a WebSocket mock configuration.');
+                            const { echo: reflect, ...script } = config.websocket;
+                            setName(config.name);
+                            setEcho(Boolean(reflect));
+                            setScript(JSON.stringify(script, null, 2));
+                        }}
+                    />
                     <label className="field-label">
                         Mock name
                         <TextField.Root
@@ -310,7 +320,7 @@ export function WebSocketWorkbench({ toolId }: { toolId: string }) {
                                     )}
                                 </div>
                             )}
-                            {(mock.visibility === 'public' || viewer.status === 'user') && (
+                            {mock.visibility === 'public' && (
                                 <form
                                     className="email-create-form"
                                     onSubmit={(event) => {
@@ -345,7 +355,12 @@ export function WebSocketWorkbench({ toolId }: { toolId: string }) {
                                 </Link>{' '}
                                 for a timed capture.
                             </p>
-                            <MockCalls id={mock.id} token={mock.managementToken ?? ''} websocket />
+                            <MockCalls
+                                id={mock.id}
+                                token={mock.managementToken ?? ''}
+                                websocket
+                                exportable
+                            />
                         </>
                     ) : (
                         <p className="field-help">

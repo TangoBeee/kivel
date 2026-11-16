@@ -76,10 +76,11 @@ export function resourceOpenApi(origin: string) {
                 type: 'object',
                 required: ['target'],
                 description:
-                    'Pro and Team. Calls that match no route are sent to target (a public http(s) API) and its answer is returned with X-Mock-Proxied: true; non-text answers are served as application/octet-stream. With record: true, each new JSON, XML or text answer up to 50 KiB is saved as a route, up to 20 routes.',
+                    'Pro and Team. Calls that match no route are sent to target (a public http(s) API) and its answer is returned with X-Mock-Proxied: true; non-text answers are served as application/octet-stream. With record: true, each new JSON, XML or text answer up to 50 KiB is saved as a route, up to 20 routes. With record: staged, keep up to five candidates under pathPrefix and promote them explicitly.',
                 properties: {
                     target: { type: 'string', format: 'uri', maxLength: 2048 },
-                    record: { type: 'boolean', default: false },
+                    record: { enum: [false, true, 'staged'], default: false },
+                    pathPrefix: { type: 'string', example: '/orders', maxLength: 180 },
                 },
             },
         },
@@ -136,6 +137,167 @@ export function resourceOpenApi(origin: string) {
     };
     return {
         paths: {
+            '/api/mocks/validate': {
+                post: {
+                    operationId: 'validateMockConfig',
+                    tags: ['Mock APIs'],
+                    summary: 'Validate and normalize a mock configuration',
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: { oneOf: [ref('MockConfig'), ref('MockConfigDocument')] },
+                            },
+                        },
+                    },
+                    responses: { '200': json(ref('MockConfigDocument')), ...errors },
+                },
+            },
+            '/api/mocks/{id}/config': {
+                get: {
+                    operationId: 'exportMockConfig',
+                    tags: ['Mock APIs'],
+                    summary: 'Export portable mock configuration',
+                    description:
+                        'Returns validated configuration without runtime state, access credentials or call history.',
+                    security,
+                    parameters: id,
+                    responses: { '200': json(ref('MockConfigDocument')), ...errors },
+                },
+            },
+            '/api/mocks/{id}/match': {
+                post: {
+                    operationId: 'matchMockRequest',
+                    tags: ['Mock APIs'],
+                    summary: 'Inspect route selection for a request',
+                    description:
+                        'Reports the first matching REST route and the reason other routes were skipped. Does not execute the response or change mock state.',
+                    security,
+                    parameters: id,
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    required: ['method', 'path'],
+                                    properties: {
+                                        method: { type: 'string' },
+                                        path: { type: 'string' },
+                                        body: {},
+                                        headers: { type: 'object' },
+                                        query: { type: 'object' },
+                                        run: { type: 'string' },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    responses: {
+                        '200': { description: 'Selected route or fallback and match diagnostics' },
+                        ...errors,
+                    },
+                },
+            },
+            '/api/mocks/{id}/recordings': {
+                get: {
+                    operationId: 'listMockRecordings',
+                    tags: ['Mock APIs'],
+                    summary: 'List staged proxy recordings',
+                    security,
+                    parameters: id,
+                    responses: {
+                        '200': {
+                            description:
+                                'Up to five recordings with ID, timestamp and candidate route',
+                        },
+                        ...errors,
+                    },
+                },
+            },
+            '/api/mocks/{id}/recordings/promote': {
+                post: {
+                    operationId: 'promoteMockRecording',
+                    tags: ['Mock APIs'],
+                    summary: 'Promote one response recording into a route',
+                    security,
+                    parameters: id,
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    required: ['recordingId'],
+                                    properties: { recordingId: { type: 'string', format: 'uuid' } },
+                                },
+                            },
+                        },
+                    },
+                    responses: {
+                        '200': { description: 'Promoted route' },
+                        '409': { description: 'Duplicate route or route limit reached' },
+                        ...errors,
+                    },
+                },
+            },
+            '/api/mocks/{id}/scenarios/reset': {
+                post: {
+                    operationId: 'resetMockScenario',
+                    tags: ['Mock APIs'],
+                    summary: 'Reset one isolated scenario run',
+                    security,
+                    parameters: id,
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    required: ['run'],
+                                    properties: { run: { type: 'string', maxLength: 64 } },
+                                },
+                            },
+                        },
+                    },
+                    responses: { '200': { description: 'Whether a run was reset' }, ...errors },
+                },
+            },
+            '/api/mocks/{id}/assertions': {
+                post: {
+                    operationId: 'assertMockCalls',
+                    tags: ['Mock APIs'],
+                    summary: 'Check an exact call count in retained history',
+                    security,
+                    parameters: id,
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    required: ['count'],
+                                    properties: {
+                                        count: { type: 'integer', minimum: 0, maximum: 100 },
+                                        run: { type: 'string', maxLength: 64 },
+                                        after: { type: 'string' },
+                                        method: { type: 'string' },
+                                        path: { type: 'string' },
+                                        status: { type: 'integer' },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    responses: {
+                        '200': {
+                            description: 'Pass or fail, count and IDs of matching retained calls',
+                        },
+                        '409': { description: 'Call ID unavailable for this mock' },
+                        ...errors,
+                    },
+                },
+            },
             '/api/mocks/{id}/reset': {
                 post: {
                     operationId: 'resetMockRecords',
@@ -164,9 +326,21 @@ export function resourceOpenApi(origin: string) {
                     tags: ['Mock APIs'],
                     summary: 'Read the most recent calls to a mock',
                     description:
-                        'Up to 100 calls, oldest first: method, path, query, status, duration, content type, user agent and a 2 KiB body preview. Requires management credentials or workspace read access.',
+                        'Up to 100 retained calls. The legacy view is oldest first. Filters, a limit or a cursor enable pagination newest first. Requires management credentials or workspace read access.',
                     security,
-                    parameters: id,
+                    parameters: [
+                        ...id,
+                        { name: 'method', in: 'query', schema: { type: 'string' } },
+                        { name: 'path', in: 'query', schema: { type: 'string' } },
+                        { name: 'status', in: 'query', schema: { type: 'integer' } },
+                        { name: 'run', in: 'query', schema: { type: 'string', maxLength: 64 } },
+                        { name: 'cursor', in: 'query', schema: { type: 'string' } },
+                        {
+                            name: 'limit',
+                            in: 'query',
+                            schema: { type: 'integer', minimum: 1, maximum: 50 },
+                        },
+                    ],
                     responses: {
                         '200': json({
                             type: 'object',
@@ -176,6 +350,8 @@ export function resourceOpenApi(origin: string) {
                                     items: {
                                         type: 'object',
                                         properties: {
+                                            id: { type: 'string' },
+                                            run: { type: 'string' },
                                             at: { type: 'string', format: 'date-time' },
                                             method: { type: 'string' },
                                             path: { type: 'string' },
@@ -189,8 +365,10 @@ export function resourceOpenApi(origin: string) {
                                         },
                                     },
                                 },
+                                nextCursor: { type: 'string' },
                             },
                         }),
+                        '409': { description: 'Call ID unavailable for this mock' },
                         ...errors,
                     },
                 },
@@ -204,7 +382,11 @@ export function resourceOpenApi(origin: string) {
                         'For a WebSocket mock, send empty routes and a websocket configuration. For HTTP, create up to 20 static routes and/or one CRUD collection within 80 KiB of configuration. CRUD seed data is limited to 200 records and 64 KiB. Static delays are limited to 2 seconds. Resources start with one hour; ttlSeconds and renewal follow plan limits. New mocks are private. Save returned credentials: the management token controls configuration, while a separate access token lets callers use private routes.',
                     requestBody: {
                         required: true,
-                        content: { 'application/json': { schema: ref('MockConfig') } },
+                        content: {
+                            'application/json': {
+                                schema: { oneOf: [ref('MockConfig'), ref('MockConfigDocument')] },
+                            },
+                        },
                     },
                     responses: {
                         '201': json(
@@ -255,7 +437,11 @@ export function resourceOpenApi(origin: string) {
                     parameters: id,
                     requestBody: {
                         required: true,
-                        content: { 'application/json': { schema: ref('MockConfig') } },
+                        content: {
+                            'application/json': {
+                                schema: { oneOf: [ref('MockConfig'), ref('MockConfigDocument')] },
+                            },
+                        },
                     },
                     responses: { '204': { description: 'Saved' }, ...errors },
                 },
@@ -279,6 +465,13 @@ export function resourceOpenApi(origin: string) {
                         operationId: `callMock${method}`,
                         parameters: [
                             ...id,
+                            {
+                                name: 'X-Kivel-Mock-Run',
+                                in: 'header',
+                                schema: { type: 'string', maxLength: 64 },
+                                description:
+                                    'Unique ID to keep scenario state and call assertions separate.',
+                            },
                             {
                                 name: 'path',
                                 in: 'path',
@@ -455,7 +648,30 @@ export function resourceOpenApi(origin: string) {
                         description:
                             'Match one request header, query parameter or top-level JSON body field. Put conditional routes before fallback routes.',
                     },
+                    graphql: {
+                        type: 'object',
+                        required: ['operationName'],
+                        properties: {
+                            operationName: { type: 'string', maxLength: 80 },
+                            variables: {
+                                type: 'object',
+                                description:
+                                    'Optional exact match on the JSON variables object, up to 4 KiB.',
+                            },
+                        },
+                    },
 
+                    scenario: {
+                        type: 'object',
+                        description:
+                            'Match this state for the X-Kivel-Mock-Run header, then advance the run to the next state. Initial state is start.',
+                        required: ['name', 'from', 'to'],
+                        properties: {
+                            name: { type: 'string', maxLength: 48 },
+                            from: { type: 'string', maxLength: 48 },
+                            to: { type: 'string', maxLength: 48 },
+                        },
+                    },
                     method: {
                         type: 'string',
                         enum: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD', 'ANY'],
@@ -496,6 +712,15 @@ export function resourceOpenApi(origin: string) {
                 },
             },
             MockConfig: mockConfig,
+            MockConfigDocument: {
+                type: 'object',
+                required: ['format', 'version', 'config'],
+                properties: {
+                    format: { const: 'kivel.mock' },
+                    version: { const: 1 },
+                    config: ref('MockConfig'),
+                },
+            },
             ResourceCredentials: credentials,
             MockInfo: {
                 ...mockConfig,

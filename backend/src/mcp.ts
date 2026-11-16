@@ -26,6 +26,7 @@ import { webhookHistory, webhookId } from './webhook-history.js';
 import type { Waiters } from './waiting.js';
 import type { MockCallRepository } from './mock-calls.js';
 import type { ActivityRepository } from './activity.js';
+import { pageMockCalls } from './mock-calls.js';
 
 const versions = ['2025-11-25', '2025-06-18', '2025-03-26'];
 const object = (value: unknown): value is Record<string, unknown> =>
@@ -362,6 +363,9 @@ export const platformTools = [
                     type: 'string',
                     enum: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'],
                 },
+                run: stringProperty(
+                    'Unique run ID for isolated scenario state, sent as X-Kivel-Mock-Run.',
+                ),
                 path: stringProperty(
                     'Relative collection or route path, optionally with query parameters.',
                 ),
@@ -834,6 +838,23 @@ export const platformTools = [
                                     value: { type: 'string', maxLength: 512 },
                                 },
                             },
+                            graphql: {
+                                type: 'object',
+                                required: ['operationName'],
+                                properties: {
+                                    operationName: { type: 'string', maxLength: 80 },
+                                    variables: { type: 'object' },
+                                },
+                            },
+                            scenario: {
+                                type: 'object',
+                                required: ['name', 'from', 'to'],
+                                properties: {
+                                    name: { type: 'string', maxLength: 48 },
+                                    from: { type: 'string', maxLength: 48 },
+                                    to: { type: 'string', maxLength: 48 },
+                                },
+                            },
                             requestsPerMinute: { type: 'integer', minimum: 1, maximum: 120 },
                             stream: {
                                 type: 'object',
@@ -857,8 +878,21 @@ export const platformTools = [
     {
         name: 'inspect_mock_api',
         description:
-            'Read a mock configuration, usage and the 20 most recent HTTP calls or WebSocket events. Requires management access.',
-        inputSchema: schema(access, ['id']),
+            'Read a mock configuration, usage and recent calls. Set method, path, status, cursor or limit for filtered history. Use resource_request for call assertions and config export.',
+        inputSchema: schema(
+            {
+                ...access,
+                method: stringProperty(
+                    'Filter HTTP method or protocol operation, such as POST or tools/call.',
+                ),
+                path: stringProperty('Filter exact relative path.'),
+                run: stringProperty('Filter by the X-Kivel-Mock-Run ID.'),
+                status: { type: 'integer', minimum: 100, maximum: 4999 },
+                limit: { type: 'integer', minimum: 1, maximum: 50 },
+                cursor: stringProperty('Continue with nextCursor from the preceding page.'),
+            },
+            ['id'],
+        ),
         annotations: readonly,
     },
     {
@@ -1019,6 +1053,13 @@ export const platformTools = [
                         'list',
                         'reset',
                         'calls',
+                        'validate',
+                        'export',
+                        'match',
+                        'assertions',
+                        'reset-scenario',
+                        'recordings',
+                        'promote-recording',
                         'response',
                         'forward',
                         'deliveries',
@@ -1079,19 +1120,88 @@ export interface MockTool {
     isError: boolean;
     delayMs: number;
 }
-export function validateMcp(value: unknown): { name: string; tools: MockTool[] } {
+interface MockMcpResource {
+    uri: string;
+    name: string;
+    text: string;
+    mimeType: string;
+}
+interface MockMcpPrompt {
+    name: string;
+    description?: string;
+    text: string;
+}
+interface MockMcpConfig {
+    name: string;
+    tools: MockTool[];
+    resources: MockMcpResource[];
+    prompts: MockMcpPrompt[];
+}
+export function validateMcp(value: unknown): MockMcpConfig {
     if (
         !object(value) ||
         typeof value.name !== 'string' ||
         !value.name.trim() ||
-        value.name.length > 80 ||
-        !Array.isArray(value.tools) ||
-        !value.tools.length ||
-        value.tools.length > 10
+        value.name.length > 80
     )
-        throw new Error('Provide a server name and 1–10 tools.');
+        throw new Error('Provide a server name up to 80 characters.');
+    const fixtureList = (kind: 'tools' | 'resources' | 'prompts') => {
+        const list = value[kind] ?? [];
+        if (!Array.isArray(list) || list.length > 10) throw new Error(`Provide up to 10 ${kind}.`);
+        return list;
+    };
+    const toolInputs = fixtureList('tools');
+    const resourceInputs = fixtureList('resources');
+    const promptInputs = fixtureList('prompts');
+    if (!toolInputs.length && !resourceInputs.length && !promptInputs.length)
+        throw new Error('Provide at least one tool, resource, or prompt.');
+    const resourceUris = new Set<string>();
+    const resources = resourceInputs.map((item): MockMcpResource => {
+        if (
+            !object(item) ||
+            typeof item.uri !== 'string' ||
+            !/^[a-z][a-z0-9+.-]*:[^\s]{1,190}$/i.test(item.uri) ||
+            resourceUris.has(item.uri) ||
+            typeof item.name !== 'string' ||
+            !item.name.trim() ||
+            item.name.length > 80 ||
+            typeof item.text !== 'string' ||
+            Buffer.byteLength(item.text) > 10000 ||
+            (item.mimeType !== undefined &&
+                (typeof item.mimeType !== 'string' ||
+                    !/^[\w.+-]{1,50}\/[\w.+-]{1,50}$/.test(item.mimeType)))
+        )
+            throw new Error('Each resource needs a unique URI, name and text up to 10,000 bytes.');
+        resourceUris.add(item.uri);
+        return {
+            uri: item.uri,
+            name: item.name,
+            text: item.text,
+            mimeType: String(item.mimeType ?? 'text/plain'),
+        };
+    });
+    const promptNames = new Set<string>();
+    const prompts = promptInputs.map((item): MockMcpPrompt => {
+        if (
+            !object(item) ||
+            typeof item.name !== 'string' ||
+            !/^[A-Za-z0-9_-]{1,64}$/.test(item.name) ||
+            promptNames.has(item.name) ||
+            (item.description !== undefined &&
+                (typeof item.description !== 'string' || item.description.length > 500)) ||
+            typeof item.text !== 'string' ||
+            Buffer.byteLength(item.text) > 10000
+        )
+            throw new Error('Each prompt needs a unique name and text up to 10,000 bytes.');
+        promptNames.add(item.name);
+        return {
+            name: item.name,
+            text: item.text,
+            ...(item.description !== undefined ? { description: item.description } : {}),
+        };
+    });
     const names = new Set<string>();
-    const tools = value.tools.map((item): MockTool => {
+    const tools = toolInputs.map((item): MockTool => {
         if (
             !object(item) ||
             typeof item.name !== 'string' ||
@@ -1158,7 +1268,7 @@ export function validateMcp(value: unknown): { name: string; tools: MockTool[] }
             delayMs: Number(item.delayMs ?? 0),
         };
     });
-    const config = { name: value.name.trim(), tools };
+    const config = { name: value.name.trim(), tools, resources, prompts };
     if (Buffer.byteLength(JSON.stringify(config)) > 80 * 1024)
         throw new Error('The complete server configuration must fit within 80 KiB.');
     return config;
@@ -1630,6 +1740,8 @@ export function registerMcp({
                 const { id, token } = credentials(value);
                 const kind = name === 'inspect_mock_api' ? 'mock' : 'file';
                 const item = await resources.read(id, kind, token, ownerId);
+                const history = item && kind === 'mock' ? await mockCalls.list(id) : [];
+                const page = item && kind === 'mock' ? pageMockCalls(history, value) : undefined;
                 return item
                     ? result({
                           id,
@@ -1655,7 +1767,8 @@ export function registerMcp({
                                               ).clientId,
                                           }
                                         : {}),
-                                    recentCalls: (await mockCalls.list(id)).slice(-20),
+                                    recentCalls: page?.calls ?? history.slice(-20),
+                                    ...(page?.nextCursor ? { nextCursor: page.nextCursor } : {}),
                                 }
                               : {
                                     downloadUrl: `${origin}/files/${id}`,
@@ -1770,6 +1883,14 @@ export function registerMcp({
         const headers: Record<string, string> = { 'user-agent': 'Kivel call_mock_api' };
         for (const key of ['authorization', 'cookie', 'origin'])
             if (typeof request.headers[key] === 'string') headers[key] = request.headers[key];
+        if (value.run !== undefined) {
+            if (typeof value.run !== 'string' || !/^[a-zA-Z0-9_-]{1,64}$/.test(value.run))
+                throw new RpcError(
+                    -32602,
+                    'Use a run ID of 1 to 64 letters, digits, underscores or dashes.',
+                );
+            headers['x-kivel-mock-run'] = value.run;
+        }
         if (typeof value.accessToken === 'string') headers['x-access-token'] = value.accessToken;
         if (value.revision !== undefined) headers['x-mock-if-revision'] = String(value.revision);
         if (value.body !== undefined && !object(value.body))
@@ -2147,6 +2268,45 @@ export function registerMcp({
     async function resourceRequest(value: Record<string, unknown>, request: FastifyRequest) {
         const kind = String(value.kind ?? ''),
             action = String(value.action ?? '');
+        if (
+            kind === 'mocks' &&
+            [
+                'validate',
+                'export',
+                'match',
+                'assertions',
+                'calls',
+                'reset-scenario',
+                'recordings',
+                'promote-recording',
+            ].includes(action)
+        ) {
+            if (action !== 'validate' && (typeof value.id !== 'string' || !isUuid(value.id)))
+                throw new RpcError(-32602, 'Provide a resource UUID.');
+            const headers: Record<string, string> = {};
+            for (const key of ['authorization', 'cookie', 'origin'])
+                if (typeof request.headers[key] === 'string') headers[key] = request.headers[key];
+            if (typeof value.token === 'string') headers['x-resource-token'] = value.token;
+            const config = object(value.config) ? value.config : {};
+            const method = ['export', 'calls', 'recordings'].includes(action) ? 'GET' : 'POST';
+            const path =
+                action === 'validate'
+                    ? '/api/mocks/validate'
+                    : `/api/mocks/${value.id}/${action === 'export' ? 'config' : action === 'reset-scenario' ? 'scenarios/reset' : action === 'promote-recording' ? 'recordings/promote' : action}`;
+            const query = new URLSearchParams();
+            if (action === 'calls')
+                for (const field of ['method', 'path', 'status', 'run', 'cursor', 'limit'])
+                    if (config[field] !== undefined) query.set(field, String(config[field]));
+            return httpResult(
+                await injectPublic({
+                    method,
+                    headers,
+                    remoteAddress: request.ip,
+                    url: query.size ? `${path}?${query}` : path,
+                    ...(method === 'POST' ? { payload: config } : {}),
+                }),
+            );
+        }
         if (['test-wallets', 'test-paywalls', 'test-checkouts'].includes(kind)) {
             if (
                 ![
@@ -2349,8 +2509,6 @@ export function registerMcp({
         );
     }
     async function transport(request: FastifyRequest, reply: FastifyReply, customId?: string) {
-        if (request.headers.origin && request.headers.origin !== origin)
-            return reply.code(403).send({ error: 'Origin not allowed.' });
         if (request.method !== 'POST')
             return reply.header('Allow', 'POST').code(405).send({
                 error: 'Use Streamable HTTP POST. SSE streams and transport sessions are not provided.',
@@ -2377,7 +2535,7 @@ export function registerMcp({
                 id: null,
                 error: { code: -32600, message: 'Invalid JSON-RPC request.' },
             });
-        let config: { name: string; tools: MockTool[] } | undefined;
+        let config: MockMcpConfig | undefined;
         if (customId) {
             if (!isUuid(customId))
                 return reply.code(404).send({ error: 'MCP server unavailable or expired.' });
@@ -2420,6 +2578,22 @@ export function registerMcp({
                 )
                 .catch((error) => request.log.warn({ err: error }, 'Unable to record activity.'));
         };
+        const logMockCall = async (status: number) => {
+            if (!customId || !config) return;
+            try {
+                await mockCalls.record(customId, {
+                    at: new Date(started).toISOString(),
+                    method: String(body.method).slice(0, 40),
+                    path: '/mcp',
+                    query: {},
+                    status,
+                    bodySize: 0,
+                    durationMs: Date.now() - started,
+                });
+            } catch (error) {
+                request.log.warn({ err: error }, 'Unable to record mock MCP call.');
+            }
+        };
         try {
             const params = body.params === undefined ? {} : args(body.params);
             if (!config && body.method === 'tools/call' && typeof params.name === 'string')
@@ -2442,10 +2616,16 @@ export function registerMcp({
                         protocolVersion: versions.includes(params.protocolVersion)
                             ? params.protocolVersion
                             : versions[0],
-                        capabilities: { tools: { listChanged: false } },
+                        capabilities: {
+                            tools: { listChanged: false },
+                            ...(config?.resources?.length
+                                ? { resources: { subscribe: false, listChanged: false } }
+                                : {}),
+                            ...(config?.prompts?.length ? { prompts: { listChanged: false } } : {}),
+                        },
                         serverInfo: { name: config?.name ?? 'Kivel', version: API_VERSION },
                         instructions: config
-                            ? 'A temporary mock MCP server. Tools return configured static responses.'
+                            ? 'A Kivel mock MCP server. Tools, resources and prompts return configured fixtures.'
                             : `${catalog.length} catalog tools across ${categories.length} categories: HTTP and webhooks, email, mocks and OAuth, files, monitors, memory, authenticators and vault credentials, test wallets and x402 paywalls and checkouts, jobs and status pages, test data and media, developer utilities, DNS and network. Use search_tools for the complete catalog, describe_tool for inputs and run_tool for utilities; use dedicated tools for resources. Utilities stay behind discovery, not in tools/list. Workspace-only features require an account. Keep credentials private, use cursor-based waits and use authenticators only for accounts the human authorized. Check capabilities and plan limits. A 402 needs the human to upgrade, not repeated retries.`,
                     };
                     break;
@@ -2465,6 +2645,42 @@ export function registerMcp({
                             : advertisedTools,
                     };
                     break;
+                case 'resources/list':
+                    if (!config?.resources?.length) throw new RpcError(-32601, 'Method not found.');
+                    response = {
+                        resources: config.resources.map(({ text: _, ...resource }) => resource),
+                    };
+                    break;
+                case 'resources/templates/list':
+                    if (!config?.resources?.length) throw new RpcError(-32601, 'Method not found.');
+                    response = { resourceTemplates: [] };
+                    break;
+                case 'resources/read': {
+                    if (!config?.resources?.length) throw new RpcError(-32601, 'Method not found.');
+                    if (typeof params.uri !== 'string')
+                        throw new RpcError(-32602, 'Provide a resource URI.');
+                    const resource = config.resources.find((item) => item.uri === params.uri);
+                    if (!resource) throw new RpcError(-32002, 'Resource not found.');
+                    const { name: _, ...content } = resource;
+                    response = { contents: [content] };
+                    break;
+                }
+                case 'prompts/list':
+                    if (!config?.prompts?.length) throw new RpcError(-32601, 'Method not found.');
+                    response = { prompts: config.prompts.map(({ text: _, ...prompt }) => prompt) };
+                    break;
+                case 'prompts/get': {
+                    if (!config?.prompts?.length) throw new RpcError(-32601, 'Method not found.');
+                    if (typeof params.name !== 'string')
+                        throw new RpcError(-32602, 'Provide the prompt name.');
+                    const prompt = config.prompts.find((item) => item.name === params.name);
+                    if (!prompt) throw new RpcError(-32602, 'Unknown prompt.');
+                    response = {
+                        ...(prompt.description ? { description: prompt.description } : {}),
+                        messages: [{ role: 'user', content: { type: 'text', text: prompt.text } }],
+                    };
+                    break;
+                }
                 case 'tools/call': {
                     if (typeof params.name !== 'string')
                         throw new RpcError(-32602, 'Provide the tool name.');
@@ -2637,10 +2853,13 @@ export function registerMcp({
                 default:
                     throw new RpcError(-32601, 'Method not found.');
             }
-            log(!(response as { isError?: boolean } | undefined)?.isError);
+            const failed = !!(response as { isError?: boolean } | undefined)?.isError;
+            log(!failed);
+            await logMockCall(failed ? 422 : 200);
             return reply.send({ jsonrpc: '2.0', id: body.id, result: response });
         } catch (error) {
             log(false);
+            await logMockCall(error instanceof RpcError && error.code === -32601 ? 404 : 400);
             const failure =
                 error instanceof HttpError ? error : allocationError(error as { code?: string });
             if (failure)
@@ -2683,8 +2902,24 @@ export function registerMcp({
         }
     }
     const originCheck = async (request: FastifyRequest, reply: FastifyReply) => {
-        if (request.headers.origin && request.headers.origin !== origin)
+        const browserPreview =
+            access.separateApp &&
+            request.routeOptions.url === '/mcp/mock/:id' &&
+            request.headers.origin === access.appOrigin;
+        if (request.headers.origin && request.headers.origin !== origin && !browserPreview)
             return reply.code(403).send({ error: 'Origin not allowed.' });
+        if (browserPreview) {
+            reply.header('Access-Control-Allow-Origin', access.appOrigin).header('Vary', 'Origin');
+            if (
+                request.method === 'OPTIONS' &&
+                request.headers['access-control-request-method'] === 'POST'
+            )
+                return reply
+                    .header('Access-Control-Allow-Methods', 'POST')
+                    .header('Access-Control-Allow-Headers', 'Accept, Content-Type, X-Access-Token')
+                    .code(204)
+                    .send();
+        }
         if (request.routeOptions.url === '/mcp' && request.method === 'POST') {
             if (uploads.size >= 4)
                 return reply

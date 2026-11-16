@@ -71,15 +71,21 @@ kivel oauth create [--ttl-seconds <n>] < provider.json
 kivel oauth update <id> < provider.json
 kivel oauth list|inspect|calls|renew|delete [id]
 kivel mock create|update [id] < config.json
-kivel mock calls|reset <id> [--token <token>]
-kivel mcp-server create < config.json
+kivel mock validate < config.json
+kivel mock export|reset <id> [--token <token>]
+kivel mock reset-scenario <id> <run> [--token <token>]
+kivel mock recordings <id> [--token <token>]
+kivel mock promote-recording <id> <recording-id> [--token <token>]
+kivel mock calls <id> [--token <token>] [--method POST] [--path /orders] [--status 200] [--run <run>] [--cursor <call-id>] [--limit 20]
+kivel mock assert|match <id> [--token <token>] < input.json
+kivel mcp-server create|update [id] < config.json
 kivel inbox|email|mock|mcp-server|file inspect|delete|renew <id> [--token <token>]
 kivel inbox|mock|mcp-server|file sharing <id> --visibility private|public [--token <token>]
 kivel describe <tool-id>
 kivel run <tool-id> [--file <filename>] [--options '{"action":"minify"}'] < input.txt
 kivel inbox create [--visibility private|public]
 kivel listen <inbox-id> [--token <inspection-token>] [--forward http://localhost:3000] [--all]
-kivel api <GET|HEAD|OPTIONS|POST|PUT|PATCH|DELETE> /api/path-or-/mock/path [--token <resource-token>] < body.json
+kivel api <GET|HEAD|OPTIONS|POST|PUT|PATCH|DELETE> /api/path-or-/mock/path [--token <resource-token>] [--run <mock-run>] < body.json
 kivel upload <filename> [--visibility private|public] [--max-downloads 1] < file.bin
 kivel download <file-id> [--access-token token] > file.bin
 
@@ -180,14 +186,31 @@ export async function command(client: Kivel, args: string[], input: Uint8Array =
         args[0] === 'api' &&
         args[1] &&
         args[2] &&
-        /^(GET|HEAD|OPTIONS|POST|PUT|PATCH|DELETE)$/.test(args[1]) &&
-        (args.length === 3 || (args.length === 5 && args[3] === '--token'))
-    )
+        /^(GET|HEAD|OPTIONS|POST|PUT|PATCH|DELETE)$/.test(args[1])
+    ) {
+        const options = new Map<string, string>();
+        for (let i = 3; i < args.length; i += 2) {
+            const flag = args[i]!;
+            const value = args[i + 1];
+            if (
+                !['--token', '--run'].includes(flag) ||
+                !value ||
+                value.startsWith('--') ||
+                options.has(flag)
+            )
+                throw new Error(`Invalid option: ${flag}`);
+            options.set(flag, value);
+        }
+        const run = options.get('--run');
+        if (run && (!args[2].startsWith('/mock/') || !/^[a-zA-Z0-9_-]{1,64}$/.test(run)))
+            throw new Error('Use a valid run ID with a /mock/ path.');
         return client.request(
             args[1],
             args[2],
             input.length ? JSON.parse(text()) : undefined,
-            args[4],
+            options.get('--token'),
+            run ? { 'X-Kivel-Mock-Run': run } : undefined,
         );
+    }
     return agentCommand(client, args, input);
 }

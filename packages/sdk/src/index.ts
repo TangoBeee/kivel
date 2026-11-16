@@ -82,6 +82,40 @@ export interface WebhookDelivery {
     pending?: boolean;
     responses?: { status?: number; error?: string }[];
 }
+export interface MockCall {
+    run?: string;
+    id?: string;
+    at: string;
+    method: string;
+    path: string;
+    query: Record<string, unknown>;
+    status: number;
+    durationMs: number;
+    contentType?: string;
+    userAgent?: string;
+    bodySize: number;
+    bodyPreview?: string;
+}
+export interface MockRecordedRoute {
+    method: string;
+    path: string;
+    status: number;
+    body: string;
+    headers: Record<string, string>;
+    delayMs: number;
+}
+
+export interface MockCallFilters {
+    run?: string;
+    method?: string;
+    path?: string;
+    status?: number;
+}
+export interface MockConfigDocument {
+    format: 'kivel.mock';
+    version: 1;
+    config: Record<string, unknown>;
+}
 export interface InboxResponse {
     status?: number;
     contentType?: 'application/json' | 'text/plain' | 'application/xml' | 'text/xml';
@@ -944,8 +978,92 @@ export class Kivel {
     resetMock(id: string, token?: string) {
         return this.request('POST', `/api/mocks/${encodeURIComponent(id)}/reset`, {}, token);
     }
-    mockCalls(id: string, token?: string) {
-        return this.request('GET', `/api/mocks/${encodeURIComponent(id)}/calls`, undefined, token);
+    mockCalls(
+        id: string,
+        token?: string,
+        options: MockCallFilters & { cursor?: string; limit?: number } = {},
+    ) {
+        return this.request<{ calls: MockCall[]; nextCursor?: string }>(
+            'GET',
+            `/api/mocks/${encodeURIComponent(id)}/calls${query(options)}`,
+            undefined,
+            token,
+        );
+    }
+    validateMock(config: unknown) {
+        return this.request<MockConfigDocument>('POST', '/api/mocks/validate', config);
+    }
+    mockConfig(id: string, token?: string) {
+        return this.request<MockConfigDocument>(
+            'GET',
+            `/api/mocks/${encodeURIComponent(id)}/config`,
+            undefined,
+            token,
+        );
+    }
+    assertMockCalls(
+        id: string,
+        assertion: MockCallFilters & { count: number; after?: string },
+        token?: string,
+    ) {
+        return this.request<{
+            passed: boolean;
+            expected: number;
+            matched: number;
+            retained: number;
+            callIds: string[];
+            retentionLimit: number;
+            olderCallsMayHaveExpired?: boolean;
+        }>('POST', `/api/mocks/${encodeURIComponent(id)}/assertions`, assertion, token);
+    }
+    mockRecordings(id: string, token?: string) {
+        return this.request<{ recordings: { id: string; at: string; route: MockRecordedRoute }[] }>(
+            'GET',
+            `/api/mocks/${encodeURIComponent(id)}/recordings`,
+            undefined,
+            token,
+        );
+    }
+    promoteMockRecording(id: string, recordingId: string, token?: string) {
+        return this.request<{ route: MockRecordedRoute }>(
+            'POST',
+            `/api/mocks/${encodeURIComponent(id)}/recordings/promote`,
+            { recordingId },
+            token,
+        );
+    }
+    resetMockScenario(id: string, run: string, token?: string) {
+        return this.request<{ reset: boolean }>(
+            'POST',
+            `/api/mocks/${encodeURIComponent(id)}/scenarios/reset`,
+            { run },
+            token,
+        );
+    }
+    matchMockRequest(
+        id: string,
+        request: {
+            method: string;
+            path: string;
+            body?: unknown;
+            headers?: Record<string, string>;
+            query?: Record<string, unknown>;
+            run?: string;
+        },
+        token?: string,
+    ) {
+        return this.request<{
+            selected: number | null;
+            status?: number;
+            fallback?: 'crud' | 'proxy' | 'notFound';
+            routes: {
+                index: number;
+                method: string;
+                path: string;
+                result: string;
+                condition?: { source: string; key: string };
+            }[];
+        }>('POST', `/api/mocks/${encodeURIComponent(id)}/match`, request, token);
     }
     setInboxForward(
         id: string,
@@ -1115,6 +1233,14 @@ export class Kivel {
             'POST',
             `/api/mcp-servers${creationQuery(settings)}`,
             config,
+        );
+    }
+    updateMcpServer(id: string, config: unknown, token?: string) {
+        return this.request<void>(
+            'PUT',
+            `/api/mcp-servers/${encodeURIComponent(id)}`,
+            config,
+            token,
         );
     }
     upload(name: string, data: Uint8Array, settings: UploadSettings = {}) {

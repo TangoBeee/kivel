@@ -768,6 +768,28 @@ test('portable mock configuration, deterministic route diagnostics and exact cal
     const result = JSON.parse(asserted.json().result.content[0].text);
     assert.equal(result.passed, true);
     assert.equal(result.retained, 3);
+    assert.equal(result.calls, undefined);
+    const withCalls = await app.inject({
+        method: 'POST',
+        url: base + '/assertions',
+        headers: auth,
+        payload: { count: 1, status: 201, includeCalls: true },
+    });
+    assert.equal(withCalls.statusCode, 200, withCalls.body);
+    const details = withCalls.json();
+    assert.equal(details.passed, false);
+    assert.equal(details.matched, 2);
+    assert.deepEqual(
+        details.calls,
+        [first.calls[0], second.calls[0]].map(({ id, at, method, path, status, durationMs }) => ({
+            id,
+            at,
+            method,
+            path,
+            status,
+            durationMs,
+        })),
+    );
     assert.equal(
         (await app.inject({ url: base + '/calls', headers: auth })).json().calls.length,
         3,

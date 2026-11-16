@@ -12,7 +12,7 @@ import { validateMock } from '@kivel.io/tools/mock-config';
 import { formatJson } from '@kivel.io/tools/engine';
 import { AppSelect, SelectOption } from './app-select';
 import { useEffect, useRef, useState } from 'react';
-import { AlertDialog, Button, TextArea } from '@radix-ui/themes';
+import { AlertDialog, Button, Tabs, TextArea } from '@radix-ui/themes';
 import { useReducedMotion } from 'motion/react';
 import { api, resourceHeaders } from '../lib/api';
 import { ToolHeader } from './tool-header';
@@ -23,7 +23,13 @@ import type { Visibility } from './sharing-control';
 import { BlobPreview, RemoteFilePreview } from './file-preview';
 import { ResultPreview } from './result-preview';
 import { Icon } from './icons';
-import { MockCalls } from './mock-calls';
+import {
+    MockCalls,
+    MockConfigDownload,
+    MockRecordings,
+    MockRouteMatch,
+    MockScenarioRuns,
+} from './mock-calls';
 import { useViewer } from '../lib/viewer';
 import { CrudConfiguration, CrudRecords, defaultCrudSeed } from './crud-workbench';
 import { validateCrud } from '@kivel.io/tools/mock-crud';
@@ -154,6 +160,7 @@ export function ResourceWorkbench({
             ],
     );
     const [active, setActive] = useState(0);
+    const [mockTab, setMockTab] = useState('routes');
     const [variablesInput, setVariablesInput] = useState<Record<number, string>>({});
     const [mcpTools, setMcpTools] = useState(
         JSON.stringify(
@@ -251,6 +258,7 @@ export function ResourceWorkbench({
         });
     }, [resource?.id, reduceMotion]);
     function save(value: Resource | null) {
+        if (value?.id !== resource?.id) setMockTab('routes');
         if (value?.id !== resource?.id) setTestAccessToken('');
         setResource(value);
         setExpired(false);
@@ -579,6 +587,499 @@ export function ResourceWorkbench({
         resource && kind === 'file' && resource.downloadUrl
             ? `${new URL('/share/', resource.downloadUrl).href}?id=${resource.id}`
             : endpointUrl;
+    const hasMock = kind === 'mock' && !!resource && !expired;
+    const hasScenarios = routes.some((item) => !!item.scenario);
+    const mockRoutes =
+        kind === 'mock' &&
+        (echoMode ? (
+            <EchoWorkbench
+                resource={resource}
+                name={name}
+                busy={busy}
+                onName={setName}
+                onSubmit={() => void submit()}
+            />
+        ) : crudMode ? (
+            <>
+                {resource && !expired && <CrudRecords resource={resource} version={crudVersion} />}
+                <CrudConfiguration
+                    name={name}
+                    path={crudPath}
+                    routes={routes}
+                    onRoutes={setRoutes}
+                    seed={crudSeed}
+                    busy={busy}
+                    existing={!!resource && !expired}
+                    onName={setName}
+                    onPath={setCrudPath}
+                    onSeed={setCrudSeed}
+                    onSubmit={() => void submit()}
+                    onError={setError}
+                />
+            </>
+        ) : (
+            <section className="resource-editor" aria-label="Mock API configuration">
+                <div className="resource-form-fields">
+                    <label>
+                        API name
+                        <input
+                            value={name}
+                            maxLength={80}
+                            onChange={(event) => setName(event.target.value)}
+                            disabled={busy}
+                        />
+                    </label>
+                </div>
+                <div className="resource-route-tabs" aria-label="Configured routes">
+                    {routes.map((entry, index) => (
+                        <button
+                            key={index}
+                            aria-pressed={active === index}
+                            disabled={busy}
+                            onClick={() => setActive(index)}
+                        >
+                            {entry.method} {entry.path || 'New route'} · {entry.status}
+                            {entry.condition
+                                ? ' · Matched request'
+                                : routes.some(
+                                        (other, i) =>
+                                            i !== index &&
+                                            other.method === entry.method &&
+                                            other.path === entry.path,
+                                    )
+                                  ? ' · Fallback'
+                                  : ''}
+                        </button>
+                    ))}
+                    {routes.length < 20 && (
+                        <Button
+                            variant="soft"
+                            color="gray"
+                            disabled={busy}
+                            onClick={() => {
+                                setRoutes((items) => [
+                                    ...items,
+                                    { ...freshRoute(), path: `/route-${items.length + 1}` },
+                                ]);
+                                setActive(routes.length);
+                            }}
+                        >
+                            Add route
+                        </Button>
+                    )}
+                </div>
+                <div className="resource-form-fields">
+                    <label>
+                        Method
+                        <AppSelect
+                            value={route.method}
+                            onChange={(event) => patch({ method: event.target.value })}
+                            disabled={busy}
+                        >
+                            {[
+                                'GET',
+                                'POST',
+                                'PUT',
+                                'PATCH',
+                                'DELETE',
+                                'OPTIONS',
+                                'HEAD',
+                                'ANY',
+                            ].map((method) => (
+                                <SelectOption key={method}>{method}</SelectOption>
+                            ))}
+                        </AppSelect>
+                    </label>
+                    <label>
+                        Path
+                        <input
+                            value={route.path}
+                            maxLength={200}
+                            onChange={(event) => patch({ path: event.target.value })}
+                            placeholder="/users/:id"
+                            disabled={busy}
+                        />
+                    </label>
+                    <label>
+                        Status
+                        <input
+                            type="number"
+                            min="200"
+                            max="599"
+                            value={route.status}
+                            onChange={(event) => patch({ status: Number(event.target.value) })}
+                            disabled={busy}
+                        />
+                    </label>
+                    <label>
+                        Delay (ms)
+                        <input
+                            type="number"
+                            min="0"
+                            max="2000"
+                            value={route.delayMs}
+                            onChange={(event) => patch({ delayMs: Number(event.target.value) })}
+                            disabled={busy}
+                        />
+                    </label>
+                    <label>
+                        Requests per minute
+                        <input
+                            type="number"
+                            min="1"
+                            max="120"
+                            value={route.requestsPerMinute ?? 120}
+                            disabled={busy}
+                            onChange={(event) =>
+                                patch({ requestsPerMinute: Number(event.target.value) })
+                            }
+                        />
+                    </label>
+                    <label>
+                        Random failures (%)
+                        <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={route.failureRate ?? 0}
+                            disabled={busy}
+                            title="Share of calls answered with 503, to test retries"
+                            onChange={(event) => {
+                                const rate = Number(event.target.value);
+                                patch(
+                                    rate
+                                        ? { failureRate: rate, failureStatus: 503 }
+                                        : { failureRate: undefined, failureStatus: undefined },
+                                );
+                            }}
+                        />
+                    </label>
+                    <label>
+                        Delivery
+                        <AppSelect
+                            value={route.stream?.mode ?? 'single'}
+                            disabled={busy}
+                            onChange={(event) =>
+                                patch({
+                                    stream:
+                                        event.target.value === 'single'
+                                            ? undefined
+                                            : {
+                                                  mode: event.target.value as 'sse' | 'text',
+                                                  intervalMs: 300,
+                                              },
+                                    ...(event.target.value !== 'single'
+                                        ? {
+                                              method: 'GET',
+                                              status: 200,
+                                              headers: {
+                                                  ...route.headers,
+                                                  'content-type':
+                                                      event.target.value === 'sse'
+                                                          ? 'text/event-stream'
+                                                          : 'text/plain',
+                                              },
+                                          }
+                                        : {}),
+                                })
+                            }
+                        >
+                            <SelectOption value="single">One response</SelectOption>
+                            <SelectOption value="text">Text stream</SelectOption>
+                            <SelectOption value="sse">Server-sent events</SelectOption>
+                        </AppSelect>
+                    </label>
+                    {route.stream && (
+                        <label>
+                            Chunk interval (ms)
+                            <input
+                                type="number"
+                                min="10"
+                                max="1000"
+                                disabled={busy}
+                                value={route.stream.intervalMs}
+                                onChange={(event) =>
+                                    patch({
+                                        stream: {
+                                            ...route.stream!,
+                                            intervalMs: Number(event.target.value),
+                                        },
+                                    })
+                                }
+                            />
+                        </label>
+                    )}
+                    <label>
+                        Response type
+                        <AppSelect
+                            value={route.headers['content-type'] ?? 'application/json'}
+                            onChange={(event) =>
+                                patch({
+                                    headers: {
+                                        ...route.headers,
+                                        'content-type': event.target.value,
+                                    },
+                                })
+                            }
+                            disabled={busy}
+                        >
+                            {[
+                                'application/json',
+                                'text/plain',
+                                'application/xml',
+                                'text/csv',
+                                'text/event-stream',
+                            ].map((type) => (
+                                <SelectOption key={type}>{type}</SelectOption>
+                            ))}
+                        </AppSelect>
+                    </label>
+                </div>
+                <details
+                    className="mock-behavior-options"
+                    open={
+                        !!route.condition || !!route.template || !!route.graphql || !!route.scenario
+                    }
+                >
+                    <summary>Request conditions & response templates</summary>
+                    <div className="resource-form-fields">
+                        {route.method === 'POST' && (
+                            <>
+                                <label>
+                                    GraphQL operation name (optional)
+                                    <input
+                                        value={route.graphql?.operationName ?? ''}
+                                        maxLength={80}
+                                        disabled={busy}
+                                        onChange={(event) =>
+                                            patch({
+                                                graphql: event.target.value
+                                                    ? {
+                                                          ...route.graphql,
+                                                          operationName: event.target.value,
+                                                      }
+                                                    : undefined,
+                                            })
+                                        }
+                                    />
+                                </label>
+                                {route.graphql && (
+                                    <label className="utility-wide-field">
+                                        Exact GraphQL variables (optional)
+                                        <TextArea
+                                            rows={3}
+                                            maxLength={4096}
+                                            disabled={busy}
+                                            value={
+                                                variablesInput[active] ??
+                                                (route.graphql.variables
+                                                    ? JSON.stringify(
+                                                          route.graphql.variables,
+                                                          null,
+                                                          2,
+                                                      )
+                                                    : '')
+                                            }
+                                            onChange={(event) =>
+                                                setVariablesInput({
+                                                    ...variablesInput,
+                                                    [active]: event.target.value,
+                                                })
+                                            }
+                                        />
+                                    </label>
+                                )}
+                            </>
+                        )}
+                        <label className="checkbox-label">
+                            <input
+                                type="checkbox"
+                                checked={Boolean(route.scenario)}
+                                disabled={
+                                    busy || !!route.stream || route.requestsPerMinute !== undefined
+                                }
+                                onChange={(event) =>
+                                    patch({
+                                        scenario: event.target.checked
+                                            ? { name: 'scenario', from: 'start', to: 'next' }
+                                            : undefined,
+                                    })
+                                }
+                            />
+                            Use a scenario state
+                        </label>
+                        {route.scenario && (
+                            <>
+                                {(
+                                    [
+                                        ['name', 'Scenario name'],
+                                        ['from', 'Required state'],
+                                        ['to', 'Next state'],
+                                    ] as const
+                                ).map(([field, label]) => (
+                                    <label key={field}>
+                                        {label}
+                                        <input
+                                            value={route.scenario![field]}
+                                            maxLength={48}
+                                            disabled={busy}
+                                            onChange={(event) =>
+                                                patch({
+                                                    scenario: {
+                                                        ...route.scenario!,
+                                                        [field]: event.target.value,
+                                                    },
+                                                })
+                                            }
+                                        />
+                                    </label>
+                                ))}
+                                <small>
+                                    Send a unique run ID in X-Kivel-Mock-Run to keep each run
+                                    separate.
+                                </small>
+                            </>
+                        )}
+                        <label>
+                            Match request field
+                            <AppSelect
+                                value={route.condition?.source ?? 'none'}
+                                disabled={busy}
+                                onChange={(event) =>
+                                    patch({
+                                        condition:
+                                            event.target.value === 'none'
+                                                ? undefined
+                                                : {
+                                                      source: event.target.value as
+                                                          'header' | 'query' | 'body',
+                                                      key: '',
+                                                      value: '',
+                                                  },
+                                    })
+                                }
+                            >
+                                <SelectOption value="none">Every request</SelectOption>
+                                <SelectOption value="header">Header</SelectOption>
+                                <SelectOption value="query">Query parameter</SelectOption>
+                                <SelectOption value="body">JSON body field</SelectOption>
+                            </AppSelect>
+                        </label>
+                        {route.condition && (
+                            <>
+                                <label>
+                                    Field name
+                                    <input
+                                        value={route.condition.key}
+                                        maxLength={80}
+                                        disabled={busy}
+                                        onChange={(event) =>
+                                            patch({
+                                                condition: {
+                                                    ...route.condition!,
+                                                    key: event.target.value,
+                                                },
+                                            })
+                                        }
+                                    />
+                                </label>
+                                <label>
+                                    Required value
+                                    <input
+                                        value={route.condition.value}
+                                        maxLength={512}
+                                        disabled={busy}
+                                        onChange={(event) =>
+                                            patch({
+                                                condition: {
+                                                    ...route.condition!,
+                                                    value: event.target.value,
+                                                },
+                                            })
+                                        }
+                                    />
+                                </label>
+                            </>
+                        )}
+                        <label>
+                            Response mode
+                            <AppSelect
+                                value={route.template ? 'template' : 'static'}
+                                disabled={busy || !!route.stream}
+                                onChange={(event) =>
+                                    patch({ template: event.target.value === 'template' })
+                                }
+                            >
+                                <SelectOption value="static">Static response</SelectOption>
+                                <SelectOption value="template">Insert request values</SelectOption>
+                            </AppSelect>
+                        </label>
+                    </div>
+                    <p className="tool-notice">
+                        Templates accept {'{{path.id}}'}, {'{{query.name}}'}, {'{{body.name}}'} and
+                        sample data such as {'{{fake.name}}'}, {'{{fake.email}}'}, {'{{fake.uuid}}'}
+                        , {'{{fake.price}}'} or {'{{fake.datetime}}'} inside JSON strings or plain
+                        text. Missing values become empty strings. No code runs. Test credentials
+                        are stored in the configuration; use fake tokens only.
+                    </p>
+                </details>
+                <div className="editor-panel">
+                    <div className="editor-heading">
+                        <label htmlFor="mock-response">
+                            {route.stream ? 'Chunks / events (one per line)' : 'Response body'}
+                        </label>
+                        {routes.length > 1 && (
+                            <button
+                                className="text-link"
+                                disabled={busy}
+                                onClick={() => {
+                                    setRoutes((items) =>
+                                        items.filter((_, index) => index !== active),
+                                    );
+                                    setVariablesInput((drafts) =>
+                                        Object.fromEntries(
+                                            Object.entries(drafts)
+                                                .filter(([index]) => Number(index) !== active)
+                                                .map(([index, value]) => [
+                                                    Number(index) > active
+                                                        ? Number(index) - 1
+                                                        : Number(index),
+                                                    value,
+                                                ]),
+                                        ),
+                                    );
+                                    setActive(0);
+                                }}
+                            >
+                                Remove route
+                            </button>
+                        )}
+                    </div>
+                    <textarea
+                        id="mock-response"
+                        value={route.body}
+                        maxLength={51200}
+                        spellCheck={false}
+                        disabled={busy}
+                        onChange={(event) => patch({ body: event.target.value })}
+                    />
+                </div>
+                <p className="tool-notice">
+                    Up to 20 routes, 80 KiB total configuration, and 120 requests per minute. Paths
+                    support parameters such as /users/:id. Matching routes are checked in order.
+                </p>
+                <div className="utility-actions">
+                    <Button size="3" disabled={busy || !ready} onClick={() => void submit()}>
+                        {busy
+                            ? 'Saving…'
+                            : resource && !expired
+                              ? 'Save changes'
+                              : 'Create mock API'}
+                        <Icon name="arrow" size={16} />
+                    </Button>
+                </div>
+            </section>
+        ));
     return (
         <div className="page-width work-page resource-workbench">
             <ToolHeader toolId={toolId}>
@@ -611,7 +1112,24 @@ export function ResourceWorkbench({
                     This resource has expired. Create another one to continue.
                 </div>
             )}
-            {resource && (
+            {kind === 'mock' && resource && (
+                <section
+                    className="mock-endpoint"
+                    ref={resultSection}
+                    tabIndex={-1}
+                    aria-label="Your endpoint"
+                >
+                    <div className="mock-panel-heading">
+                        <h2>Your endpoint</h2>
+                        <span>Expires at {clock(resource.expiresAt)}</span>
+                    </div>
+                    <div className="resource-link">
+                        <code>{url}</code>
+                        <CopyButton text={url ?? ''} label="Copy link" />
+                    </div>
+                </section>
+            )}
+            {resource && kind !== 'mock' && (
                 <section
                     className="resource-result"
                     ref={resultSection}
@@ -630,16 +1148,6 @@ export function ResourceWorkbench({
                         <p>
                             Connect a Streamable HTTP MCP client to this URL. Save changes before
                             calling updated tools.
-                        </p>
-                    ) : kind === 'mock' && echoMode ? (
-                        <p>
-                            Append any relative path, or call the base URL. The response reflects
-                            the request received here.
-                        </p>
-                    ) : kind === 'mock' ? (
-                        <p>
-                            Add a configured route, such as{' '}
-                            <code>{crudMode ? crudPath : route.path}</code>, to this base URL.
                         </p>
                     ) : (
                         <p>
@@ -673,19 +1181,6 @@ export function ResourceWorkbench({
                                 </label>
                             </div>
                         )}
-                    {kind === 'mock' && !expired && route.scenario && (
-                        <div className="resource-form-fields">
-                            <label>
-                                Run ID for endpoint check
-                                <input
-                                    value={testRun}
-                                    maxLength={64}
-                                    placeholder="checkout-flow"
-                                    onChange={(event) => setTestRun(event.target.value)}
-                                />
-                            </label>
-                        </div>
-                    )}
                     <div className="utility-actions">
                         <Button
                             variant="soft"
@@ -701,8 +1196,7 @@ export function ResourceWorkbench({
                             disabled={busy}
                             onClick={() => setConfirm(true)}
                         >
-                            Delete{' '}
-                            {kind === 'mock' ? 'API' : kind === 'mcp' ? 'MCP server' : 'file'}
+                            Delete {kind === 'mcp' ? 'MCP server' : 'file'}
                         </Button>
                         {kind !== 'file' && !expired && !crudMode && !echoMode && (
                             <Button disabled={busy} onClick={() => void testEndpoint()}>
@@ -772,17 +1266,6 @@ export function ResourceWorkbench({
                             <ResponseOutput text={testResult} sse={route.stream?.mode === 'sse'} />
                         </>
                     )}
-                    {kind === 'mock' && !expired && (
-                        <MockCalls
-                            id={resource.id}
-                            token={resource.managementToken}
-                            exportable
-                            diagnostics={!echoMode}
-                            scenarios={routes.some((route) => !!route.scenario)}
-                            recordings={Boolean(proxyTarget && proxyRecord === 'staged')}
-                            onPromote={(route) => setRoutes((items) => [...items, route])}
-                        />
-                    )}
                     {kind === 'mcp' && !expired && (
                         <MockCalls id={resource.id} token={resource.managementToken} />
                     )}
@@ -802,9 +1285,7 @@ export function ResourceWorkbench({
                                 <code>Resource ID: {resource.id}</code>
                             </p>
                         </details>
-                    ) : (
-                        <p className="tool-notice">Managed through your current workspace.</p>
-                    )}
+                    ) : null}
                 </section>
             )}
             {(!resource || expired) && (
@@ -833,630 +1314,393 @@ export function ResourceWorkbench({
                     )}
                 </div>
             )}
-            {kind === 'mock' && echoMode ? (
-                <EchoWorkbench
-                    resource={resource}
-                    name={name}
-                    busy={busy}
-                    onName={setName}
-                    onSubmit={() => void submit()}
-                />
-            ) : kind === 'mock' && crudMode ? (
-                <>
-                    {resource && !expired && (
-                        <CrudRecords resource={resource} version={crudVersion} />
-                    )}
-                    <CrudConfiguration
-                        name={name}
-                        path={crudPath}
-                        routes={routes}
-                        onRoutes={setRoutes}
-                        seed={crudSeed}
-                        busy={busy}
-                        existing={!!resource && !expired}
-                        onName={setName}
-                        onPath={setCrudPath}
-                        onSeed={setCrudSeed}
-                        onSubmit={() => void submit()}
-                        onError={setError}
-                    />
-                </>
-            ) : kind === 'mock' ? (
-                <section className="resource-editor" aria-label="Mock API configuration">
-                    <details className="resource-access" open={!!proxyTarget || undefined}>
-                        <summary>
-                            Proxy &amp; record a real API{' '}
-                            <span className="badge badge-green">Pro</span>
-                        </summary>
-                        {paidPlan ? (
-                            <>
-                                <p className="tool-notice">
-                                    Calls that match no route go to this API and its answer comes
-                                    back. Review recordings and choose which answers become
-                                    fixtures. Use an upstream that returns sample data.
-                                </p>
-                                <label className="mock-import-label">
-                                    Real API base URL
-                                    <input
-                                        type="url"
-                                        value={proxyTarget}
-                                        disabled={busy}
-                                        placeholder="https://api.example.com/v1"
-                                        onChange={(event) => setProxyTarget(event.target.value)}
-                                    />
-                                </label>
-                                <AppSelect
-                                    aria-label="Recording mode"
-                                    value={String(proxyRecord)}
-                                    disabled={busy}
-                                    onChange={({ target: { value } }) =>
-                                        setProxyRecord(
-                                            value === 'staged' ? value : value === 'true',
-                                        )
-                                    }
-                                >
-                                    <SelectOption value="staged">Review before saving</SelectOption>
-                                    <SelectOption value="true">
-                                        Save answers automatically
-                                    </SelectOption>
-                                    <SelectOption value="false">Forward only</SelectOption>
-                                </AppSelect>
-                                {proxyRecord === 'staged' && (
-                                    <label className="mock-import-label">
-                                        Record paths starting with
-                                        <input
-                                            value={proxyPrefix}
-                                            maxLength={180}
-                                            placeholder="/orders"
-                                            disabled={busy}
-                                            onChange={(event) => setProxyPrefix(event.target.value)}
-                                        />
-                                    </label>
-                                )}
-                            </>
-                        ) : (
-                            <div className="upsell">
-                                <p>
-                                    Point the mock at your real API: unmatched calls pass through
-                                    and responses are saved as routes on Pro.
-                                </p>
-                                <Link
-                                    className="button button-primary button-small"
-                                    href={`${siteOrigin}/pricing/`}
-                                >
-                                    See Pro pricing
-                                </Link>
-                            </div>
-                        )}
-                    </details>
-                    <details className="resource-access">
-                        <summary>Import / export configuration</summary>
-                        <label className="mock-import-label">
-                            Mock configuration (JSON)
-                            <textarea
-                                value={importConfig}
-                                onChange={(event) => setImportConfig(event.target.value)}
-                                maxLength={81920}
-                                rows={6}
-                                disabled={busy}
-                                spellCheck={false}
-                                placeholder='{"name":"Example","routes":[...]}'
-                            />
-                        </label>
-                        <div className="utility-actions">
-                            <Button
-                                disabled={busy || !importConfig}
-                                onClick={() => {
-                                    try {
-                                        const config = validateMock(JSON.parse(importConfig));
-                                        if (config.websocket || config.llm)
-                                            throw new Error(
-                                                'Open the matching protocol tool to import this configuration.',
-                                            );
-                                        setName(config.name);
-                                        setEchoMode(Boolean(config.echo));
-                                        setCrudMode(Boolean(config.crud));
-                                        if (config.crud) {
-                                            setCrudMode(true);
-                                            setCrudPath(config.crud.path);
-                                            setCrudSeed(JSON.stringify(config.crud.seed, null, 2));
-                                        }
-                                        setRoutes(config.routes);
-                                        setVariablesInput({});
-                                        setProxyTarget(config.proxy?.target ?? '');
-                                        setProxyRecord(config.proxy?.record ?? 'staged');
-                                        setProxyPrefix(config.proxy?.pathPrefix ?? '/orders');
-                                        setActive(0);
-                                        setError('');
-                                        setNotice(
-                                            'Configuration imported locally. Create or save the endpoint to apply it.',
-                                        );
-                                    } catch (error) {
-                                        setError(
-                                            error instanceof Error
-                                                ? error.message
-                                                : 'Invalid mock configuration.',
-                                        );
-                                    }
-                                }}
-                            >
-                                Import configuration
-                            </Button>
-                            <CopyButton
-                                text={JSON.stringify({ name, routes }, null, 2)}
-                                label="Copy current configuration"
-                            />
-                        </div>
-                    </details>
-                    <div className="resource-form-fields">
-                        <label>
-                            API name
-                            <input
-                                value={name}
-                                maxLength={80}
-                                onChange={(event) => setName(event.target.value)}
-                                disabled={busy}
-                            />
-                        </label>
-                    </div>
-                    <div className="resource-route-tabs" aria-label="Configured routes">
-                        {routes.map((entry, index) => (
-                            <button
-                                key={index}
-                                aria-pressed={active === index}
-                                disabled={busy}
-                                onClick={() => setActive(index)}
-                            >
-                                {entry.method} {entry.path || 'New route'} · {entry.status}
-                                {entry.condition
-                                    ? ' · Matched request'
-                                    : routes.some(
-                                            (other, i) =>
-                                                i !== index &&
-                                                other.method === entry.method &&
-                                                other.path === entry.path,
-                                        )
-                                      ? ' · Fallback'
-                                      : ''}
-                            </button>
+            {kind === 'mock' ? (
+                <Tabs.Root value={mockTab} onValueChange={setMockTab} className="mock-workspace">
+                    <Tabs.List className="mock-workspace-tabs" aria-label="Mock API sections">
+                        {['Routes', 'Calls', 'Scenarios', 'Recordings', 'Settings'].map((label) => (
+                            <Tabs.Trigger key={label} value={label.toLowerCase()}>
+                                {label}
+                            </Tabs.Trigger>
                         ))}
-                        {routes.length < 20 && (
-                            <Button
-                                variant="soft"
-                                color="gray"
-                                disabled={busy}
-                                onClick={() => {
-                                    setRoutes((items) => [
-                                        ...items,
-                                        { ...freshRoute(), path: `/route-${items.length + 1}` },
-                                    ]);
-                                    setActive(routes.length);
-                                }}
-                            >
-                                Add route
-                            </Button>
-                        )}
-                    </div>
-                    <div className="resource-form-fields">
-                        <label>
-                            Method
-                            <AppSelect
-                                value={route.method}
-                                onChange={(event) => patch({ method: event.target.value })}
-                                disabled={busy}
-                            >
-                                {[
-                                    'GET',
-                                    'POST',
-                                    'PUT',
-                                    'PATCH',
-                                    'DELETE',
-                                    'OPTIONS',
-                                    'HEAD',
-                                    'ANY',
-                                ].map((method) => (
-                                    <SelectOption key={method}>{method}</SelectOption>
-                                ))}
-                            </AppSelect>
-                        </label>
-                        <label>
-                            Path
-                            <input
-                                value={route.path}
-                                maxLength={200}
-                                onChange={(event) => patch({ path: event.target.value })}
-                                placeholder="/users/:id"
-                                disabled={busy}
-                            />
-                        </label>
-                        <label>
-                            Status
-                            <input
-                                type="number"
-                                min="200"
-                                max="599"
-                                value={route.status}
-                                onChange={(event) => patch({ status: Number(event.target.value) })}
-                                disabled={busy}
-                            />
-                        </label>
-                        <label>
-                            Delay (ms)
-                            <input
-                                type="number"
-                                min="0"
-                                max="2000"
-                                value={route.delayMs}
-                                onChange={(event) => patch({ delayMs: Number(event.target.value) })}
-                                disabled={busy}
-                            />
-                        </label>
-                        <label>
-                            Requests per minute
-                            <input
-                                type="number"
-                                min="1"
-                                max="120"
-                                value={route.requestsPerMinute ?? 120}
-                                disabled={busy}
-                                onChange={(event) =>
-                                    patch({ requestsPerMinute: Number(event.target.value) })
-                                }
-                            />
-                        </label>
-                        <label>
-                            Random failures (%)
-                            <input
-                                type="number"
-                                min="0"
-                                max="100"
-                                value={route.failureRate ?? 0}
-                                disabled={busy}
-                                title="Share of calls answered with 503, to test retries"
-                                onChange={(event) => {
-                                    const rate = Number(event.target.value);
-                                    patch(
-                                        rate
-                                            ? { failureRate: rate, failureStatus: 503 }
-                                            : { failureRate: undefined, failureStatus: undefined },
-                                    );
-                                }}
-                            />
-                        </label>
-                        <label>
-                            Delivery
-                            <AppSelect
-                                value={route.stream?.mode ?? 'single'}
-                                disabled={busy}
-                                onChange={(event) =>
-                                    patch({
-                                        stream:
-                                            event.target.value === 'single'
-                                                ? undefined
-                                                : {
-                                                      mode: event.target.value as 'sse' | 'text',
-                                                      intervalMs: 300,
-                                                  },
-                                        ...(event.target.value !== 'single'
-                                            ? {
-                                                  method: 'GET',
-                                                  status: 200,
-                                                  headers: {
-                                                      ...route.headers,
-                                                      'content-type':
-                                                          event.target.value === 'sse'
-                                                              ? 'text/event-stream'
-                                                              : 'text/plain',
-                                                  },
-                                              }
-                                            : {}),
-                                    })
-                                }
-                            >
-                                <SelectOption value="single">One response</SelectOption>
-                                <SelectOption value="text">Text stream</SelectOption>
-                                <SelectOption value="sse">Server-sent events</SelectOption>
-                            </AppSelect>
-                        </label>
-                        {route.stream && (
-                            <label>
-                                Chunk interval (ms)
-                                <input
-                                    type="number"
-                                    min="10"
-                                    max="1000"
-                                    disabled={busy}
-                                    value={route.stream.intervalMs}
-                                    onChange={(event) =>
-                                        patch({
-                                            stream: {
-                                                ...route.stream!,
-                                                intervalMs: Number(event.target.value),
-                                            },
-                                        })
-                                    }
-                                />
-                            </label>
-                        )}
-                        <label>
-                            Response type
-                            <AppSelect
-                                value={route.headers['content-type'] ?? 'application/json'}
-                                onChange={(event) =>
-                                    patch({
-                                        headers: {
-                                            ...route.headers,
-                                            'content-type': event.target.value,
-                                        },
-                                    })
-                                }
-                                disabled={busy}
-                            >
-                                {[
-                                    'application/json',
-                                    'text/plain',
-                                    'application/xml',
-                                    'text/csv',
-                                    'text/event-stream',
-                                ].map((type) => (
-                                    <SelectOption key={type}>{type}</SelectOption>
-                                ))}
-                            </AppSelect>
-                        </label>
-                    </div>
-                    <details
-                        className="mock-behavior-options"
-                        open={
-                            !!route.condition ||
-                            !!route.template ||
-                            !!route.graphql ||
-                            !!route.scenario
-                        }
-                    >
-                        <summary>Request conditions & response templates</summary>
-                        <div className="resource-form-fields">
-                            {route.method === 'POST' && (
-                                <>
-                                    <label>
-                                        GraphQL operation name (optional)
-                                        <input
-                                            value={route.graphql?.operationName ?? ''}
-                                            maxLength={80}
-                                            disabled={busy}
-                                            onChange={(event) =>
-                                                patch({
-                                                    graphql: event.target.value
-                                                        ? {
-                                                              ...route.graphql,
-                                                              operationName: event.target.value,
-                                                          }
-                                                        : undefined,
-                                                })
-                                            }
-                                        />
-                                    </label>
-                                    {route.graphql && (
-                                        <label className="utility-wide-field">
-                                            Exact GraphQL variables (optional)
-                                            <TextArea
-                                                rows={3}
-                                                maxLength={4096}
-                                                disabled={busy}
-                                                value={
-                                                    variablesInput[active] ??
-                                                    (route.graphql.variables
-                                                        ? JSON.stringify(
-                                                              route.graphql.variables,
-                                                              null,
-                                                              2,
-                                                          )
-                                                        : '')
-                                                }
-                                                onChange={(event) =>
-                                                    setVariablesInput({
-                                                        ...variablesInput,
-                                                        [active]: event.target.value,
-                                                    })
-                                                }
-                                            />
-                                        </label>
-                                    )}
-                                </>
-                            )}
-                            <label className="checkbox-label">
-                                <input
-                                    type="checkbox"
-                                    checked={Boolean(route.scenario)}
-                                    disabled={
-                                        busy ||
-                                        !!route.stream ||
-                                        route.requestsPerMinute !== undefined
-                                    }
-                                    onChange={(event) =>
-                                        patch({
-                                            scenario: event.target.checked
-                                                ? { name: 'scenario', from: 'start', to: 'next' }
-                                                : undefined,
-                                        })
-                                    }
-                                />
-                                Use a scenario state
-                            </label>
-                            {route.scenario && (
-                                <>
-                                    {(
-                                        [
-                                            ['name', 'Scenario name'],
-                                            ['from', 'Required state'],
-                                            ['to', 'Next state'],
-                                        ] as const
-                                    ).map(([field, label]) => (
-                                        <label key={field}>
-                                            {label}
+                    </Tabs.List>
+                    <Tabs.Content value="routes">
+                        {mockRoutes}
+                        {hasMock && resource && !echoMode && !crudMode && (
+                            <section className="mock-panel-card">
+                                <h2>Test endpoint</h2>
+                                {resource.visibility === 'private' && !resource.accessToken && (
+                                    <div className="resource-form-fields">
+                                        <label>
+                                            Access token for endpoint check
                                             <input
-                                                value={route.scenario![field]}
-                                                maxLength={48}
-                                                disabled={busy}
+                                                type="password"
+                                                autoComplete="off"
+                                                value={testAccessToken}
+                                                maxLength={43}
                                                 onChange={(event) =>
-                                                    patch({
-                                                        scenario: {
-                                                            ...route.scenario!,
-                                                            [field]: event.target.value,
-                                                        },
-                                                    })
+                                                    setTestAccessToken(event.target.value)
                                                 }
                                             />
                                         </label>
-                                    ))}
-                                    <small>
-                                        Send a unique run ID in X-Kivel-Mock-Run to keep each run
-                                        separate.
-                                    </small>
-                                </>
-                            )}
-                            <label>
-                                Match request field
-                                <AppSelect
-                                    value={route.condition?.source ?? 'none'}
+                                    </div>
+                                )}
+                                {route.scenario && (
+                                    <div className="resource-form-fields">
+                                        <label>
+                                            Run ID for endpoint check
+                                            <input
+                                                value={testRun}
+                                                maxLength={64}
+                                                placeholder="checkout-flow"
+                                                onChange={(event) => setTestRun(event.target.value)}
+                                            />
+                                        </label>
+                                    </div>
+                                )}
+
+                                <Button
+                                    size="2"
                                     disabled={busy}
-                                    onChange={(event) =>
-                                        patch({
-                                            condition:
-                                                event.target.value === 'none'
-                                                    ? undefined
-                                                    : {
-                                                          source: event.target.value as
-                                                              'header' | 'query' | 'body',
-                                                          key: '',
-                                                          value: '',
-                                                      },
-                                        })
-                                    }
+                                    onClick={() => void testEndpoint()}
                                 >
-                                    <SelectOption value="none">Every request</SelectOption>
-                                    <SelectOption value="header">Header</SelectOption>
-                                    <SelectOption value="query">Query parameter</SelectOption>
-                                    <SelectOption value="body">JSON body field</SelectOption>
-                                </AppSelect>
-                            </label>
-                            {route.condition && (
-                                <>
-                                    <label>
-                                        Field name
-                                        <input
-                                            value={route.condition.key}
-                                            maxLength={80}
-                                            disabled={busy}
+                                    Test endpoint
+                                </Button>
+                                {testStatus && (
+                                    <>
+                                        <p className="resource-notice" role="status">
+                                            {testStatus}
+                                        </p>
+                                        <ResponseOutput
+                                            text={testResult}
+                                            sse={route.stream?.mode === 'sse'}
+                                        />
+                                    </>
+                                )}
+                            </section>
+                        )}
+                        {hasMock && resource && !echoMode && (
+                            <MockRouteMatch id={resource.id} token={resource.managementToken} />
+                        )}
+                    </Tabs.Content>
+                    <Tabs.Content value="calls">
+                        {hasMock && resource ? (
+                            <MockCalls
+                                key={resource.id}
+                                id={resource.id}
+                                token={resource.managementToken}
+                                scenarios
+                            />
+                        ) : (
+                            <section className="mock-panel-card">
+                                <h2>Recent calls</h2>
+                                <p>Create a mock, then send it a request to see it here.</p>
+                            </section>
+                        )}
+                    </Tabs.Content>
+                    <Tabs.Content value="scenarios">
+                        {hasMock && resource && hasScenarios ? (
+                            <MockScenarioRuns id={resource.id} token={resource.managementToken} />
+                        ) : (
+                            <section className="mock-panel-card">
+                                <h2>Scenario runs</h2>
+                                <p>
+                                    Enable a scenario state in a route’s request conditions, then
+                                    save your mock to reset runs here.
+                                </p>
+                            </section>
+                        )}
+                    </Tabs.Content>
+                    <Tabs.Content value="recordings">
+                        {hasMock && resource ? (
+                            <MockRecordings
+                                id={resource.id}
+                                token={resource.managementToken}
+                                onPromote={(item) => setRoutes((items) => [...items, item])}
+                            />
+                        ) : (
+                            <section className="mock-panel-card">
+                                <h2>Proxy recordings</h2>
+                                <p>
+                                    Create a mock and set up a proxy in Settings to record
+                                    responses.
+                                </p>
+                            </section>
+                        )}
+                    </Tabs.Content>
+                    <Tabs.Content value="settings">
+                        {resource && (
+                            <section className="mock-panel-card" aria-label="Endpoint access">
+                                <h2>Endpoint access</h2>
+                                <SharingControl
+                                    value={resource.visibility ?? 'public'}
+                                    disabled={busy || expired}
+                                    onChange={(mode) => void changeSharing(mode)}
+                                />
+                                <div className="utility-actions">
+                                    <Button
+                                        variant="soft"
+                                        color="gray"
+                                        disabled={busy}
+                                        onClick={() => void refresh(resource)}
+                                    >
+                                        Refresh details
+                                    </Button>
+                                    <Button
+                                        variant="soft"
+                                        color="red"
+                                        disabled={busy}
+                                        onClick={() => setConfirm(true)}
+                                    >
+                                        Delete API
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        color="gray"
+                                        disabled={busy}
+                                        onClick={() => {
+                                            save(null);
+                                            setFile(undefined);
+                                            setTestResult('');
+                                            setVisibility('private');
+                                            setNotice(
+                                                'Ready for another resource. The previous resource remains active until it expires.',
+                                            );
+                                        }}
+                                    >
+                                        Start another
+                                    </Button>
+                                </div>
+                                {resource.visibility === 'private' && (
+                                    <div className="resource-access">
+                                        <strong>Private access</strong>
+                                        <p>
+                                            Share the access token with the recipient. Keep your
+                                            management token private.
+                                        </p>
+                                        {resource.accessToken ? (
+                                            <CopyButton
+                                                text={resource.accessToken}
+                                                label="Copy access token"
+                                            />
+                                        ) : (
+                                            <p>
+                                                The access token is unavailable in this tab.
+                                                Generate a new token to share this resource.
+                                            </p>
+                                        )}
+                                        <button
+                                            className="button button-small"
+                                            disabled={busy || expired}
+                                            onClick={() => void changeSharing('private')}
+                                        >
+                                            Rotate access token
+                                        </button>
+                                        {
+                                            <p>
+                                                Send the access token in <code>X-Access-Token</code>{' '}
+                                                or a Bearer Authorization header.
+                                            </p>
+                                        }
+                                    </div>
+                                )}
+                                {resource.managementToken ? (
+                                    <div className="resource-access">
+                                        <h3>Private management access</h3>
+                                        <p>
+                                            Keep this management token private. Anonymous resources
+                                            use it to reopen, change sharing, or delete.
+                                            Account-owned resources also require your workspace
+                                            access. It is saved only in this browser tab.
+                                        </p>
+                                        <CopyButton
+                                            text={resource.managementToken}
+                                            label="Copy private token"
+                                        />
+                                        <p>
+                                            <code>Resource ID: {resource.id}</code>
+                                        </p>
+                                    </div>
+                                ) : null}
+                            </section>
+                        )}
+                        {!echoMode && !crudMode && (
+                            <>
+                                <section className="mock-panel-card">
+                                    <h2>
+                                        Proxy &amp; record a real API{' '}
+                                        <span className="badge badge-green">Pro</span>
+                                    </h2>
+                                    {paidPlan ? (
+                                        <>
+                                            <p className="tool-notice">
+                                                Calls that match no route go to this API and its
+                                                answer comes back. Review recordings and choose
+                                                which answers become fixtures. Use an upstream that
+                                                returns sample data.
+                                            </p>
+                                            <label className="mock-import-label">
+                                                Real API base URL
+                                                <input
+                                                    type="url"
+                                                    value={proxyTarget}
+                                                    disabled={busy}
+                                                    placeholder="https://api.example.com/v1"
+                                                    onChange={(event) =>
+                                                        setProxyTarget(event.target.value)
+                                                    }
+                                                />
+                                            </label>
+                                            <AppSelect
+                                                aria-label="Recording mode"
+                                                value={String(proxyRecord)}
+                                                disabled={busy}
+                                                onChange={({ target: { value } }) =>
+                                                    setProxyRecord(
+                                                        value === 'staged'
+                                                            ? value
+                                                            : value === 'true',
+                                                    )
+                                                }
+                                            >
+                                                <SelectOption value="staged">
+                                                    Review before saving
+                                                </SelectOption>
+                                                <SelectOption value="true">
+                                                    Save answers automatically
+                                                </SelectOption>
+                                                <SelectOption value="false">
+                                                    Forward only
+                                                </SelectOption>
+                                            </AppSelect>
+                                            {proxyRecord === 'staged' && (
+                                                <label className="mock-import-label">
+                                                    Record paths starting with
+                                                    <input
+                                                        value={proxyPrefix}
+                                                        maxLength={180}
+                                                        placeholder="/orders"
+                                                        disabled={busy}
+                                                        onChange={(event) =>
+                                                            setProxyPrefix(event.target.value)
+                                                        }
+                                                    />
+                                                </label>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <div className="upsell">
+                                            <p>
+                                                Point the mock at your real API: unmatched calls
+                                                pass through and responses are saved as routes on
+                                                Pro.
+                                            </p>
+                                            <Link
+                                                className="button button-primary button-small"
+                                                href={`${siteOrigin}/pricing/`}
+                                            >
+                                                See Pro pricing
+                                            </Link>
+                                        </div>
+                                    )}
+                                    {paidPlan && (
+                                        <Button disabled={busy} onClick={() => void submit()}>
+                                            {hasMock ? 'Save proxy settings' : 'Create mock API'}
+                                        </Button>
+                                    )}
+                                </section>
+                                <section className="mock-panel-card">
+                                    <h2>Import / export configuration</h2>
+                                    <label className="mock-import-label">
+                                        Mock configuration (JSON)
+                                        <textarea
+                                            value={importConfig}
                                             onChange={(event) =>
-                                                patch({
-                                                    condition: {
-                                                        ...route.condition!,
-                                                        key: event.target.value,
-                                                    },
-                                                })
+                                                setImportConfig(event.target.value)
                                             }
+                                            maxLength={81920}
+                                            rows={6}
+                                            disabled={busy}
+                                            spellCheck={false}
+                                            placeholder='{"name":"Example","routes":[...]}'
                                         />
                                     </label>
-                                    <label>
-                                        Required value
-                                        <input
-                                            value={route.condition.value}
-                                            maxLength={512}
-                                            disabled={busy}
-                                            onChange={(event) =>
-                                                patch({
-                                                    condition: {
-                                                        ...route.condition!,
-                                                        value: event.target.value,
-                                                    },
-                                                })
-                                            }
+                                    <div className="utility-actions">
+                                        <Button
+                                            disabled={busy || !importConfig}
+                                            onClick={() => {
+                                                try {
+                                                    const config = validateMock(
+                                                        JSON.parse(importConfig),
+                                                    );
+                                                    if (config.websocket || config.llm)
+                                                        throw new Error(
+                                                            'Open the matching protocol tool to import this configuration.',
+                                                        );
+                                                    setName(config.name);
+                                                    setEchoMode(Boolean(config.echo));
+                                                    setCrudMode(Boolean(config.crud));
+                                                    if (config.crud) {
+                                                        setCrudMode(true);
+                                                        setCrudPath(config.crud.path);
+                                                        setCrudSeed(
+                                                            JSON.stringify(
+                                                                config.crud.seed,
+                                                                null,
+                                                                2,
+                                                            ),
+                                                        );
+                                                    }
+                                                    setRoutes(config.routes);
+                                                    setVariablesInput({});
+                                                    setProxyTarget(config.proxy?.target ?? '');
+                                                    setProxyRecord(
+                                                        config.proxy?.record ?? 'staged',
+                                                    );
+                                                    setProxyPrefix(
+                                                        config.proxy?.pathPrefix ?? '/orders',
+                                                    );
+                                                    setActive(0);
+                                                    setMockTab('routes');
+                                                    setError('');
+                                                    setNotice(
+                                                        'Configuration imported locally. Create or save the endpoint to apply it.',
+                                                    );
+                                                } catch (error) {
+                                                    setError(
+                                                        error instanceof Error
+                                                            ? error.message
+                                                            : 'Invalid mock configuration.',
+                                                    );
+                                                }
+                                            }}
+                                        >
+                                            Import configuration
+                                        </Button>
+                                        <CopyButton
+                                            text={JSON.stringify({ name, routes }, null, 2)}
+                                            label="Copy current configuration"
                                         />
-                                    </label>
-                                </>
-                            )}
-                            <label>
-                                Response mode
-                                <AppSelect
-                                    value={route.template ? 'template' : 'static'}
-                                    disabled={busy || !!route.stream}
-                                    onChange={(event) =>
-                                        patch({ template: event.target.value === 'template' })
-                                    }
-                                >
-                                    <SelectOption value="static">Static response</SelectOption>
-                                    <SelectOption value="template">
-                                        Insert request values
-                                    </SelectOption>
-                                </AppSelect>
-                            </label>
-                        </div>
-                        <p className="tool-notice">
-                            Templates accept {'{{path.id}}'}, {'{{query.name}}'}, {'{{body.name}}'}{' '}
-                            and sample data such as {'{{fake.name}}'}, {'{{fake.email}}'},{' '}
-                            {'{{fake.uuid}}'}, {'{{fake.price}}'} or {'{{fake.datetime}}'} inside
-                            JSON strings or plain text. Missing values become empty strings. No code
-                            runs. Test credentials are stored in the configuration; use fake tokens
-                            only.
-                        </p>
-                    </details>
-                    <div className="editor-panel">
-                        <div className="editor-heading">
-                            <label htmlFor="mock-response">
-                                {route.stream ? 'Chunks / events (one per line)' : 'Response body'}
-                            </label>
-                            {routes.length > 1 && (
-                                <button
-                                    className="text-link"
-                                    disabled={busy}
-                                    onClick={() => {
-                                        setRoutes((items) =>
-                                            items.filter((_, index) => index !== active),
-                                        );
-                                        setVariablesInput((drafts) =>
-                                            Object.fromEntries(
-                                                Object.entries(drafts)
-                                                    .filter(([index]) => Number(index) !== active)
-                                                    .map(([index, value]) => [
-                                                        Number(index) > active
-                                                            ? Number(index) - 1
-                                                            : Number(index),
-                                                        value,
-                                                    ]),
-                                            ),
-                                        );
-                                        setActive(0);
-                                    }}
-                                >
-                                    Remove route
-                                </button>
-                            )}
-                        </div>
-                        <textarea
-                            id="mock-response"
-                            value={route.body}
-                            maxLength={51200}
-                            spellCheck={false}
-                            disabled={busy}
-                            onChange={(event) => patch({ body: event.target.value })}
-                        />
-                    </div>
-                    <p className="tool-notice">
-                        Up to 20 routes, 80 KiB total configuration, and 120 requests per minute.
-                        Paths support parameters such as /users/:id. Matching routes are checked in
-                        order.
-                    </p>
-                    <div className="utility-actions">
-                        <Button size="3" disabled={busy || !ready} onClick={() => void submit()}>
-                            {busy
-                                ? 'Saving…'
-                                : resource && !expired
-                                  ? 'Save changes'
-                                  : 'Create mock API'}
-                            <Icon name="arrow" size={16} />
-                        </Button>
-                    </div>
-                </section>
+                                        {hasMock && resource && (
+                                            <MockConfigDownload
+                                                id={resource.id}
+                                                token={resource.managementToken}
+                                            />
+                                        )}
+                                    </div>
+                                </section>
+                            </>
+                        )}
+                        {(echoMode || crudMode) && hasMock && resource && (
+                            <section className="mock-panel-card">
+                                <h2>Configuration</h2>
+                                <MockConfigDownload
+                                    id={resource.id}
+                                    token={resource.managementToken}
+                                />
+                            </section>
+                        )}
+                    </Tabs.Content>
+                </Tabs.Root>
             ) : kind === 'mcp' ? (
                 <section className="resource-editor" aria-label="Mock MCP configuration">
                     <div className="resource-form-fields">

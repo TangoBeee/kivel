@@ -17,15 +17,17 @@ export function ResultPreview({
     title = 'Output',
     filename = 'kivel-result.txt',
     downloadable = true,
+    initialFormatted = false,
 }: {
     text: string;
     title?: string;
     filename?: string;
     downloadable?: boolean;
+    initialFormatted?: boolean;
 }) {
-    const [formatted, setFormatted] = useState(false),
+    const [formatted, setFormatted] = useState(initialFormatted),
         [wrap, setWrap] = useState(true);
-    useEffect(() => setFormatted(false), [text]);
+    useEffect(() => setFormatted(initialFormatted), [text, initialFormatted]);
     const pretty = useMemo(() => {
         if (text.length > 262144) return undefined;
         try {

@@ -2,8 +2,19 @@
 import { legacyAccountLink } from '../lib/app-routes';
 
 import { useEffect, useState } from 'react';
-import { Badge, Button, Dialog, DropdownMenu, IconButton, Select } from '@radix-ui/themes';
+import {
+    Badge,
+    Button,
+    Checkbox,
+    Dialog,
+    DropdownMenu,
+    IconButton,
+    Select,
+    Tabs,
+    TextField,
+} from '@radix-ui/themes';
 import { DotsThree, Plus, Pulse } from '@phosphor-icons/react';
+import type { MonitorAlertPolicy } from '@kivel.io/sdk';
 import { api } from '../lib/api';
 import { useLiveStream } from '../lib/use-live-stream';
 import { CopyButton } from './copy-button';
@@ -19,7 +30,11 @@ interface Monitor {
     lastCheckAt?: string;
     lastMessage?: string;
     lastDurationMs?: number;
+    alertPolicy?: MonitorAlertPolicy;
 }
+
+type Incidents = { startedAt: string; recoveredAt?: string; message: string }[];
+type Deliveries = { at: string; channel: string; outcome: string; reason?: string }[];
 
 const intervals = [
     [60, 'Every minute'],
@@ -67,6 +82,7 @@ export function MonitorsPanel({
     const [pingUrl, setPingUrl] = useState('');
     const [error, setError] = useState('');
     const [busy, setBusy] = useState(false);
+    const [detail, setDetail] = useState<{ incidents: Incidents; deliveries: Deliveries }>();
     const [history, setHistory] = useState<
         | (Monitor & {
               recentChecks?: { at: string; status: string; durationMs: number }[];
@@ -108,6 +124,23 @@ export function MonitorsPanel({
             });
         return () => controller.abort();
     }, [selectedId]);
+    useEffect(() => {
+        setDetail(undefined);
+        if (!history) return;
+        const controller = new AbortController();
+        const base = `/api/monitors/${encodeURIComponent(history.id)}`;
+        const get = async (section: string) =>
+            (await api(`${base}/${section}`, { signal: controller.signal })).json();
+        void Promise.all([get('incidents'), get('deliveries')])
+            .then(([a, b]) => {
+                if (!controller.signal.aborted)
+                    setDetail({ incidents: a.incidents, deliveries: b.deliveries });
+            })
+            .catch((failure) => {
+                if (!controller.signal.aborted) setError(failure.message);
+            });
+        return () => controller.abort();
+    }, [history?.id]);
     const live = useLiveStream('monitors', load, paused);
     const count = monitors?.length;
     useEffect(() => {
@@ -167,7 +200,9 @@ export function MonitorsPanel({
                       }),
             });
             await load();
-        } catch {}
+        } catch (failure) {
+            setError(failure instanceof Error ? failure.message : 'Unable to update the monitor.');
+        }
     }
 
     const full = !!monitors && monitors.length >= limit;
@@ -203,13 +238,13 @@ export function MonitorsPanel({
                     <Plus size={16} /> Add monitor
                 </Button>
             </div>
-            {!verifiedEmail && !!monitors?.length && (
+            {!selectedId && !verifiedEmail && !!monitors?.length && (
                 <p className="monitor-hint">
                     <a href={legacyAccountLink('/account/#security')}>Verify your email</a> to get
                     alert emails.
                 </p>
             )}
-            {monitors === null ? null : monitors.length ? (
+            {selectedId || monitors === null ? null : monitors.length ? (
                 <div className="account-table-wrap">
                     <table className="account-table">
                         <thead>
@@ -512,45 +547,152 @@ export function MonitorsPanel({
                     )}
                 </Dialog.Content>
             </Dialog.Root>
+            {selectedId &&
+                !history &&
+                (error ? (
+                    <p role="alert" className="alert">
+                        {error}
+                    </p>
+                ) : (
+                    <p role="status" className="muted">
+                        Loading monitor…
+                    </p>
+                ))}
             {history && (
-                <section className="dashboard-resource-management">
-                    <h2>{history.name}</h2>
-                    <p>Latest checks from Kivel.</p>
-                    {history?.kind === 'dns' && (
-                        <>
-                            <h3>Baseline records</h3>
-                            <pre className="email-text">
-                                {history.dnsBaseline?.join('\n') ?? 'Awaiting first lookup'}
-                            </pre>
-                            <h3>Last observed records</h3>
-                            <pre className="email-text">
-                                {history.lastDnsAnswers?.join('\n') ?? 'No successful lookup'}
-                            </pre>
-                        </>
-                    )}
-                    <div className="result-table-scroll">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th scope="col">Checked</th>
-                                    <th scope="col">Result</th>
-                                    <th scope="col">Probe time</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {history?.recentChecks
-                                    ?.slice()
-                                    .reverse()
-                                    .map((check) => (
-                                        <tr key={check.at}>
-                                            <td>{new Date(check.at).toLocaleString()}</td>
-                                            <td>{check.status}</td>
-                                            <td>{check.durationMs} ms</td>
-                                        </tr>
-                                    ))}
-                            </tbody>
-                        </table>
+                <section className="dashboard-resource-management operations-detail">
+                    <div className="section-heading">
+                        <div>
+                            <h2>{history.name}</h2>
+                            <small>
+                                {kinds[history.kind]} · {every(history.intervalSeconds)}
+                            </small>
+                        </div>
+                        <Badge
+                            variant="soft"
+                            color={
+                                history.paused
+                                    ? 'gray'
+                                    : history.status === 'up'
+                                      ? 'green'
+                                      : history.status === 'down'
+                                        ? 'red'
+                                        : 'gray'
+                            }
+                        >
+                            {history.paused
+                                ? 'Paused'
+                                : history.status === 'up'
+                                  ? 'Up'
+                                  : history.status === 'down'
+                                    ? 'Down'
+                                    : 'Waiting'}
+                        </Badge>
                     </div>
+                    {history.lastMessage && <p className="muted">{history.lastMessage}</p>}
+                    {error && (
+                        <p role="alert" className="alert">
+                            {error}
+                        </p>
+                    )}
+                    <Tabs.Root key={history.id} defaultValue="checks">
+                        <Tabs.List aria-label="Monitor history">
+                            <Tabs.Trigger value="checks">Checks</Tabs.Trigger>
+                            <Tabs.Trigger value="incidents">Incidents</Tabs.Trigger>
+                            <Tabs.Trigger value="alerts">Alerts</Tabs.Trigger>
+                        </Tabs.List>
+                        <Tabs.Content value="checks">
+                            <p>Latest checks from Kivel.</p>
+                            {history?.kind === 'dns' && (
+                                <>
+                                    <h3>Baseline records</h3>
+                                    <pre className="email-text">
+                                        {history.dnsBaseline?.join('\n') ?? 'Awaiting first lookup'}
+                                    </pre>
+                                    <h3>Last observed records</h3>
+                                    <pre className="email-text">
+                                        {history.lastDnsAnswers?.join('\n') ??
+                                            'No successful lookup'}
+                                    </pre>
+                                </>
+                            )}
+                            <div className="result-table-scroll">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">Checked</th>
+                                            <th scope="col">Result</th>
+                                            <th scope="col">Probe time</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {history?.recentChecks
+                                            ?.slice()
+                                            .reverse()
+                                            .map((check) => (
+                                                <tr key={check.at}>
+                                                    <td>{new Date(check.at).toLocaleString()}</td>
+                                                    <td>{check.status}</td>
+                                                    <td>{check.durationMs} ms</td>
+                                                </tr>
+                                            ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {!history.recentChecks?.length && (
+                                <p className="muted">Waiting for the first check.</p>
+                            )}
+                        </Tabs.Content>
+                        <Tabs.Content value="incidents">
+                            {!detail ? (
+                                <p role="status">Loading incidents…</p>
+                            ) : detail.incidents.length ? (
+                                <ul className="operations-timeline">
+                                    {detail.incidents.map((incident) => (
+                                        <li key={incident.startedAt}>
+                                            <strong>
+                                                {incident.recoveredAt ? 'Recovered' : 'Ongoing'}
+                                            </strong>
+                                            <p>{incident.message}</p>
+                                            <small>
+                                                {new Date(incident.startedAt).toLocaleString()}{' '}
+                                                {incident.recoveredAt
+                                                    ? 'to ' +
+                                                      new Date(
+                                                          incident.recoveredAt,
+                                                      ).toLocaleString()
+                                                    : ''}
+                                            </small>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <p>No incidents recorded.</p>
+                            )}
+                        </Tabs.Content>
+                        <Tabs.Content value="alerts">
+                            <MonitorAlerts key={history.id} monitor={history} />
+                            <h3>Alert delivery history</h3>
+                            {!detail ? (
+                                <p role="status">Loading deliveries…</p>
+                            ) : detail.deliveries.length ? (
+                                <ul className="operations-timeline">
+                                    {detail.deliveries.map((delivery, index) => (
+                                        <li key={index}>
+                                            {delivery.channel === 'webhook' ? 'Webhook' : 'Email'} ·{' '}
+                                            {delivery.outcome}
+                                            <small>
+                                                {' '}
+                                                · {new Date(delivery.at).toLocaleString()}{' '}
+                                                {delivery.reason && '· ' + delivery.reason}
+                                            </small>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <p>No delivery attempts recorded.</p>
+                            )}
+                        </Tabs.Content>
+                    </Tabs.Root>
                     <div className="button-row">
                         <Button
                             variant="soft"
@@ -565,5 +707,101 @@ export function MonitorsPanel({
                 </section>
             )}
         </section>
+    );
+}
+
+function MonitorAlerts({ monitor }: { monitor: Monitor }) {
+    const local = (date?: string) => {
+        if (!date) return '';
+        const value = new Date(date);
+        return new Date(value.getTime() - value.getTimezoneOffset() * 60000)
+            .toISOString()
+            .slice(0, 16);
+    };
+    const [email, setEmail] = useState(monitor.alertPolicy?.email ?? true);
+    const [webhook, setWebhook] = useState(monitor.alertPolicy?.webhook ?? true);
+    const [startsAt, setStartsAt] = useState(local(monitor.alertPolicy?.maintenance?.startsAt));
+    const [endsAt, setEndsAt] = useState(local(monitor.alertPolicy?.maintenance?.endsAt));
+    const [message, setMessage] = useState('');
+    const [error, setError] = useState('');
+    const [busy, setBusy] = useState(false);
+    return (
+        <form
+            className="email-create-form"
+            onSubmit={(event) => {
+                event.preventDefault();
+                setMessage('');
+                setError('');
+                const maintenance = startsAt || endsAt;
+                if (maintenance && (!startsAt || !endsAt)) {
+                    setError('Choose both dates for the maintenance window.');
+                    return;
+                }
+                setBusy(true);
+                void api(`/api/monitors/${monitor.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        alertPolicy: {
+                            email,
+                            webhook,
+                            ...(maintenance
+                                ? {
+                                      maintenance: {
+                                          startsAt: new Date(startsAt).toISOString(),
+                                          endsAt: new Date(endsAt).toISOString(),
+                                      },
+                                  }
+                                : {}),
+                        },
+                    }),
+                })
+                    .then(() => setMessage('Alert settings saved.'))
+                    .catch((failure: Error) => setError(failure.message))
+                    .finally(() => setBusy(false));
+            }}
+        >
+            <h3>Alert settings</h3>
+            <label className="llm-option">
+                <Checkbox checked={email} onCheckedChange={(value) => setEmail(value === true)} />
+                Email the workspace owner
+            </label>
+            <label className="llm-option">
+                <Checkbox
+                    checked={webhook}
+                    onCheckedChange={(value) => setWebhook(value === true)}
+                />
+                Send to the configured webhook
+            </label>
+            <p className="muted">
+                Kivel keeps recording checks during maintenance and pauses alerts until the window
+                ends.
+            </p>
+            <label>
+                Maintenance starts
+                <TextField.Root
+                    type="datetime-local"
+                    value={startsAt}
+                    onChange={(event) => setStartsAt(event.target.value)}
+                />
+            </label>
+            <label>
+                Maintenance ends
+                <TextField.Root
+                    type="datetime-local"
+                    value={endsAt}
+                    onChange={(event) => setEndsAt(event.target.value)}
+                />
+            </label>
+            <Button type="submit" disabled={busy}>
+                Save alert settings
+            </Button>
+            {message && <p role="status">{message}</p>}
+            {error && (
+                <p role="alert" className="alert">
+                    {error}
+                </p>
+            )}
+        </form>
     );
 }

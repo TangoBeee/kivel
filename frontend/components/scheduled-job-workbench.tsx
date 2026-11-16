@@ -14,7 +14,17 @@ interface Job {
     status: string;
     nextRunAt: string | null;
     remaining: number;
-    events: { id: string; at: string; status: number | null; attempt: number; error?: string }[];
+    paused?: boolean;
+    cron?: string;
+    timezone?: string;
+    events: {
+        id: string;
+        at: string;
+        deliveryId?: string;
+        status: number | null;
+        attempt: number;
+        error?: string;
+    }[];
 }
 export function ScheduledJobWorkbench({ toolId }: { toolId: string }) {
     const viewer = useViewer();
@@ -22,8 +32,14 @@ export function ScheduledJobWorkbench({ toolId }: { toolId: string }) {
         [url, setUrl] = useState(''),
         [body, setBody] = useState('{\n  "event": "test.ready"\n}');
     const [delay, setDelay] = useState('60'),
-        [interval, setInterval] = useState('once'),
+        [interval, setInterval] = useState(
+            toolId === 'automation-temporary-cron-triggers' ? 'cron' : 'once',
+        ),
         [runs, setRuns] = useState('5');
+    const [cron, setCron] = useState('0 9 * * *');
+    const [timezone, setTimezone] = useState(
+        () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+    );
     const [jobs, setJobs] = useState<Job[]>([]),
         [busy, setBusy] = useState(false),
         [error, setError] = useState('');
@@ -75,15 +91,35 @@ export function ScheduledJobWorkbench({ toolId }: { toolId: string }) {
                     name,
                     url,
                     body: parsed,
-                    delaySeconds: Number(delay),
-                    ...(interval === 'once'
-                        ? {}
-                        : { intervalSeconds: Number(interval), maxRuns: Number(runs) }),
+                    ...(interval === 'cron'
+                        ? { cron, timezone, maxRuns: Number(runs) }
+                        : {
+                              delaySeconds: Number(delay),
+                              ...(interval === 'once'
+                                  ? {}
+                                  : { intervalSeconds: Number(interval), maxRuns: Number(runs) }),
+                          }),
                 }),
             });
             await refresh();
         } catch (failure) {
             setError(failure instanceof Error ? failure.message : 'Unable to schedule callback.');
+        } finally {
+            setBusy(false);
+        }
+    }
+    async function toggleJob(job: Job) {
+        setBusy(true);
+        setError('');
+        try {
+            await api(`/api/scheduled-jobs/${job.id}`, {
+                method: 'PATCH',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ paused: !job.paused }),
+            });
+            await refresh();
+        } catch (failure) {
+            setError(failure instanceof Error ? failure.message : 'Unable to update the schedule.');
         } finally {
             setBusy(false);
         }
@@ -159,34 +195,59 @@ export function ScheduledJobWorkbench({ toolId }: { toolId: string }) {
                                 />
                             </label>
                             <label>
-                                First delivery in seconds
-                                <TextField.Root
-                                    type="number"
-                                    min={5}
-                                    max={604000}
-                                    required
-                                    value={delay}
-                                    onChange={(event) => setDelay(event.target.value)}
-                                />
-                            </label>
-                            <label>
                                 Repeat
                                 <Select.Root value={interval} onValueChange={setInterval}>
-                                    <Select.Trigger />
+                                    <Select.Trigger aria-label="Repeat" />
                                     <Select.Content>
                                         <Select.Item value="once">Once</Select.Item>
                                         <Select.Item value="300">Every 5 minutes</Select.Item>
                                         <Select.Item value="3600">Every hour</Select.Item>
                                         <Select.Item value="86400">Every day</Select.Item>
+                                        <Select.Item value="cron">Cron schedule</Select.Item>
                                     </Select.Content>
                                 </Select.Root>
                             </label>
+                            {interval === 'cron' ? (
+                                <>
+                                    <label>
+                                        Cron expression
+                                        <TextField.Root
+                                            required
+                                            maxLength={120}
+                                            value={cron}
+                                            onChange={(event) => setCron(event.target.value)}
+                                        />
+                                    </label>
+                                    <label>
+                                        IANA timezone
+                                        <TextField.Root
+                                            required
+                                            maxLength={80}
+                                            placeholder="America/New_York"
+                                            value={timezone}
+                                            onChange={(event) => setTimezone(event.target.value)}
+                                        />
+                                    </label>
+                                </>
+                            ) : (
+                                <label>
+                                    First delivery in seconds
+                                    <TextField.Root
+                                        type="number"
+                                        min={5}
+                                        max={604000}
+                                        required
+                                        value={delay}
+                                        onChange={(event) => setDelay(event.target.value)}
+                                    />
+                                </label>
+                            )}
                             {interval !== 'once' && (
                                 <label>
                                     Total deliveries
                                     <TextField.Root
                                         type="number"
-                                        min={2}
+                                        min={interval === 'cron' ? 1 : 2}
                                         max={100}
                                         required
                                         value={runs}
@@ -227,7 +288,9 @@ export function ScheduledJobWorkbench({ toolId }: { toolId: string }) {
                                 <article className="monitor-item" key={job.id}>
                                     <div className="section-heading">
                                         <h3>{job.name}</h3>
-                                        <span className="pill">{job.status}</span>
+                                        <span className="pill">
+                                            {job.paused ? 'Paused' : job.status}
+                                        </span>
                                     </div>
                                     <p className="mono" style={{ overflowWrap: 'anywhere' }}>
                                         {job.url}
@@ -236,10 +299,17 @@ export function ScheduledJobWorkbench({ toolId }: { toolId: string }) {
                                         <code>{job.id}</code>
                                         <CopyButton compact text={job.id} label="Copy job ID" />
                                     </div>
+                                    {job.cron && (
+                                        <p>
+                                            <code>{job.cron}</code> · {job.timezone}
+                                        </p>
+                                    )}
                                     <p className="muted">
-                                        {job.nextRunAt
-                                            ? `Next: ${new Date(job.nextRunAt).toLocaleString()} · ${job.remaining} remaining`
-                                            : 'No further deliveries scheduled.'}
+                                        {job.paused
+                                            ? 'Resume to deliver again.'
+                                            : job.nextRunAt
+                                              ? `Next: ${new Date(job.nextRunAt).toLocaleString()} · ${job.remaining} remaining`
+                                              : 'No further deliveries scheduled.'}
                                     </p>
                                     {job.events.length > 0 && (
                                         <details>
@@ -257,10 +327,27 @@ export function ScheduledJobWorkbench({ toolId }: { toolId: string }) {
                                                                 ? `HTTP ${event.status}`
                                                                 : event.error}{' '}
                                                             · attempt {event.attempt}
+                                                            {event.deliveryId && (
+                                                                <CopyButton
+                                                                    compact
+                                                                    text={event.deliveryId}
+                                                                    label="Copy delivery ID"
+                                                                />
+                                                            )}
                                                         </li>
                                                     ))}
                                             </ul>
                                         </details>
+                                    )}
+                                    {job.status === 'scheduled' && (
+                                        <Button
+                                            type="button"
+                                            variant="soft"
+                                            disabled={busy}
+                                            onClick={() => void toggleJob(job)}
+                                        >
+                                            {job.paused ? 'Resume job' : 'Pause job'}
+                                        </Button>
                                     )}
                                     <AlertDialog.Root>
                                         <AlertDialog.Trigger>

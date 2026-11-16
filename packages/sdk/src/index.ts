@@ -166,6 +166,31 @@ export type KivelLiveEvent =
     | { type: 'ready'; cursor: string }
     | { type: 'change'; cursor: string; topic: string; scopeId: string; id: string; event: string };
 
+export interface MonitorAlertPolicy {
+    email: boolean;
+    webhook: boolean;
+    maintenance?: { startsAt: string; endsAt: string };
+}
+export interface StatusPublication {
+    components: { id: string; name: string; status: 'operational' | 'degraded' | 'outage' }[];
+    incidents: {
+        id: string;
+        name: string;
+        componentIds: string[];
+        updates: {
+            at: string;
+            status: 'investigating' | 'identified' | 'monitoring' | 'resolved';
+            message: string;
+        }[];
+    }[];
+    maintenance: {
+        id: string;
+        name: string;
+        componentIds: string[];
+        startsAt: string;
+        endsAt: string;
+    }[];
+}
 export class KivelError extends Error {
     constructor(
         message: string,
@@ -877,6 +902,8 @@ export class Kivel {
             startAt?: string;
             intervalSeconds?: number;
             maxRuns?: number;
+            cron?: string;
+            timezone?: string;
         },
         settings: ResourceSettings = {},
     ) {
@@ -893,6 +920,25 @@ export class Kivel {
         return this.request<Record<string, unknown>>(
             'GET',
             `/api/scheduled-jobs/${encodeURIComponent(id)}`,
+        );
+    }
+    scheduledJobRuns(id: string) {
+        return this.request<{
+            runs: {
+                id: string;
+                at: string;
+                deliveryId: string;
+                attempt: number;
+                status: number | null;
+                error?: string;
+            }[];
+        }>('GET', `/api/scheduled-jobs/${encodeURIComponent(id)}/runs`);
+    }
+    pauseScheduledJob(id: string, paused = true) {
+        return this.request<{ id: string; paused: boolean }>(
+            'PATCH',
+            `/api/scheduled-jobs/${encodeURIComponent(id)}`,
+            { paused },
         );
     }
     cancelScheduledJob(id: string) {
@@ -914,6 +960,50 @@ export class Kivel {
         config: { name: string; description?: string; monitorIds: string[] },
     ) {
         return this.request('PUT', `/api/status-pages/${encodeURIComponent(id)}`, config);
+    }
+    statusPage(id: string) {
+        return this.request<
+            Partial<StatusPublication> & {
+                id: string;
+                name: string;
+                monitorIds: string[];
+                pageUrl: string;
+            }
+        >('GET', `/api/status-pages/${encodeURIComponent(id)}`);
+    }
+    updateStatusPublication(id: string, config: Partial<StatusPublication>) {
+        return this.request<{ saved: boolean }>(
+            'PATCH',
+            `/api/status-pages/${encodeURIComponent(id)}`,
+            config,
+        );
+    }
+    monitorChecks(id: string) {
+        return this.request<{
+            checks: { at: string; status: 'up' | 'down'; durationMs: number }[];
+        }>('GET', `/api/monitors/${encodeURIComponent(id)}/checks`);
+    }
+    monitorIncidents(id: string) {
+        return this.request<{
+            incidents: { startedAt: string; recoveredAt?: string; message: string }[];
+        }>('GET', `/api/monitors/${encodeURIComponent(id)}/incidents`);
+    }
+    monitorDeliveries(id: string) {
+        return this.request<{
+            deliveries: {
+                at: string;
+                channel: 'email' | 'webhook';
+                outcome: 'sent' | 'failed' | 'suppressed';
+                reason?: string;
+            }[];
+        }>('GET', `/api/monitors/${encodeURIComponent(id)}/deliveries`);
+    }
+    updateMonitorAlertPolicy(id: string, alertPolicy: MonitorAlertPolicy) {
+        return this.request<{ alertPolicy: MonitorAlertPolicy }>(
+            'PATCH',
+            `/api/monitors/${encodeURIComponent(id)}`,
+            { alertPolicy },
+        );
     }
     acceptDnsChanges(id: string) {
         return this.request<{ accepted: boolean }>(

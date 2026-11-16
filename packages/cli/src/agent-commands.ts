@@ -13,7 +13,8 @@ export function needsInput(args: string[]) {
         (args[0] === 'authenticator' && args[1] === 'add') ||
         (args[0] === 'credential' && ['save', 'update'].includes(args[1] ?? '')) ||
         (args[0] === 'approval' && args[1] === 'ask') ||
-        (args[0] === 'monitor' && args[1] === 'create') ||
+        (args[0] === 'monitor' && ['create', 'policy'].includes(args[1] ?? '')) ||
+        (args[0] === 'status-page' && args[1] === 'publish') ||
         (args[0] === 'email' &&
             ['draft-create', 'draft-submit', 'message-update'].includes(args[1] ?? '')) ||
         (args[0] === 'event' && args[1] === 'wait') ||
@@ -400,6 +401,9 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
         exact(1);
         return client.scheduledJob(id());
     }
+    if (group === 'job' && action === 'runs') return client.scheduledJobRuns(id());
+    if (group === 'job' && (action === 'pause' || action === 'resume'))
+        return client.pauseScheduledJob(id(), action === 'pause');
     if (group === 'job' && action === 'cancel') {
         exact(1);
         return client.cancelScheduledJob(id());
@@ -413,6 +417,9 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
     }
     if (group === 'status-page' && action === 'update')
         return client.updateStatusPage(id(), json());
+    if (group === 'status-page' && action === 'inspect') return client.statusPage(id());
+    if (group === 'status-page' && action === 'publish')
+        return client.updateStatusPublication(id(), json());
     if (group === 'monitor') {
         if (action === 'accept-dns') return client.acceptDnsChanges(id());
         if (action === 'create') {
@@ -424,6 +431,10 @@ export async function agentCommand(client: Kivel, args: string[], input: Uint8Ar
             return client.monitors();
         }
         if (action === 'inspect') return client.monitor(id());
+        if (action === 'checks') return client.monitorChecks(id());
+        if (action === 'incidents') return client.monitorIncidents(id());
+        if (action === 'deliveries') return client.monitorDeliveries(id());
+        if (action === 'policy') return client.updateMonitorAlertPolicy(id(), json());
         if (action === 'ping' || action === 'fail')
             return client.pingMonitor(id(), action === 'fail');
         if (action === 'pause' || action === 'resume')

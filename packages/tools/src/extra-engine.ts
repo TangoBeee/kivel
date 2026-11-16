@@ -479,16 +479,11 @@ export async function runExtraOperation(
         case 'developer-cron-expression-helper': {
             if (input.length > 256) throw new Error('Use a cron expression up to 256 characters.');
             const timezone = options.timezone ?? 'UTC';
-            new Intl.DateTimeFormat('en', { timeZone: timezone }).format();
             const start = options.start?.trim();
             if (start && !/^\d{4}-\d{2}-\d{2}T.+(?:Z|[+-]\d{2}:\d{2})$/.test(start))
                 throw new Error('Start date must be ISO 8601 with an explicit timezone.');
-            const { CronExpressionParser } =
-                await import('cron-parser/dist/CronExpressionParser.js');
-            const schedule = CronExpressionParser.parse(input.trim(), {
-                tz: timezone,
-                ...(start ? { currentDate: start } : {}),
-            });
+            const { parseCron } = await import('./cron.js');
+            const schedule = parseCron(input.trim(), timezone, start || undefined);
             const occurrences = schedule
                 .take(integer('count', options.count, 5, 1, 20))
                 .map((date) => ({

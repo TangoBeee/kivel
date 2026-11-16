@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { parseCron } from '@kivel.io/tools/cron';
 import type { Pool, PoolClient } from 'pg';
 import type { FastifyInstance } from 'fastify';
 import { HttpError, resourceToken } from './access.js';
@@ -14,6 +15,7 @@ export interface DeliveryEvent {
     attempt: number;
     status: number | null;
     error?: string;
+    scheduledFor?: string;
 }
 export interface ScheduledJob {
     id: string;
@@ -23,6 +25,10 @@ export interface ScheduledJob {
     body: unknown;
     nextRunAt: string | null;
     intervalSeconds: number | null;
+    cron?: string;
+    timezone?: string;
+    paused?: boolean;
+    scheduledFor?: string;
     remaining: number;
     run: number;
     attempt: number;
@@ -38,6 +44,7 @@ export interface JobStore {
     claim(now: number): Promise<{ job: ScheduledJob; lease: string } | undefined>;
     finish(job: ScheduledJob, lease: string): Promise<void>;
     cancel(id: string): Promise<void>;
+    setPaused(id: string, ownerId: string, paused: boolean): Promise<ScheduledJob | undefined>;
     queueDraft(
         job: ScheduledJob,
         previousApprovalId?: string,
@@ -69,6 +76,7 @@ export class MemoryJobs implements JobStore {
         const job = [...this.jobs.values()].find(
             (job) =>
                 job.status === 'scheduled' &&
+                !job.paused &&
                 job.nextRunAt &&
                 Date.parse(job.nextRunAt) <= now &&
                 Date.parse(job.expiresAt) > now &&
@@ -84,6 +92,18 @@ export class MemoryJobs implements JobStore {
             return;
         this.jobs.set(job.id, structuredClone(job));
         this.leases.delete(job.id);
+    }
+    async setPaused(id: string, ownerId: string, paused: boolean) {
+        const job = this.jobs.get(id);
+        if (
+            job?.ownerId !== ownerId ||
+            job.status !== 'scheduled' ||
+            job.emailDraft ||
+            (this.leases.get(id)?.until ?? 0) >= Date.now()
+        )
+            return;
+        job.paused = paused;
+        return structuredClone(job);
     }
     async queueDraft(job: ScheduledJob, previousApprovalId?: string) {
         const current = this.jobs.get(job.id);
@@ -143,7 +163,7 @@ export class PostgresJobs implements JobStore {
     async claim(now: number) {
         const lease = randomUUID();
         const result = await this.pool.query(
-            `UPDATE scheduled_jobs SET lease_id=$2,lease_until=$1::timestamptz + interval '90 seconds' WHERE id=(SELECT id FROM scheduled_jobs WHERE next_run_at <= $1 AND expires_at > $1 AND (lease_until IS NULL OR lease_until < $1) AND job->>'status'='scheduled' ORDER BY next_run_at FOR UPDATE SKIP LOCKED LIMIT 1) RETURNING job`,
+            `UPDATE scheduled_jobs SET lease_id=$2,lease_until=$1::timestamptz + interval '90 seconds' WHERE id=(SELECT id FROM scheduled_jobs WHERE next_run_at <= $1 AND expires_at > $1 AND (lease_until IS NULL OR lease_until < $1) AND job->>'status'='scheduled' AND job->>'paused' IS DISTINCT FROM 'true' ORDER BY next_run_at FOR UPDATE SKIP LOCKED LIMIT 1) RETURNING job`,
             [new Date(now).toISOString(), lease],
         );
         return result.rows[0] ? { job: result.rows[0].job as ScheduledJob, lease } : undefined;
@@ -153,6 +173,15 @@ export class PostgresJobs implements JobStore {
             "UPDATE scheduled_jobs SET job=$3,next_run_at=$4,lease_id=NULL,lease_until=NULL WHERE id=$1 AND lease_id=$2 AND job->>'status'='scheduled'",
             [job.id, lease, job, job.nextRunAt],
         );
+    }
+    async setPaused(id: string, ownerId: string, paused: boolean) {
+        const result = await this.pool.query<{ job: ScheduledJob }>(
+            `UPDATE scheduled_jobs SET job=jsonb_set(job,'{paused}',to_jsonb($3::boolean))
+             WHERE id=$1 AND owner_id=$2 AND job->>'status'='scheduled' AND NOT (job ? 'emailDraft')
+             AND (lease_until IS NULL OR lease_until < clock_timestamp()) RETURNING job`,
+            [id, ownerId, paused],
+        );
+        return result.rows[0]?.job;
     }
     async queueDraft(job: ScheduledJob, previousApprovalId?: string, client?: PoolClient) {
         const result = await (client ?? this.pool).query(
@@ -239,6 +268,8 @@ export function registerScheduledJobs(
                         'startAt',
                         'intervalSeconds',
                         'maxRuns',
+                        'cron',
+                        'timezone',
                     ].includes(key),
             )
         )
@@ -259,12 +290,47 @@ export function registerScheduledJobs(
         if (input.startAt !== undefined && input.delaySeconds !== undefined)
             throw new HttpError(400, 'Choose startAt or delaySeconds.');
         const delay = input.delaySeconds === undefined ? 60 : Number(input.delaySeconds);
-        const at =
+        const cron = input.cron;
+        const timezone = input.timezone ?? 'UTC';
+        let schedule: ReturnType<typeof parseCron> | undefined;
+        if (cron !== undefined) {
+            if (
+                typeof cron !== 'string' ||
+                cron.length > 120 ||
+                cron.trim().split(/\s+/).length !== 5 ||
+                !/^[0-9a-zA-Z*/?,#\s-]+$/.test(cron) ||
+                /(?:^|[ ,])H(?:$|[ ,/-])/i.test(cron) ||
+                typeof timezone !== 'string' ||
+                timezone.length > 80 ||
+                input.startAt !== undefined ||
+                input.delaySeconds !== undefined ||
+                input.intervalSeconds !== undefined
+            )
+                throw new HttpError(
+                    400,
+                    'Use a five field cron expression and an IANA timezone without another schedule.',
+                );
+            try {
+                schedule = parseCron(cron.trim(), timezone, Date.now() + 5000);
+            } catch {
+                throw new HttpError(400, 'Use a valid cron expression and IANA timezone.');
+            }
+        } else if (input.timezone !== undefined) {
+            throw new HttpError(400, 'Timezone applies only to cron jobs.');
+        }
+        let at =
             input.startAt === undefined
                 ? Date.now() + delay * 1000
                 : typeof input.startAt === 'string'
                   ? Date.parse(input.startAt)
                   : NaN;
+        if (schedule) {
+            try {
+                at = schedule.next().getTime();
+            } catch {
+                throw new HttpError(400, 'The cron expression has no upcoming occurrences.');
+            }
+        }
         if (
             !Number.isInteger(delay) ||
             delay < 5 ||
@@ -285,16 +351,32 @@ export function registerScheduledJobs(
             !Number.isInteger(runs) ||
             runs < 1 ||
             runs > 100 ||
-            (runs > 1 && !interval)
+            (runs > 1 && !interval && !schedule)
         )
             throw new HttpError(
                 400,
                 'Recurring jobs require an interval of 300–86400 seconds and at most 100 runs.',
             );
         const allocation = await access.allocation(request);
+        let last = at + (runs - 1) * (interval ?? 0) * 1000;
+        if (schedule) {
+            try {
+                for (let count = 1; count < Math.max(runs, 2); count++) {
+                    const next = schedule.next().getTime();
+                    if (next - last < 300000)
+                        throw new HttpError(
+                            400,
+                            'Recurring jobs must be at least five minutes apart.',
+                        );
+                    if (runs > 1) last = next;
+                }
+            } catch (error) {
+                if (error instanceof HttpError) throw error;
+                throw new HttpError(400, 'The cron expression has too few upcoming occurrences.');
+            }
+        }
         if (
-            Date.parse(allocation.expiresAt ?? new Date(Date.now() + 3600000).toISOString()) <=
-            at + (runs - 1) * (interval ?? 0) * 1000
+            Date.parse(allocation.expiresAt ?? new Date(Date.now() + 3600000).toISOString()) <= last
         )
             throw new HttpError(
                 400,
@@ -316,6 +398,9 @@ export function registerScheduledJobs(
             body: input.body ?? {},
             nextRunAt: new Date(at).toISOString(),
             intervalSeconds: interval,
+            ...(typeof cron === 'string' && typeof timezone === 'string'
+                ? { cron: cron.trim(), timezone, scheduledFor: new Date(at).toISOString() }
+                : {}),
             remaining: runs,
             run: 0,
             attempt: 0,
@@ -343,6 +428,17 @@ export function registerScheduledJobs(
     app.get<{ Params: { id: string } }>('/api/scheduled-jobs/:id', (request) =>
         owned(request, request.params.id),
     );
+    app.get<{ Params: { id: string } }>('/api/scheduled-jobs/:id/runs', async (request) => ({
+        runs: (await owned(request, request.params.id)).events.slice().reverse(),
+    }));
+    app.patch<{ Params: { id: string } }>('/api/scheduled-jobs/:id', async (request) => {
+        const job = await owned(request, request.params.id, true);
+        const { paused } = (request.body ?? {}) as { paused?: unknown };
+        if (typeof paused !== 'boolean') throw new HttpError(400, 'Send a boolean paused value.');
+        const updated = await store.setPaused(job.id, job.ownerId, paused);
+        if (!updated) throw new HttpError(409, 'This job is running or is no longer scheduled.');
+        return updated;
+    });
     app.delete<{ Params: { id: string } }>('/api/scheduled-jobs/:id', async (request, reply) => {
         await owned(request, request.params.id, true);
         await store.cancel(request.params.id);
@@ -392,20 +488,34 @@ export function registerScheduledJobs(
                 id: randomUUID(),
                 at: new Date(now).toISOString(),
                 deliveryId,
+                ...(job.scheduledFor ? { scheduledFor: job.scheduledFor } : {}),
                 attempt: job.attempt + 1,
                 status,
                 ...(error ? { error } : {}),
             });
             job.events = job.events.slice(-20);
-            if (status !== null && status >= 200 && status < 300) {
+            const success = status !== null && status >= 200 && status < 300;
+            const retry = (status === null || status === 429 || status >= 500) && job.attempt < 2;
+            if (success || (job.cron && !retry)) {
                 job.remaining--;
                 job.run++;
                 job.attempt = 0;
                 if (!job.remaining) {
-                    job.status = 'completed';
+                    job.status = success ? 'completed' : 'failed';
                     job.nextRunAt = null;
+                } else if (job.cron) {
+                    const after = Math.max(
+                        now,
+                        Date.parse(job.scheduledFor ?? job.nextRunAt!) + 299999,
+                    );
+                    const next = parseCron(job.cron, job.timezone ?? 'UTC', after)
+                        .next()
+                        .toDate()
+                        .toISOString();
+                    job.nextRunAt = next;
+                    job.scheduledFor = next;
                 } else job.nextRunAt = new Date(now + job.intervalSeconds! * 1000).toISOString();
-            } else if ((status === null || status === 429 || status >= 500) && job.attempt < 2) {
+            } else if (retry) {
                 job.attempt++;
                 job.nextRunAt = new Date(now + job.attempt * 60000).toISOString();
             } else {

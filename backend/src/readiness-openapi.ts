@@ -56,7 +56,7 @@ const statusConfig = {
     properties: {
         name: { ...string, minLength: 1, maxLength: 80 },
         description: { ...string, maxLength: 240 },
-        monitorIds: { type: 'array', items: uuid, minItems: 1, maxItems: 20, uniqueItems: true },
+        monitorIds: { type: 'array', items: uuid, maxItems: 20, uniqueItems: true },
     },
     required: ['name', 'monitorIds'],
 };
@@ -79,9 +79,74 @@ const jobConfig = {
             description: 'Alternative to delaySeconds, 5 seconds to 7 days ahead.',
         },
         intervalSeconds: { type: 'integer', minimum: 300, maximum: 86400 },
+        cron: {
+            ...string,
+            maxLength: 120,
+            example: '0 9 * * MON-FRI',
+            description:
+                'Five fields, at least five minutes apart. Cannot be combined with startAt, delaySeconds or intervalSeconds.',
+        },
+        timezone: { ...string, example: 'America/New_York', default: 'UTC' },
         maxRuns: { type: 'integer', minimum: 1, maximum: 100, default: 1 },
     },
     required: ['name', 'url'],
+};
+const dateTime = { ...string, format: 'date-time' };
+const componentIds = { type: 'array', items: uuid, maxItems: 20, uniqueItems: true };
+const entries = (properties: Record<string, object>, required: string[], maxItems: number) => ({
+    type: 'array',
+    maxItems,
+    items: { type: 'object', additionalProperties: false, properties, required },
+});
+const publicationSchema = {
+    type: 'object',
+    minProperties: 1,
+    additionalProperties: false,
+    properties: {
+        components: entries(
+            {
+                id: uuid,
+                name: { ...string, maxLength: 80 },
+                status: { enum: ['operational', 'degraded', 'outage'] },
+            },
+            ['id', 'name', 'status'],
+            20,
+        ),
+        incidents: entries(
+            {
+                id: uuid,
+                name: { ...string, maxLength: 80 },
+                componentIds,
+                updates: {
+                    ...entries(
+                        {
+                            at: dateTime,
+                            status: {
+                                enum: ['investigating', 'identified', 'monitoring', 'resolved'],
+                            },
+                            message: { ...string, maxLength: 500 },
+                        },
+                        ['at', 'status', 'message'],
+                        20,
+                    ),
+                    minItems: 1,
+                },
+            },
+            ['id', 'name', 'updates'],
+            30,
+        ),
+        maintenance: entries(
+            {
+                id: uuid,
+                name: { ...string, maxLength: 80 },
+                componentIds,
+                startsAt: dateTime,
+                endsAt: dateTime,
+            },
+            ['id', 'name', 'startsAt', 'endsAt'],
+            20,
+        ),
+    },
 };
 export function readinessOpenApi() {
     return {
@@ -226,6 +291,16 @@ export function readinessOpenApi() {
                 'Status pages',
                 { requestBody: body(statusConfig) },
             ),
+            patch: operation(
+                'updateStatusPublication',
+                'Publish components, incidents or maintenance',
+                'Status pages',
+                {
+                    requestBody: body(publicationSchema),
+                    description:
+                        'Each supplied collection replaces that collection. Omitted collections are preserved. Names and incident messages are shown on the status page.',
+                },
+            ),
             delete: operation('deleteStatusPage', 'Delete a status page', 'Status pages', {
                 responses: { '204': { description: 'Deleted' }, ...errors },
             }),
@@ -250,7 +325,7 @@ export function readinessOpenApi() {
         '/api/scheduled-jobs': {
             post: operation(
                 'createScheduledJob',
-                'Schedule a delayed or repeating JSON callback',
+                'Schedule a delayed, interval or cron callback',
                 'Scheduled jobs',
                 {
                     parameters: retention,
@@ -273,6 +348,23 @@ export function readinessOpenApi() {
                 'Read a callback and its latest 20 delivery attempts',
                 'Scheduled jobs',
             ),
+            patch: operation(
+                'pauseScheduledJob',
+                'Pause or resume a scheduled callback',
+                'Scheduled jobs',
+                {
+                    requestBody: body({
+                        type: 'object',
+                        properties: { paused: { type: 'boolean' } },
+                        required: ['paused'],
+                    }),
+                    responses: {
+                        '200': json(),
+                        '409': json(undefined, 'Callback is running or is no longer scheduled'),
+                        ...errors,
+                    },
+                },
+            ),
             delete: operation(
                 'deleteScheduledJob',
                 'Cancel future deliveries and delete the job',
@@ -283,6 +375,34 @@ export function readinessOpenApi() {
                         ...errors,
                     },
                 },
+            ),
+        },
+        '/api/scheduled-jobs/{id}/runs': {
+            parameters: id,
+            get: operation(
+                'scheduledJobRuns',
+                'Read the latest 20 execution attempts, newest first',
+                'Scheduled jobs',
+            ),
+        },
+        '/api/monitors/{id}/checks': {
+            parameters: id,
+            get: operation(
+                'monitorChecks',
+                'Read the latest 50 individual health samples',
+                'Monitors',
+            ),
+        },
+        '/api/monitors/{id}/incidents': {
+            parameters: id,
+            get: operation('monitorIncidents', 'Read recent outage and recovery times', 'Monitors'),
+        },
+        '/api/monitors/{id}/deliveries': {
+            parameters: id,
+            get: operation(
+                'monitorDeliveries',
+                'Read alert delivery outcomes and suppression reasons',
+                'Monitors',
             ),
         },
         '/api/smtp-inboxes': {

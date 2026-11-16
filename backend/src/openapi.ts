@@ -606,7 +606,7 @@ export function openApi(origin: string) {
                 patch: {
                     operationId: 'pauseMonitor',
                     tags: ['Monitors'],
-                    summary: 'Pause or resume a monitor',
+                    summary: 'Pause, resume or set a monitor alert policy',
                     security: secured,
                     requestBody: {
                         required: true,
@@ -614,8 +614,35 @@ export function openApi(origin: string) {
                             'application/json': {
                                 schema: {
                                     type: 'object',
-                                    required: ['paused'],
-                                    properties: { paused: { type: 'boolean' } },
+                                    oneOf: [
+                                        { required: ['paused'] },
+                                        { required: ['alertPolicy'] },
+                                    ],
+                                    properties: {
+                                        paused: { type: 'boolean' },
+                                        alertPolicy: {
+                                            type: 'object',
+                                            required: ['email', 'webhook'],
+                                            properties: {
+                                                email: { type: 'boolean' },
+                                                webhook: { type: 'boolean' },
+                                                maintenance: {
+                                                    type: 'object',
+                                                    required: ['startsAt', 'endsAt'],
+                                                    properties: {
+                                                        startsAt: {
+                                                            type: 'string',
+                                                            format: 'date-time',
+                                                        },
+                                                        endsAt: {
+                                                            type: 'string',
+                                                            format: 'date-time',
+                                                        },
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
                                 },
                             },
                         },

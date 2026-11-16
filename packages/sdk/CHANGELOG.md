@@ -1,5 +1,19 @@
 # @kivel.io/sdk
 
+## 0.12.0
+
+### Minor Changes
+
+- bce0b3a: Validate and export portable mock configurations, check route matching, filter call history and assert exact call counts.
+
+    Reset isolated mock scenarios, review and promote staged proxy fixtures, and configure resources and prompts on mock MCP servers.
+
+- 7b869c9: Filter and page webhook history, wait for matching requests, replay captured bodies and inspect delivery attempts. Verify webhook signatures locally with the SDK or CLI.
+
+### Patch Changes
+
+- e92dfbb: Expose optional response timing and the waiting agent on webhook captures.
+
 ## 0.11.0
 
 ### Minor Changes

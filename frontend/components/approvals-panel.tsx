@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Button, TextField } from '@radix-ui/themes';
-import { ArrowLeft, Bell, ShieldCheck } from '@phosphor-icons/react';
+import { ArrowLeft, Bell, TerminalWindow, UserCircle } from '@phosphor-icons/react';
 import type { Approval, ApprovalListOptions, ApprovalNotificationPolicy } from '@kivel.io/sdk';
 import { api } from '../lib/api';
 import { timeLeft } from '../lib/activity-labels';
@@ -10,26 +10,48 @@ import { useViewer } from '../lib/viewer';
 import { AgentQuestion } from './agent-question';
 import { AppSelect, SelectOption } from './app-select';
 import { CopyButton } from './copy-button';
+import {
+    approvalStatus,
+    approvalRequester,
+    type ApprovalRequester,
+} from '../lib/approval-presentation';
 
-const statusLabels = { pending: 'Pending', answered: 'Answered', expired: 'Expired' };
+type ListedApproval = Approval & ApprovalRequester;
+type Filters = Pick<ApprovalListOptions, 'agent'> & { decision?: string };
 
 export function ApprovalsPanel({ id, onOpen }: { id?: string; onOpen(id?: string): void }) {
     const viewer = useViewer();
     const workspace = viewer.status === 'user' ? viewer.workspaceId : undefined;
     const canConfigure = viewer.status === 'user' && ['owner', 'admin'].includes(viewer.role);
-    const [items, setItems] = useState<Approval[] | null>(null);
-    const [filters, setFilters] = useState<ApprovalListOptions>({});
+    const [items, setItems] = useState<ListedApproval[] | null>(null);
+    const [filters, setFilters] = useState<Filters>({});
+    const [agents, setAgents] = useState<string[]>([]);
+    const [agentsError, setAgentsError] = useState('');
     const [cursor, setCursor] = useState('');
     const [nextCursor, setNextCursor] = useState('');
     const [showPolicy, setShowPolicy] = useState(false);
     const [error, setError] = useState('');
     useEffect(() => {
+        if (!workspace) return;
+        const controller = new AbortController();
+        setAgents([]);
+        setAgentsError('');
+        void api('/api/approvals/agents', { signal: controller.signal })
+            .then((response) => response.json())
+            .then((value) => {
+                if (!controller.signal.aborted) setAgents(value.agents);
+            })
+            .catch(() => {
+                if (!controller.signal.aborted) setAgentsError('Unable to load agent names.');
+            });
+        return () => controller.abort();
+    }, [workspace]);
+    useEffect(() => {
         if (id || showPolicy || !workspace) return;
         const controller = new AbortController();
         const query = new URLSearchParams({ limit: '25' });
-        if (filters.status) query.set('status', filters.status);
-        if (filters.agent?.trim()) query.set('agent', filters.agent.trim());
-        if (filters.outcome?.trim()) query.set('outcome', filters.outcome.trim());
+        if (filters.agent) query.set('agent', filters.agent);
+        if (filters.decision) query.set('decision', filters.decision);
         if (cursor) query.set('cursor', cursor);
         const timer = setTimeout(() => {
             setError('');
@@ -50,7 +72,7 @@ export function ApprovalsPanel({ id, onOpen }: { id?: string; onOpen(id?: string
         };
     }, [id, workspace, filters, cursor, showPolicy]);
 
-    function update(next: ApprovalListOptions) {
+    function update(next: Filters) {
         setCursor('');
         setNextCursor('');
         setItems(null);
@@ -80,44 +102,46 @@ export function ApprovalsPanel({ id, onOpen }: { id?: string; onOpen(id?: string
             <div className="approval-toolbar">
                 <div className="approval-filters" role="group" aria-label="Filter approvals">
                     <label>
-                        Status
+                        Outcome
                         <AppSelect
-                            aria-label="Status"
-                            value={filters.status ?? 'all'}
+                            aria-label="Outcome"
+                            value={filters.decision ?? 'any'}
                             onChange={(event) =>
                                 update({
-                                    status:
-                                        event.target.value === 'all'
+                                    decision:
+                                        event.target.value === 'any'
                                             ? undefined
-                                            : (event.target.value as Approval['status']),
+                                            : event.target.value,
                                 })
                             }
                         >
-                            <SelectOption value="all">All statuses</SelectOption>
-                            <SelectOption value="pending">Pending</SelectOption>
-                            <SelectOption value="answered">Answered</SelectOption>
+                            <SelectOption value="any">Any</SelectOption>
+                            <SelectOption value="approved">Approved</SelectOption>
+                            <SelectOption value="denied">Denied</SelectOption>
                             <SelectOption value="expired">Expired</SelectOption>
                         </AppSelect>
                     </label>
                     <label>
-                        Agent name
-                        <TextField.Root
-                            size="2"
-                            placeholder="Exact name"
-                            maxLength={120}
-                            value={filters.agent ?? ''}
-                            onChange={(event) => update({ agent: event.target.value })}
-                        />
-                    </label>
-                    <label>
-                        Outcome
-                        <TextField.Root
-                            size="2"
-                            placeholder="Any answer"
-                            maxLength={60}
-                            value={filters.outcome ?? ''}
-                            onChange={(event) => update({ outcome: event.target.value })}
-                        />
+                        Agent
+                        <AppSelect
+                            aria-label="Agent"
+                            value={filters.agent ? 'agent:' + filters.agent : 'any'}
+                            onChange={(event) =>
+                                update({
+                                    agent:
+                                        event.target.value === 'any'
+                                            ? undefined
+                                            : event.target.value.slice(6),
+                                })
+                            }
+                        >
+                            <SelectOption value="any">Any agent</SelectOption>
+                            {agents.map((name) => (
+                                <SelectOption key={name} value={'agent:' + name}>
+                                    {name}
+                                </SelectOption>
+                            ))}
+                        </AppSelect>
                     </label>
                 </div>
                 {canConfigure && (
@@ -126,6 +150,11 @@ export function ApprovalsPanel({ id, onOpen }: { id?: string; onOpen(id?: string
                     </Button>
                 )}
             </div>
+            {agentsError && (
+                <p role="status" className="muted">
+                    {agentsError}
+                </p>
+            )}
             {error ? (
                 <p role="alert" className="alert">
                     {error}
@@ -141,16 +170,25 @@ export function ApprovalsPanel({ id, onOpen }: { id?: string; onOpen(id?: string
                                 onClick={() => onOpen(item.id)}
                                 className="approval-list-row"
                             >
-                                <ShieldCheck size={19} aria-hidden />
+                                {item.requesterKind === 'human' ? (
+                                    <UserCircle size={19} aria-hidden />
+                                ) : (
+                                    <TerminalWindow size={19} aria-hidden />
+                                )}
                                 <span className="approval-list-title">
                                     <strong>{item.question}</strong>
                                     <small>
-                                        {item.agentName}
+                                        {approvalRequester(item)}
                                         {item.action ? ` · ${item.action.target}` : ''}
                                     </small>
                                 </span>
-                                <span className="approval-status" data-status={item.status}>
-                                    {item.answer ?? statusLabels[item.status]}
+                                <span
+                                    className="approval-status"
+                                    data-status={approvalStatus(item).toLowerCase()}
+                                >
+                                    {approvalStatus(item) === 'Answered'
+                                        ? (item.answer ?? 'Answered')
+                                        : approvalStatus(item)}
                                 </span>
                                 <small className="approval-list-time">
                                     {item.status === 'pending'

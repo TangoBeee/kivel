@@ -17,6 +17,7 @@ backups/
 
 # Generated at build time
 frontend/lib/generated/
+frontend/public/generated/scalar-reference.js
 
 # Local tooling and personal files, never published
 .github/hooks/

@@ -83,18 +83,7 @@ try {
         ['frontend', sitePort],
         ['dashboard', appPort],
     ]) {
-        const args = webPort
-            ? [
-                  'exec',
-                  'next',
-                  'dev',
-                  '--webpack',
-                  '--hostname',
-                  '127.0.0.1',
-                  '--port',
-                  String(webPort),
-              ]
-            : ['dev'];
+        const args = webPort ? ['dev', '--port', String(webPort)] : ['dev'];
         const child = spawn('pnpm', ['--filter', name, ...args], {
             stdio: 'inherit',
             env: {

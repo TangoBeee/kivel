@@ -3555,3 +3555,35 @@ button.resource-title {
     content: 'Last check';
   }
 }
+
+.approval-filters > label {
+  min-width: 0;
+}
+.approval-filters .rt-SelectTrigger {
+  width: min(100%, 220px);
+  min-width: 110px;
+  max-width: 100%;
+}
+.approval-status[data-status='waiting'],
+.approval-status[data-status='expired'] {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+.approval-status[data-status='denied'] {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+.approval-status[data-status='approved'] {
+  background: var(--monitors-soft);
+  color: var(--monitors-ink);
+}
+@media (max-width: 600px) {
+  .approval-filters {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+  }
+  .approval-filters .rt-SelectTrigger {
+    width: 100%;
+    min-width: 0;
+  }
+}

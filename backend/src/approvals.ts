@@ -57,6 +57,7 @@ type ApprovalFilter = {
     status?: Approval['status'];
     agent?: string;
     outcome?: string;
+    decision?: 'approved' | 'denied' | 'expired';
     before?: Pick<Approval, 'id' | 'createdAt'>;
     limit?: number;
 };
@@ -82,6 +83,7 @@ export interface ApprovalRepository {
         pendingOnly: boolean,
         filter?: ApprovalFilter,
     ): MaybePromise<Approval[]>;
+    agentNames(accountId: string): MaybePromise<string[]>;
     countSince(accountId: string, since: string): MaybePromise<number>;
     quotaRetryAfter(accountId: string, maximum: number): MaybePromise<number>;
     pruneDraftEdits(resources: ResourceRepository): MaybePromise<void>;
@@ -157,6 +159,14 @@ export class MemoryApprovals implements ApprovalRepository {
                     (!status || item.status === status) &&
                     (!filter.agent || item.agentName === filter.agent) &&
                     (!filter.outcome || item.answer === filter.outcome) &&
+                    (!filter.decision ||
+                        (filter.decision === 'expired'
+                            ? item.status === 'expired'
+                            : item.status === 'answered' &&
+                              (filter.decision === 'approved'
+                                  ? ['approve', 'approved']
+                                  : ['deny', 'denied', 'reject', 'rejected']
+                              ).includes(item.answer?.toLowerCase() ?? ''))) &&
                     (!before ||
                         item.createdAt < before.createdAt ||
                         (item.createdAt === before.createdAt && item.id < before.id)),
@@ -164,6 +174,17 @@ export class MemoryApprovals implements ApprovalRepository {
             .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id))
             .slice(0, filter.limit ?? 50);
     }
+    agentNames(accountId: string) {
+        return [
+            ...new Set(
+                [...this.items.values()]
+                    .filter((item) => item.accountId === accountId && item.keyId)
+                    .reverse()
+                    .map((item) => item.agentName),
+            ),
+        ].slice(0, 100);
+    }
+
     countSince(accountId: string, since: string) {
         return [...this.items.values()].filter(
             (item) => item.accountId === accountId && item.createdAt > since,
@@ -289,6 +310,10 @@ export class PostgresApprovals implements ApprovalRepository {
              AND ($3::text IS NULL OR approval->>'agentName' = $3)
              AND ($4::text IS NULL OR approval->>'answer' = $4)
              AND ($5::timestamptz IS NULL OR (created_at, id) < ($5::timestamptz, $6::uuid))
+             AND ($8::text IS NULL
+                OR $8 = 'expired' AND (status = 'expired' OR status = 'pending' AND expires_at <= clock_timestamp())
+                OR $8 = 'approved' AND status = 'answered' AND lower(approval->>'answer') IN ('approve','approved')
+                OR $8 = 'denied' AND status = 'answered' AND lower(approval->>'answer') IN ('deny','denied','reject','rejected'))
              ORDER BY created_at DESC, id DESC LIMIT $7`,
             [
                 accountId,
@@ -298,10 +323,20 @@ export class PostgresApprovals implements ApprovalRepository {
                 filter.before?.createdAt ?? null,
                 filter.before?.id ?? null,
                 filter.limit ?? 50,
+                filter.decision ?? null,
             ],
         );
         return rows.map(fromRow);
     }
+    async agentNames(accountId: string) {
+        const { rows } = await this.pool.query<{ name: string }>(
+            `SELECT approval->>'agentName' AS name FROM approvals WHERE account_id=$1 AND approval ? 'keyId'
+             GROUP BY name ORDER BY max(created_at) DESC LIMIT 100`,
+            [accountId],
+        );
+        return rows.map((row) => row.name);
+    }
+
     async countSince(accountId: string, since: string) {
         const result = await this.pool.query<{ count: string }>(
             'SELECT count(*) FROM approvals WHERE account_id = $1 AND created_at > $2',
@@ -439,7 +474,11 @@ export function registerApprovals({
             editedEmail: _edit,
             ...rest
         } = approval;
-        return { ...rest, answerUrl: answerUrl(approval.id) };
+        return {
+            ...rest,
+            requesterKind: approval.keyId ? 'agent' : 'human',
+            answerUrl: answerUrl(approval.id),
+        };
     };
     async function account(request: FastifyRequest, write = true) {
         const actor = await access.scope(request, write ? 'resources:write' : 'resources:read');
@@ -633,9 +672,17 @@ export function registerApprovals({
         const identity = (await account(request, false)).identity!;
         const query = request.query as Record<string, string | undefined>;
         const status = query.status;
+        const decision = query.decision;
         const limit = query.limit === undefined ? 50 : Number(query.limit);
         if (status && !['pending', 'answered', 'expired'].includes(status))
             throw new HttpError(400, 'Choose pending, answered or expired.');
+        if (
+            decision !== undefined &&
+            decision !== 'approved' &&
+            decision !== 'denied' &&
+            decision !== 'expired'
+        )
+            throw new HttpError(400, 'Choose approved, denied or expired.');
         if (!Number.isInteger(limit) || limit < 1 || limit > 50)
             throw new HttpError(400, 'Use a limit between 1 and 50.');
         const before = query.cursor
@@ -648,10 +695,26 @@ export function registerApprovals({
             ...(before ? { before } : {}),
             agent: text(query.agent, 120),
             outcome: text(query.outcome, 60),
+            ...(decision ? { decision } : {}),
         });
         return {
             approvals: items.slice(0, limit).map(view),
             ...(items.length > limit ? { nextCursor: items[limit - 1]!.id } : {}),
+        };
+    });
+    app.get('/api/approvals/agents', async (request) => {
+        const { identity } = await account(request, false);
+        const accountId = identity!.account.id;
+        const [known, connected, keys] = await Promise.all([
+            approvals.agentNames(accountId),
+            agents.agents(accountId),
+            identities.accountKeys(accountId),
+        ]);
+        const names = new Map(connected.map((agent) => [agent.keyId, agent.name]));
+        return {
+            agents: [...new Set([...known, ...keys.map((key) => names.get(key.id) ?? key.name)])]
+                .filter(Boolean)
+                .sort((a, b) => a.localeCompare(b)),
         };
     });
     app.get<{ Params: { id: string } }>('/api/approvals/:id', async (request) =>

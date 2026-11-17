@@ -232,6 +232,17 @@ test('approval retries preserve the action and audit history without spending an
         filtered.approvals.map((item: { id: string }) => item.id),
         [id],
     );
+    const byDecision = (decision: string) =>
+        app.inject({ url: '/api/approvals?decision=' + decision, headers: agent });
+    assert.deepEqual(
+        (await byDecision('approved')).json().approvals.map((item: { id: string }) => item.id),
+        [id],
+    );
+    assert.deepEqual((await byDecision('denied')).json().approvals, []);
+    assert.equal(after.json().requesterKind, 'agent');
+    const names = (await app.inject({ url: '/api/approvals/agents', headers: agent })).json()
+        .agents;
+    assert.ok(names.includes(after.json().agentName));
     const rpc = await app.inject({
         method: 'POST',
         url: '/mcp',

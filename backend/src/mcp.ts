@@ -1011,8 +1011,15 @@ export const platformTools = [
     },
     {
         name: 'inspect_monitor',
-        description: 'Read one workspace monitor and its recent status events.',
-        inputSchema: schema({ id: stringProperty('Monitor UUID.') }),
+        description:
+            'Read a workspace monitor. Set history to checks, incidents or deliveries for recent samples, outages or notifications.',
+        inputSchema: schema(
+            {
+                id: stringProperty('Monitor UUID.'),
+                history: { type: 'string', enum: ['checks', 'incidents', 'deliveries'] },
+            },
+            ['id'],
+        ),
         annotations: readonly,
     },
     {
@@ -1036,7 +1043,7 @@ export const platformTools = [
     {
         name: 'resource_request',
         description:
-            'Manage webhook, email, mock API, file, authenticator, vault, test payment and mock MCP resources through HTTP lifecycle routes. Authenticators support create, inspect, list, update (name) and delete only; use them only for accounts your human asked you to create or operate. Use calls for mock history. Forward accepts config.url with optional method and path. Replay accepts config.requestId, config.url and config.idempotencyKey. Deliveries reads the resulting attempts. Email supports create, inspect, delete and renew; mail reading stays private. For approvals, use list with config.status, agent, outcome, cursor and limit, or use inspect, events, deliveries and policy.',
+            'Manage webhook, email, mock API, file, authenticator, vault, test payment and mock MCP resources through HTTP lifecycle routes. Authenticators support create, inspect, list, update (name) and delete only; use them only for accounts your human asked you to create or operate. Use calls for mock history. For monitors, read checks, incidents and deliveries, or update the alert policy. Use runs for scheduled job attempts and update with config.paused to pause or resume. For status pages, use update with components, incidents or maintenance to edit publication. Forward accepts config.url with optional method and path. Replay accepts config.requestId, config.url and config.idempotencyKey. Deliveries reads the resulting attempts. Email supports create, inspect, delete and renew; mail reading stays private. For approvals, use list with config.status, agent, outcome, cursor and limit, or use inspect, events, deliveries and policy.',
         inputSchema: schema(
             {
                 kind: {
@@ -1051,6 +1058,7 @@ export const platformTools = [
                         'email-inboxes',
                         'status-pages',
                         'scheduled-jobs',
+                        'monitors',
                         'smtp-inboxes',
                         'authenticators',
                         'credentials',
@@ -1081,6 +1089,9 @@ export const platformTools = [
                         'response',
                         'forward',
                         'deliveries',
+                        'checks',
+                        'incidents',
+                        'runs',
                         'events',
                         'policy',
                         'replay',
@@ -2215,7 +2226,7 @@ export function registerMcp({
                             'pause_monitor',
                             'accept_dns_changes',
                         ].includes(name)
-                      ? `/api/monitors/${value.id}${name === 'accept_dns_changes' ? '/accept-dns' : ''}`
+                      ? `/api/monitors/${value.id}${name === 'accept_dns_changes' ? '/accept-dns' : name === 'inspect_monitor' && ['checks', 'incidents', 'deliveries'].includes(String(value.history)) ? '/' + value.history : ''}`
                       : '/api/monitors',
             headers,
             remoteAddress: request.ip,
@@ -2424,6 +2435,9 @@ export function registerMcp({
                 'response',
                 'forward',
                 'deliveries',
+                'checks',
+                'incidents',
+                'runs',
                 'replay',
                 'clear',
             ].includes(action) ||
@@ -2437,6 +2451,7 @@ export function registerMcp({
                     'email-inboxes',
                     'status-pages',
                     'scheduled-jobs',
+                    'monitors',
                     'smtp-inboxes',
                     'authenticators',
                     'credentials',
@@ -2449,7 +2464,20 @@ export function registerMcp({
                 !(kind === 'oauth-providers' && action === 'calls')) ||
             (action === 'response' && kind !== 'inboxes') ||
             (action === 'replay' && kind !== 'inboxes') ||
-            (action === 'deliveries' && !['inboxes', 'email-inboxes'].includes(kind)) ||
+            (action === 'deliveries' && !['inboxes', 'email-inboxes', 'monitors'].includes(kind)) ||
+            (['checks', 'incidents'].includes(action) && kind !== 'monitors') ||
+            (action === 'runs' && kind !== 'scheduled-jobs') ||
+            (kind === 'monitors' &&
+                ![
+                    'list',
+                    'create',
+                    'inspect',
+                    'update',
+                    'delete',
+                    'checks',
+                    'incidents',
+                    'deliveries',
+                ].includes(action)) ||
             (action === 'forward' && !['inboxes', 'email-inboxes'].includes(kind)) ||
             (action === 'update' &&
                 ![
@@ -2457,9 +2485,11 @@ export function registerMcp({
                     'status-pages',
                     'authenticators',
                     'credentials',
+                    'scheduled-jobs',
+                    'monitors',
                     'oauth-providers',
                 ].includes(kind)) ||
-            (['sharing', 'renew', 'update'].includes(action) && kind === 'scheduled-jobs') ||
+            (['sharing', 'renew'].includes(action) && kind === 'scheduled-jobs') ||
             (action === 'clear' && kind !== 'email-inboxes') ||
             (action === 'sharing' && kind === 'email-inboxes')
         )
@@ -2501,6 +2531,9 @@ export function registerMcp({
                           'response',
                           'forward',
                           'deliveries',
+                          'checks',
+                          'incidents',
+                          'runs',
                       ].includes(action)
                     ? `/${action === 'forward' && kind === 'email-inboxes' ? 'forwarding' : action}`
                     : action === 'inspect' && kind === 'inboxes'
@@ -2508,7 +2541,7 @@ export function registerMcp({
                       : '';
         const path =
             action === 'list'
-                ? ['authenticators', 'credentials', 'oauth-providers'].includes(kind) ||
+                ? ['authenticators', 'credentials', 'oauth-providers', 'monitors'].includes(kind) ||
                   (kind === 'email-inboxes' && (await access.actor(request)).identity?.emailInboxId)
                     ? `/api/${kind}`
                     : '/api/account/resources'
@@ -2532,7 +2565,14 @@ export function registerMcp({
             action === 'delete' || action === 'clear' || resetSetting
                 ? 'DELETE'
                 : ['update', 'response', 'forward'].includes(action)
-                  ? ['authenticators', 'credentials'].includes(kind)
+                  ? ['authenticators', 'credentials', 'scheduled-jobs', 'monitors'].includes(
+                        kind,
+                    ) ||
+                    (kind === 'status-pages' &&
+                        object(value.config) &&
+                        ['components', 'incidents', 'maintenance'].some((key) =>
+                            Object.hasOwn(value.config as object, key),
+                        ))
                       ? 'PATCH'
                       : 'PUT'
                   : ['create', 'renew', 'sharing', 'reset', 'replay'].includes(action)

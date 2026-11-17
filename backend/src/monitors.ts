@@ -34,8 +34,14 @@ export interface Monitor {
     dnsBaseline?: string[];
     lastDnsAnswers?: string[];
     lastDurationMs?: number;
-    recentChecks?: { at: string; status: MonitorStatus; durationMs: number }[];
+    recentChecks?: {
+        at: string;
+        status: MonitorStatus;
+        durationMs: number;
+        signal?: 'probe' | 'heartbeat_received' | 'heartbeat_failed' | 'heartbeat_missing';
+    }[];
     alertWebhook?: string;
+    alertPolicy?: MonitorAlertPolicy;
     paused: boolean;
     status: MonitorStatus;
     failures: number;
@@ -46,10 +52,24 @@ export interface Monitor {
     nextRunAt: string;
     createdAt: string;
 }
+export interface MonitorAlertPolicy {
+    email: boolean;
+    webhook: boolean;
+    maintenance?: { startsAt: string; endsAt: string };
+}
+
+export interface MonitorDelivery {
+    at: string;
+    channel: 'email' | 'webhook';
+    outcome: 'sent' | 'failed' | 'suppressed';
+    reason?: string;
+}
+
 export interface MonitorEvent {
     at: string;
     status: MonitorStatus;
     message: string;
+    delivery?: MonitorDelivery;
 }
 
 const hash = (token: string) => createHash('sha256').update(token).digest('hex');
@@ -62,12 +82,17 @@ export interface MonitorRepository {
     get(accountId: string, id: string): MaybePromise<Monitor | undefined>;
     delete(accountId: string, id: string): MaybePromise<boolean>;
     setPaused(accountId: string, id: string, paused: boolean): MaybePromise<boolean>;
+    setAlertPolicy(
+        accountId: string,
+        id: string,
+        policy: MonitorAlertPolicy,
+    ): MaybePromise<boolean>;
     /** Claims monitors whose next check is due, pushing each a minute ahead as a lease. */
     claimDue(limit: number): MaybePromise<Monitor[]>;
     save(monitor: Monitor): MaybePromise<void>;
     byPing(pingHash: string): MaybePromise<Monitor | undefined>;
     addEvent(id: string, event: MonitorEvent): MaybePromise<void>;
-    events(id: string): MaybePromise<MonitorEvent[]>;
+    events(id: string, deliveries?: boolean): MaybePromise<MonitorEvent[]>;
 }
 
 export class MemoryMonitors implements MonitorRepository {
@@ -95,6 +120,7 @@ export class MemoryMonitors implements MonitorRepository {
         if (!this.get(accountId, id)) return false;
         this.monitors.delete(id);
         this.log.delete(id);
+        this.log.delete(id + ':deliveries');
         for (const [ping, owner] of this.pings) if (owner === id) this.pings.delete(ping);
         return true;
     }
@@ -102,6 +128,12 @@ export class MemoryMonitors implements MonitorRepository {
         const monitor = this.monitors.get(id);
         if (monitor?.accountId !== accountId) return false;
         monitor.paused = paused;
+        return true;
+    }
+    setAlertPolicy(accountId: string, id: string, policy: MonitorAlertPolicy) {
+        const monitor = this.monitors.get(id);
+        if (monitor?.accountId !== accountId) return false;
+        monitor.alertPolicy = policy;
         return true;
     }
     claimDue(limit: number) {
@@ -113,7 +145,11 @@ export class MemoryMonitors implements MonitorRepository {
         return due.map((monitor) => ({ ...monitor }));
     }
     save(monitor: Monitor) {
-        if (this.monitors.has(monitor.id)) this.monitors.set(monitor.id, { ...monitor });
+        const stored = this.monitors.get(monitor.id);
+        if (stored) {
+            const { alertPolicy: _policy, ...state } = monitor;
+            this.monitors.set(monitor.id, { ...stored, ...state, paused: stored.paused });
+        }
     }
     byPing(pingHash: string) {
         const id = this.pings.get(pingHash);
@@ -121,10 +157,12 @@ export class MemoryMonitors implements MonitorRepository {
         return monitor ? { ...monitor } : undefined;
     }
     addEvent(id: string, event: MonitorEvent) {
-        this.log.set(id, [event, ...(this.log.get(id) ?? [])].slice(0, 50));
+        const key = event.delivery ? id + ':deliveries' : id;
+        if (this.monitors.has(id))
+            this.log.set(key, [event, ...(this.log.get(key) ?? [])].slice(0, 50));
     }
-    events(id: string) {
-        return [...(this.log.get(id) ?? [])];
+    events(id: string, deliveries = false) {
+        return [...(this.log.get(deliveries ? id + ':deliveries' : id) ?? [])];
     }
 }
 
@@ -194,6 +232,14 @@ export class PostgresMonitors implements MonitorRepository {
         );
         return result.rowCount === 1;
     }
+    async setAlertPolicy(accountId: string, id: string, policy: MonitorAlertPolicy) {
+        if (!isUuid(id)) return false;
+        const result = await this.pool.query(
+            "UPDATE monitors SET monitor=jsonb_set(monitor,'{alertPolicy}',$3::jsonb) WHERE account_id=$1 AND id=$2",
+            [accountId, id, JSON.stringify(policy)],
+        );
+        return result.rowCount === 1;
+    }
     async claimDue(limit: number) {
         const result = await this.pool.query(
             `UPDATE monitors SET next_run_at = clock_timestamp() + interval '1 minute'
@@ -208,7 +254,7 @@ export class PostgresMonitors implements MonitorRepository {
     }
     async save(monitor: Monitor) {
         await this.pool.query(
-            'UPDATE monitors SET monitor = $2::jsonb, next_run_at = $3 WHERE id = $1',
+            "UPDATE monitors SET monitor = ($2::jsonb - 'alertPolicy') || CASE WHEN monitor ? 'alertPolicy' THEN jsonb_build_object('alertPolicy', monitor->'alertPolicy') ELSE '{}'::jsonb END, next_run_at = $3 WHERE id = $1",
             [monitor.id, JSON.stringify(monitor), monitor.nextRunAt],
         );
     }
@@ -224,18 +270,18 @@ export class PostgresMonitors implements MonitorRepository {
             `WITH added AS (
                 INSERT INTO monitor_events (monitor_id, event) VALUES ($1, $2::jsonb) RETURNING monitor_id
             )
-            DELETE FROM monitor_events WHERE monitor_id IN (SELECT monitor_id FROM added)
+            DELETE FROM monitor_events WHERE monitor_id IN (SELECT monitor_id FROM added) AND (event ? 'delivery') = $3
                 AND sequence <= (
-                    SELECT sequence FROM monitor_events WHERE monitor_id = $1
+                    SELECT sequence FROM monitor_events WHERE monitor_id = $1 AND (event ? 'delivery') = $3
                     ORDER BY sequence DESC OFFSET 49 LIMIT 1
                 )`,
-            [id, JSON.stringify(event)],
+            [id, JSON.stringify(event), Boolean(event.delivery)],
         );
     }
-    async events(id: string) {
+    async events(id: string, deliveries = false) {
         const result = await this.pool.query<{ event: MonitorEvent }>(
-            'SELECT event FROM monitor_events WHERE monitor_id = $1 ORDER BY sequence DESC',
-            [id],
+            "SELECT event FROM monitor_events WHERE monitor_id = $1 AND (event ? 'delivery') = $2 ORDER BY sequence DESC LIMIT 50",
+            [id, deliveries],
         );
         return result.rows.map((row) => row.event);
     }
@@ -263,12 +309,13 @@ export const networkChecks: MonitorChecks = {
         };
     },
     async webhook(url, body, signal) {
-        await publicRequest(url, signal, {
+        const { status } = await publicRequest(url, signal, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             requestBody: body,
             body: false,
         });
+        if (status < 200 || status >= 300) throw new Error('Webhook declined the alert.');
     },
 };
 
@@ -382,37 +429,74 @@ export function registerMonitors({
     }
 
     async function alert(monitor: Monitor, message: string) {
-        const subject = `${monitor.status === 'down' ? '🔴 Down' : '🟢 Up again'}: ${monitor.name}`;
-        const signal = AbortSignal.timeout(8000);
-        if (monitor.alertWebhook)
-            await checks
-                .webhook(
-                    monitor.alertWebhook,
-                    JSON.stringify({
-                        monitor: { id: monitor.id, name: monitor.name, kind: monitor.kind },
-                        status: monitor.status,
-                        message,
-                        at: new Date().toISOString(),
-                    }),
-                    signal,
-                )
-                .catch(() =>
-                    app.log.warn({ monitor: monitor.id }, 'Monitor webhook alert failed.'),
-                );
-        if (!mail) return;
-        // At most 10 alert emails a minute per workspace, so a flapping site cannot flood an inbox.
-        if (await limits.consume(`monitor-mail:${monitor.accountId}`, 10)) return;
+        const saved = await monitors.get(monitor.accountId, monitor.id);
+        if (!saved) return;
+        const policy = saved.alertPolicy;
+        const now = Date.now(),
+            at = new Date(now).toISOString();
+        const maintenance = policy?.maintenance;
+        const suppressed =
+            maintenance &&
+            now >= Date.parse(maintenance.startsAt) &&
+            now < Date.parse(maintenance.endsAt);
+        const log = (
+            channel: MonitorDelivery['channel'],
+            outcome: MonitorDelivery['outcome'],
+            reason?: string,
+        ) =>
+            monitors.addEvent(monitor.id, {
+                at,
+                status: monitor.status,
+                message,
+                delivery: { at, channel, outcome, ...(reason ? { reason } : {}) },
+            });
+        const subject = `${monitor.status === 'down' ? 'Down' : 'Up again'}: ${monitor.name}`;
+        if (saved.alertWebhook && policy?.webhook !== false) {
+            if (suppressed) await log('webhook', 'suppressed', 'Maintenance window');
+            else {
+                try {
+                    await checks.webhook(
+                        saved.alertWebhook,
+                        JSON.stringify({
+                            monitor: { id: monitor.id, name: monitor.name, kind: monitor.kind },
+                            status: monitor.status,
+                            message,
+                            at,
+                        }),
+                        AbortSignal.timeout(8000),
+                    );
+                    await log('webhook', 'sent');
+                } catch {
+                    await log('webhook', 'failed', 'Webhook delivery failed');
+                }
+            }
+        }
+        if (!mail || policy?.email === false) return;
+        if (suppressed) {
+            await log('email', 'suppressed', 'Maintenance window');
+            return;
+        }
+        if (await limits.consume(`monitor-mail:${monitor.accountId}`, 10)) {
+            await log('email', 'suppressed', 'Email rate limit');
+            return;
+        }
         const members = await identities.members(monitor.accountId);
         const ownerId = members.find((member) => member.role === 'owner')?.userId;
         const contact = ownerId ? await recovery.status(ownerId) : undefined;
-        if (!contact?.email || !contact.verifiedAt) return;
-        await mail
-            .send({
+        if (!contact?.email || !contact.verifiedAt) {
+            await log('email', 'suppressed', 'No verified workspace owner email');
+            return;
+        }
+        try {
+            await mail.send({
                 to: contact.email,
                 subject,
                 text: `${monitor.name} is ${monitor.status === 'down' ? 'DOWN' : 'back UP'}.\n\n${message}\n\nManage your monitors: ${access.appUrl('/monitors/', '/account/#monitors')}\n`,
-            })
-            .catch(() => app.log.warn({ monitor: monitor.id }, 'Monitor email alert failed.'));
+            });
+            await log('email', 'sent');
+        } catch {
+            await log('email', 'failed', 'Email delivery failed');
+        }
     }
 
     async function check(monitor: Monitor) {
@@ -491,6 +575,12 @@ export function registerMonitors({
                     at: new Date(now).toISOString(),
                     status: ok ? ('up' as const) : ('down' as const),
                     durationMs,
+                    signal:
+                        monitor.kind === 'heartbeat'
+                            ? ok
+                                ? ('heartbeat_received' as const)
+                                : ('heartbeat_missing' as const)
+                            : ('probe' as const),
                 },
             ].slice(-50),
             ...(dnsBaseline ? { dnsBaseline } : {}),
@@ -610,11 +700,67 @@ export function registerMonitors({
         if (!monitor) throw new HttpError(404, 'Monitor not found.');
         return { ...view(monitor), events: await monitors.events(monitor.id) };
     });
+    for (const section of ['checks', 'incidents', 'deliveries'] as const)
+        app.get<{ Params: { id: string } }>(`/api/monitors/:id/${section}`, async (request) => {
+            const { accountId } = await owner(request, false);
+            const monitor = await monitors.get(accountId, request.params.id);
+            if (!monitor) throw new HttpError(404, 'Monitor not found.');
+            if (section === 'checks')
+                return { checks: (monitor.recentChecks ?? []).slice().reverse() };
+            if (section === 'deliveries')
+                return {
+                    deliveries: (await monitors.events(monitor.id, true)).map(
+                        (event) => event.delivery,
+                    ),
+                };
+            const incidents: { startedAt: string; recoveredAt?: string; message: string }[] = [];
+            for (const event of (await monitors.events(monitor.id)).reverse()) {
+                const latest = incidents.at(-1);
+                if (event.status === 'down' && (!latest || latest.recoveredAt))
+                    incidents.push({ startedAt: event.at, message: event.message });
+                if (event.status === 'up' && latest && !latest.recoveredAt)
+                    latest.recoveredAt = event.at;
+            }
+            return { incidents: incidents.reverse() };
+        });
     app.patch<{ Params: { id: string } }>('/api/monitors/:id', async (request) => {
         const { accountId } = await owner(request, true);
-        const body = (request.body ?? {}) as { paused?: unknown };
-        if (typeof body.paused !== 'boolean')
-            throw new HttpError(400, 'Send {"paused": true|false}.');
+        const body = (request.body ?? {}) as { paused?: unknown; alertPolicy?: MonitorAlertPolicy };
+        if (body.alertPolicy !== undefined && body.paused === undefined) {
+            const policy = body.alertPolicy;
+            const maintenance = policy?.maintenance;
+            const start =
+                typeof maintenance?.startsAt === 'string' ? Date.parse(maintenance.startsAt) : NaN;
+            const end =
+                typeof maintenance?.endsAt === 'string' ? Date.parse(maintenance.endsAt) : NaN;
+            if (
+                !policy ||
+                typeof policy.email !== 'boolean' ||
+                typeof policy.webhook !== 'boolean' ||
+                (maintenance !== undefined && !(end > start && end - start <= 30 * 86400000))
+            )
+                throw new HttpError(
+                    400,
+                    'Set email and webhook booleans and an optional maintenance window up to 30 days.',
+                );
+            const alertPolicy = {
+                email: policy.email,
+                webhook: policy.webhook,
+                ...(maintenance
+                    ? {
+                          maintenance: {
+                              startsAt: new Date(start).toISOString(),
+                              endsAt: new Date(end).toISOString(),
+                          },
+                      }
+                    : {}),
+            };
+            if (!(await monitors.setAlertPolicy(accountId, request.params.id, alertPolicy)))
+                throw new HttpError(404, 'Monitor not found.');
+            return { alertPolicy };
+        }
+        if (typeof body.paused !== 'boolean' || body.alertPolicy !== undefined)
+            throw new HttpError(400, 'Send paused or an alert policy.');
         if (!(await monitors.setPaused(accountId, request.params.id, body.paused)))
             throw new HttpError(404, 'Monitor not found.');
         return { paused: body.paused };
@@ -648,6 +794,17 @@ export function registerMonitors({
                     status,
                     failures: 0,
                     lastPingAt: now.toISOString(),
+                    recentChecks: [
+                        ...(monitor.recentChecks ?? []),
+                        {
+                            at: now.toISOString(),
+                            status,
+                            durationMs: 0,
+                            signal: failed
+                                ? ('heartbeat_failed' as const)
+                                : ('heartbeat_received' as const),
+                        },
+                    ].slice(-50),
                     lastCheckAt: now.toISOString(),
                     lastMessage: message,
                     nextRunAt: new Date(
@@ -658,7 +815,10 @@ export function registerMonitors({
                 await monitors.save(next);
                 if (changed) {
                     await monitors.addEvent(monitor.id, { at: now.toISOString(), status, message });
-                    if (monitor.status !== 'pending' || failed) void alert(next, message);
+                    if (monitor.status !== 'pending' || failed)
+                        void alert(next, message).catch(() =>
+                            app.log.warn({ monitor: monitor.id }, 'Monitor alert logging failed.'),
+                        );
                 }
                 return reply.send({ ok: true, status });
             },

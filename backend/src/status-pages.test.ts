@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import { buildApp } from './app.js';
 async function account(app: ReturnType<typeof buildApp>, username: string) {
@@ -80,6 +81,53 @@ test('status pages publish only selected owned monitors, escape content and enfo
     );
     const publicPage = (await create(headers, 'public')).json();
     assert.equal((await app.inject({ url: `/status/${publicPage.id}` })).statusCode, 200);
+    const component = { id: randomUUID(), name: 'Checkout <script>', status: 'degraded' };
+    const change = {
+        components: [component],
+        incidents: [
+            {
+                id: randomUUID(),
+                name: 'Checkout issue',
+                componentIds: [component.id],
+                updates: [
+                    {
+                        at: new Date().toISOString(),
+                        status: 'investigating',
+                        message: 'Investigating <img onerror=alert(1)>',
+                    },
+                ],
+            },
+        ],
+        maintenance: [
+            {
+                id: randomUUID(),
+                name: 'Database maintenance',
+                componentIds: [component.id],
+                startsAt: new Date(Date.now() + 3600000).toISOString(),
+                endsAt: new Date(Date.now() + 7200000).toISOString(),
+            },
+        ],
+    };
+    const path = `/api/status-pages/${publicPage.id}`;
+    assert.equal(
+        (await app.inject({ method: 'PATCH', url: path, headers: other, payload: change }))
+            .statusCode,
+        404,
+    );
+    const updated = await app.inject({ method: 'PATCH', url: path, headers, payload: change });
+    assert.equal(updated.statusCode, 200, updated.body);
+    await app.inject({
+        method: 'PUT',
+        url: path,
+        headers,
+        payload: { name: 'Renamed status', monitorIds: [] },
+    });
+    const safe = await app.inject({ url: `/status/${publicPage.id}` });
+    assert.match(safe.body, /Checkout &lt;script&gt;|Checkout issue/);
+    assert.match(safe.body, /&lt;img onerror=alert\(1\)&gt;/);
+    assert.match(safe.body, /Database maintenance/);
+    assert.match(safe.body, /Some services are experiencing issues/);
+    assert.doesNotMatch(safe.body, /<script>|<img|private-target|kv_/);
     await app.inject({ method: 'DELETE', url: `/api/status-pages/${page.id}`, headers });
     assert.equal(
         (

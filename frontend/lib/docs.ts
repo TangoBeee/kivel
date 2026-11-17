@@ -1607,13 +1607,30 @@ curl https://kivel.io/api/tools/everyday-file-checksums/run \\
                             'Pipe a JSON value to set; memory list <namespace> accepts --prefix',
                         ],
                         [
-                            'kivel monitor create|list|inspect|pause|resume|delete [id]',
+                            'kivel monitor create|list|inspect|checks|incidents|deliveries|pause|resume|delete [id]',
                             'Pipe monitor settings as JSON to create',
                         ],
                         [
                             'kivel monitor ping|fail <ping-token>',
                             'Report job success or failure using the secret from pingUrl',
                         ],
+                        [
+                            'kivel monitor policy <id> < policy.json',
+                            'Choose alert channels and a maintenance window',
+                        ],
+                        [
+                            'kivel job create < job.json',
+                            'Schedule a delay, interval or cron with an IANA timezone',
+                        ],
+                        [
+                            'kivel job runs|pause|resume <id>',
+                            'Inspect callback attempts or control scheduling',
+                        ],
+                        [
+                            'kivel status-page publish <id> < updates.json',
+                            'Publish service components, incidents or maintenance',
+                        ],
+
                         [
                             'kivel approval ask|list|pending|inspect|wait [id]',
                             'Pipe question/options as JSON to ask; only the signed-in human can answer',
@@ -1803,6 +1820,23 @@ console.log(result.output, result.usage.used);`,
                             'createMonitor(settings) / monitors() / monitor(id)',
                             'Create and inspect HTTP, SSL or heartbeat monitors',
                         ],
+                        [
+                            'monitorChecks(id) / monitorIncidents(id) / monitorDeliveries(id)',
+                            'Read monitor history and notification outcomes',
+                        ],
+                        [
+                            'updateMonitorAlertPolicy(id, policy)',
+                            'Choose alert channels and a maintenance window',
+                        ],
+                        [
+                            'createScheduledJob(config) / scheduledJobRuns(id) / pauseScheduledJob(id)',
+                            'Schedule, inspect and pause callbacks',
+                        ],
+                        [
+                            'statusPage(id) / updateStatusPublication(id, changes)',
+                            'Read and publish status components, incidents and maintenance',
+                        ],
+
                         [
                             'pingMonitor(token, failed?)',
                             'Report a job success or failure using the secret token from pingUrl',

@@ -109,6 +109,43 @@ test('uptime monitors confirm failures before alerting and announce recovery', a
         alerts.map((alert) => alert.status),
         ['down', 'up'],
     );
+    const getSection = async (section: string) =>
+        (await app.inject({ url: `/api/monitors/${id}/${section}`, headers })).json();
+    assert.equal((await getSection('checks')).checks.length, 4);
+    const { incidents } = await getSection('incidents');
+    assert.equal(incidents.length, 1);
+    assert.ok(incidents[0].recoveredAt);
+    const updated = await app.inject({
+        method: 'PATCH',
+        url: `/api/monitors/${id}`,
+        headers,
+        payload: {
+            alertPolicy: {
+                email: false,
+                webhook: true,
+                maintenance: {
+                    startsAt: new Date(Date.now() - 60000).toISOString(),
+                    endsAt: new Date(Date.now() + 60000).toISOString(),
+                },
+            },
+        },
+    });
+    assert.equal(updated.statusCode, 200, updated.body);
+    status = 503;
+    due();
+    await app.runMonitors();
+    due();
+    await app.runMonitors();
+    assert.equal((await getSection('incidents')).incidents.length, 2);
+    assert.equal((await getSection('deliveries')).deliveries[0].outcome, 'suppressed');
+    assert.equal(alerts.length, 2);
+    const other = await account(app, 'uptime-other');
+    for (const section of ['checks', 'incidents', 'deliveries'])
+        assert.equal(
+            (await app.inject({ url: `/api/monitors/${id}/${section}`, headers: other }))
+                .statusCode,
+            404,
+        );
     const listed = (await app.inject({ url: '/api/monitors', headers })).json();
     assert.equal(listed.limit, 20);
     assert.equal(listed.monitors[0].accountId, undefined);

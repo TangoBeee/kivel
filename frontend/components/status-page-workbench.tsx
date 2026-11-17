@@ -2,13 +2,15 @@
 import Link from 'next/link';
 import { legacyAccountLink, workspaceResource } from '../lib/app-routes';
 import { useEffect, useState } from 'react';
-import { Button, Checkbox, TextArea, TextField } from '@radix-ui/themes';
+import { Button, Checkbox, Select, Tabs, TextArea, TextField } from '@radix-ui/themes';
+import type { StatusPublication } from '@kivel.io/sdk';
 import { api } from '../lib/api';
 import { useViewer } from '../lib/viewer';
 import { ToolHeader } from './tool-header';
 import { SharingControl } from './sharing-control';
 import type { Visibility } from './sharing-control';
 import { CopyButton } from './copy-button';
+import { AppSelect, SelectOption } from './app-select';
 
 interface Monitor {
     id: string;
@@ -16,7 +18,7 @@ interface Monitor {
     kind: string;
     status: string;
 }
-interface Page {
+interface Page extends Partial<StatusPublication> {
     id: string;
     name: string;
     description: string;
@@ -101,7 +103,7 @@ export function StatusPageWorkbench({ toolId }: { toolId: string }) {
         <div className="page-width work-page">
             <ToolHeader
                 toolId={toolId}
-                description="Publish the status of selected workspace monitors. Targets, alert destinations and private error details stay in your workspace."
+                description="Publish how your services are doing, with monitor checks and manual updates. Targets, alert destinations and private error details stay in your workspace."
             />
             {error && (
                 <p className="alert" role="alert">
@@ -111,9 +113,7 @@ export function StatusPageWorkbench({ toolId }: { toolId: string }) {
             {viewer.status === 'guest' ? (
                 <div className="dashboard-empty">
                     <h2>Publish your service status.</h2>
-                    <p>
-                        A free workspace can select its own monitors and share their current state.
-                    </p>
+                    <p>Share monitor checks, service updates and scheduled maintenance.</p>
                     <Link className="button" href={legacyAccountLink('/account/#register')}>
                         Create a free account
                     </Link>
@@ -190,7 +190,7 @@ export function StatusPageWorkbench({ toolId }: { toolId: string }) {
                             separate caller token. Free pages last seven days; paid pages can stay
                             active while subscribed.
                         </p>
-                        <Button type="submit" disabled={busy || !selected.length}>
+                        <Button type="submit" disabled={busy}>
                             {busy ? 'Saving…' : page ? 'Save page' : 'Create page'}
                         </Button>
                     </form>
@@ -253,6 +253,311 @@ export function StatusPageWorkbench({ toolId }: { toolId: string }) {
                     </section>
                 </div>
             )}
+            {page && <PublicationEditor key={page.id} page={page} />}
         </div>
+    );
+}
+
+function PublicationEditor({ page }: { page: Page }) {
+    const [components, setComponents] = useState(page.components ?? []);
+    const [incidents, setIncidents] = useState(page.incidents ?? []);
+    const [maintenance, setMaintenance] = useState(page.maintenance ?? []);
+    const [affected, setAffected] = useState<string[]>([]);
+    const [message, setMessage] = useState('');
+    const [error, setError] = useState('');
+    const [busy, setBusy] = useState(false);
+    async function save(changes: Partial<StatusPublication>) {
+        setBusy(true);
+        setError('');
+        setMessage('');
+        try {
+            await api(`/api/status-pages/${page.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(changes),
+            });
+            if (changes.components) setComponents(changes.components);
+            if (changes.incidents) setIncidents(changes.incidents);
+            if (changes.maintenance) setMaintenance(changes.maintenance);
+            setAffected([]);
+            setMessage('Status page updated.');
+        } catch (failure) {
+            setError(
+                failure instanceof Error ? failure.message : 'Unable to publish these changes.',
+            );
+        } finally {
+            setBusy(false);
+        }
+    }
+    const componentOptions = (
+        <fieldset>
+            <legend>Affected components</legend>
+            {!components.length && <p className="muted">This update applies to the whole page.</p>}
+            {components.map((component) => (
+                <label className="llm-option" key={component.id}>
+                    <Checkbox
+                        checked={affected.includes(component.id)}
+                        onCheckedChange={(checked) =>
+                            setAffected((items) =>
+                                checked
+                                    ? [...items, component.id]
+                                    : items.filter((id) => id !== component.id),
+                            )
+                        }
+                    />
+                    {component.name}
+                </label>
+            ))}
+        </fieldset>
+    );
+    const componentStates = { operational: 'Operational', degraded: 'Degraded', outage: 'Outage' };
+    const incidentStates = {
+        investigating: 'Investigating',
+        identified: 'Identified',
+        monitoring: 'Monitoring',
+        resolved: 'Resolved',
+    };
+    return (
+        <section className="llm-preview operations-detail" aria-label="Status publication">
+            <h2>Status updates</h2>
+            <Tabs.Root defaultValue="components" onValueChange={() => setAffected([])}>
+                <Tabs.List aria-label="Publication settings">
+                    <Tabs.Trigger value="components">Components</Tabs.Trigger>
+                    <Tabs.Trigger value="incidents">Incidents</Tabs.Trigger>
+                    <Tabs.Trigger value="maintenance">Maintenance</Tabs.Trigger>
+                </Tabs.List>
+                <Tabs.Content value="components">
+                    <ul className="operations-timeline">
+                        {components.map((component) => (
+                            <li key={component.id}>
+                                <strong>{component.name}</strong>
+                                <Select.Root
+                                    value={component.status}
+                                    onValueChange={(status: typeof component.status) =>
+                                        void save({
+                                            components: components.map((item) =>
+                                                item.id === component.id
+                                                    ? { ...item, status }
+                                                    : item,
+                                            ),
+                                        })
+                                    }
+                                >
+                                    <Select.Trigger
+                                        aria-label={component.name + ' status'}
+                                        disabled={busy}
+                                    />
+                                    <Select.Content>
+                                        {Object.entries(componentStates).map(([value, label]) => (
+                                            <Select.Item key={value} value={value}>
+                                                {label}
+                                            </Select.Item>
+                                        ))}
+                                    </Select.Content>
+                                </Select.Root>
+                                <Button
+                                    type="button"
+                                    variant="soft"
+                                    disabled={busy}
+                                    onClick={() =>
+                                        void save({
+                                            components: components.filter(
+                                                (item) => item.id !== component.id,
+                                            ),
+                                            incidents: incidents.map((item) => ({
+                                                ...item,
+                                                componentIds: item.componentIds.filter(
+                                                    (id) => id !== component.id,
+                                                ),
+                                            })),
+                                            maintenance: maintenance.map((item) => ({
+                                                ...item,
+                                                componentIds: item.componentIds.filter(
+                                                    (id) => id !== component.id,
+                                                ),
+                                            })),
+                                        })
+                                    }
+                                >
+                                    Remove
+                                </Button>
+                            </li>
+                        ))}
+                    </ul>
+                    <form
+                        className="email-create-form"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            const name = String(
+                                new FormData(event.currentTarget).get('name') ?? '',
+                            );
+                            void save({
+                                components: [
+                                    ...components,
+                                    { id: crypto.randomUUID(), name, status: 'operational' },
+                                ],
+                            });
+                        }}
+                    >
+                        <label>
+                            Component name
+                            <TextField.Root name="name" required maxLength={80} />
+                        </label>
+                        <Button type="submit" disabled={busy || components.length >= 20}>
+                            Add component
+                        </Button>
+                    </form>
+                </Tabs.Content>
+                <Tabs.Content value="incidents">
+                    <ul className="operations-timeline">
+                        {incidents.map((incident) => (
+                            <li key={incident.id}>
+                                <strong>{incident.name}</strong>
+                                <small> · {incidentStates[incident.updates.at(-1)!.status]}</small>
+                                <p>{incident.updates.at(-1)!.message}</p>
+                            </li>
+                        ))}
+                    </ul>
+                    <form
+                        className="email-create-form"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            const form = new FormData(event.currentTarget);
+                            const id = String(form.get('incident') ?? '');
+                            const update = {
+                                at: new Date().toISOString(),
+                                status: form.get('status') as keyof typeof incidentStates,
+                                message: String(form.get('message') ?? ''),
+                            };
+                            if (id && id !== 'new')
+                                void save({
+                                    incidents: incidents.map((item) =>
+                                        item.id === id
+                                            ? { ...item, updates: [...item.updates, update] }
+                                            : item,
+                                    ),
+                                });
+                            else
+                                void save({
+                                    incidents: [
+                                        ...incidents,
+                                        {
+                                            id: crypto.randomUUID(),
+                                            name: String(form.get('name') ?? ''),
+                                            componentIds: affected,
+                                            updates: [update],
+                                        },
+                                    ],
+                                });
+                        }}
+                    >
+                        <label htmlFor="published-incident">Existing incident</label>
+                        <AppSelect id="published-incident" name="incident" defaultValue="new">
+                            <SelectOption value="new">New incident</SelectOption>
+                            {incidents
+                                .filter((item) => item.updates.length < 20)
+                                .map((item) => (
+                                    <SelectOption key={item.id} value={item.id}>
+                                        {item.name}
+                                    </SelectOption>
+                                ))}
+                        </AppSelect>
+                        <label>
+                            Name (new incidents)
+                            <TextField.Root name="name" maxLength={80} />
+                        </label>
+                        <label htmlFor="published-incident-status">Status</label>
+                        <AppSelect
+                            id="published-incident-status"
+                            name="status"
+                            defaultValue="investigating"
+                        >
+                            {Object.entries(incidentStates).map(([value, label]) => (
+                                <SelectOption key={value} value={value}>
+                                    {label}
+                                </SelectOption>
+                            ))}
+                        </AppSelect>
+                        <label>
+                            Public update
+                            <TextArea name="message" required maxLength={500} />
+                        </label>
+                        {componentOptions}
+                        <Button type="submit" disabled={busy}>
+                            Publish incident update
+                        </Button>
+                    </form>
+                </Tabs.Content>
+                <Tabs.Content value="maintenance">
+                    <ul className="operations-timeline">
+                        {maintenance.map((item) => (
+                            <li key={item.id}>
+                                <strong>{item.name}</strong>
+                                <p>
+                                    {new Date(item.startsAt).toLocaleString()} to{' '}
+                                    {new Date(item.endsAt).toLocaleString()}
+                                </p>
+                                <Button
+                                    type="button"
+                                    variant="soft"
+                                    disabled={busy}
+                                    onClick={() =>
+                                        void save({
+                                            maintenance: maintenance.filter(
+                                                (value) => value.id !== item.id,
+                                            ),
+                                        })
+                                    }
+                                >
+                                    Remove
+                                </Button>
+                            </li>
+                        ))}
+                    </ul>
+                    <form
+                        className="email-create-form"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            const form = new FormData(event.currentTarget);
+                            void save({
+                                maintenance: [
+                                    ...maintenance,
+                                    {
+                                        id: crypto.randomUUID(),
+                                        name: String(form.get('name') ?? ''),
+                                        componentIds: affected,
+                                        startsAt: new Date(String(form.get('start'))).toISOString(),
+                                        endsAt: new Date(String(form.get('end'))).toISOString(),
+                                    },
+                                ],
+                            });
+                        }}
+                    >
+                        <label>
+                            Maintenance name
+                            <TextField.Root name="name" required maxLength={80} />
+                        </label>
+                        <label>
+                            Starts
+                            <TextField.Root type="datetime-local" name="start" required />
+                        </label>
+                        <label>
+                            Ends
+                            <TextField.Root type="datetime-local" name="end" required />
+                        </label>
+                        {componentOptions}
+                        <Button type="submit" disabled={busy || maintenance.length >= 20}>
+                            Schedule maintenance
+                        </Button>
+                    </form>
+                </Tabs.Content>
+            </Tabs.Root>
+            {message && <p role="status">{message}</p>}
+            {error && (
+                <p role="alert" className="alert">
+                    {error}
+                </p>
+            )}
+        </section>
     );
 }

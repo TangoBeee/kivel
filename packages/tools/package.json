@@ -20,6 +20,7 @@
     "./network-definitions": "./dist/network-definitions.js",
     "./media-definitions": "./dist/media-definitions.js",
     "./media-engine": "./dist/media-engine.js",
+    "./cron": "./dist/cron.js",
     "./sse": "./dist/sse.js",
     "./resource-definitions": "./dist/resource-definitions.js",
     "./csv-preview": "./dist/csv-preview.js",

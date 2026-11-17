@@ -360,23 +360,23 @@ export function toolGuide(tool: CatalogTool): Guide {
         };
     if (tool.id === 'monitoring-public-status-page')
         return {
-            intro: 'Publish the current state of selected workspace monitors in a minimal status page. Show service names, status changes and recent check counts without exposing target URLs, alert destinations or private errors.',
+            intro: 'Publish service health from workspace monitors and manual components. Add incident updates and maintenance windows. Public pages keep probe targets, alert destinations and private errors inside the workspace.',
             steps: [
-                'Create monitors in your workspace and select up to twenty.',
+                'Select up to twenty workspace monitors or add components you update yourself.',
                 'Name the page and explicitly choose public access if other people should see it.',
-                'Share its ID-only URL, or keep it private to workspace access; manage expiry, sharing and deletion from your resources.',
+                'Share the page URL when ready. Use Status updates to publish incidents and maintenance.',
             ],
             limits: 'An account is required. Free pages can last up to seven days; paid pages can use a persistent lease. Pages follow normal resource quotas. Check samples are the latest fifty probes, not a time-weighted uptime guarantee. The page must be refreshed for new results and is excluded from search indexing.',
         };
     if (scheduledToolIds.includes(tool.id))
         return {
-            intro: 'Send a JSON webhook after a delay or on a bounded repeating interval. Scheduled jobs belong to your workspace, survive restarts and retain recent delivery results.',
+            intro: 'Send a JSON webhook once, on a repeating interval, or with a cron expression and an IANA timezone. Scheduled jobs belong to your workspace, survive restarts and retain recent delivery results.',
             steps: [
                 'Sign in and choose a public callback URL without URL credentials.',
-                'Enter a JSON payload, delay and optional repeating interval with a run count.',
-                'Review delivery attempts or wait for job events from your agent. Delete the job when finished.',
+                'Enter a JSON payload, then choose a delay, an interval, or a cron schedule with a run count.',
+                'Pause or resume a callback, inspect recent attempts, or wait for job events through your agent.',
             ],
-            limits: 'Payloads are at most 16 KiB. Start 5 seconds to 7 days ahead, repeat every 5 minutes or slower, and run at most 100 times within the resource lifetime. Two retries follow network errors, HTTP 429 or 5xx. Redirects are not followed. Timing is best effort. Delivery is at least once: deduplicate X-Kivel-Delivery-Id at the receiver. Destination URL and DNS checks are repeated before every delivery. Jobs never run shell commands or arbitrary code.',
+            limits: 'Payloads are at most 16 KiB. Start 5 seconds to 7 days ahead, repeat every 5 minutes or slower, and run at most 100 times within the resource lifetime. Two retries follow network errors, HTTP 429 or 5xx. Redirects are not followed. A retry keeps the original delivery ID. Cron continues at the next future occurrence after a delayed or failed run. Delivery is at least once: deduplicate X-Kivel-Delivery-Id at the receiver. Destination URL and DNS checks are repeated before every delivery. Jobs never run shell commands or arbitrary code.',
         };
     if (tool.id === 'email-mock-smtp')
         return {
@@ -394,7 +394,7 @@ export function toolGuide(tool: CatalogTool): Guide {
             steps: [
                 'Sign in and create a monitor for your public endpoint or domain.',
                 'Choose a check interval and optional alert webhook; verify the owner email for email alerts.',
-                'Review current status and recent check times. For DNS, review changed records before accepting a new baseline.',
+                'Review Checks, Incidents and Alerts. Set a maintenance window in Alerts to suppress notifications while Kivel keeps checking. For DNS, review changed records before accepting a new baseline.',
             ],
             limits: 'Free permits twenty monitors at intervals of five minutes or slower; Pro one hundred and Team five hundred, every minute or slower. Active failures are confirmed before alerting. The latest fifty check timings and fifty status changes are retained. DNS uses a public resolver and ignores TTL changes; it does not identify the domain hosting provider. Changes remain flagged until the workspace accepts new records. Targets and alert destinations are private to the workspace.',
         };
@@ -699,7 +699,7 @@ const examples: Record<string, { useCase: string; example: string }> = {
                     'Track your own endpoint, certificate, DNS records or scheduled job and inspect actual check results.',
                 example: id.includes('dns-monitor')
                     ? 'POST /api/monitors\n{ "kind": "dns", "name": "API DNS", "target": "api.example.com", "dnsRecordType": "A", "intervalSeconds": 300 }\n\nGET /api/monitors/{id} → dnsBaseline, lastDnsAnswers and recentChecks\nPOST /api/monitors/{id}/accept-dns → accept the reviewed records'
-                    : 'POST /api/monitors\n{ "kind": "http", "name": "My API", "target": "https://api.example.com/health", "intervalSeconds": 300 }\n\nGET /api/monitors/{id} → status, lastDurationMs and recentChecks',
+                    : 'POST /api/monitors\n{ "kind": "http", "name": "My API", "target": "https://api.example.com/health", "intervalSeconds": 300 }\n\nGET /api/monitors/{id}/checks → recent health samples\nGET /api/monitors/{id}/incidents → outage and recovery times\nGET /api/monitors/{id}/deliveries → notification outcomes',
             },
         ]),
     ),

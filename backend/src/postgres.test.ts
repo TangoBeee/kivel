@@ -2427,6 +2427,29 @@ test('approved workspace keys exercise agent memory, monitors, human approvals, 
     assert.equal((await mcp('ping_monitor', { token: ping }, replica)).status, 'up');
     const inspected = await mcp('inspect_monitor', { id: monitor.id });
     assert.equal(inspected.status, 'up');
+    const monitorChecks = await mcp(
+        'inspect_monitor',
+        { id: monitor.id, history: 'checks' },
+        replica,
+    );
+    assert.equal(monitorChecks.checks[0].signal, 'heartbeat_received');
+    await mcp('resource_request', {
+        kind: 'monitors',
+        action: 'update',
+        id: monitor.id,
+        config: { alertPolicy: { email: false, webhook: false } },
+    });
+    assert.equal(
+        (await mcp('inspect_monitor', { id: monitor.id }, replica)).alertPolicy.email,
+        false,
+    );
+    await mcp('ping_monitor', { token: ping, failed: true }, replica);
+    assert.equal(
+        (await mcp('resource_request', { kind: 'monitors', action: 'incidents', id: monitor.id }))
+            .incidents.length,
+        1,
+    );
+    await mcp('ping_monitor', { token: ping }, replica);
     const page = await mcp('resource_request', {
         kind: 'status-pages',
         action: 'create',
@@ -2436,6 +2459,14 @@ test('approved workspace keys exercise agent memory, monitors, human approvals, 
     const published = await replica.inject(`/status/${page.id}`);
     assert.equal(published.statusCode, 200, published.body);
     assert.match(published.body, /All published services are operational/);
+    const component = { id: randomUUID(), name: 'Worker fleet', status: 'operational' };
+    await mcp('resource_request', {
+        kind: 'status-pages',
+        action: 'update',
+        id: page.id,
+        config: { components: [component] },
+    });
+    assert.match((await replica.inject(`/status/${page.id}`)).body, /Worker fleet/);
     const asked = await mcp('ask_human', {
         question: 'Proceed with a local test?',
         options: ['Approve', 'Deny'],
@@ -2470,6 +2501,24 @@ test('approved workspace keys exercise agent memory, monitors, human approvals, 
             body: { test: true },
         },
     });
+    await mcp('resource_request', {
+        kind: 'scheduled-jobs',
+        action: 'update',
+        id: job.id,
+        config: { paused: true },
+    });
+    await replica.runScheduledJobs(Date.parse(job.nextRunAt) + 1);
+    assert.deepEqual(
+        (await mcp('resource_request', { kind: 'scheduled-jobs', action: 'runs', id: job.id }))
+            .runs,
+        [],
+    );
+    await mcp('resource_request', {
+        kind: 'scheduled-jobs',
+        action: 'update',
+        id: job.id,
+        config: { paused: false },
+    });
     await replica.runScheduledJobs(Date.parse(job.nextRunAt) + 1);
     const stored = await mcp('resource_request', {
         kind: 'scheduled-jobs',
@@ -2478,6 +2527,12 @@ test('approved workspace keys exercise agent memory, monitors, human approvals, 
     });
     assert.equal(stored.status, 'completed');
     assert.equal(stored.events[0].status, 204);
+    const runs = await mcp(
+        'resource_request',
+        { kind: 'scheduled-jobs', action: 'runs', id: job.id },
+        replica,
+    );
+    assert.equal(runs.runs[0].status, 204);
     const events = await mcp(
         'wait_for_event',
         {

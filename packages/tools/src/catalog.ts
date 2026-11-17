@@ -372,9 +372,9 @@ const planned: Record<Category['id'], [string, string][]> = {
         ['Code paste sharing', 'Share an expiring code snippet.'],
     ],
     automation: [
-        ['Temporary scheduled jobs', 'Schedule a small task with an expiration.'],
-        ['Delayed webhooks', 'Deliver a test webhook after a chosen delay.'],
-        ['Temporary cron triggers', 'Trigger a URL on a temporary recurring schedule.'],
+        ['Scheduled callbacks', 'Send JSON to an endpoint once or on a recurring schedule.'],
+        ['Delayed webhooks', 'Deliver a webhook after a chosen delay.'],
+        ['Cron triggers', 'Send callbacks on a cron schedule in your chosen timezone.'],
         ['HTTP polling', 'Poll an endpoint for a limited time.'],
     ],
 };
@@ -455,8 +455,14 @@ export const backendToolIds = [
         'network-delay-timeout-simulator',
     ]),
 ];
+const existingToolSlugs: Record<string, string> = {
+    'Agent email inbox': 'temporary-email-inbox',
+    'Scheduled callbacks': 'temporary-scheduled-jobs',
+    'Cron triggers': 'temporary-cron-triggers',
+};
 export const toolSlug = (tool: { name: string }) =>
-    (tool.name === 'Agent email inbox' ? 'Temporary email inbox' : tool.name)
+    existingToolSlugs[tool.name] ??
+    tool.name
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/-$/, '');

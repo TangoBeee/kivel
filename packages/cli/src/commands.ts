@@ -47,12 +47,15 @@ kivel memory set <namespace> <key> [--ttl-seconds <n>] < value.json
 kivel memory get|delete <namespace> <key>
 kivel memory list <namespace> [--prefix <prefix>]
 kivel monitor create < monitor.json
-kivel monitor list|inspect|pause|resume|delete [id]
+kivel monitor policy <id> < policy.json
+kivel monitor list|inspect|checks|incidents|deliveries|pause|resume|delete [id]
 kivel monitor ping|fail <ping-token>
 kivel monitor accept-dns <id>
 kivel job create [--ttl-seconds <n>] < job.json
-kivel job list|inspect|cancel [id]
+kivel job list|inspect|runs|pause|resume|cancel [id]
 kivel status-page create|update [id] < page.json
+kivel status-page inspect <id>
+kivel status-page publish <id> < publication.json
 kivel smtp create [--ttl-seconds <n>]
 kivel smtp rotate <id>
 kivel phone available [US-area-code]

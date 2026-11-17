@@ -178,9 +178,6 @@ importers:
       '@radix-ui/themes':
         specifier: 3.3.0
         version: 3.3.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      '@scalar/api-reference-react':
-        specifier: 0.9.83
-        version: 0.9.83(esbuild@0.28.2)(lightningcss@1.32.0)(react@19.3.1)(tailwindcss@4.3.3)(typescript@7.0.2)(zod@4.6.7)
       cmdk:
         specifier: 1.1.1
         version: 1.1.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -209,6 +206,9 @@ importers:
         specifier: 2.9.1
         version: 2.9.1
     devDependencies:
+      '@scalar/api-reference':
+        specifier: 1.76.0
+        version: 1.76.0(esbuild@0.28.2)(lightningcss@1.32.0)(tailwindcss@4.3.3)(typescript@7.0.2)(zod@4.6.7)
       '@tailwindcss/postcss':
         specifier: 4.3.3
         version: 4.3.3
@@ -1898,12 +1898,6 @@ packages:
   '@scalar/api-client@3.23.3':
     resolution: {integrity: sha512-ecT7zwtPN0WJYaANIhqOOMGqNkAtBx2MrxwifkYTQdq4nvnUtpTfhf+Yfu1Nt/JzxP9GbwUiP17YjBr83iNFNg==}
     engines: {node: '>=22'}
-
-  '@scalar/api-reference-react@0.9.83':
-    resolution: {integrity: sha512-D719HWqZHSA99NrvofuOXseEdN8vd9nYTbUKX23cB/zHOF3FTcHr3KQnElEyg9Cg3vRvgq8+EkgOoUcm7r6CyQ==}
-    engines: {node: '>=22'}
-    peerDependencies:
-      react: ^18.0.0 || ^19.0.0
 
   '@scalar/api-reference@1.76.0':
     resolution: {integrity: sha512-pjqwnzmA9YK3ZX+IZSICMsywm4qI6HLSngR2py9H6TvFApHHuJjkTAd+gFJfnqJDzJuro8k7ji6JCtJ2U+Byng==}
@@ -5917,47 +5911,6 @@ snapshots:
       - tailwindcss
       - typescript
       - universal-cookie
-
-  '@scalar/api-reference-react@0.9.83(esbuild@0.28.2)(lightningcss@1.32.0)(react@19.3.1)(tailwindcss@4.3.3)(typescript@7.0.2)(zod@4.6.7)':
-    dependencies:
-      '@scalar/api-reference': 1.76.0(esbuild@0.28.2)(lightningcss@1.32.0)(tailwindcss@4.3.3)(typescript@7.0.2)(zod@4.6.7)
-      '@scalar/types': 0.25.0
-      react: 19.3.1
-    transitivePeerDependencies:
-      - '@farmfe/core'
-      - '@nuxt/kit'
-      - '@nuxt/schema'
-      - '@oxc-project/types'
-      - '@rsbuild/core'
-      - '@rspack/core'
-      - '@unhead/cli'
-      - '@vitejs/devtools-kit'
-      - '@vue/composition-api'
-      - '@vue/test-utils'
-      - async-validator
-      - axios
-      - bun-types-no-globals
-      - change-case
-      - drauu
-      - esbuild
-      - idb-keyval
-      - jwt-decode
-      - lightningcss
-      - nprogress
-      - nuxt
-      - oxc-parser
-      - qrcode
-      - rolldown
-      - rollup
-      - sortablejs
-      - supports-color
-      - tailwindcss
-      - typescript
-      - universal-cookie
-      - unloader
-      - vite
-      - webpack
-      - zod
 
   '@scalar/api-reference@1.76.0(esbuild@0.28.2)(lightningcss@1.32.0)(tailwindcss@4.3.3)(typescript@7.0.2)(zod@4.6.7)':
     dependencies:

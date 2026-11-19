@@ -76,6 +76,15 @@ const productAllowances: Record<ToolPanel, UsageKey[]> = {
     status: ['status.active', 'status.storage'],
 };
 
+const resetDate = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' });
+
+function resetNote(at: string) {
+    const hours = Math.ceil((new Date(at).getTime() - Date.now()) / 3_600_000);
+    if (hours <= 1) return 'Resets within the hour';
+    if (hours <= 36) return `Resets in ${hours} hours`;
+    return `Resets ${resetDate.format(new Date(at))}`;
+}
+
 export function readings(panel: ToolPanel, usage: WorkspaceUsage): Reading[] {
     return productAllowances[panel].flatMap((key) => {
         const item = usage.items?.find((entry) => entry.key === key);
@@ -88,9 +97,7 @@ export function readings(panel: ToolPanel, usage: WorkspaceUsage): Reading[] {
                 used: item.used,
                 limit: item.max,
                 show: `${format(item.used)} / ${format(item.max)}`,
-                note: item.resetsAt
-                    ? `Resets ${new Date(item.resetsAt).toLocaleString()}`
-                    : undefined,
+                note: item.resetsAt ? resetNote(item.resetsAt) : undefined,
             },
         ];
     });

@@ -2018,9 +2018,13 @@ html:has(.dashboard-layout) {
 }
 .home-empty-block {
   display: grid;
-  gap: 16px;
-  padding: 20px 0;
-  border-top: 1px solid var(--line);
+  justify-items: start;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 24px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-card, 16px);
+  background: var(--subtle);
 }
 .home-empty-block p {
   margin: 0;
@@ -2230,7 +2234,7 @@ html:has(.dashboard-layout) {
 /* ---- Tool-first dashboard ---- */
 /* Sidebar: tool items carry a tinted icon and their usage */
 .dashboard-nav {
-  overflow-y: auto;
+  flex: 1 0 auto;
 }
 .nav-group {
   margin: 14px 10px 4px;
@@ -2329,17 +2333,18 @@ html:has(.dashboard-layout) {
 }
 .tool-meters {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  border: 1px solid var(--line);
-  border-radius: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
 }
 .tool-meters > div {
   display: grid;
+  align-content: start;
   gap: 8px;
-  padding: 14px 18px;
-}
-.tool-meters > div + div {
-  border-left: 1px solid var(--line);
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card, 16px);
+  background: var(--surface);
 }
 .tool-meter-row {
   display: flex;
@@ -2351,7 +2356,12 @@ html:has(.dashboard-layout) {
   font-size: 0.8125rem;
   color: var(--muted);
 }
+.tool-meter-row small {
+  min-width: 0;
+}
 .tool-meter-row strong {
+  flex: none;
+  white-space: nowrap;
   font-size: 0.9375rem;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
@@ -2643,9 +2653,17 @@ html:has(.dashboard-layout) {
   }
 }
 @media (max-width: 640px) {
-  .tool-meters > div + div {
-    border-top: 1px solid var(--line);
-    border-left: 0;
+  .tool-meters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .tool-meters > div {
+    padding: 12px;
+  }
+  .tool-meter-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
   }
   .usage-plan {
     flex-wrap: wrap;
@@ -2809,8 +2827,28 @@ button.resource-title {
   background: var(--surface);
 }
 .dashboard-tool-snippets summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   cursor: pointer;
+  list-style: none;
   font-weight: 500;
+}
+.dashboard-tool-snippets summary::-webkit-details-marker {
+  display: none;
+}
+.dashboard-tool-snippets summary::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  margin-left: auto;
+  border-right: 1.5px solid var(--muted);
+  border-bottom: 1.5px solid var(--muted);
+  transform: rotate(45deg) translateY(-2px);
+  transition: transform 300ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.dashboard-tool-snippets[open] summary::after {
+  transform: rotate(225deg) translateY(-2px);
 }
 .dashboard-tool-snippets section {
   margin-top: 18px;

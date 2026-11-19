@@ -876,7 +876,10 @@ export function AccountDashboard({
                                         onOpen={openResource}
                                         empty={
                                             <div className="home-empty-block">
-                                                <p>Nothing here yet.</p>
+                                                <p>
+                                                    Nothing here yet. Create one now, or ask
+                                                    your agent and it shows up here.
+                                                </p>
                                                 <ToolNew
                                                     panel={panel}
                                                     usage={workspaceUsage}

@@ -3,6 +3,7 @@ import { SiteFonts } from '../../frontend/components/site-fonts';
 import { ToolboxProvider } from '../../frontend/components/toolbox-provider';
 import { appOrigin } from '../../frontend/lib/site';
 import '../../frontend/app/globals.css';
+import '../../frontend/components/workspace/tokens.css';
 import './app.css';
 
 export const viewport: Viewport = { viewportFit: 'cover' };

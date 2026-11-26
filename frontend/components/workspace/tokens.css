@@ -1,0 +1,141 @@
+/*
+  Quiet: the workspace design tokens (docs/internal/dashboard-design-spec.md).
+  Scoped to .kv so the marketing site keeps its own theme.
+*/
+.kv,
+.kv-portal {
+  --kv-page: #fbfbfa;
+  --kv-surface: #ffffff;
+  --kv-sunk: #f6f6f4;
+  --kv-hover: #f7f7f5;
+  --kv-press: #f1f1ef;
+  --kv-selected: #ebebea;
+  --kv-ink: #1c1d1f;
+  --kv-ink-2: #3a3b3e;
+  --kv-muted: #6f6f6b;
+  --kv-faint: #a3a39e;
+  --kv-line: #ececea;
+  --kv-line-2: #e2e2df;
+  --kv-divider: #f3f3f1;
+  --kv-accent: #2f6bff;
+  --kv-accent-soft: #eef3ff;
+  --kv-accent-ring: #c9d6ff;
+  --kv-ok: #15803d;
+  --kv-ok-soft: #eaf6ee;
+  --kv-warn: #a15c00;
+  --kv-warn-soft: #fff4e0;
+  --kv-bad: #b42318;
+  --kv-bad-soft: #fdecea;
+
+  --kv-font: 'Hanken Grotesk', var(--font-sans), system-ui, sans-serif;
+  --kv-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --kv-radius-xs: 6px;
+  --kv-radius-sm: 8px;
+  --kv-radius-md: 10px;
+  --kv-radius-lg: 12px;
+  --kv-radius-xl: 14px;
+
+  --kv-shadow-1: 0 1px 2px rgb(16 17 19 / 0.04);
+  --kv-shadow-pop:
+    0 0 0 1px rgb(16 17 19 / 0.06), 0 12px 32px -8px rgb(16 17 19 / 0.18),
+    0 4px 10px -4px rgb(16 17 19 / 0.08);
+
+  --kv-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --kv-ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
+  color: var(--kv-ink);
+  font: 13.5px/1.5 var(--kv-font);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+.kv {
+  min-height: 100dvh;
+  background: var(--kv-page);
+}
+:where(.kv, .kv-portal) :focus-visible {
+  outline: 2px solid var(--kv-accent);
+  outline-offset: 2px;
+}
+:where(.kv, .kv-portal) button {
+  font: inherit;
+  color: inherit;
+}
+/* Page sections enter once per view: short, uneven stagger. */
+@keyframes kv-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+.kv [data-stagger] > * {
+  animation: kv-in 300ms var(--kv-ease-out) both;
+}
+.kv [data-stagger] > *:nth-child(2) {
+  animation-delay: 40ms;
+}
+.kv [data-stagger] > *:nth-child(3) {
+  animation-delay: 70ms;
+}
+.kv [data-stagger] > *:nth-child(4) {
+  animation-delay: 95ms;
+}
+.kv [data-stagger] > *:nth-child(n + 5) {
+  animation-delay: 115ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .kv *,
+  .kv *::before,
+  .kv *::after {
+    animation: none !important;
+    transition-property: opacity, background-color, color, border-color !important;
+  }
+}
+
+/*
+  Legacy bridge: tool pages that predate Quiet read the shared tokens from base.css.
+  Inside the workspace they resolve to the Quiet palette, so every page matches.
+*/
+.kv {
+  --bg: var(--kv-page);
+  --subtle: var(--kv-sunk);
+  --surface: var(--kv-surface);
+  --ink: var(--kv-ink);
+  --muted: var(--kv-muted);
+  --line: var(--kv-line);
+  --line-strong: var(--kv-line-2);
+  --accent: var(--kv-accent);
+  --accent-soft: var(--kv-accent-soft);
+  --accent-line: var(--kv-accent-ring);
+  --accent-ink: #ffffff;
+  --radius-card: var(--kv-radius-lg);
+  --radius-row: var(--kv-radius-md);
+  --shadow-sm: var(--kv-shadow-1);
+  --shadow-md: var(--kv-shadow-pop);
+}
+
+/* The workspace owns the whole page: no marketing decorations behind it. */
+body:has(.kv) main::before,
+body:has(.kv) main::after {
+  display: none;
+}
+.radix-themes:has(.kv),
+body:has(.kv) {
+  background: var(--kv-page, #fbfbfa);
+}
+
+/* Legacy controls inside the workspace follow Quiet: ink for the main action. */
+.kv .rt-Button.rt-variant-solid:not(.rt-color-red),
+.kv .button-primary {
+  border-color: var(--kv-ink);
+  border-radius: var(--kv-radius-sm);
+  background: var(--kv-ink);
+  color: #fff;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.12),
+    0 1px 2px rgb(16 17 19 / 0.2);
+}
+.kv .rt-Button.rt-variant-solid:not(.rt-color-red):hover,
+.kv .button-primary:hover {
+  background: #2f3033;
+}

@@ -1,0 +1,37 @@
+.copy {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform 160ms var(--kv-ease-out),
+    background-color 120ms ease,
+    color 120ms ease;
+}
+.copy:active {
+  transform: scale(0.97);
+}
+.light {
+  background: var(--kv-surface);
+  color: var(--kv-ink);
+  box-shadow:
+    0 0 0 1px var(--kv-line-2),
+    var(--kv-shadow-1);
+}
+.light:hover {
+  background: #fdfdfc;
+}
+.dark {
+  background: transparent;
+  color: #a3a39e;
+}
+.dark:hover {
+  color: #fff;
+}

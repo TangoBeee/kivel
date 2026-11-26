@@ -11,6 +11,7 @@
     "@kivel.io/tools": "workspace:*",
     "@phosphor-icons/react": "2.1.10",
     "@radix-ui/themes": "3.3.0",
+    "radix-ui": "1.8.1",
     "geist": "1.8.2",
     "next": "16.4.5",
     "react": "19.3.1",

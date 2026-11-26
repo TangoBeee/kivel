@@ -1,0 +1,33 @@
+.dot {
+  position: relative;
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--kv-accent);
+}
+.dot::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border: 1.5px solid var(--kv-accent);
+  border-radius: 50%;
+  opacity: 0;
+  animation: ping 1.6s var(--kv-ease-out) infinite;
+}
+.done {
+  background: #22a34a;
+}
+.done::after {
+  display: none;
+}
+@keyframes ping {
+  0% {
+    opacity: 0.6;
+    transform: scale(0.4);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.4);
+  }
+}

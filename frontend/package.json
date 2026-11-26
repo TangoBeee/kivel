@@ -5,7 +5,7 @@
     "dev": "node scripts/prepare-api-reference.mjs && next dev --webpack --hostname 127.0.0.1 --port 3001",
     "build": "node scripts/prepare-api-reference.mjs && node --import tsx scripts/generate-openapi.mts && next build --webpack",
     "typecheck": "node --import tsx scripts/generate-openapi.mts && tsc --noEmit",
-    "test": "node --import tsx --test lib/catalog.test.ts lib/browser-operations.test.ts lib/request-filter.test.ts lib/app-routes.test.ts",
+    "test": "node --import tsx --test lib/catalog.test.ts lib/browser-operations.test.ts lib/request-filter.test.ts lib/app-routes.test.ts components/workspace/shell/sections.test.ts",
     "test:pages": "node --import tsx scripts/verify-pages.mts"
   },
   "dependencies": {
@@ -14,6 +14,7 @@
     "@phosphor-icons/react": "2.1.10",
     "@radix-ui/react-slider": "1.6.1",
     "@radix-ui/themes": "3.3.0",
+    "radix-ui": "1.8.1",
     "cmdk": "1.1.1",
     "geist": "1.8.2",
     "motion": "14.6.0",

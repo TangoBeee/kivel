@@ -5,6 +5,7 @@ import { MagnifyingGlass } from '@phosphor-icons/react';
 import { catalog, categoryTints, searchTools } from '../lib/catalog';
 import { Icon } from './icons';
 import { dashboardPanels } from './dashboard-shell';
+import { retiredPanels } from './workspace/shell/sections';
 import type { DashboardPanel } from './dashboard-shell';
 import { resourceTool } from './dashboard-resources';
 import type { Resource } from './dashboard-resources';
@@ -71,6 +72,7 @@ export function DashboardSearch({
                 go: () => onResource(resource),
             })),
         ...dashboardPanels
+            .filter((panel) => !retiredPanels.includes(panel.id))
             .filter((panel) => !text || panel.label.toLowerCase().includes(text))
             .slice(0, text ? 4 : 8)
             .map((panel) => ({

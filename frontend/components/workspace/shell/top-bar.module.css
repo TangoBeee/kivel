@@ -1,0 +1,135 @@
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 48px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--kv-line);
+  background: rgb(251 251 250 / 0.82);
+  -webkit-backdrop-filter: saturate(1.6) blur(14px);
+  backdrop-filter: saturate(1.6) blur(14px);
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: var(--kv-radius-sm);
+  color: var(--kv-ink);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+.workspace {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  max-width: 240px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--kv-muted);
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+.workspace:hover,
+.workspace[data-state='open'] {
+  background: var(--kv-hover);
+  color: var(--kv-ink);
+}
+.workspaceName {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.workspace em {
+  flex: none;
+  padding: 0 5px;
+  border: 1px solid var(--kv-line-2);
+  border-radius: 5px;
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 16px;
+  color: var(--kv-muted);
+}
+.divider {
+  width: 1px;
+  height: 18px;
+  margin: 0 6px;
+  background: var(--kv-line-2);
+}
+.tabs {
+  display: flex;
+  gap: 1px;
+}
+.tab {
+  flex: none;
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--kv-muted);
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+.tab:hover {
+  background: var(--kv-hover);
+  color: var(--kv-ink);
+}
+.tab[aria-current='page'] {
+  background: var(--kv-selected);
+  color: var(--kv-ink);
+}
+.end {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-left: 4px;
+  border: 0;
+  border-radius: 50%;
+  background: linear-gradient(140deg, #ff9f6e, #e8577e);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+@media (max-width: 820px) {
+  .bar {
+    flex-wrap: wrap;
+    row-gap: 6px;
+    height: auto;
+    padding: 8px 10px 0;
+  }
+  .tabs {
+    order: 10;
+    width: 100%;
+    margin: 0 -2px;
+    padding-bottom: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .divider,
+  .workspace em {
+    display: none;
+  }
+}

@@ -2,6 +2,8 @@ import { appOrigin } from './site';
 
 export const workspaceRoutes = {
     overview: '/',
+    catalog: '/catalog/',
+    activity: '/activity/',
     webhooks: '/webhooks/',
     email: '/email/',
     mocks: '/mocks/',

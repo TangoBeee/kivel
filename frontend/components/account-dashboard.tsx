@@ -19,7 +19,7 @@ import {
     UsersThree,
     WarningCircle,
 } from '@phosphor-icons/react';
-import { AppShell, Meter, NewResourceMenu, panelInfo, SettingsSection } from './dashboard-shell';
+import { Meter, panelInfo, SettingsSection } from './dashboard-shell';
 import { DashboardSearch } from './dashboard-search';
 import {
     EmbeddedTool,
@@ -34,7 +34,10 @@ import { UsagePanel } from './usage-panel';
 import { formatBytes as formatSize, useWorkspaceUsage } from '../lib/workspace-usage';
 import { DashboardTools } from './dashboard-tools';
 import { AgentActivity } from './agent-activity';
-import { AgentOverview } from './agent-overview';
+import { ActivityPage } from './workspace/activity/activity-page';
+import { CatalogPage } from './workspace/catalog/catalog-page';
+import { WorkspaceShell } from './workspace/shell/workspace-shell';
+import { GettingStarted } from './workspace/start/getting-started';
 import { MonitorsPanel } from './monitors-panel';
 import { refreshViewer } from '../lib/viewer';
 import type { DashboardPanel } from './dashboard-shell';
@@ -721,7 +724,7 @@ export function AccountDashboard({
                     </div>
                 </>
             ) : (
-                <AppShell
+                <WorkspaceShell
                     panel={panel}
                     onPanelChange={changePanel}
                     workspace={{ id: session.account.id, name: session.account.name }}
@@ -732,7 +735,7 @@ export function AccountDashboard({
                     role={session.role}
                     onSignOut={signOut}
                     busy={busy}
-                    badges={badges}
+                    bare={panel === 'overview' || panel === 'catalog' || panel === 'activity'}
                     runs={workspaceUsage.items?.find((item) => item.key === 'tools.runs')}
                     search={
                         <DashboardSearch
@@ -743,13 +746,7 @@ export function AccountDashboard({
                         />
                     }
                     actions={
-                        panel === 'overview' ? (
-                            <NewResourceMenu
-                                onCreate={(next, toolId) =>
-                                    navigate(next, toolId ? { tool: toolId } : {})
-                                }
-                            />
-                        ) : isToolPanel(panel) && !open.resource && !open.tool ? (
+                        isToolPanel(panel) && !open.resource && !open.tool ? (
                             <ToolNew
                                 panel={panel}
                                 usage={workspaceUsage}
@@ -767,29 +764,33 @@ export function AccountDashboard({
                 >
                     {messages}
                     {panel === 'overview' && (
-                        <AgentOverview
-                            key={session.account.id}
-                            username={session.user.username}
-                            onOpen={changePanel}
-                            needs={
+                        <GettingStarted
+                            name={session.user.username}
+                            workspace={session.account.name}
+                            reminder={
                                 recoveryEmail.verifiedAt
-                                    ? []
-                                    : [
-                                          {
-                                              id: 'recovery',
-                                              title: recoveryEmail.email
-                                                  ? 'Verify your email'
-                                                  : 'Add a recovery email',
-                                              detail: recoveryEmail.email
-                                                  ? `So you can reset your password and get monitor alerts at ${recoveryEmail.email}.`
-                                                  : 'So you can get back in if you forget your password.',
-                                              action: recoveryEmail.email ? 'Verify' : 'Add email',
-                                              onAction: () => changePanel('security'),
-                                          },
-                                      ]
+                                    ? undefined
+                                    : {
+                                          title: recoveryEmail.email
+                                              ? 'Verify your email'
+                                              : 'Add a recovery email',
+                                          detail: recoveryEmail.email
+                                              ? `So you can reset your password at ${recoveryEmail.email}.`
+                                              : 'So you can get back in if you forget your password.',
+                                          action: recoveryEmail.email ? 'Verify' : 'Add email',
+                                          onAction: () => changePanel('security'),
+                                      }
                             }
                         />
                     )}
+                    {panel === 'catalog' && (
+                        <CatalogPage
+                            badges={badges}
+                            onOpenPanel={changePanel}
+                            onOpenUtilities={() => navigate('tools')}
+                        />
+                    )}
+                    {panel === 'activity' && <ActivityPage keys={keys} />}
                     {panel === 'tools' && (
                         <DashboardTools
                             glyphs={glyphs}
@@ -877,8 +878,8 @@ export function AccountDashboard({
                                         empty={
                                             <div className="home-empty-block">
                                                 <p>
-                                                    Nothing here yet. Create one now, or ask
-                                                    your agent and it shows up here.
+                                                    Nothing here yet. Create one now, or ask your
+                                                    agent and it shows up here.
                                                 </p>
                                                 <ToolNew
                                                     panel={panel}
@@ -1803,7 +1804,7 @@ export function AccountDashboard({
                             </div>
                         </AlertDialog.Content>
                     </AlertDialog.Root>
-                </AppShell>
+                </WorkspaceShell>
             )}
         </div>
     );

@@ -1,0 +1,30 @@
+.tag {
+  display: inline-flex;
+  align-items: center;
+  height: 17px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.neutral {
+  background: var(--kv-sunk);
+  color: var(--kv-muted);
+}
+.ok {
+  background: var(--kv-ok-soft);
+  color: var(--kv-ok);
+}
+.warn {
+  background: var(--kv-warn-soft);
+  color: var(--kv-warn);
+}
+.accent {
+  background: var(--kv-accent-soft);
+  color: var(--kv-accent);
+}
+.bad {
+  background: var(--kv-bad-soft);
+  color: var(--kv-bad);
+}

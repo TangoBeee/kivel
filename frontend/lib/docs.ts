@@ -2065,6 +2065,7 @@ ssh -T -n -p 2222 kivel@your-host kivel inbox create --visibility public`,
                 title: 'Available tools',
                 paragraphs: [
                     'tools/list returns these tools with input schemas and annotations. Tool results are text content containing JSON.',
+                    'To keep your agent’s context small, load only the tool groups you need by adding ?tools= to the URL, for example https://kivel.io/mcp?tools=email,webhooks. Groups: email, phone, webhooks, mocks, monitors, memory, files, vault and payments. Core tools (sign in, discovery, run_tool, resource_request, wait_for_event and approvals) are always included. Leave it out, or use ?tools=all, to load everything.',
                 ],
                 table: {
                     caption: 'Platform MCP tools',

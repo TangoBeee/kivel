@@ -734,6 +734,11 @@ export function AccountDashboard({
                     busy={busy}
                     badges={badges}
                     runs={workspaceUsage.items?.find((item) => item.key === 'tools.runs')}
+                    title={
+                        panel === 'catalog'
+                            ? `${(catalog.filter((tool) => tool.status === 'available').length + 12).toLocaleString()} tools for your agents`
+                            : undefined
+                    }
                     search={
                         <DashboardSearch
                             resources={resources}

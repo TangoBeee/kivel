@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { CaretDown, Check, Copy } from '@phosphor-icons/react';
+import { CaretDown, Check, Copy, Plug } from '@phosphor-icons/react';
 import { DropdownMenu } from '@radix-ui/themes';
 import { api } from '../lib/api';
 import { siteOrigin } from '../lib/site';
@@ -43,21 +43,25 @@ const clients = [
 const examples = [
     {
         title: 'Sign up and read the code',
+        art: { src: '/start/email.webp', size: '205%', position: '94% 31%' },
         prompt: 'Create a Kivel email inbox, sign up on our staging site with it, wait for the verification email and use the code to finish signing up.',
         tone: '#a52758',
     },
     {
         title: 'Catch a Stripe webhook',
+        art: { src: '/start/webhooks.webp', size: '150%', position: '62% 22%' },
         prompt: 'Make a Kivel webhook URL, point our Stripe test endpoint at it, trigger a checkout and show me the payload and whether the signature is valid.',
         tone: '#1a5ce6',
     },
     {
         title: 'Build against a mock API',
+        art: { src: '/start/activity.webp', size: '175%', position: '38% 78%' },
         prompt: 'Create a Kivel mock REST API from our openapi.yaml with a slow and a failing scenario, then build the client against it and test both cases.',
         tone: '#5840b7',
     },
     {
         title: 'Ask me before deploying',
+        art: { src: '/start/phones.webp', size: '250%', position: '31% 32%' },
         prompt: 'Before you deploy to production, ask me with Kivel ask_human and wait for my answer. Include what changed and the test results.',
         tone: '#9a5a0c',
     },
@@ -120,14 +124,19 @@ export function GettingStarted({
     return (
         <div className="start">
             <header className="start-intro">
-                <h1>Welcome. Getting started</h1>
-                <p>
-                    We made your workspace <strong>{workspace}</strong>.{' '}
-                    <button type="button" className="start-link" onClick={onRename}>
-                        Rename it
-                    </button>{' '}
-                    any time.
-                </p>
+                <span className="start-intro-mark" aria-hidden="true">
+                    <Plug size={16} />
+                </span>
+                <div>
+                    <h1>Welcome. Getting started</h1>
+                    <p>
+                        We made your workspace <strong>{workspace}</strong>.{' '}
+                        <button type="button" className="start-link" onClick={onRename}>
+                            Rename it
+                        </button>{' '}
+                        any time.
+                    </p>
+                </div>
             </header>
 
             <section className="start-card start-setup" aria-labelledby="start-step-1">
@@ -218,7 +227,14 @@ export function GettingStarted({
                         <article key={example.title} className="start-example">
                             <span
                                 className="start-example-art"
-                                style={{ '--art-b': example.tone } as React.CSSProperties}
+                                style={
+                                    {
+                                        '--art-b': example.tone,
+                                        backgroundImage: `url(${example.art.src})`,
+                                        backgroundSize: example.art.size,
+                                        backgroundPosition: example.art.position,
+                                    } as React.CSSProperties
+                                }
                                 aria-hidden="true"
                             />
                             <h3>{example.title}</h3>

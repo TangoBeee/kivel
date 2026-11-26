@@ -1,4 +1,5 @@
 import { GeistMono } from 'geist/font/mono';
+import { GeistPixelSquare } from 'geist/font/pixel';
 import { Hanken_Grotesk } from 'next/font/google';
 
 const sans = Hanken_Grotesk({
@@ -10,7 +11,7 @@ const sans = Hanken_Grotesk({
 export function SiteFonts({ children }: { children: React.ReactNode }) {
     return (
         <html
-            className={`${sans.variable} ${GeistMono.variable}`}
+            className={`${sans.variable} ${GeistMono.variable} ${GeistPixelSquare.variable}`}
             lang="en"
             data-theme="light"
             data-scroll-behavior="smooth"

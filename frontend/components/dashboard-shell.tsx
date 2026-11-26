@@ -602,7 +602,13 @@ export function sectionOf(panel: DashboardPanel): TopSection {
     return 'tools';
 }
 const tabLabel = (panel: DashboardPanel) =>
-    panel === 'workspace' ? 'Settings' : panel === 'usage' ? 'Usage' : panelInfo(panel).label;
+    panel === 'workspace'
+        ? 'Settings'
+        : panel === 'usage'
+          ? 'Usage'
+          : panel === 'agents'
+            ? 'Connected'
+            : panelInfo(panel).label;
 const sectionTitle = (panel: DashboardPanel) =>
     sectionOf(panel) === 'workspace'
         ? 'Workspace'

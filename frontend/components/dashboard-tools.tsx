@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { MagnifyingGlass } from '@phosphor-icons/react';
+import { ArrowLeft, MagnifyingGlass } from '@phosphor-icons/react';
 import { catalog, categories, categoryTints, searchTools } from '../lib/catalog';
 import type { CatalogTool } from '../lib/catalog';
 import { Icon } from './icons';
@@ -22,6 +22,19 @@ export function DashboardTools({
     glyphs?: Record<string, React.ReactNode>;
 }) {
     const [query, setQuery] = useState('');
+    // One category at a time, from /utilities/?category=..., instead of all tools at once.
+    const [category, setCategory] = useState(() => {
+        if (typeof location === 'undefined') return '';
+        const id = new URLSearchParams(location.search).get('category') ?? '';
+        return categories.some((entry) => entry.id === id) ? id : '';
+    });
+    const pickCategory = (id: string) => {
+        setCategory(id);
+        const url = new URL(location.href);
+        if (id) url.searchParams.set('category', id);
+        else url.searchParams.delete('category');
+        history.replaceState(null, '', url.pathname + url.search);
+    };
     const saved = useSavedTools().tools;
     const recent = useRecentTools();
     const searching = query.trim().length > 0;
@@ -79,30 +92,78 @@ export function DashboardTools({
                         })()
                     ) : (
                         <>
-                            {saved.length > 0 && (
+                            {category ? (
+                                (() => {
+                                    const current = categories.find(
+                                        (entry) => entry.id === category,
+                                    )!;
+                                    return (
+                                        <div>
+                                            <button
+                                                type="button"
+                                                className="utility-back"
+                                                onClick={() => pickCategory('')}
+                                            >
+                                                <ArrowLeft size={14} />
+                                                All categories
+                                            </button>
+                                            <p className="utility-group">{current.name}</p>
+                                            {available
+                                                .filter((entry) => entry.categoryId === category)
+                                                .map((entry) => row(entry))}
+                                        </div>
+                                    );
+                                })()
+                            ) : (
                                 <>
-                                    <p className="utility-group">Saved</p>
-                                    {saved.map((entry) => row(entry))}
-                                </>
-                            )}
-                            {recent.length > 0 && (
-                                <>
-                                    <p className="utility-group">Recent</p>
-                                    {recent.slice(0, 5).map((entry) => row(entry))}
-                                </>
-                            )}
-                            {categories.map((category) => {
-                                const tools = available.filter(
-                                    (entry) => entry.categoryId === category.id,
-                                );
-                                if (!tools.length) return null;
-                                return (
-                                    <div key={category.id}>
-                                        <p className="utility-group">{category.name}</p>
-                                        {tools.map((entry) => row(entry))}
+                                    {saved.length > 0 && (
+                                        <>
+                                            <p className="utility-group">Saved</p>
+                                            {saved.map((entry) => row(entry))}
+                                        </>
+                                    )}
+                                    {recent.length > 0 && (
+                                        <>
+                                            <p className="utility-group">Recent</p>
+                                            {recent.slice(0, 5).map((entry) => row(entry))}
+                                        </>
+                                    )}
+                                    <p className="utility-group">Categories</p>
+                                    <div className="utility-categories">
+                                        {categories.map((entry) => {
+                                            const count = available.filter(
+                                                (tool) => tool.categoryId === entry.id,
+                                            ).length;
+                                            if (!count) return null;
+                                            return (
+                                                <button
+                                                    key={entry.id}
+                                                    type="button"
+                                                    className="catalog-card"
+                                                    onClick={() => pickCategory(entry.id)}
+                                                >
+                                                    <span
+                                                        className="nav-chip is-large"
+                                                        style={
+                                                            {
+                                                                '--tint': categoryTints[entry.id],
+                                                            } as React.CSSProperties
+                                                        }
+                                                    >
+                                                        <Icon name={entry.icon} size={18} />
+                                                    </span>
+                                                    <span className="catalog-card-text">
+                                                        <strong>{entry.name}</strong>
+                                                        <small>
+                                                            {count} {count === 1 ? 'tool' : 'tools'}
+                                                        </small>
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
                                     </div>
-                                );
-                            })}
+                                </>
+                            )}
                         </>
                     )}
                 </div>

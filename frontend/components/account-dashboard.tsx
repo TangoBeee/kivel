@@ -19,6 +19,7 @@ import {
     UsersThree,
     WarningCircle,
 } from '@phosphor-icons/react';
+import { ToolCatalog } from './tool-catalog';
 import { AppShell, Meter, NewResourceMenu, panelInfo, SettingsSection } from './dashboard-shell';
 import { DashboardSearch } from './dashboard-search';
 import {
@@ -465,16 +466,14 @@ export function AccountDashboard({
     if (loading)
         return (
             <div className="dashboard-skeleton" role="status" aria-label="Loading your workspace">
-                <div className="dashboard-skeleton-side">
-                    <span className="skeleton" style={{ width: 140, height: 24 }} />
-                    <span className="skeleton" style={{ height: 52 }} />
-                    {[0, 1, 2, 3, 4].map((item) => (
-                        <span key={item} className="skeleton" style={{ height: 32 }} />
-                    ))}
+                <div className="dashboard-skeleton-top">
+                    <span className="skeleton" style={{ width: 120, height: 28 }} />
+                    <span className="skeleton" style={{ width: 320, height: 36 }} />
+                    <span className="skeleton" style={{ width: 160, height: 36 }} />
                 </div>
                 <div className="dashboard-skeleton-main">
-                    <span className="skeleton" style={{ width: 160, height: 36 }} />
-                    <span className="skeleton" style={{ width: 320, height: 16 }} />
+                    <span className="skeleton" style={{ width: 200, height: 40 }} />
+                    <span className="skeleton" style={{ width: 360, height: 18 }} />
                     <span className="skeleton" style={{ height: 76 }} />
                     <span className="skeleton" style={{ height: 180 }} />
                     <span className="skeleton" style={{ height: 220 }} />
@@ -743,7 +742,7 @@ export function AccountDashboard({
                         />
                     }
                     actions={
-                        panel === 'overview' ? (
+                        panel === 'overview' || panel === 'catalog' ? (
                             <NewResourceMenu
                                 onCreate={(next, toolId) =>
                                     navigate(next, toolId ? { tool: toolId } : {})
@@ -788,6 +787,22 @@ export function AccountDashboard({
                                           },
                                       ]
                             }
+                        />
+                    )}
+                    {panel === 'catalog' && (
+                        <ToolCatalog
+                            badges={badges}
+                            onOpen={changePanel}
+                            onUtility={(toolId) => navigate('tools', { tool: toolId })}
+                            onUtilities={(category) => {
+                                navigate('tools');
+                                if (category)
+                                    history.replaceState(
+                                        null,
+                                        '',
+                                        `${workspaceHref('tools')}?category=${encodeURIComponent(category)}`,
+                                    );
+                            }}
                         />
                     )}
                     {panel === 'tools' && (
@@ -877,8 +892,8 @@ export function AccountDashboard({
                                         empty={
                                             <div className="home-empty-block">
                                                 <p>
-                                                    Nothing here yet. Create one now, or ask
-                                                    your agent and it shows up here.
+                                                    Nothing here yet. Create one now, or ask your
+                                                    agent and it shows up here.
                                                 </p>
                                                 <ToolNew
                                                     panel={panel}

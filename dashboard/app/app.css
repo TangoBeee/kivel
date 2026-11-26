@@ -29,48 +29,9 @@
 .app-connect-guide {
   margin-top: 16px;
 }
-.nav-bottom {
-  margin-top: auto;
-}
-@media (min-width: 901px) {
-  .dashboard-layout.is-sidebar-collapsed {
-    grid-template-columns: 64px minmax(0, 1fr);
-  }
-  .is-sidebar-collapsed .dashboard-sidebar .nav-label,
-  .is-sidebar-collapsed .dashboard-sidebar .nav-count,
-  .is-sidebar-collapsed .dashboard-sidebar .nav-group,
-  .is-sidebar-collapsed .dashboard-brand span,
-  .is-sidebar-collapsed .dashboard-workspace > :not(:first-child),
-  .is-sidebar-collapsed .dashboard-user > :not(:first-child),
-  .is-sidebar-collapsed .dashboard-sidebar .dashboard-search {
-    display: none;
-  }
-  .is-sidebar-collapsed .dashboard-sidebar button {
-    justify-content: center;
-  }
-}
-@media (max-width: 900px) {
-  .dashboard-topbar .sidebar-collapse {
-    display: none;
-  }
-}
-.dashboard-topbar .dashboard-search {
-  width: auto;
-  margin: 0;
-}
-.dashboard-topbar .dashboard-user {
-  width: auto;
-  padding: 3px;
-}
-.dashboard-topbar .dashboard-user > :not(:first-child) {
-  display: none;
-}
+
 @media (max-width: 620px) {
-  .dashboard-topbar .dashboard-search > :not(svg),
   .app-connect-label {
     display: none;
-  }
-  .dashboard-topbar .dashboard-topbar-actions {
-    gap: 8px;
   }
 }

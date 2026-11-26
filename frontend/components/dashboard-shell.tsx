@@ -1,10 +1,9 @@
 'use client';
 import type { ReactNode } from 'react';
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { LiveLogo } from './live-logo';
 import { siteOrigin } from '../lib/site';
-import { Button, Dialog, DropdownMenu, IconButton } from '@radix-ui/themes';
+import { Button, DropdownMenu } from '@radix-ui/themes';
 import {
     Toolbox,
     Key,
@@ -23,15 +22,13 @@ import {
     House,
     Robot,
     Pulse,
-    X,
     GearSix,
     EnvelopeSimple,
     File,
     Database,
     Lightning,
+    SquaresFour,
     ChartBar,
-    SidebarSimple,
-    DotsThree,
     ChatCircleDots,
 } from '@phosphor-icons/react';
 import type { UsageItem } from '@kivel.io/tools/plans';
@@ -68,6 +65,13 @@ export const dashboardPanels = [
         label: 'Home',
         description: 'What needs you, and how your tools are doing.',
         icon: House,
+    },
+    {
+        id: 'catalog',
+        group: 'main',
+        label: 'Tools',
+        description: 'Everything your agents can use. Open one to see what they made with it.',
+        icon: SquaresFour,
     },
     {
         id: 'agents',
@@ -240,7 +244,6 @@ export const dashboardPanels = [
 export type DashboardPanel = (typeof dashboardPanels)[number]['id'];
 export const panelInfo = (panel: DashboardPanel): Section =>
     dashboardPanels.find((item) => item.id === panel)!;
-const settingsTabs: DashboardPanel[] = ['workspace', 'security'];
 // Old links (#resources) land on the overview.
 export const isDashboardPanel = (value: string): value is DashboardPanel =>
     dashboardPanels.some((item) => item.id === value);
@@ -389,84 +392,28 @@ export function AppShell({
     children: ReactNode;
 }) {
     const current = panelInfo(panel);
-    const settings = settingsTabs.includes(panel);
-    const tabs: DashboardPanel[] = settings
-        ? settingsTabs
-        : ['agents', 'keys'].includes(panel)
-          ? ['agents', 'keys']
-          : ['usage', 'billing'].includes(panel)
-            ? ['usage', 'billing']
-            : ['vault', 'authenticators'].includes(panel)
-              ? ['vault', 'authenticators']
-              : ['monitors', 'automation', 'status'].includes(panel)
-                ? ['monitors', 'automation', 'status']
-                : [];
-    const [collapsed, setCollapsed] = useState(false);
-    const [navOpen, setNavOpen] = useState(false);
-    useEffect(() => {
-        const desktop = matchMedia('(min-width: 901px)');
-        const close = () => {
-            if (desktop.matches) setNavOpen(false);
-        };
-        desktop.addEventListener('change', close);
-        return () => desktop.removeEventListener('change', close);
-    }, []);
-    const go = (next: DashboardPanel) => {
-        onPanelChange(next);
-        setNavOpen(false);
-    };
-    const item = (entry: Section) => {
-        const active =
-            entry.id === 'workspace'
-                ? settings && !['keys', 'billing'].includes(panel)
-                : entry.id === 'agents'
-                  ? ['agents', 'keys'].includes(panel)
-                  : entry.id === 'usage'
-                    ? ['usage', 'billing'].includes(panel)
-                    : panel === entry.id;
-        const label = entry.id === 'workspace' ? 'Settings' : entry.label;
-        const badge = badges[entry.id as DashboardPanel];
-        if (badge?.hidden && !active) return null;
-        return (
-            <button
-                key={entry.id}
-                title={collapsed ? label : undefined}
-                aria-label={collapsed ? label : undefined}
-                aria-current={active ? 'page' : undefined}
-                onClick={() => go(entry.id as DashboardPanel)}
-            >
-                {entry.category ? (
-                    <span
-                        className="nav-chip"
-                        data-tone={panelTones[entry.id as DashboardPanel]}
-                        style={{ '--tint': categoryTints[entry.category] } as React.CSSProperties}
-                    >
-                        <entry.icon size={13} />
-                    </span>
-                ) : (
-                    <entry.icon size={18} weight={active ? 'fill' : 'regular'} />
-                )}
-                <span className="nav-label">{label}</span>
-                {badge && !badge.hidden && (
-                    <span className={`nav-count ${badge.full ? 'is-full' : ''}`}>{badge.text}</span>
-                )}
-            </button>
-        );
-    };
-    const items = (...panels: DashboardPanel[]) => panels.map((id) => item(panelInfo(id)));
+    const section = sectionOf(panel);
+    const tabs: DashboardPanel[] =
+        section === 'workspace'
+            ? workspaceTabs
+            : section === 'agents'
+              ? ['agents', 'keys']
+              : ['vault', 'authenticators'].includes(panel)
+                ? ['vault', 'authenticators']
+                : ['monitors', 'automation', 'status'].includes(panel)
+                  ? ['monitors', 'automation', 'status']
+                  : [];
+    const go = (next: DashboardPanel) => onPanelChange(next);
+    const planName = plan.charAt(0).toUpperCase() + plan.slice(1);
+    const inTools = section === 'tools' && panel !== 'catalog';
     const userMenu = (
         <DropdownMenu.Root>
             <DropdownMenu.Trigger>
-                <button className="dashboard-user" aria-label="Account menu">
-                    <span className="dashboard-user-avatar">{username[0]?.toUpperCase()}</span>
-                    <span>
-                        <strong>{username}</strong>
-                        <small>Signed in</small>
-                    </span>
-                    <CaretUpDown size={16} />
+                <button className="topnav-avatar" aria-label="Account menu">
+                    {username[0]?.toUpperCase()}
                 </button>
             </DropdownMenu.Trigger>
-            <DropdownMenu.Content align="start" side="top">
+            <DropdownMenu.Content align="end">
                 <DropdownMenu.Label>{username}</DropdownMenu.Label>
                 <DropdownMenu.Item onSelect={() => go('security')}>
                     <ShieldCheck size={16} />
@@ -492,219 +439,173 @@ export function AppShell({
             </DropdownMenu.Content>
         </DropdownMenu.Root>
     );
-    const sidebar = (
-        <>
-            <div className="dashboard-sidebar-top">
-                <Link href="/" className="dashboard-brand" aria-label="Kivel workspace">
-                    <LiveLogo size={26} />
-                    <span>Kivel</span>
-                </Link>
-                <Dialog.Close>
-                    <IconButton
-                        className="dashboard-close"
-                        variant="ghost"
-                        aria-label="Close navigation"
-                    >
-                        <X size={18} />
-                    </IconButton>
-                </Dialog.Close>
-            </div>
-            <DropdownMenu.Root>
-                <DropdownMenu.Trigger>
-                    <button
-                        className="dashboard-workspace"
-                        aria-label={workspace.name}
-                        disabled={busy}
-                    >
-                        <span className="dashboard-workspace-mark">
-                            {workspace.name[0]?.toUpperCase()}
-                        </span>
-                        <span>
-                            <strong>{workspace.name}</strong>
-                            <small>
-                                {plan[0]!.toUpperCase() + plan.slice(1)} plan · {role}
-                            </small>
-                        </span>
-                        <CaretUpDown size={16} />
-                    </button>
-                </DropdownMenu.Trigger>
-                <DropdownMenu.Content align="start" className="dashboard-workspace-menu">
-                    <DropdownMenu.Label>Workspaces</DropdownMenu.Label>
-                    {workspaces.map((space) => (
-                        <DropdownMenu.Item
-                            key={space.id}
-                            onSelect={() =>
-                                space.id !== workspace.id && onSwitchWorkspace(space.id)
-                            }
-                        >
-                            <span className="dashboard-workspace-option">{space.name}</span>
-                            {space.id === workspace.id && <Check size={15} />}
-                        </DropdownMenu.Item>
-                    ))}
-                    <DropdownMenu.Separator />
-                    <DropdownMenu.Item onSelect={() => go('workspace')}>
-                        <UsersThree size={16} />
-                        Workspace settings
-                    </DropdownMenu.Item>
-                    <DropdownMenu.Item onSelect={() => go('workspace')}>
-                        <Plus size={16} />
-                        Join with an invitation
-                    </DropdownMenu.Item>
-                </DropdownMenu.Content>
-            </DropdownMenu.Root>
-            <nav className="dashboard-nav" aria-label="Workspace sections">
-                {items('overview', 'agents')}
-                <div className="nav-group">Your tools</div>
-                {items(
-                    'webhooks',
-                    'email',
-                    'mocks',
-                    'payments',
-                    'monitors',
-                    'approvals',
-                    'vault',
-                    'authenticators',
-                    'automation',
-                    'status',
-                    'memory',
-                    'files',
-                )}
-                {items('tools')}
-                <div className="nav-group nav-bottom">Workspace</div>
-                {items('usage', 'workspace')}
-            </nav>
-            {runs && (
+    const workspaceMenu = (
+        <DropdownMenu.Root>
+            <DropdownMenu.Trigger>
                 <button
-                    className="dashboard-plan-progress"
-                    type="button"
-                    onClick={() => go('usage')}
+                    className="topnav-workspace"
+                    aria-label={`Workspace: ${workspace.name}`}
+                    disabled={busy}
                 >
-                    <strong>{plan.charAt(0).toUpperCase() + plan.slice(1)} plan</strong>
-                    <span>
-                        {runs.used.toLocaleString()} of {runs.max.toLocaleString()} tool runs today
-                    </span>
-                    <progress
-                        value={Math.min(runs.used, runs.max)}
-                        max={runs.max}
-                        aria-label="Daily tool runs used"
-                    />
+                    <small>{role}</small>
+                    <strong>{workspace.name}</strong>
+                    <CaretUpDown size={14} />
                 </button>
-            )}
-        </>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Content align="start" className="dashboard-workspace-menu">
+                <DropdownMenu.Label>Workspaces</DropdownMenu.Label>
+                {workspaces.map((space) => (
+                    <DropdownMenu.Item
+                        key={space.id}
+                        onSelect={() => space.id !== workspace.id && onSwitchWorkspace(space.id)}
+                    >
+                        <span className="dashboard-workspace-option">{space.name}</span>
+                        {space.id === workspace.id && <Check size={15} />}
+                    </DropdownMenu.Item>
+                ))}
+                <DropdownMenu.Separator />
+                <DropdownMenu.Item onSelect={() => go('workspace')}>
+                    <UsersThree size={16} />
+                    Workspace settings
+                </DropdownMenu.Item>
+                <DropdownMenu.Item onSelect={() => go('workspace')}>
+                    <Plus size={16} />
+                    Join with an invitation
+                </DropdownMenu.Item>
+            </DropdownMenu.Content>
+        </DropdownMenu.Root>
     );
+    const sectionLinks = (className: string) => (
+        <nav className={className} aria-label="Workspace sections">
+            {topSections.map((entry) => {
+                const active = section === entry.id;
+                return (
+                    <button
+                        key={entry.id}
+                        type="button"
+                        aria-current={active ? 'page' : undefined}
+                        onClick={() => go(entry.panel)}
+                    >
+                        <entry.icon size={20} weight={active ? 'fill' : 'regular'} />
+                        <span>{entry.label}</span>
+                    </button>
+                );
+            })}
+        </nav>
+    );
+    const pending = badges.approvals;
     return (
-        <Dialog.Root open={navOpen} onOpenChange={setNavOpen}>
-            <div className={`dashboard-layout ${collapsed ? 'is-sidebar-collapsed' : ''}`}>
-                <aside className="dashboard-sidebar" aria-label="Dashboard">
-                    {sidebar}
-                </aside>
-                <Dialog.Content className="dashboard-nav-sheet">
-                    <Dialog.Title className="sr-only">Workspace navigation</Dialog.Title>
-                    <Dialog.Description className="sr-only">
-                        Choose a tool or open workspace settings.
-                    </Dialog.Description>
-                    {sidebar}
-                </Dialog.Content>
-                <div className="dashboard-main">
-                    <div className="dashboard-topbar">
-                        <Link href="/" className="dashboard-mobile-brand" aria-label="Kivel home">
-                            <LiveLogo size={23} /> Kivel
-                        </Link>
-                        <IconButton
-                            className="sidebar-collapse"
-                            variant="ghost"
-                            color="gray"
-                            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                            aria-pressed={collapsed}
-                            onClick={() => setCollapsed(!collapsed)}
-                        >
-                            <SidebarSimple size={19} />
-                        </IconButton>
-                        <span className="dashboard-breadcrumb">
-                            <span>{workspace.name}</span>
-                            <span aria-hidden="true">/</span>
-                            {current.group === 'tools' && (
-                                <>
-                                    <span>Your tools</span>
-                                    <span aria-hidden="true">/</span>
-                                </>
-                            )}
-                            <strong>{settings ? 'Settings' : current.label}</strong>
-                        </span>
-                        <div className="dashboard-topbar-actions">
-                            {search}
-                            {actions}
-                            {userMenu}
-                        </div>
-                    </div>
-                    <div className="dashboard-content">
-                        {panel !== 'overview' && (
-                            <header key={`h-${panel}`} className="dashboard-heading">
-                                <div className="dashboard-heading-title">
-                                    {(current.category || panelTones[panel]) && (
-                                        <span
-                                            className="nav-chip is-large"
-                                            data-tone={panelTones[panel]}
-                                            style={
-                                                {
-                                                    '--tint': current.category
-                                                        ? categoryTints[current.category]
-                                                        : undefined,
-                                                } as React.CSSProperties
-                                            }
-                                        >
-                                            <current.icon size={19} />
-                                        </span>
-                                    )}
-                                    <div>
-                                        <h1>{title ?? (settings ? 'Settings' : current.label)}</h1>
-                                        <p>{current.description}</p>
-                                    </div>
-                                </div>
-                            </header>
-                        )}
-                        {tabs.length > 0 && (
-                            <nav className="dashboard-tabs" aria-label="Section tabs">
-                                {tabs.map((id) => (
-                                    <button
-                                        key={id}
-                                        aria-current={panel === id ? 'page' : undefined}
-                                        onClick={() => go(id)}
-                                    >
-                                        {panelInfo(id).label}
-                                    </button>
-                                ))}
-                            </nav>
-                        )}
-                        <div key={panel} className="dashboard-panel-enter">
-                            {children}
-                        </div>
-                    </div>
+        <div className="dashboard-layout topnav-layout">
+            <header className="topnav">
+                <div className="topnav-start">
+                    <Link href="/" className="topnav-brand" aria-label="Kivel home">
+                        <LiveLogo size={26} />
+                        <span>Kivel</span>
+                    </Link>
+                    {workspaceMenu}
                 </div>
-                <nav className="dashboard-mobile-tabs" aria-label="Quick navigation">
-                    {(['overview', 'agents', 'email', 'webhooks'] as const).map((id) => {
-                        const entry = panelInfo(id);
-                        const active = panel === id || (id === 'agents' && panel === 'keys');
-                        return (
+                {sectionLinks('topnav-sections')}
+                <div className="topnav-end">
+                    {search}
+                    {runs && (
+                        <button
+                            type="button"
+                            className="topnav-plan"
+                            onClick={() => go('usage')}
+                            title="Tool runs used today"
+                        >
+                            <span>{planName}</span>
+                            <strong>
+                                {runs.used.toLocaleString()} / {runs.max.toLocaleString()}
+                            </strong>
+                        </button>
+                    )}
+                    {userMenu}
+                </div>
+            </header>
+            <div className="dashboard-main dashboard-content topnav-content">
+                {panel === 'overview' ? (
+                    actions && <div className="topnav-page-actions">{actions}</div>
+                ) : (
+                    <header key={`h-${panel}`} className="topnav-heading">
+                        <div>
+                            {inTools && (
+                                <nav className="topnav-crumbs" aria-label="Breadcrumb">
+                                    <button type="button" onClick={() => go('catalog')}>
+                                        Tools
+                                    </button>
+                                    <span aria-hidden="true">/</span>
+                                    <span aria-current="page">{current.label}</span>
+                                </nav>
+                            )}
+                            <div className="topnav-title">
+                                {(current.category || panelTones[panel]) && (
+                                    <span
+                                        className="nav-chip is-large"
+                                        data-tone={panelTones[panel]}
+                                        style={
+                                            {
+                                                '--tint': current.category
+                                                    ? categoryTints[current.category]
+                                                    : undefined,
+                                            } as React.CSSProperties
+                                        }
+                                    >
+                                        <current.icon size={19} />
+                                    </span>
+                                )}
+                                <h1>{title ?? sectionTitle(panel)}</h1>
+                            </div>
+                            <p>{current.description}</p>
+                        </div>
+                        {actions && <div className="topnav-heading-actions">{actions}</div>}
+                    </header>
+                )}
+                {tabs.length > 0 && (
+                    <nav className="dashboard-tabs" aria-label="Section tabs">
+                        {tabs.map((id) => (
                             <button
                                 key={id}
-                                type="button"
-                                aria-current={active ? 'page' : undefined}
+                                aria-current={panel === id ? 'page' : undefined}
                                 onClick={() => go(id)}
                             >
-                                <entry.icon size={22} weight={active ? 'fill' : 'regular'} />
-                                {id === 'agents' ? 'Agents' : entry.label}
+                                {tabLabel(id)}
+                                {id === 'approvals' && pending && !pending.hidden && (
+                                    <span className="nav-count">{pending.text}</span>
+                                )}
                             </button>
-                        );
-                    })}
-                    <Dialog.Trigger>
-                        <button type="button">
-                            <DotsThree size={23} weight="bold" />
-                            More
-                        </button>
-                    </Dialog.Trigger>
-                </nav>
+                        ))}
+                    </nav>
+                )}
+                <div key={panel} className="dashboard-panel-enter">
+                    {children}
+                </div>
             </div>
-        </Dialog.Root>
+            {sectionLinks('topnav-mobile-tabs')}
+        </div>
     );
 }
+
+/** The top level of the dashboard: a few sections instead of one long list. */
+type TopSection = 'home' | 'tools' | 'agents' | 'workspace';
+const topSections: { id: TopSection; label: string; panel: DashboardPanel; icon: Icon }[] = [
+    { id: 'home', label: 'Home', panel: 'overview', icon: House },
+    { id: 'tools', label: 'Tools', panel: 'catalog', icon: SquaresFour },
+    { id: 'agents', label: 'Agents', panel: 'agents', icon: Robot },
+    { id: 'workspace', label: 'Workspace', panel: 'usage', icon: GearSix },
+];
+const workspaceTabs: DashboardPanel[] = ['usage', 'billing', 'workspace', 'security'];
+export function sectionOf(panel: DashboardPanel): TopSection {
+    if (panel === 'overview') return 'home';
+    if (panel === 'agents' || panel === 'keys') return 'agents';
+    if (workspaceTabs.includes(panel)) return 'workspace';
+    return 'tools';
+}
+const tabLabel = (panel: DashboardPanel) =>
+    panel === 'workspace' ? 'Settings' : panel === 'usage' ? 'Usage' : panelInfo(panel).label;
+const sectionTitle = (panel: DashboardPanel) =>
+    sectionOf(panel) === 'workspace'
+        ? 'Workspace'
+        : sectionOf(panel) === 'agents'
+          ? 'Agents'
+          : panelInfo(panel).label;

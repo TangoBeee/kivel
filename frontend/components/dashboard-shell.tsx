@@ -62,8 +62,8 @@ export const dashboardPanels = [
     {
         id: 'overview',
         group: 'main',
-        label: 'Home',
-        description: 'What needs you, and how your tools are doing.',
+        label: 'Getting started',
+        description: 'Connect your agent and try your first tool.',
         icon: House,
     },
     {
@@ -74,9 +74,16 @@ export const dashboardPanels = [
         icon: SquaresFour,
     },
     {
+        id: 'activity',
+        group: 'main',
+        label: 'Overview',
+        description: 'What your agents did, what is waiting for you and how your tools are doing.',
+        icon: Pulse,
+    },
+    {
         id: 'agents',
         group: 'main',
-        label: 'Agents & keys',
+        label: 'Agents',
         description: 'Who is connected, what they asked you and what they did.',
         icon: Robot,
     },
@@ -394,10 +401,10 @@ export function AppShell({
     const current = panelInfo(panel);
     const section = sectionOf(panel);
     const tabs: DashboardPanel[] =
-        section === 'workspace'
-            ? workspaceTabs
-            : section === 'agents'
-              ? ['agents', 'keys']
+        section === 'team'
+            ? teamTabs
+            : section === 'activity'
+              ? activityTabs
               : ['vault', 'authenticators'].includes(panel)
                 ? ['vault', 'authenticators']
                 : ['monitors', 'automation', 'status'].includes(panel)
@@ -405,7 +412,7 @@ export function AppShell({
                   : [];
     const go = (next: DashboardPanel) => onPanelChange(next);
     const planName = plan.charAt(0).toUpperCase() + plan.slice(1);
-    const inTools = section === 'tools' && panel !== 'catalog';
+    const inTools = section === 'catalog' && panel !== 'catalog';
     const userMenu = (
         <DropdownMenu.Root>
             <DropdownMenu.Trigger>
@@ -524,15 +531,13 @@ export function AppShell({
                 </div>
             </header>
             <div className="dashboard-main dashboard-content topnav-content">
-                {panel === 'overview' ? (
-                    actions && <div className="topnav-page-actions">{actions}</div>
-                ) : (
+                {panel === 'overview' ? null : (
                     <header key={`h-${panel}`} className="topnav-heading">
                         <div>
                             {inTools && (
                                 <nav className="topnav-crumbs" aria-label="Breadcrumb">
                                     <button type="button" onClick={() => go('catalog')}>
-                                        Tools
+                                        Catalog
                                     </button>
                                     <span aria-hidden="true">/</span>
                                     <span aria-current="page">{current.label}</span>
@@ -554,9 +559,9 @@ export function AppShell({
                                         <current.icon size={19} />
                                     </span>
                                 )}
-                                <h1>{title ?? sectionTitle(panel)}</h1>
+                                <h1>{title ?? sectionTitle(panel, workspace.name)}</h1>
                             </div>
-                            <p>{current.description}</p>
+                            <p>{sectionDescription(panel) ?? current.description}</p>
                         </div>
                         {actions && <div className="topnav-heading-actions">{actions}</div>}
                     </header>
@@ -587,31 +592,38 @@ export function AppShell({
 }
 
 /** The top level of the dashboard: a few sections instead of one long list. */
-type TopSection = 'home' | 'tools' | 'agents' | 'workspace';
+type TopSection = 'start' | 'catalog' | 'activity' | 'team';
 const topSections: { id: TopSection; label: string; panel: DashboardPanel; icon: Icon }[] = [
-    { id: 'home', label: 'Home', panel: 'overview', icon: House },
-    { id: 'tools', label: 'Tools', panel: 'catalog', icon: SquaresFour },
-    { id: 'agents', label: 'Agents', panel: 'agents', icon: Robot },
-    { id: 'workspace', label: 'Workspace', panel: 'usage', icon: GearSix },
+    { id: 'start', label: 'Getting started', panel: 'overview', icon: House },
+    { id: 'catalog', label: 'Catalog', panel: 'catalog', icon: SquaresFour },
+    { id: 'activity', label: 'Activity', panel: 'activity', icon: Pulse },
+    { id: 'team', label: 'Team', panel: 'workspace', icon: UsersThree },
 ];
-const workspaceTabs: DashboardPanel[] = ['usage', 'billing', 'workspace', 'security'];
+const activityTabs: DashboardPanel[] = ['activity', 'approvals', 'usage'];
+const teamTabs: DashboardPanel[] = ['workspace', 'agents', 'keys', 'billing', 'security'];
 export function sectionOf(panel: DashboardPanel): TopSection {
-    if (panel === 'overview') return 'home';
-    if (panel === 'agents' || panel === 'keys') return 'agents';
-    if (workspaceTabs.includes(panel)) return 'workspace';
-    return 'tools';
+    if (panel === 'overview') return 'start';
+    if (activityTabs.includes(panel)) return 'activity';
+    if (teamTabs.includes(panel)) return 'team';
+    return 'catalog';
 }
 const tabLabel = (panel: DashboardPanel) =>
-    panel === 'workspace'
-        ? 'Settings'
-        : panel === 'usage'
-          ? 'Usage'
-          : panel === 'agents'
-            ? 'Connected'
-            : panelInfo(panel).label;
-const sectionTitle = (panel: DashboardPanel) =>
-    sectionOf(panel) === 'workspace'
-        ? 'Workspace'
-        : sectionOf(panel) === 'agents'
-          ? 'Agents'
+    ({
+        workspace: 'Settings',
+        usage: 'Usage',
+        activity: 'Overview',
+        keys: 'API keys',
+        billing: 'Billing',
+    })[panel as string] ?? panelInfo(panel).label;
+const sectionTitle = (panel: DashboardPanel, workspace: string) =>
+    sectionOf(panel) === 'team'
+        ? `Team: ${workspace}`
+        : sectionOf(panel) === 'activity'
+          ? 'Activity'
           : panelInfo(panel).label;
+const sectionDescription = (panel: DashboardPanel) =>
+    sectionOf(panel) === 'team'
+        ? 'Who is in your workspace, the agents and keys that act for it, and how it pays.'
+        : sectionOf(panel) === 'activity'
+          ? 'Every call your agents made, what is waiting for you, and what you used.'
+          : undefined;

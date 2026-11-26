@@ -20,6 +20,7 @@ import {
     WarningCircle,
 } from '@phosphor-icons/react';
 import { ToolCatalog } from './tool-catalog';
+import { GettingStarted } from './getting-started';
 import { AppShell, Meter, NewResourceMenu, panelInfo, SettingsSection } from './dashboard-shell';
 import { DashboardSearch } from './dashboard-search';
 import {
@@ -742,7 +743,7 @@ export function AccountDashboard({
                         />
                     }
                     actions={
-                        panel === 'overview' || panel === 'catalog' ? (
+                        panel === 'activity' || panel === 'catalog' ? (
                             <NewResourceMenu
                                 onCreate={(next, toolId) =>
                                     navigate(next, toolId ? { tool: toolId } : {})
@@ -766,6 +767,12 @@ export function AccountDashboard({
                 >
                     {messages}
                     {panel === 'overview' && (
+                        <GettingStarted
+                            workspace={session.account.name}
+                            onRename={() => changePanel('workspace')}
+                        />
+                    )}
+                    {panel === 'activity' && (
                         <AgentOverview
                             key={session.account.id}
                             username={session.user.username}

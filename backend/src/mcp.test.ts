@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { buildApp } from './app.js';
 import { ResourceStore, RESOURCE_TTL_MS } from './resources.js';
+import { platformTools, toolGroups } from './mcp.js';
 const headers = {
     'content-type': 'application/json',
     accept: 'application/json, text/event-stream',
@@ -1045,4 +1046,30 @@ test('MCP discovers and manages WebSocket mocks with the existing mock tools', a
     }
     const tester = await call('describe_tool', { toolId: 'network-websocket-tester' });
     assert.equal(tester.mcpTool, 'run_tool');
+});
+
+test('every platform tool belongs to exactly one tool group', () => {
+    const grouped = Object.values(toolGroups).flat();
+    assert.equal(new Set(grouped).size, grouped.length);
+    assert.deepEqual(new Set(grouped), new Set(platformTools.map((tool) => tool.name)));
+});
+
+test('?tools= limits tools/list to core plus the chosen groups', async (t) => {
+    const app = buildApp();
+    t.after(() => app.close());
+    const list = async (url: string) =>
+        (await app.inject({ method: 'POST', url, headers, payload: rpc('tools/list') })).json();
+    const all = (await list('/mcp')).result.tools.map((tool: { name: string }) => tool.name);
+    assert.equal(all.length, platformTools.length);
+    const some = (await list('/mcp?tools=email,%20Webhooks')).result.tools.map(
+        (tool: { name: string }) => tool.name,
+    );
+    assert.deepEqual(
+        new Set(some),
+        new Set([...toolGroups.core, ...toolGroups.email, ...toolGroups.webhooks]),
+    );
+    assert.equal((await list('/mcp?tools=all')).result.tools.length, platformTools.length);
+    const bad = await list('/mcp?tools=emial');
+    assert.equal(bad.error.code, -32602);
+    assert.match(bad.error.message, /Unknown tool group "emial".*email, phone, webhooks/);
 });

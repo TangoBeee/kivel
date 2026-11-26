@@ -29,6 +29,115 @@ import type { ActivityRepository } from './activity.js';
 import { pageMockCalls } from './mock-calls.js';
 
 const versions = ['2025-11-25', '2025-06-18', '2025-03-26'];
+
+// Tool groups let a client load only what it needs: /mcp?tools=email,webhooks.
+// Core is always included. Without the parameter, every group is listed.
+export const toolGroups = {
+    core: [
+        'start_login',
+        'start_trial',
+        'finish_login',
+        'workspace_status',
+        'search_tools',
+        'describe_tool',
+        'list_tools',
+        'run_tool',
+        'resource_request',
+        'wait_for_event',
+        'ask_human',
+        'wait_for_approval',
+    ],
+    email: [
+        'create_email_inbox',
+        'wait_for_email',
+        'list_emails',
+        'email_message',
+        'list_email_threads',
+        'get_email_thread',
+        'get_email_attachment',
+        'email_draft',
+        'email_inbox_rules',
+        'send_email',
+    ],
+    phone: [
+        'create_phone_number',
+        'list_phone_numbers',
+        'release_phone_number',
+        'list_sms',
+        'wait_for_sms',
+    ],
+    webhooks: [
+        'create_webhook_inbox',
+        'inspect_webhook_inbox',
+        'wait_for_webhook',
+        'set_webhook_response',
+        'delete_webhook_inbox',
+    ],
+    mocks: [
+        'create_mock_api',
+        'inspect_mock_api',
+        'delete_mock_api',
+        'call_mock_api',
+        'create_oauth_provider',
+    ],
+    monitors: [
+        'create_monitor',
+        'list_monitors',
+        'inspect_monitor',
+        'pause_monitor',
+        'ping_monitor',
+        'delete_monitor',
+        'accept_dns_changes',
+    ],
+    memory: ['memory_set', 'memory_get', 'memory_list', 'memory_delete'],
+    files: [
+        'upload_temporary_file',
+        'inspect_temporary_file',
+        'download_temporary_file',
+        'delete_temporary_file',
+    ],
+    vault: [
+        'save_credential',
+        'list_credentials',
+        'reveal_credential',
+        'generate_password',
+        'add_authenticator',
+        'get_totp_code',
+        'list_authenticators',
+        'delete_authenticator',
+    ],
+    payments: [
+        'create_test_wallet',
+        'wallet_balance',
+        'wallet_pay',
+        'list_wallet_transactions',
+        'create_test_paywall',
+        'create_test_checkout',
+        'complete_test_checkout',
+    ],
+} as const satisfies Record<string, readonly string[]>;
+export type ToolGroup = keyof typeof toolGroups;
+const groupNames = Object.keys(toolGroups) as ToolGroup[];
+
+/** Tool names a `?tools=` value selects, or undefined for every tool. */
+export function selectedTools(value: unknown): Set<string> | undefined {
+    if (value === undefined || value === '' || value === 'all') return undefined;
+    if (typeof value !== 'string')
+        throw new RpcError(-32602, `Use ?tools= once, with groups separated by commas.`);
+    const names = new Set<string>(toolGroups.core);
+    for (const raw of value.split(',')) {
+        const group = raw.trim().toLowerCase();
+        if (!group || group === 'core') continue;
+        if (group === 'all') return undefined;
+        if (!(group in toolGroups))
+            throw new RpcError(
+                -32602,
+                `Unknown tool group "${group.slice(0, 40)}". Use any of: ${groupNames.join(', ')}, or all. For example /mcp?tools=email,webhooks.`,
+            );
+        for (const name of toolGroups[group as ToolGroup]) names.add(name);
+    }
+    return names;
+}
 const object = (value: unknown): value is Record<string, unknown> =>
     !!value && typeof value === 'object' && !Array.isArray(value);
 const stringProperty = (description: string) => ({ type: 'string', description });
@@ -2692,6 +2801,9 @@ export function registerMcp({
             if (!config && body.method === 'tools/call' && typeof params.name === 'string')
                 calledTool = params.name.slice(0, 64);
             let response: unknown;
+            const groupFilter = config
+                ? undefined
+                : selectedTools((request.query as Record<string, unknown> | undefined)?.tools);
             switch (body.method) {
                 case 'initialize': {
                     if (
@@ -2719,7 +2831,7 @@ export function registerMcp({
                         serverInfo: { name: config?.name ?? 'Kivel', version: API_VERSION },
                         instructions: config
                             ? 'A Kivel mock MCP server. Tools, resources and prompts return configured fixtures.'
-                            : `${catalog.length} catalog tools across ${categories.length} categories: HTTP and webhooks, email, mocks and OAuth, files, monitors, memory, authenticators and vault credentials, test wallets and x402 paywalls and checkouts, jobs and status pages, test data and media, developer utilities, DNS and network. Use search_tools for the complete catalog, describe_tool for inputs and run_tool for utilities; use dedicated tools for resources. Utilities stay behind discovery, not in tools/list. Workspace-only features require an account. Keep credentials private, use cursor-based waits and use authenticators only for accounts the human authorized. Check capabilities and plan limits. A 402 needs the human to upgrade, not repeated retries.`,
+                            : `${catalog.length} catalog tools across ${categories.length} categories: HTTP and webhooks, email, mocks and OAuth, files, monitors, memory, authenticators and vault credentials, test wallets and x402 paywalls and checkouts, jobs and status pages, test data and media, developer utilities, DNS and network. Use search_tools for the complete catalog, describe_tool for inputs and run_tool for utilities; use dedicated tools for resources. Utilities stay behind discovery, not in tools/list. Workspace-only features require an account. Keep credentials private, use cursor-based waits and use authenticators only for accounts the human authorized. Check capabilities and plan limits. A 402 needs the human to upgrade, not repeated retries.${groupFilter ? ` This connection lists only some tool groups (${String((request.query as Record<string, unknown>).tools)} plus core). If you need email, phone, webhooks, mocks, monitors, memory, files, vault or payments tools that are missing, ask the human to add the group to the ?tools= parameter of the Kivel MCP URL, or remove it to load everything.` : ''}`,
                     };
                     break;
                 }
@@ -2735,7 +2847,9 @@ export function registerMcp({
                                       annotations: readonly,
                                   }),
                               )
-                            : advertisedTools,
+                            : groupFilter
+                              ? advertisedTools.filter((tool) => groupFilter.has(tool.name))
+                              : advertisedTools,
                     };
                     break;
                 case 'resources/list':
